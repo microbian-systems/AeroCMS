@@ -59,28 +59,30 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     {
         services.AddResponseCaching();
 
-        // ---- Distributed cache (L2) ----
-        // MemoryDistributedCache is an in-memory IDistributedCache fallback.
-        // When an external cache (Redis/Garnet) is configured, replace this with
-        // AddStackExchangeRedisCache() in the host's bootstrap config.
-        services.AddDistributedMemoryCache();
-
         // ---- Cache connection string ----
-        // Read from bootstrap config. Falls back to Memory mode (no external cache).
+        // The bootstrap layer resolves secrets and publishes the effective cache
+        // endpoint as ConnectionStrings:cache before modules are configured.
         var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Memory";
-
-        string? cacheString = cacheMode switch
+        var cacheString = config?.GetConnectionString("cache");
+        if (string.IsNullOrWhiteSpace(cacheString)
+            && cacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
-            "Embedded" => $"localhost:{config?.GetValue("Aero:Cache:Port", 33333)}",
-            _ => null
-        };
+            cacheString = $"localhost:{config?.GetValue("Aero:Cache:Port", 33333)}";
+        }
 
-        // Register Redis backplane in DI if we have a connection string
-        if (!string.IsNullOrWhiteSpace(cacheString))
+        // ---- Distributed cache (FusionCache L2) ----
+        // Garnet is Redis-protocol compatible. Memory mode deliberately remains
+        // process-local; Embedded and Server modes share L2 across web instances.
+        if (string.IsNullOrWhiteSpace(cacheString))
         {
-            services.AddFusionCacheStackExchangeRedisBackplane(opts =>
+            services.AddDistributedMemoryCache();
+        }
+        else
+        {
+            services.AddStackExchangeRedisCache(options =>
             {
-                opts.Configuration = cacheString;
+                options.Configuration = cacheString;
+                options.InstanceName = "aero:domain:";
             });
         }
 

@@ -18,8 +18,8 @@ internal static class ScribanFieldHelper
     /// </summary>
 public static string Accessor(string fieldName)
         => SafeName.IsMatch(fieldName)
-            ? "block." + fieldName
-            : "block[\"" + fieldName + "\"]";
+            ? "fields." + fieldName
+            : "fields[\"" + fieldName + "\"]";
 }
 
 internal sealed class TextFieldSnippet : IFieldTemplateSnippet

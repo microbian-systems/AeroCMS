@@ -32,7 +32,7 @@ public async Task<Result<string, AeroError>> RenderAsync(
             typeDefinition.Fields);
 
         using var schema = ContentTypeSchemaGenerator.GenerateSchema(typeDefinition);
-        using var data = CreateTemplateData(item.Fields);
+        var model = ScribanContentRenderModel.Create(typeDefinition, item);
         var definition = new ScribanRenderDefinition(
             typeDefinition.Id,
             Version: 1,
@@ -40,28 +40,11 @@ public async Task<Result<string, AeroError>> RenderAsync(
             JsonDocument.Parse(schema.RootElement.GetRawText()));
         try
         {
-            return await scribanRenderer.RenderAsync(definition, data, ct);
+            return await scribanRenderer.RenderAsync(definition, model, ct);
         }
         finally
         {
             definition.DataSchema?.Dispose();
         }
-    }
-
-    private static JsonDocument CreateTemplateData(IReadOnlyDictionary<string, JsonElement> fields)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            writer.WriteStartObject();
-            foreach (var (name, value) in fields.OrderBy(static field => field.Key, StringComparer.Ordinal))
-            {
-                writer.WritePropertyName(name);
-                value.WriteTo(writer);
-            }
-            writer.WriteEndObject();
-        }
-
-        return JsonDocument.Parse(stream.ToArray());
     }
 }

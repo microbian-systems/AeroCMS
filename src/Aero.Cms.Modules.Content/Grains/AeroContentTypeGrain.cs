@@ -5,8 +5,8 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Modules.Content.Events;
 using Microsoft.Extensions.DependencyInjection;
-using Wolverine;
 
 namespace Aero.Cms.Modules.Content.Grains;
 
@@ -34,7 +34,7 @@ public AeroContentTypeGrain(
     /// </summary>
 public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var result = await service.GetAllAsync(siteId, ct);
@@ -51,7 +51,7 @@ public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, Cancellat
     /// </summary>
 public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var result = await service.GetByAliasAsync(siteId, alias, ct);
@@ -67,7 +67,7 @@ public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string ali
     /// </summary>
 public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var definition = ToEntity(vm, isNew: true);
@@ -76,8 +76,8 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(Content
         if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
         {
             var viewModel = MapToViewModel(ok.Value);
-            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-            await bus.PublishAsync(new ContentTypeViewModelCreated(viewModel));
+            var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
+            await events.PublishBestEffortAsync(new ContentTypeViewModelCreated(viewModel));
             return Ok(viewModel);
         }
 
@@ -93,7 +93,7 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(Content
     /// </summary>
 public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var definition = ToEntity(vm, isNew: false);
@@ -102,8 +102,8 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(Content
         if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
         {
             var viewModel = MapToViewModel(ok.Value);
-            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-            await bus.PublishAsync(new ContentTypeViewModelUpdated(viewModel));
+            var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
+            await events.PublishBestEffortAsync(new ContentTypeViewModelUpdated(viewModel));
             return Ok(viewModel);
         }
 
@@ -119,7 +119,7 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(Content
     /// </summary>
 public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var existing = await service.GetByAliasAsync(siteId, alias, ct);
@@ -130,8 +130,8 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
         if (result is Result<bool, AeroError>.Ok deleteOk && deleteOk.Value)
         {
             var viewModel = MapToViewModel(ok.Value);
-            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-            await bus.PublishAsync(new ContentTypeViewModelDeleted(viewModel));
+            var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
+            await events.PublishBestEffortAsync(new ContentTypeViewModelDeleted(viewModel));
             return true;
         }
 

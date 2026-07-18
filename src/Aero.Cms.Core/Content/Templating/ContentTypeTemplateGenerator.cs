@@ -41,8 +41,8 @@ public static string GenerateTemplate(ContentTypeDefinition definition, IEnumera
     /// </summary>
 public static string ScribanAccessor(string fieldName)
         => SafeName.IsMatch(fieldName)
-            ? "block." + fieldName
-            : "block[\"" + fieldName + "\"]";
+            ? "fields." + fieldName
+            : "fields[\"" + fieldName + "\"]";
 
         /// <summary>
     /// NormalizeFieldAccessors method.
@@ -54,7 +54,7 @@ public static string NormalizeFieldAccessors(
         foreach (var field in fields.Where(field => !SafeName.IsMatch(field.Name)))
         {
             template = template.Replace(
-                "block." + field.Name,
+                "fields." + field.Name,
                 ScribanAccessor(field.Name),
                 StringComparison.Ordinal);
         }

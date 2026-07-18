@@ -3,13 +3,17 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Modules.Cache;
+using Aero.Cms.Modules.Content.Caching;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
+using Aero.Cms.Modules.Content.Events;
 using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Content;
@@ -46,7 +50,7 @@ public override string Description => "Runtime-defined content types with Scriba
         /// <summary>
     /// Gets or sets the Dependencies.
     /// </summary>
-public override IReadOnlyList<string> Dependencies => [];
+public override IReadOnlyList<string> Dependencies => [nameof(CacheModule)];
 
         /// <summary>
     /// Gets or sets the Category.
@@ -65,6 +69,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+        services.AddScoped<ContentCacheInvalidator>();
+        services.AddScoped<ContentEventPublisher>();
+        services.Replace(ServiceDescriptor.Scoped<IContentTypeService, CachedContentTypeService>());
+        services.Replace(ServiceDescriptor.Scoped<IContentService, CachedContentService>());
 
         // Public URL rendering for content types
         services.AddScoped<ContentTypeUrlRenderer>();
@@ -106,7 +114,8 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
-            .UniqueIndex(x => new { x.SiteId, x.Alias });
+            .UniqueIndex(x => new { x.SiteId, x.Alias })
+            .Field("render_mode", field => field.Remove = true);
 
         opts.Schema.For<ContentItem>()
             .Index(x => x.SiteId)

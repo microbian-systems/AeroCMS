@@ -11,19 +11,110 @@ public static class JsonToScribanMapper
         /// <summary>
     /// CreateGlobals method.
     /// </summary>
-public static ScriptObject CreateGlobals(JsonDocument? data, int maxDepth)
+public static ScriptObject CreateGlobals(
+    ScribanContentRenderModel model,
+    int maxDepth,
+    IReadOnlyDictionary<string, ScriptObject>? imports = null)
     {
+        ArgumentNullException.ThrowIfNull(model);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
 
         var globals = new ScriptObject
         {
-            ["block"] = data is null
-                ? new ScriptObject()
-                : ConvertElement(data.RootElement, 0, maxDepth)
+            ["fields"] = ConvertElement(model.Fields, 0, maxDepth),
+            ["item"] = CreateItemScope(model.Item, maxDepth),
+            ["content_type"] = CreateContentTypeScope(model.ContentType, maxDepth),
+            ["site"] = CreateSiteScope(model.Site)
         };
+
+        SetReadOnly(globals, "fields");
+        SetReadOnly(globals, "item");
+        SetReadOnly(globals, "content_type");
+        SetReadOnly(globals, "site");
+
+        if (imports is not null)
+        {
+            foreach (var (name, value) in imports)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    throw new InvalidOperationException("Scriban import names cannot be empty.");
+                }
+
+                if (globals.Contains(name))
+                {
+                    throw new InvalidOperationException(
+                        $"Scriban import name '{name}' conflicts with a reserved content scope.");
+                }
+
+                ArgumentNullException.ThrowIfNull(value);
+                globals[name] = value.Clone(deep: true);
+                SetReadOnly(globals, name);
+            }
+        }
 
         return globals;
     }
+
+    private static ScriptObject CreateItemScope(
+        ScribanContentItemRenderScope item,
+        int maxDepth) =>
+        new()
+        {
+            ["id"] = item.Id,
+            ["slug"] = item.Slug,
+            ["title"] = item.Title,
+            ["culture"] = item.Culture,
+            ["publication_state"] = item.PublicationState,
+            ["version"] = item.Version,
+            ["created_on"] = item.CreatedOn,
+            ["modified_on"] = item.ModifiedOn,
+            ["published_on"] = item.PublishedOn,
+            ["fields"] = ConvertElement(item.Fields, 0, maxDepth)
+        };
+
+    private static ScriptObject CreateContentTypeScope(
+        ScribanContentTypeRenderScope contentType,
+        int maxDepth)
+    {
+        var fields = new ScriptArray();
+        foreach (var field in contentType.Fields)
+        {
+            fields.Add(new ScriptObject
+            {
+                ["name"] = field.Name,
+                ["field_type"] = field.FieldType,
+                ["label"] = field.Label,
+                ["required"] = field.Required,
+                ["default_value"] = field.DefaultValue,
+                ["placeholder"] = field.Placeholder,
+                ["settings"] = ConvertElement(field.Settings, 0, maxDepth)
+            });
+        }
+
+        return new ScriptObject
+        {
+            ["id"] = contentType.Id,
+            ["alias"] = contentType.Alias,
+            ["name"] = contentType.Name,
+            ["description"] = contentType.Description,
+            ["category"] = contentType.Category,
+            ["fields"] = fields
+        };
+    }
+
+    private static ScriptObject CreateSiteScope(ScribanSiteRenderScope site) =>
+        new()
+        {
+            ["id"] = site.Id,
+            ["current_culture"] = site.CurrentCulture,
+            ["name"] = site.Name,
+            ["default_culture"] = site.DefaultCulture,
+            ["base_url"] = site.BaseUrl
+        };
+
+    private static void SetReadOnly(ScriptObject globals, string name) =>
+        globals.SetReadOnly(name, readOnly: true);
 
     private static object? ConvertElement(JsonElement element, int depth, int maxDepth)
     {

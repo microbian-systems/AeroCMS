@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
+using System.Globalization;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -35,12 +36,24 @@ public async Task<Result<ContentItem, AeroError>> GetBySlugAsync(long siteId, st
         /// <summary>
     /// GetBySlugAndTypeAsync method.
     /// </summary>
-public async Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(long siteId, string contentTypeAlias, string slug, CancellationToken ct = default)
+public async Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(
+    long siteId,
+    string contentTypeAlias,
+    string culture,
+    string slug,
+    CancellationToken ct = default)
     {
+        var normalizedCulture = NormalizeCulture(culture);
         var item = await session.Query<ContentItem>()
-            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.ContentTypeAlias == contentTypeAlias && x.Slug == slug, ct);
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == siteId &&
+                x.ContentTypeAlias == contentTypeAlias &&
+                x.Culture == normalizedCulture &&
+                x.Slug == slug,
+                ct);
         return item is null
-            ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item with slug '{slug}' not found in type '{contentTypeAlias}'."))
+            ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError(
+                $"Content item with slug '{slug}' and culture '{normalizedCulture}' not found in type '{contentTypeAlias}'."))
             : Prelude.Ok<ContentItem, AeroError>(item);
     }
 
@@ -69,4 +82,9 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);
     }
+
+    private static string NormalizeCulture(string? culture) =>
+        string.IsNullOrWhiteSpace(culture)
+            ? "en-US"
+            : CultureInfo.GetCultureInfo(culture.Trim()).Name;
 }

@@ -4,6 +4,7 @@ using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Content.Rendering;
 
@@ -20,9 +21,10 @@ public sealed class ContentTypeUrlRenderer(
     /// Renders a published content item by content type alias and entry slug.
     /// Returns Ok(html) on success, or an AeroError describing what went wrong.
     /// </summary>
-    public async Task<Result<string, AeroError>> RenderAsync(
+    public async Task<Result<PublicContentRenderResult, AeroError>> RenderAsync(
         long siteId,
         string typeAlias,
+        string culture,
         string entrySlug,
         CancellationToken ct = default)
     {
@@ -36,7 +38,13 @@ public sealed class ContentTypeUrlRenderer(
             return AeroError.CreateError($"Content type '{typeAlias}' does not allow public URLs.");
 
         // 2. Load the published content item by site, type, and slug
-        var itemResult = await contentService.GetBySlugAndTypeAsync(siteId, typeAlias, entrySlug, ct);
+        var normalizedCulture = CultureInfo.GetCultureInfo(culture).Name;
+        var itemResult = await contentService.GetBySlugAndTypeAsync(
+            siteId,
+            typeAlias,
+            normalizedCulture,
+            entrySlug,
+            ct);
         if (itemResult is Result<ContentItem, AeroError>.Failure)
             return AeroError.CreateError($"Entry '{entrySlug}' was not found in '{typeAlias}'.");
 
@@ -44,6 +52,18 @@ public sealed class ContentTypeUrlRenderer(
         if (item.PublicationState != ContentPublicationState.Published)
             return AeroError.CreateError("This entry is not published.");
 
-        return await itemRenderer.RenderAsync(type, item, ct);
+        var htmlResult = await itemRenderer.RenderAsync(type, item, ct);
+        return htmlResult switch
+        {
+            Result<string, AeroError>.Ok html => Prelude.Ok<PublicContentRenderResult, AeroError>(
+                new PublicContentRenderResult(html.Value, item.Id, item.Culture)),
+            Result<string, AeroError>.Failure failure => failure.Error,
+            _ => AeroError.CreateError("Content rendering failed.")
+        };
     }
 }
+
+/// <summary>
+/// Public rendered content plus the stable metadata needed for output-cache tags.
+/// </summary>
+public sealed record PublicContentRenderResult(string Html, long ItemId, string Culture);

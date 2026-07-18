@@ -23,8 +23,12 @@ public static class ContentServiceExtensions
     public static IServiceCollection AddContentTypeSystem(this IServiceCollection services)
     {
         // Core services
-        services.AddScoped<IContentTypeService, AeroContentTypeService>();
-        services.AddScoped<IContentService, AeroContentService>();
+        services.AddScoped<AeroContentTypeService>();
+        services.AddScoped<IContentTypeService>(
+            static provider => provider.GetRequiredService<AeroContentTypeService>());
+        services.AddScoped<AeroContentService>();
+        services.AddScoped<IContentService>(
+            static provider => provider.GetRequiredService<AeroContentService>());
         services.AddScoped<IContentQueryService, AeroContentQueryService>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();

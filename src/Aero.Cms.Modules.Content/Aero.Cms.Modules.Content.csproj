@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
   </ItemGroup>
 
   <ItemGroup>

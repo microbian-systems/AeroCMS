@@ -272,12 +272,17 @@ protected override async Task OnInitializedAsync()
         foreach (var field in Fields)
         {
             sb.AppendLine($"""  <section class="aero-field aero-field-{field.FieldType}">""");
-            sb.AppendLine($"    {{{{ block.{field.Name} }}}}");
+            sb.AppendLine($"    {{{{ {ScribanFieldAccessor(field.Name)} }}}}");
             sb.AppendLine("  </section>");
         }
         sb.AppendLine("</article>");
         ScribanTemplate = sb.ToString();
     }
+
+    private static string ScribanFieldAccessor(string fieldName) =>
+        Regex.IsMatch(fieldName, "^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.CultureInvariant)
+            ? $"fields.{fieldName}"
+            : $"fields[\"{fieldName.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"]";
 
     private async Task SaveAsync()
     {

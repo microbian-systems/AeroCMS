@@ -1,41 +1,23 @@
 namespace Aero.Cms.Core.Content.Templating;
 
 /// <summary>
+/// Defines the capabilities granted to a CMS-authored Scriban template.
+/// </summary>
+public enum ScribanTemplateTrustPolicy
+{
+    /// <summary>
+    /// Enables Scriban's safe registered built-ins, local functions, and
+    /// imports from explicitly supplied script objects. Dynamic evaluation,
+    /// filesystem/network includes, and relaxed CLR access remain disabled.
+    /// </summary>
+    FullCmsTemplate
+}
+
+/// <summary>
 /// Runtime guardrails for user-authored Scriban templates.
 /// </summary>
 public sealed record SecureScribanTemplateOptions
 {
-    private static readonly HashSet<string> DefaultAllowedFunctionNames =
-    [
-        "array.first",
-        "array.last",
-        "array.size",
-        "html.escape",
-        "html.newline_to_br",
-        "html.strip",
-        "math.abs",
-        "math.ceil",
-        "math.floor",
-        "math.round",
-        "string.append",
-        "string.capitalize",
-        "string.contains",
-        "string.downcase",
-        "string.ends_with",
-        "string.handleize",
-        "string.prepend",
-        "string.replace",
-        "string.size",
-        "string.slice",
-        "string.split",
-        "string.starts_with",
-        "string.strip",
-        "string.strip_newlines",
-        "string.truncate",
-        "string.truncatewords",
-        "string.upcase"
-    ];
-
         /// <summary>
     /// Gets or sets the Max Template Length Bytes.
     /// </summary>
@@ -76,17 +58,11 @@ public int MaxInputDepth { get; init; } = 10;
     /// </summary>
 public int MaxOutputLength { get; init; } = 1_048_576;
 
-        /// <summary>
-    /// Gets or sets the Allow All Functions.
-    /// </summary>
-public bool AllowAllFunctions { get; init; }
-
     /// <summary>
-    /// Fully qualified Scriban function names that user-authored templates may call.
-    /// Defaults to a curated, deterministic subset of Scriban string, array, html,
-    /// and math helpers. Riskier groups such as object, regex, date.now, imports,
-    /// and user-declared functions are not included.
+    /// Gets the named template capability policy. Runtime safety is enforced
+    /// through explicit ScriptObject inputs, disabled relaxed CLR access, a
+    /// null template loader, sanitization, and resource limits.
     /// </summary>
-    public IReadOnlySet<string> AllowedFunctionNames { get; init; } =
-        new HashSet<string>(DefaultAllowedFunctionNames, StringComparer.OrdinalIgnoreCase);
+    public ScribanTemplateTrustPolicy TrustPolicy { get; init; } =
+        ScribanTemplateTrustPolicy.FullCmsTemplate;
 }

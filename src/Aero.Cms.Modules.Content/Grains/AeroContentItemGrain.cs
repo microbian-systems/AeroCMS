@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
@@ -7,8 +8,8 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Modules.Content.Events;
 using Microsoft.Extensions.DependencyInjection;
-using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
 
 namespace Aero.Cms.Modules.Content.Grains;
@@ -58,7 +59,7 @@ public Task UpdateStateAsync(ContentItemViewModel state, CancellationToken ct)
     /// </summary>
 public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
 
         var result = await contentService.LoadAsync(id, ct);
@@ -106,7 +107,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(IReques
     /// </summary>
 public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
 
@@ -117,8 +118,9 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id
         {
             if (existing is Result<ContentItem, AeroError>.Ok ok)
             {
-                var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-                await bus.PublishAsync(new ContentItemViewModelDeleted(MapToViewModel(ok.Value)));
+                var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
+                await events.PublishBestEffortAsync(
+                    new ContentItemViewModelDeleted(MapToViewModel(ok.Value)));
             }
             return Ok(new ContentItemViewModel());
         }
@@ -151,7 +153,7 @@ public Task<AeroRequestResponse<ContentItemViewModel>> GetBySlugAsync(long siteI
 public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByTypeAsync(
         long siteId, string contentTypeAlias, int skip, int take, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var queryService = scope.ServiceProvider.GetRequiredService<IContentQueryService>();
 
         var result = await queryService.GetByTypeAsync(siteId, contentTypeAlias, skip, take, ct);
@@ -168,7 +170,12 @@ public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByType
     /// </summary>
 public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        if (string.IsNullOrWhiteSpace(vm.Culture))
+        {
+            return Fail("Culture is required for content items.");
+        }
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
         var isNew = vm.Id == 0;
@@ -178,11 +185,11 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(Cont
         if (result is Result<ContentItem, AeroError>.Ok ok)
         {
             var viewModel = MapToViewModel(ok.Value);
-            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
             if (isNew)
-                await bus.PublishAsync(new ContentItemViewModelCreated(viewModel));
+                await events.PublishBestEffortAsync(new ContentItemViewModelCreated(viewModel));
             else
-                await bus.PublishAsync(new ContentItemViewModelUpdated(viewModel));
+                await events.PublishBestEffortAsync(new ContentItemViewModelUpdated(viewModel));
             return Ok(viewModel);
         }
 
@@ -198,7 +205,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(Cont
     /// </summary>
 public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
@@ -219,7 +226,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long i
     /// </summary>
 public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
@@ -291,7 +298,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
             Title = vm.Title,
             Slug = vm.Slug,
             TranslationGroupId = vm.TranslationGroupId,
-            Culture = vm.Culture,
+            Culture = CultureInfo.GetCultureInfo(vm.Culture).Name,
             SourceItemId = vm.SourceItemId,
             Fields = fields,
             PublicationState = vm.PublicationState,

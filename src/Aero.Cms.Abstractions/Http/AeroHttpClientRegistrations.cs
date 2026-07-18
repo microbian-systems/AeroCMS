@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Http.Resilience;
 
 namespace Aero.Cms.Abstractions.Http;
 
@@ -56,6 +57,7 @@ public static IServiceCollection AddAeroHttpClients(
                     options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
                     // Circuit breaker sampling must be ≥ 2× attempt timeout.
                     options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+                    options.Retry.DisableForUnsafeHttpMethods();
                 });
         });
 

@@ -1,10 +1,9 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Core.Security;
-using Microsoft.Extensions.Logging;
 using Scriban;
+using Scriban.Runtime;
 using Scriban.Syntax;
 
 namespace Aero.Cms.Core.Content.Templating;
@@ -48,10 +47,12 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
     /// <inheritdoc />
     public async Task<Result<string, AeroError>> RenderAsync(
         ScribanRenderDefinition definition,
-        JsonDocument? data,
-        CancellationToken cancellationToken = default)
+        ScribanContentRenderModel model,
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, ScriptObject>? imports = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(model);
 
         var validationResult = validator.Validate(definition.Template, definition.DataSchema);
         if (validationResult is Result<NoneType, AeroError>.Failure validationFailure)
@@ -59,7 +60,7 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
             return validationFailure.Error;
         }
 
-        var dataValidationResult = validator.ValidateData(data, definition.DataSchema);
+        var dataValidationResult = validator.ValidateData(model.Fields, definition.DataSchema);
         if (dataValidationResult is Result<NoneType, AeroError>.Failure dataValidationFailure)
         {
             return dataValidationFailure.Error;
@@ -71,8 +72,14 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
         try
         {
             var template = GetOrAddTemplate(definition);
-            var context = CreateContext(data, timeoutCts.Token);
+            var context = CreateContext(model, imports, timeoutCts.Token);
             var output = await template.RenderAsync(context);
+            if (output.Length > options.MaxOutputLength)
+            {
+                return AeroError.ValidationError(
+                    [$"Dynamic template output exceeds the {options.MaxOutputLength} character limit."]);
+            }
+
             return Prelude.Ok<string, AeroError>(htmlSanitizer.Sanitize(output));
         }
         catch (OperationCanceledException)
@@ -98,9 +105,12 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
             _ => Template.Parse(definition.Template));
     }
 
-    private TemplateContext CreateContext(JsonDocument? data, CancellationToken cancellationToken)
+    private TemplateContext CreateContext(
+        ScribanContentRenderModel model,
+        IReadOnlyDictionary<string, ScriptObject>? imports,
+        CancellationToken cancellationToken)
     {
-        var context = new TemplateContext
+        var context = new TemplateContext(CreateSafeBuiltinObject())
         {
             StrictVariables = options.StrictVariables,
             LoopLimit = options.LoopLimit,
@@ -114,11 +124,27 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
             EnableRelaxedTargetAccess = false,
             EnableRelaxedFunctionAccess = false,
             EnableRelaxedIndexerAccess = false,
+            MemberFilter = static _ => false,
             TemplateLoader = null
         };
 
-        context.PushGlobal(JsonToScribanMapper.CreateGlobals(data, options.MaxInputDepth));
+        context.PushGlobal(JsonToScribanMapper.CreateGlobals(model, options.MaxInputDepth, imports));
         return context;
+    }
+
+    private static ScriptObject CreateSafeBuiltinObject()
+    {
+        var builtins = (ScriptObject)TemplateContext.GetDefaultBuiltinObject().Clone(deep: true);
+        var objectFunctions = builtins.GetSafeValue<ScriptObject>("object")
+            ?? throw new InvalidOperationException("Scriban's object built-ins are unavailable.");
+
+        // Both functions parse and execute a new template string at runtime.
+        // Removing them keeps every executable AST behind validation, template
+        // size limits, and the renderer's resource boundaries.
+        objectFunctions.Remove("eval");
+        objectFunctions.Remove("eval_template");
+
+        return builtins;
     }
 
     private readonly record struct TemplateCacheKey(long DefinitionId, int Version, string Template);

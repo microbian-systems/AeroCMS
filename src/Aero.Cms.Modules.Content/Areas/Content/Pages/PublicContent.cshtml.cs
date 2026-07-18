@@ -5,12 +5,15 @@ using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 
 /// <summary>
 /// Represents a class for PublicContentModel.
 /// </summary>
+[OutputCache(PolicyName = "ContentPublicPolicy")]
 public sealed class PublicContentModel(
     ISiteContext siteContext,
     ContentTypeUrlRenderer renderer,
@@ -53,10 +56,11 @@ public async Task<IActionResult> OnGetAsync(
             var result = await renderer.RenderAsync(
                 siteContext.SiteId,
                 normalizedType,
+                CultureInfo.CurrentUICulture.Name,
                 normalizedSlug,
                 cancellationToken);
 
-            if (result is not Result<string, AeroError>.Ok ok)
+            if (result is not Result<PublicContentRenderResult, AeroError>.Ok ok)
             {
                 logger.LogInformation(
                     "Content type page {Type}/{Slug} was not rendered.",
@@ -66,7 +70,12 @@ public async Task<IActionResult> OnGetAsync(
             }
 
             Title = normalizedSlug.Replace('-', ' ');
-            RenderedHtml = ok.Value;
+            RenderedHtml = ok.Value.Html;
+            HttpContext.Items["AeroCms.SiteId"] = siteContext.SiteId;
+            HttpContext.Items["AeroCms.ContentItemId"] = ok.Value.ItemId;
+            HttpContext.Items["AeroCms.ContentTypeAlias"] = normalizedType;
+            HttpContext.Items["AeroCms.ContentItemSlug"] = normalizedSlug;
+            HttpContext.Items["AeroCms.ContentCulture"] = ok.Value.Culture;
             return Page();
         }
         catch (Exception exception)

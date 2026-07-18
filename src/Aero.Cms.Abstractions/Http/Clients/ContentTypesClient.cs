@@ -284,7 +284,8 @@ public record CreateContentItemRequest(
     string Slug,
     IReadOnlyDictionary<string, JsonElement> Fields,
     DateTimeOffset? SchedulePublishUtc,
-    DateTimeOffset? ScheduleUnpublishUtc);
+    DateTimeOffset? ScheduleUnpublishUtc,
+    string? Culture = null);
 
 /// <summary>
 /// Represents a record for ForkContentItemCultureRequest.

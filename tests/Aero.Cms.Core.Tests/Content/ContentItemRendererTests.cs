@@ -18,7 +18,20 @@ public sealed class ContentItemRendererTests
             Id = 101,
             SiteId = 7,
             Alias = "feature",
-            ScribanTemplate = "<article><h2>{{ block.title }}</h2><p>{{ block.summary }}</p></article>",
+            Name = "Feature",
+            Description = "Feature content",
+            Category = "Marketing",
+            ScribanTemplate =
+                """
+                <article>
+                  <h2>{{ fields.title }}</h2>
+                  <p>{{ fields.summary }}</p>
+                  <small>{{ item.id }}|{{ item.slug }}|{{ item.title }}|{{ item.culture }}|{{ item.publication_state }}|{{ item.version }}</small>
+                  <small>{{ content_type.id }}|{{ content_type.alias }}|{{ content_type.name }}|{{ content_type.description }}|{{ content_type.category }}</small>
+                  <small>{{ content_type.fields[0].name }}|{{ content_type.fields[0].field_type }}|{{ content_type.fields[0].required }}</small>
+                  <small>{{ site.id }}|{{ site.current_culture }}</small>
+                </article>
+                """,
             Fields =
             [
                 new() { Name = "title", FieldType = "text", Required = true },
@@ -30,6 +43,11 @@ public sealed class ContentItemRendererTests
             Id = 202,
             SiteId = type.SiteId,
             ContentTypeAlias = type.Alias,
+            Slug = "aero",
+            Title = "Aero Feature",
+            Culture = "en-US",
+            PublicationState = Aero.Cms.Abstractions.Enums.ContentPublicationState.Published,
+            VersionNumber = 4,
             Fields = new Dictionary<string, JsonElement>
             {
                 ["title"] = source.RootElement.GetProperty("title").Clone(),
@@ -44,6 +62,10 @@ public sealed class ContentItemRendererTests
         await Assert.That(ok).IsNotNull();
         await Assert.That(ok!.Value).Contains("<h2>Aero</h2>");
         await Assert.That(ok.Value).Contains("<p>Fast content</p>");
+        await Assert.That(ok.Value).Contains("202|aero|Aero Feature|en-US|Published|4");
+        await Assert.That(ok.Value).Contains("101|feature|Feature|Feature content|Marketing");
+        await Assert.That(ok.Value).Contains("title|text|true");
+        await Assert.That(ok.Value).Contains("7|en-US");
     }
 
     [Test]

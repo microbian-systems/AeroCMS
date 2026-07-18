@@ -54,18 +54,18 @@ public int PipelineOrder => 200;
     /// </summary>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        // TODO: Switch to Redis output cache store with AddStackExchangeRedisOutputCache()
-        // when a shared/distributed output cache is needed across server nodes.
-        // This replaces the in-process MemoryCache default with a Redis-backed store
-        // so cached responses survive restarts and are shared across multiple web instances.
-        //
-        // NuGet: Microsoft.AspNetCore.OutputCaching.StackExchangeRedis
-        //
-        // builder.Services.AddStackExchangeRedisOutputCache(options =>
-        // {
-        //     options.Configuration = config!.GetConnectionString("cache");
-        //     options.InstanceName = "AeroCmsOutput";
-        // });
+        var cacheString = config?.GetConnectionString("cache");
+        if (!string.IsNullOrWhiteSpace(cacheString))
+        {
+            // Output Cache intentionally uses its own Redis/Garnet store and key
+            // namespace. It must not be routed through IDistributedCache because
+            // output-cache tag eviction requires stronger atomic operations.
+            services.AddStackExchangeRedisOutputCache(options =>
+            {
+                options.Configuration = cacheString;
+                options.InstanceName = "aero:output:";
+            });
+        }
 
         services.AddOutputCache(options =>
         {
@@ -114,6 +114,15 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 builder.AddPolicy<CmsOutputCachePolicy>()
                        .Expire(TimeSpan.FromMinutes(10))
                        .Tag("docs-index"),
+                excludeDefaultPolicy: true);
+
+            // ── Runtime content types ─────────────────────────────────────
+            // Used by: PublicContentModel
+            // Route: /content/{typeAlias}/{entrySlug}
+            options.AddPolicy("ContentPublicPolicy", builder =>
+                builder.AddPolicy<CmsOutputCachePolicy>()
+                       .Expire(TimeSpan.FromMinutes(5))
+                       .Tag("content-public"),
                 excludeDefaultPolicy: true);
         });
     }

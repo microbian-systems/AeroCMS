@@ -8,15 +8,9 @@ namespace Aero.Cms.Modules.OutputCache.Caching;
 /// <summary>
 /// Custom output cache policy for CMS public pages.
 ///
-/// Based on the default <see cref="OutputCachePolicy"/> but removes the
-/// <c>Set-Cookie</c> check in <c>ServeResponseAsync</c>. This is necessary
-/// because <c>UseAntiforgery()</c> adds an antiforgery token cookie to every
-/// response, which would otherwise prevent the default policy from caching
-/// any public page.
-///
-/// The antiforgery cookie is a security token, not user-specific data, so it
-/// is safe to cache responses that contain it. Authenticated requests and
-/// non-GET/HEAD methods are still excluded from caching.
+/// Retains the security-sensitive rules from the default output-cache policy:
+/// authenticated requests, non-GET/HEAD methods, non-success responses, and
+/// responses that set cookies are never cached.
 /// </summary>
 public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 {
@@ -83,9 +77,8 @@ public CmsOutputCachePolicy()
     }
 
     /// <summary>
-    /// Called after the response is generated. Only caches HTTP 200 responses.
-    /// Unlike the default policy, it does NOT exclude responses with Set-Cookie
-    /// headers, since the antiforgery cookie is safe to cache alongside.
+    /// Called after the response is generated. Only caches HTTP 200 responses
+    /// that do not set cookies.
     ///
     /// Adds fine-grained per-page cache tags when the page model stored page
     /// context in <c>HttpContext.Items["AeroCms.PageContext"]</c>. This enables
@@ -106,11 +99,21 @@ public CmsOutputCachePolicy()
             return ValueTask.CompletedTask;
         }
 
+        // Never store or replay cookies from a shared output-cache entry.
+        // This covers authentication, consent, culture, session, experiments,
+        // antiforgery, and any cookies introduced by future middleware.
+        if (response.Headers.ContainsKey("Set-Cookie"))
+        {
+            context.AllowCacheStorage = false;
+            SetDiagnosticHeader(context, "BYPASS");
+            return ValueTask.CompletedTask;
+        }
+
         // Add per-page tags so individual pages can be evicted without
         // blowing away the entire pages-list cache. The page model stores
         // page ID and slug in HttpContext.Items during OnGetAsync under
         // "AeroCms.PageId" and "AeroCms.PageSlug" keys.
-        AddPerPageTags(context);
+        AddResourceTags(context);
 
         SetDiagnosticHeader(context, "MISS");
         return ValueTask.CompletedTask;
@@ -128,13 +131,15 @@ public CmsOutputCachePolicy()
     ///   "AeroCms.SiteId" → long (stored as boxed long)
     /// Both are set by DynamicPageModel.OnGetAsync after page load.
     /// </summary>
-    private static void AddPerPageTags(OutputCacheContext context)
+    private static void AddResourceTags(OutputCacheContext context)
     {
         var items = context.HttpContext.Items;
+        var hasPageMetadata = false;
 
         if (items["AeroCms.PageId"] is long id and > 0)
         {
             context.Tags.Add($"page-id-{id}");
+            hasPageMetadata = true;
         }
 
         if (items["AeroCms.PageSlug"] is string slug and { Length: > 0 })
@@ -142,11 +147,39 @@ public CmsOutputCachePolicy()
             var normalizedSlug = slug.ToLowerInvariant();
             context.Tags.Add($"page-slug-{normalizedSlug}");
             context.Tags.Add($"page-slug-{CultureInfo.CurrentUICulture.Name.ToLowerInvariant()}-{normalizedSlug}");
+            hasPageMetadata = true;
         }
 
         if (items["AeroCms.SiteId"] is long siteId and > 0)
         {
-            context.Tags.Add($"site-pages-{siteId}");
+            if (hasPageMetadata)
+            {
+                context.Tags.Add($"site-pages-{siteId}");
+            }
+
+            if (items["AeroCms.ContentTypeAlias"] is string contentTypeAlias &&
+                !string.IsNullOrWhiteSpace(contentTypeAlias))
+            {
+                var normalizedType = contentTypeAlias.Trim().ToLowerInvariant();
+                context.Tags.Add($"content-public:{siteId}");
+                context.Tags.Add($"content-type:{siteId}:{normalizedType}");
+
+                if (items["AeroCms.ContentItemId"] is long contentItemId and > 0)
+                {
+                    context.Tags.Add($"content-item:{siteId}:{contentItemId}");
+                }
+
+                if (items["AeroCms.ContentItemSlug"] is string contentSlug &&
+                    items["AeroCms.ContentCulture"] is string contentCulture &&
+                    !string.IsNullOrWhiteSpace(contentSlug) &&
+                    !string.IsNullOrWhiteSpace(contentCulture))
+                {
+                    context.Tags.Add(
+                        $"content-item-slug:{siteId}:{normalizedType}:" +
+                        $"{contentCulture.Trim().ToLowerInvariant()}:" +
+                        $"{contentSlug.Trim().Trim('/').ToLowerInvariant()}");
+                }
+            }
         }
     }
 

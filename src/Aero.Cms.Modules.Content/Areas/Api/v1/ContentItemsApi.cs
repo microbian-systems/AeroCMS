@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
@@ -123,6 +124,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 ContentTypeAlias = alias,
                 Title = request.Title,
                 Slug = request.Slug,
+                Culture = ResolveRequestCulture(request.Culture),
                 FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options),
                 SchedulePublishUtc = request.SchedulePublishUtc,
                 ScheduleUnpublishUtc = request.ScheduleUnpublishUtc
@@ -168,6 +170,10 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             existingVm.Title = request.Title;
             existingVm.Slug = request.Slug;
+            if (!string.IsNullOrWhiteSpace(request.Culture))
+            {
+                existingVm.Culture = ResolveRequestCulture(request.Culture);
+            }
             existingVm.FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options);
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;
@@ -183,6 +189,12 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             return TypedResults.Problem(ex.Message);
         }
     }
+
+    private static string ResolveRequestCulture(string? culture) =>
+        CultureInfo.GetCultureInfo(
+            string.IsNullOrWhiteSpace(culture)
+                ? CultureInfo.CurrentUICulture.Name
+                : culture).Name;
 
     private static async Task<IResult> DeleteContentItem(
         string alias, long id,

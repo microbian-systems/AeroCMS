@@ -47,7 +47,7 @@ public Result<NoneType, AeroError> Validate(string template, JsonDocument? schem
             return AeroError.ValidationError(parsed.Messages.Select(message => message.Message));
         }
 
-        var securityVisitor = new ScribanSecurityVisitor(options);
+        var securityVisitor = new ScribanSecurityVisitor();
         securityVisitor.Visit(parsed.Page);
         if (securityVisitor.Errors.Count > 0)
         {
@@ -60,12 +60,12 @@ public Result<NoneType, AeroError> Validate(string template, JsonDocument? schem
         /// <summary>
     /// ValidateData method.
     /// </summary>
-public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument? schema)
+    public Result<NoneType, AeroError> ValidateData(JsonElement data, JsonDocument? schema)
     {
         if (schema is null)
             return Prelude.Ok<NoneType, AeroError>(Prelude.None);
 
-        if (data is null || data.RootElement.ValueKind != JsonValueKind.Object)
+        if (data.ValueKind != JsonValueKind.Object)
             return AeroError.ValidationError(["Template data must be a JSON object."]);
 
         var errors = new List<string>();
@@ -77,7 +77,7 @@ public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument
             {
                 var fieldName = requiredField.GetString();
                 if (!string.IsNullOrWhiteSpace(fieldName) &&
-                    !data.RootElement.TryGetProperty(fieldName, out _))
+                    !data.TryGetProperty(fieldName, out _))
                 {
                     errors.Add($"Required field '{fieldName}' is missing.");
                 }
@@ -86,7 +86,7 @@ public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument
 
         if (schemaRoot.TryGetProperty("properties", out var properties))
         {
-            foreach (var property in data.RootElement.EnumerateObject())
+            foreach (var property in data.EnumerateObject())
             {
                 if (!properties.TryGetProperty(property.Name, out var propertySchema))
                 {
@@ -139,7 +139,7 @@ public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument
     [GeneratedRegex("\\son[a-zA-Z]+\\s*=", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
     private static partial Regex EventHandlerAttributeRegex();
 
-    private sealed class ScribanSecurityVisitor(SecureScribanTemplateOptions options) : ScriptVisitor
+    private sealed class ScribanSecurityVisitor : ScriptVisitor
     {
                 /// <summary>
         /// Gets or sets the Errors.
@@ -149,28 +149,15 @@ public List<string> Errors { get; } = [];
                 /// <summary>
         /// Visit method.
         /// </summary>
-public override void Visit(ScriptFunction node)
-        {
-            Errors.Add("Template function declarations are not allowed.");
-        }
-
-                /// <summary>
-        /// Visit method.
-        /// </summary>
-public override void Visit(ScriptImportStatement node)
-        {
-            Errors.Add("Template imports are not allowed.");
-        }
-
                 /// <summary>
         /// Visit method.
         /// </summary>
 public override void Visit(ScriptFunctionCall node)
         {
             var functionName = GetFunctionName(node.Target);
-            if (!IsAllowed(functionName))
+            if (IsDisallowedFunction(functionName, out var error))
             {
-                Errors.Add($"Template function '{functionName}' is not allowed.");
+                Errors.Add(error);
             }
 
             base.Visit(node);
@@ -182,42 +169,37 @@ public override void Visit(ScriptFunctionCall node)
 public override void Visit(ScriptPipeCall node)
         {
             var functionName = GetFunctionName(node.To);
-            if (!IsAllowed(functionName))
+            if (IsDisallowedFunction(functionName, out var error))
             {
-                Errors.Add($"Template pipe function '{functionName}' is not allowed.");
+                Errors.Add(error);
             }
 
             base.Visit(node);
         }
 
-        private bool IsAllowed(string functionName)
-        {
-            if (functionName.Contains('|', StringComparison.Ordinal))
-            {
-                return functionName
-                    .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .All(IsSingleFunctionAllowed);
-            }
+        private static bool IsInclude(string functionName) =>
+            functionName.Equals("include", StringComparison.OrdinalIgnoreCase) ||
+            functionName.StartsWith("include ", StringComparison.OrdinalIgnoreCase);
 
-            return IsSingleFunctionAllowed(functionName);
-        }
-
-        private bool IsSingleFunctionAllowed(string functionName)
+        private static bool IsDisallowedFunction(string functionName, out string error)
         {
-            if (options.AllowAllFunctions)
+            if (IsInclude(functionName))
             {
+                error =
+                    "Template includes are not supported. Use local functions or an explicitly supplied import scope.";
                 return true;
             }
 
-            if (options.AllowedFunctionNames.Contains(functionName))
+            if (functionName.Equals("object.eval", StringComparison.OrdinalIgnoreCase) ||
+                functionName.Equals("object.eval_template", StringComparison.OrdinalIgnoreCase))
             {
+                error =
+                    "Dynamic template evaluation is not supported. Template code must be validated before rendering.";
                 return true;
             }
 
-            return options.AllowedFunctionNames.Any(allowedFunction =>
-                functionName.StartsWith(allowedFunction, StringComparison.OrdinalIgnoreCase) &&
-                functionName.Length > allowedFunction.Length &&
-                char.IsWhiteSpace(functionName[allowedFunction.Length]));
+            error = string.Empty;
+            return false;
         }
 
         private static string GetFunctionName(ScriptExpression? expression)

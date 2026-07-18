@@ -20,7 +20,12 @@ Task<Result<ContentItem, AeroError>> GetBySlugAsync(long siteId, string slug, Ca
         /// <summary>
     /// GetBySlugAndTypeAsync method.
     /// </summary>
-Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(long siteId, string contentTypeAlias, string slug, CancellationToken ct = default);
+Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(
+    long siteId,
+    string contentTypeAlias,
+    string culture,
+    string slug,
+    CancellationToken ct = default);
         /// <summary>
     /// SaveAsync method.
     /// </summary>
