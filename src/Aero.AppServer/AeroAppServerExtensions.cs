@@ -74,7 +74,7 @@ public static class AeroAppServerExtensions
             services.AddHostedService<AeroEmbeddedDbService>();
         }
 
-        if (resolved.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        if (resolved.CacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase))
         {
             services.AddHostedService<AeroCacheService>();
         }

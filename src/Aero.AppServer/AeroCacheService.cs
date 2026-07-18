@@ -1,6 +1,5 @@
 using Garnet;
 using Aero.AppServer.Startup;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net.Sockets;
@@ -10,7 +9,6 @@ using System.Net;
 namespace Aero.AppServer;
 
 internal sealed class AeroCacheService(
-        IConfiguration config,
         ILogger<AeroCacheService> log,
         IInfrastructureReadinessSnapshot readiness,
         IMultiStartupSignal startupSignal) : BackgroundService
@@ -34,7 +32,7 @@ protected override Task ExecuteAsync(CancellationToken stoppingToken)
     /// </summary>
 public override Task StartAsync(CancellationToken cancellationToken)
     {
-        var port = config.GetValue("Aero:Cache:Port", AeroAppServerConstants.CachePort);
+        const int port = AeroAppServerConstants.CachePort;
 
         // 1. Define your limits in bytes/counts
         var indexSize = 128 * 1024 * 1024;       // 128 MB (Main Index)
@@ -79,12 +77,12 @@ public override Task StartAsync(CancellationToken cancellationToken)
                         await client.ConnectAsync(AeroAppServerConstants.CacheHost, port, cancellationToken);
                         readiness.GarnetReady = true;
                         startupSignal.MarkReady(StartupServiceNames.Garnet);
-                        log.LogInformation("Embedded Garnet cache is ready on port {Port}.", port);
+                        log.LogInformation("Local Garnet cache is ready on port {Port}.", port);
                         return;
                     }
                     catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                     {
-                        log.LogDebug(ex, "Embedded Garnet cache not ready yet on port {Port}.", port);
+                        log.LogDebug(ex, "Local Garnet cache not ready yet on port {Port}.", port);
                         await Task.Delay(500, cancellationToken);
                     }
                 }

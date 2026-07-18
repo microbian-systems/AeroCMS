@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -76,12 +77,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
             configureGrains: options.ConfigureGrains);
 
         var resolvedInfrastructure = new InfrastructureConnectionStringResolver(config).Resolve();
-        config["ConnectionStrings:aero"] = resolvedInfrastructure.DatabaseConnectionString;
-
-        if (!string.IsNullOrWhiteSpace(resolvedInfrastructure.CacheConnectionString))
-        {
-            config["ConnectionStrings:cache"] = resolvedInfrastructure.CacheConnectionString;
-        }
+        PublishResolvedInfrastructure(config, resolvedInfrastructure);
 
         services.AddControllersWithViews();
         services.AddAuthentication(authentication =>
@@ -158,7 +154,10 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         });
         services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
-        var (_, log) = await builder.AddAeroCmsRuntimeAsync<TProgram>(options.ModuleDescriptors);
+        var (_, log) = await builder.AddAeroCmsRuntimeAsync<TProgram>(
+            options.ModuleDescriptors,
+            configureResolvedInfrastructure: runtimeConfig =>
+                PublishResolvedInfrastructure(runtimeConfig, resolvedInfrastructure));
         services.AddSingleton(options.ModuleDescriptors);
         services.AddSingleton(options);
 
@@ -170,6 +169,14 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         }
 
         return (builder, log);
+    }
+
+    private static void PublishResolvedInfrastructure(
+        ConfigurationManager configuration,
+        ResolvedInfrastructureSettings resolvedInfrastructure)
+    {
+        configuration["ConnectionStrings:aero"] = resolvedInfrastructure.DatabaseConnectionString;
+        configuration["ConnectionStrings:cache"] = resolvedInfrastructure.CacheConnectionString;
     }
 
         /// <summary>

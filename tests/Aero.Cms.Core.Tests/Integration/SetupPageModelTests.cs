@@ -80,11 +80,19 @@ public class SetupPageModelTests
     }
 
     [Test]
-    public async Task Embedded_cache_mode_does_not_block_step_3_progression_on_readiness()
+    public async Task Setup_input_defaults_cache_mode_to_local_garnet()
+    {
+        var input = new SetupInput();
+
+        await Assert.That(input.CacheMode).IsEqualTo("Local");
+    }
+
+    [Test]
+    public async Task Local_cache_mode_does_not_block_step_3_progression_on_readiness()
     {
         var model = CreateModel();
         model.CurrentStep = 3;
-        model.Input.CacheMode = "Embedded";
+        model.Input.CacheMode = "Local";
 
         await model.NextStep();
 
@@ -147,7 +155,7 @@ public class SetupPageModelTests
             Input = new SetupInput
             {
                 DatabaseMode = "Embedded",
-                CacheMode = "Memory",
+                CacheMode = "Local",
                 SecretProvider = "Local Certificate",
                 AdminUserName = "admin.user",
                 AdminEmail = "admin@example.com",

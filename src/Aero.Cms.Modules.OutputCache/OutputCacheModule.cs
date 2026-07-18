@@ -54,18 +54,35 @@ public int PipelineOrder => 200;
     /// </summary>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Local";
         var cacheString = config?.GetConnectionString("cache");
-        if (!string.IsNullOrWhiteSpace(cacheString))
+        if (string.IsNullOrWhiteSpace(cacheString)
+            && cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase))
         {
-            // Output Cache intentionally uses its own Redis/Garnet store and key
-            // namespace. It must not be routed through IDistributedCache because
-            // output-cache tag eviction requires stronger atomic operations.
-            services.AddStackExchangeRedisOutputCache(options =>
-            {
-                options.Configuration = cacheString;
-                options.InstanceName = "aero:output:";
-            });
+            cacheString = "localhost:33333";
         }
+
+        if (!cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase)
+            && !cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported cache mode '{cacheMode}'. Expected 'Local' or 'Server'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(cacheString))
+        {
+            throw new InvalidOperationException(
+                $"Cache mode '{cacheMode}' requires a Redis-compatible connection string.");
+        }
+
+        // Output Cache intentionally uses its own Redis/Garnet store and key
+        // namespace. It must not be routed through IDistributedCache because
+        // output-cache tag eviction requires stronger atomic operations.
+        services.AddStackExchangeRedisOutputCache(options =>
+        {
+            options.Configuration = cacheString;
+            options.InstanceName = "aero:output:";
+        });
 
         services.AddOutputCache(options =>
         {

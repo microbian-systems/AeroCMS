@@ -49,14 +49,15 @@ public ResolvedInfrastructureSettings Resolve()
         var isSetupMode = string.Equals(state, "Setup", StringComparison.OrdinalIgnoreCase);
 
         var databaseMode = bootstrap["DatabaseMode"] ?? "Embedded";
-        var cacheMode = bootstrap["CacheMode"] ?? "Memory";
+        var cacheMode = bootstrap["CacheMode"] ?? AeroAppServerConstants.LocalCacheMode;
         var secretProvider = bootstrap["SecretProvider"] ?? "Local Certificate";
+        ValidateCacheMode(cacheMode);
 
         if (isSetupMode)
         {
-            var cacheConn = cacheMode.Equals("Memory", StringComparison.OrdinalIgnoreCase)
-                ? null
-                : AeroAppServerConstants.CacheUrl;
+            var cacheConn = cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase)
+                ? AeroAppServerConstants.CacheUrl
+                : null;
             return new ResolvedInfrastructureSettings(
                 embedded.ConnectionString,
                 cacheConn,
@@ -84,13 +85,22 @@ public ResolvedInfrastructureSettings Resolve()
 
     private string? ResolveCache(string cacheMode, string secretProvider, IConfigurationSection bootstrap, bool hasBootstrap, ISecretManager secretManager)
     {
-        if (cacheMode.Equals("Memory", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        if (cacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        if (cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase))
             return AeroAppServerConstants.CacheUrl;
 
         return ResolveServerValue("cache", "CacheConnectionStringReference", bootstrap, secretProvider, "cache", secretManager);
+    }
+
+    private static void ValidateCacheMode(string cacheMode)
+    {
+        if (cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase)
+            || cacheMode.Equals(AeroAppServerConstants.ServerCacheMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported cache mode '{cacheMode}'. Expected '{AeroAppServerConstants.LocalCacheMode}' or '{AeroAppServerConstants.ServerCacheMode}'.");
     }
 
     private (string? username, string? password) ResolveDatabaseCredentials(

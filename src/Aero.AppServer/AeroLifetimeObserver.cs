@@ -15,7 +15,7 @@ public Task StartAsync(CancellationToken cancellationToken)
             log.LogInformation("Aero.AppServer has fully started."));
 
         lifetime.ApplicationStopping.Register(() =>
-            log.LogInformation("Aero.AppServer is stopping... Cleaning up Orleans and Garnet."));
+            log.LogInformation("Aero.AppServer is stopping... Cleaning up hosted application services."));
 
         lifetime.ApplicationStopped.Register(() =>
             log.LogInformation("Aero.AppServer is fully stopped."));

@@ -231,9 +231,8 @@
                                     <div class="space-y-2">
                                         <label class="text-xs font-bold text-slate-700">@L["Cache Mode"]</label>
                                         <InputSelect @bind-Value="Input.CacheMode" class="@GetFieldClass("Input.CacheMode")">
-                                            <option value="Memory">Memory</option>
-                                            <option value="Embedded">Embedded</option>
-                                            <option value="Server">Server</option>
+                                            <option value="Local">Local (in-process Garnet)</option>
+                                            <option value="Server">Server (remote Redis-compatible cache)</option>
                                         </InputSelect>
                                     </div>
 
@@ -241,7 +240,7 @@
                                     {
                                         <div class="space-y-2">
                                             <label class="text-xs font-bold text-slate-700">@L["Cache connection string"]</label>
-                                            <InputText @bind-Value="Input.CacheConnectionString" class="@GetFieldClass("Input.CacheConnectionString")" placeholder="cache-host=..."/>
+                                            <InputText @bind-Value="Input.CacheConnectionString" class="@GetFieldClass("Input.CacheConnectionString")" placeholder="cache-host:6379"/>
                                         </div>
                                     }
                                 </div>

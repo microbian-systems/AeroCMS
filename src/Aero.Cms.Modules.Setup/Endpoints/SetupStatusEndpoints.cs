@@ -1,3 +1,4 @@
+using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -25,7 +26,10 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
             var aeroDbReady = readiness?.AeroDbReady ?? false;
             var garnetReady = readiness?.GarnetReady ?? false;
             var requiresAeroDb = string.Equals(bootstrap.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase);
-            var requiresGarnet = string.Equals(bootstrap.CacheMode, "Embedded", StringComparison.OrdinalIgnoreCase);
+            var requiresGarnet = string.Equals(
+                bootstrap.CacheMode,
+                AeroAppServerConstants.LocalCacheMode,
+                StringComparison.OrdinalIgnoreCase);
 
             return Results.Ok(new
             {

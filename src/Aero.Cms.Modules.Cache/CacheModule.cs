@@ -62,29 +62,35 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // ---- Cache connection string ----
         // The bootstrap layer resolves secrets and publishes the effective cache
         // endpoint as ConnectionStrings:cache before modules are configured.
-        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Memory";
+        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Local";
         var cacheString = config?.GetConnectionString("cache");
         if (string.IsNullOrWhiteSpace(cacheString)
-            && cacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+            && cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase))
         {
-            cacheString = $"localhost:{config?.GetValue("Aero:Cache:Port", 33333)}";
+            cacheString = "localhost:33333";
+        }
+
+        if (!cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase)
+            && !cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported cache mode '{cacheMode}'. Expected 'Local' or 'Server'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(cacheString))
+        {
+            throw new InvalidOperationException(
+                $"Cache mode '{cacheMode}' requires a Redis-compatible connection string.");
         }
 
         // ---- Distributed cache (FusionCache L2) ----
-        // Garnet is Redis-protocol compatible. Memory mode deliberately remains
-        // process-local; Embedded and Server modes share L2 across web instances.
-        if (string.IsNullOrWhiteSpace(cacheString))
+        // Local mode points at the in-process Garnet server; Server mode points
+        // at the configured remote Redis-compatible endpoint.
+        services.AddStackExchangeRedisCache(options =>
         {
-            services.AddDistributedMemoryCache();
-        }
-        else
-        {
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = cacheString;
-                options.InstanceName = "aero:domain:";
-            });
-        }
+            options.Configuration = cacheString;
+            options.InstanceName = "aero:domain:";
+        });
 
         // ---- FusionCache ----
         var cacheBuilder = services.AddFusionCache()
@@ -95,13 +101,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             .WithSystemTextJsonSerializer()
             .WithRegisteredDistributedCache(ignoreMemoryDistributedCache: false);
 
-        if (!string.IsNullOrWhiteSpace(cacheString))
+        cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
         {
-            cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
-            {
-                Configuration = cacheString
-            }));
-        }
+            Configuration = cacheString
+        }));
 
         // ---- Page caching hooks ----
         services.AddSingleton<ICacheInvalidationService, FusionCacheInvalidationService>();

@@ -3,6 +3,8 @@ using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -17,7 +19,7 @@ public class BootstrapConfigurationTests
                 ["AeroCms:Bootstrap:State"] = BootstrapStates.Setup,
                 ["AeroCms:Bootstrap:HasBootstrapConfig"] = "false",
                 ["AeroCms:Bootstrap:DatabaseMode"] = "Embedded",
-                ["AeroCms:Bootstrap:CacheMode"] = "Memory",
+                ["AeroCms:Bootstrap:CacheMode"] = "Local",
                 ["AeroCms:Bootstrap:SecretProvider"] = "Local Certificate"
             })
             .Build();
@@ -62,7 +64,7 @@ public class BootstrapConfigurationTests
                 ["AeroCms:Bootstrap:State"] = BootstrapStates.Setup,
                 ["AeroCms:Bootstrap:HasBootstrapConfig"] = "false",
                 ["AeroCms:Bootstrap:DatabaseMode"] = "Embedded",
-                ["AeroCms:Bootstrap:CacheMode"] = "Memory",
+                ["AeroCms:Bootstrap:CacheMode"] = "Local",
                 ["AeroCms:Bootstrap:SecretProvider"] = "Local Certificate"
             })
             .Build();
@@ -70,10 +72,71 @@ public class BootstrapConfigurationTests
         var resolved = new InfrastructureConnectionStringResolver(config).Resolve();
 
         resolved.DatabaseConnectionString.Should().Be("surrealkv://App_Data/aerodb-surrealkv");
-        resolved.CacheConnectionString.Should().BeNull();
+        resolved.CacheConnectionString.Should().Be(AeroAppServerConstants.CacheUrl);
         resolved.DatabaseMode.Should().Be("Embedded");
-        resolved.CacheMode.Should().Be("Memory");
+        resolved.CacheMode.Should().Be(AeroAppServerConstants.LocalCacheMode);
 
         await Task.CompletedTask;
 }
+
+    [Test]
+    public void Infrastructure_resolver_rejects_removed_memory_cache_mode()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AeroCms:Bootstrap:State"] = BootstrapStates.Setup,
+                ["AeroCms:Bootstrap:HasBootstrapConfig"] = "false",
+                ["AeroCms:Bootstrap:DatabaseMode"] = "Embedded",
+                ["AeroCms:Bootstrap:CacheMode"] = "Memory",
+                ["AeroCms:Bootstrap:SecretProvider"] = "Local Certificate"
+            })
+            .Build();
+
+        var action = () => new InfrastructureConnectionStringResolver(config).Resolve();
+
+        action.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*Expected 'Local' or 'Server'*");
+    }
+
+    [Test]
+    public async Task Local_cache_mode_registers_the_in_process_garnet_host()
+    {
+        var builder = CreateApplicationServerBuilder(AeroAppServerConstants.LocalCacheMode);
+
+        await builder.AddAeroApplicationServer();
+
+        builder.Services.Should().Contain(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType != null
+            && descriptor.ImplementationType.Name == "AeroCacheService");
+    }
+
+    [Test]
+    public async Task Server_cache_mode_does_not_register_the_in_process_garnet_host()
+    {
+        var builder = CreateApplicationServerBuilder(AeroAppServerConstants.ServerCacheMode);
+
+        await builder.AddAeroApplicationServer();
+
+        builder.Services.Should().NotContain(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType != null
+            && descriptor.ImplementationType.Name == "AeroCacheService");
+    }
+
+    private static HostApplicationBuilder CreateApplicationServerBuilder(string cacheMode)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AeroCms:Bootstrap:State"] = BootstrapStates.Setup,
+            ["AeroCms:Bootstrap:HasBootstrapConfig"] = "false",
+            ["AeroCms:Bootstrap:DatabaseMode"] = "Embedded",
+            ["AeroCms:Bootstrap:CacheMode"] = cacheMode,
+            ["AeroCms:Bootstrap:SecretProvider"] = "Local Certificate"
+        });
+        return builder;
+    }
 }

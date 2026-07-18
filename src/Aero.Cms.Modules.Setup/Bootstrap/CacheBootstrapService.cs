@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Aero.AppServer;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
@@ -17,9 +18,24 @@ public sealed class CacheBootstrapService(
         /// <summary>
     /// PersistAsync method.
     /// </summary>
-public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
+    public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
+        if (!model.CacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase)
+            && !model.CacheMode.Equals(AeroAppServerConstants.ServerCacheMode, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(model),
+                model.CacheMode,
+                $"Cache mode must be '{AeroAppServerConstants.LocalCacheMode}' or '{AeroAppServerConstants.ServerCacheMode}'.");
+        }
+        if (model.CacheMode.Equals(AeroAppServerConstants.ServerCacheMode, StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(model.ConnectionString))
+        {
+            throw new ArgumentException(
+                "A remote cache connection string is required when cache mode is Server.",
+                nameof(model));
+        }
 
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
@@ -31,6 +47,9 @@ public async Task PersistAsync(CacheBootstrapModel model, CancellationToken canc
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;
+        bootstrap.Remove("CacheConnectionStringReference");
+        bootstrap.Remove("CacheConnectionString");
+        GetOrCreateObject(root, "ConnectionStrings").Remove("cache");
 
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {

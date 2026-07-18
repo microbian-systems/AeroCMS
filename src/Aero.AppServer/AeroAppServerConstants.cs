@@ -6,6 +6,14 @@ namespace Aero.AppServer;
 public static class AeroAppServerConstants
 {
         /// <summary>
+        /// Local cache mode hosts Garnet in the application process.
+        /// </summary>
+        public const string LocalCacheMode = "Local";
+        /// <summary>
+        /// Server cache mode connects to a remote Redis-compatible endpoint.
+        /// </summary>
+        public const string ServerCacheMode = "Server";
+        /// <summary>
         /// CacheName.
         /// </summary>
         public const string CacheName = "aero-cache";

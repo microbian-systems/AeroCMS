@@ -32,7 +32,7 @@ public async Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings sett
             requiredServices.Add(StartupServiceNames.AeroDb);
         }
 
-        if (settings.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        if (settings.CacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase))
         {
             requiredServices.Add(StartupServiceNames.Garnet);
         }

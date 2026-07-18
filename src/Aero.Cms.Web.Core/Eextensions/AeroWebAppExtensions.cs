@@ -49,7 +49,8 @@ public static class AeroWebAppExtensions
 public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
         this WebApplicationBuilder builder,
         IReadOnlyList<ModuleDescriptor> generatedDescriptors,
-        string[]? args = null)
+        string[]? args = null,
+        Action<ConfigurationManager>? configureResolvedInfrastructure = null)
         where T : class
     {
         args ??= [];
@@ -58,6 +59,7 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
         var env = builder.Environment;
 
         _ = config.AddConfiguration<T>(env);
+        configureResolvedInfrastructure?.Invoke(config);
         var log = await services.ConfigureLogging(config);
 
         services.AddModuleSystemServices();

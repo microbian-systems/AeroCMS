@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using Aero.AppServer;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
@@ -83,7 +84,7 @@ public bool RequiresAeroDb => Input.DatabaseMode == "Embedded";
         /// <summary>
     /// Gets or sets the Requires Garnet.
     /// </summary>
-public bool RequiresGarnet => Input.CacheMode == "Embedded";
+public bool RequiresGarnet => Input.CacheMode == AeroAppServerConstants.LocalCacheMode;
 
         /// <summary>
     /// Gets or sets the Is Ready.
@@ -129,7 +130,7 @@ public string EffectiveDatabaseMode => NormalizeMode(Input.DatabaseMode, "Embedd
         /// <summary>
     /// Gets or sets the Effective Cache Mode.
     /// </summary>
-public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
+public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, AeroAppServerConstants.LocalCacheMode);
         /// <summary>
     /// Gets or sets the Effective Secret Provider.
     /// </summary>
@@ -177,7 +178,7 @@ protected override void OnInitialized()
         Input ??= new SetupInput
         {
             DatabaseMode = "Embedded",
-            CacheMode = "Memory",
+            CacheMode = AeroAppServerConstants.LocalCacheMode,
             SecretProvider = "Local Certificate",
             AuthenticationMode = "Local",
             ConnectionString = DefaultServerDatabaseEndpoint,
@@ -323,8 +324,15 @@ protected async Task HandleSubmit()
 
         var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
         var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
-        var cacheMode = NormalizeMode(Input.CacheMode, "Memory");
+        var cacheMode = NormalizeMode(Input.CacheMode, AeroAppServerConstants.LocalCacheMode);
         var authenticationMode = NormalizeMode(Input.AuthenticationMode, "Local");
+
+        if (!IsSupportedCacheMode(cacheMode))
+        {
+            HasValidationErrors = true;
+            StatusMessage = "Cache mode must be Local or Server.";
+            return;
+        }
 
         if (databaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString))
         {
@@ -393,6 +401,10 @@ protected async Task HandleSubmit()
 
     private static string NormalizeMode(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private static bool IsSupportedCacheMode(string cacheMode)
+        => cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase)
+           || cacheMode.Equals(AeroAppServerConstants.ServerCacheMode, StringComparison.OrdinalIgnoreCase);
 
     private bool ValidateCurrentStep(bool showMessage)
     {
@@ -464,7 +476,7 @@ public string GetStepSummary(int step) => step switch
     {
         1 => L["Site name, culture, homepage, and blog metadata."],
         2 => L["Embedded or server database connectivity."],
-        3 => L["Memory, embedded, or server cache configuration."],
+        3 => L["Local Garnet or remote server cache configuration."],
         4 => L["Local Certificate or Infisical secret handling."],
         5 => L["Choose the auth mode and create the initial CMS administrator account."],
         6 => L["Review your selections before initialization."],
@@ -473,7 +485,7 @@ public string GetStepSummary(int step) => step switch
 
     private string BuildReadinessMessage()
     {
-        return L["Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app."];
+        return L["Readiness shown here is informational only. Local services will be started and validated after handoff to the main app."];
     }
 
     private void EnsureSupportedCulturesContainDefault()
@@ -553,7 +565,7 @@ public class SetupInput
     /// Gets or sets the Cache Mode.
     /// </summary>
 [Required]
-    public string CacheMode { get; set; } = "Memory";
+    public string CacheMode { get; set; } = AeroAppServerConstants.LocalCacheMode;
 
         /// <summary>
     /// Gets or sets the Secret Provider.
