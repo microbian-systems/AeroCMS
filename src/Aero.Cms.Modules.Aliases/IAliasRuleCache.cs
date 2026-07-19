@@ -13,7 +13,7 @@ public interface IAliasRuleCache
     /// Finds an alias rule matching the normalized old path for the given site.
     /// Returns null if no match. O(1) dictionary lookup.
     /// </summary>
-    AliasRuleEntry? Find(long siteId, string oldPath);
+    AliasRuleEntry? Find(long siteId, string culture, string oldPath);
 
     /// <summary>
     /// Refreshes the cache from the database. Called on startup and
@@ -32,6 +32,7 @@ public interface IAliasRuleCache
 /// </summary>
 public sealed record AliasRuleEntry(
     long SiteId,
+    string Culture,
     string OldPath,
     string NewPath,
     int StatusCode = 301
@@ -40,4 +41,4 @@ public sealed record AliasRuleEntry(
 /// <summary>
 /// Composite key for site-scoped alias cache lookups.
 /// </summary>
-public readonly record struct SitePathKey(long SiteId, string Path);
+public readonly record struct SitePathKey(long SiteId, string Culture, string Path);

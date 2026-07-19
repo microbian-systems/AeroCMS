@@ -11,6 +11,7 @@ using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using FluentValidation;
 using Aero.Cms.Html;
+using Aero.Cms.Services;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -68,6 +69,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
+            var aliasWriter = sp.GetService<IPageRouteAliasWriter>();
             var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
             var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
             var styleProfileResolver = sp.GetRequiredService<ISiteStyleProfileResolver>();
@@ -82,7 +84,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 styleProfileResolver,
                 actor,
                 cache,
-                pageTreeService);
+                pageTreeService,
+                aliasWriter);
         });
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroPageActor>(sp =>

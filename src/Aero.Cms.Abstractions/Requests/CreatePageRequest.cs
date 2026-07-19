@@ -43,7 +43,8 @@ public record UpdatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     /// <summary>Source-generated JSON transport for living-standard draft content.</summary>
-    string? DraftContentJson = null
+    string? DraftContentJson = null,
+    PreviousPathBehavior? PreviousPathBehavior = null
 ) : IRequest;
 
 /// <summary>

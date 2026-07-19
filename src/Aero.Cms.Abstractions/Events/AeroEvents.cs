@@ -22,6 +22,12 @@ public sealed record PageContentUpdatedEvent(
     string NewSlug,
     string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "page");
 
+/// <summary>Published after automatic page aliases have committed successfully.</summary>
+public sealed record PageRouteAliasesChangedEvent(
+    long SiteId,
+    string Culture,
+    DateTimeOffset ChangedOn) : AeroEvent($"page route aliases changed for site {SiteId} culture {Culture}");
+
 /// <summary>
 /// Represents a record for BlogPostContentUpdatedEvent.
 /// </summary>

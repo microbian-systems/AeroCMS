@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
@@ -55,13 +56,21 @@ public void ApplyRule(RewriteContext context)
         var slice = http.Features.Get<IAeroSiteSlice>();
         if (slice is null || slice.SiteId <= 0) return; // no site resolved — skip aliases
 
-        var path = NormalizePath(rawPath);
+        // Alias rewriting runs before UseRequestLocalization in the production
+        // pipeline. Resolve the site-supported culture directly instead of
+        // depending on culture items that may not have been populated yet.
+        var culture = AeroCultureRoute.ResolveRequestCulture(
+            http.Request.Path,
+            slice.DefaultCulture,
+            slice.SupportedCultures,
+            out var culturePrefix);
+        var path = NormalizePath(RemoveCulturePrefix(rawPath, culturePrefix));
 
         // Fast path — check in-memory cache (site-scoped)
-        var entry = _cache.Find(slice.SiteId, path);
+        var entry = _cache.Find(slice.SiteId, culture, path);
         if (entry is not null)
         {
-            ApplyEntry(http, entry, context);
+            ApplyEntry(http, entry, culturePrefix is not null, context);
             return;
         }
 
@@ -82,7 +91,7 @@ public void ApplyRule(RewriteContext context)
             }
 
             var aliases = session.Query<AliasDocument>()
-                .Where(x => x.SiteId == slice.SiteId)  // site-scoped
+                .Where(x => x.SiteId == slice.SiteId && x.Culture == culture)
                 .ToList();
 
             foreach (var alias in aliases)
@@ -95,8 +104,11 @@ public void ApplyRule(RewriteContext context)
 
                     ApplyEntry(http, new AliasRuleEntry(
                         alias.SiteId,
+                        alias.Culture,
                         aliasPath,
-                        alias.NewPath),
+                        alias.NewPath,
+                        alias.StatusCode),
+                        culturePrefix is not null,
                         context);
                     return;
                 }
@@ -111,14 +123,35 @@ public void ApplyRule(RewriteContext context)
         _log.LogDebug("No alias found for SiteId={SiteId} Path='{Path}'", slice.SiteId, path);
     }
 
-    private static void ApplyEntry(HttpContext http, AliasRuleEntry entry, RewriteContext context)
+    private static void ApplyEntry(
+        HttpContext http,
+        AliasRuleEntry entry,
+        bool preserveCulturePrefix,
+        RewriteContext context)
     {
         http.Response.StatusCode = entry.StatusCode;
         http.Response.Headers[HeaderNames.Location] =
-            entry.NewPath + http.Request.QueryString;
+            (preserveCulturePrefix
+                ? AeroCultureRoute.BuildCulturePath(entry.Culture, entry.NewPath)
+                : entry.NewPath)
+            + http.Request.QueryString;
         context.Result = RuleResult.EndResponse;
     }
 
     private static string NormalizePath(string? path)
-        => (path ?? "").Trim().TrimEnd('/').ToLowerInvariant();
+        => AliasDocument.NormalizePath(path);
+
+    private static string RemoveCulturePrefix(string path, string? culturePrefix)
+    {
+        if (string.IsNullOrWhiteSpace(culturePrefix))
+            return path;
+
+        var prefix = "/" + culturePrefix.Trim('/');
+        if (string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase))
+            return "/";
+
+        return path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase)
+            ? path[prefix.Length..]
+            : path;
+    }
 }

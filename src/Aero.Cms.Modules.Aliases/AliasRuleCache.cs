@@ -15,6 +15,7 @@ public sealed class AliasRuleCache : IAliasRuleCache
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AliasRuleCache> _log;
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private ImmutableDictionary<SitePathKey, AliasRuleEntry> _rules =
         ImmutableDictionary<SitePathKey, AliasRuleEntry>.Empty;
 
@@ -30,9 +31,12 @@ public AliasRuleCache(IServiceProvider serviceProvider, ILogger<AliasRuleCache> 
         /// <summary>
     /// Find method.
     /// </summary>
-public AliasRuleEntry? Find(long siteId, string oldPath)
+public AliasRuleEntry? Find(long siteId, string culture, string oldPath)
     {
-        var key = new SitePathKey(siteId, oldPath);
+        var key = new SitePathKey(
+            siteId,
+            AliasDocument.NormalizeCulture(culture),
+            AliasDocument.NormalizePath(oldPath));
         _rules.TryGetValue(key, out var entry);
         return entry;
     }
@@ -51,31 +55,39 @@ public void Invalidate()
     /// </summary>
 public async Task RefreshAsync(CancellationToken ct = default)
     {
+        await _refreshGate.WaitAsync(ct);
         try
         {
-            await using var scope = _serviceProvider.CreateAsyncScope();
-            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            try
+            {
+                await using var scope = _serviceProvider.CreateAsyncScope();
+                var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
 
-            var aliases = await session.Query<AliasDocument>().ToListAsync(ct);
-            var entries = aliases
-                .Where(a => a.SiteId > 0 && !string.IsNullOrWhiteSpace(a.OldPath) && !string.IsNullOrWhiteSpace(a.NewPath))
-                .Select(a => new AliasRuleEntry(
-                    a.SiteId,
-                    NormalizePath(a.OldPath),
-                    a.NewPath))
-                .ToList();
+                var aliases = await session.Query<AliasDocument>().ToListAsync(ct);
+                var entries = aliases
+                    .Where(a => a.SiteId > 0 && !string.IsNullOrWhiteSpace(a.OldPath) && !string.IsNullOrWhiteSpace(a.NewPath))
+                    .Select(a => new AliasRuleEntry(
+                        a.SiteId,
+                        AliasDocument.NormalizeCulture(a.Culture),
+                        AliasDocument.NormalizePath(a.OldPath),
+                        AliasDocument.NormalizePath(a.NewPath),
+                        a.StatusCode))
+                    .ToList();
 
-            _rules = entries.ToImmutableDictionary(
-                e => new SitePathKey(e.SiteId, e.OldPath));
+                _rules = entries.ToImmutableDictionary(
+                    e => new SitePathKey(e.SiteId, e.Culture, e.OldPath));
 
-            _log.LogInformation("Alias rule cache refreshed with {Count} entries", entries.Count);
+                _log.LogInformation("Alias rule cache refreshed with {Count} entries", entries.Count);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Failed to refresh alias rule cache");
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _log.LogError(ex, "Failed to refresh alias rule cache");
+            _refreshGate.Release();
         }
     }
 
-    private static string NormalizePath(string path)
-        => (path.Trim().TrimEnd('/').ToLowerInvariant());
 }

@@ -97,6 +97,13 @@ Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, Cancellation
 /// </summary>
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
+    /// <summary>Computes the persisted route impact of changing a page slug or parent.</summary>
+    Task<PageRouteChangeImpact> GetRouteChangeImpactAsync(
+        long id,
+        string slug,
+        long? parentId,
+        CancellationToken ct);
+
     /// <summary>Find a published page by slug for a specific site and culture.</summary>
     Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct);
     /// <summary>Get all pages (paged + optional search) for a site.</summary>

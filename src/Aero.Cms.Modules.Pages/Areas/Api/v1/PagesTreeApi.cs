@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Http;
+using Aero.Cms.Abstractions.Enums;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -138,9 +139,15 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
         [FromRoute] long id,
         [FromQuery] long? newParentId,
         [FromQuery] int? order,
+        [FromQuery] PreviousPathBehavior? previousPathBehavior,
         CancellationToken ct)
     {
-        var result = await treeService.MoveAsync(id, newParentId, order, ct);
+        var result = await treeService.MoveAsync(
+            id,
+            newParentId,
+            order,
+            previousPathBehavior,
+            ct);
         return ToApiResult(result);
     }
 

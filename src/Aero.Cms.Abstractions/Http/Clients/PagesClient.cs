@@ -64,6 +64,12 @@ public interface IPagesHttpClient
     /// <returns>The updated page detail or an error.</returns>
     Task<Result<PageDetail, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken ct = default);
 
+    /// <summary>Computes the published-route impact of changing a page slug or parent.</summary>
+    Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
+        long id,
+        PageRouteChangeRequest request,
+        CancellationToken ct = default);
+
     /// <summary>
     /// Deletes a page.
     /// </summary>
@@ -200,6 +206,13 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     {
         return PutAsync<UpdatePageRequest, PageDetail>(id.ToString(), request, ct);
     }
+
+    /// <inheritdoc />
+    public Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
+        long id,
+        PageRouteChangeRequest request,
+        CancellationToken ct = default)
+        => PostAsync<PageRouteChangeRequest, PageRouteChangeImpact>($"{id}/route-impact", request, ct);
 
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
@@ -463,7 +476,38 @@ public record UpdatePageRequest(
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    HtmlPageContent? DraftContent = null);
+    HtmlPageContent? DraftContent = null,
+    PreviousPathBehavior? PreviousPathBehavior = null);
+
+/// <summary>Proposed route inputs used to calculate redirect impact.</summary>
+public sealed record PageRouteChangeRequest(string Slug, long? ParentId);
+
+/// <summary>One historically published route affected by a proposed page route change.</summary>
+[GenerateSerializer]
+[Alias("PageRouteChangeItem")]
+public sealed record PageRouteChangeItem(
+    [property: Id(0)] long PageId,
+    [property: Id(1)] string Title,
+    [property: Id(2)] string Culture,
+    [property: Id(3)] string OldPath,
+    [property: Id(4)] string NewPath);
+
+/// <summary>Server-computed impact of changing a page slug or parent.</summary>
+[GenerateSerializer]
+[Alias("PageRouteChangeImpact")]
+public sealed record PageRouteChangeImpact(
+    [property: Id(0)] long PageId,
+    [property: Id(1)] string OldPath,
+    [property: Id(2)] string NewPath,
+    [property: Id(3)] IReadOnlyList<PageRouteChangeItem> PreviouslyPublishedRoutes,
+    [property: Id(4)] string? ErrorMessage = null)
+{
+    /// <summary>Gets whether the proposed route differs from the current route.</summary>
+    public bool RouteChanged => !string.Equals(OldPath, NewPath, StringComparison.Ordinal);
+
+    /// <summary>Gets whether saving requires an explicit previous-path decision.</summary>
+    public bool RequiresDecision => RouteChanged && PreviouslyPublishedRoutes.Count > 0;
+}
 
 /// <summary>
 /// Request to create a draft culture variant for a page.

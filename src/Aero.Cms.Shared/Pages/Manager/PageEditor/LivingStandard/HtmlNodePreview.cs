@@ -132,6 +132,11 @@ public sealed class HtmlNodePreview : ComponentBase
         if (!PreviewMode)
         {
             classes.Add("aero-editor-node");
+            if (IsStructuralContainer())
+            {
+                classes.Add("aero-editor-node-container");
+            }
+
             if (SelectedNodeId == Node.NodeId)
             {
                 classes.Add("aero-editor-node-selected");
@@ -171,6 +176,11 @@ public sealed class HtmlNodePreview : ComponentBase
         Catalog.TryGet(Node.TagName, out var definition)
         && definition is not null
         && definition.ChildModel is not HtmlChildModel.None;
+
+    private bool IsStructuralContainer() =>
+        Catalog.TryGet(Node.TagName, out var definition)
+        && definition is not null
+        && definition.PaletteCategory.Equals("Structural", StringComparison.OrdinalIgnoreCase);
 
     private bool CanAcceptMoveInside() =>
         MoveSourceNode is not null

@@ -59,6 +59,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         
         group.MapPut("/{id:long}", UpdatePage)
             .WithName("UpdatePage");
+
+        group.MapPost("/{id:long}/route-impact", GetRouteChangeImpact)
+            .WithName("GetPageRouteChangeImpact");
         
         group.MapDelete("/{id:long}", DeletePage)
             .WithName("DeletePage");
@@ -220,7 +223,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.ShowHeaderNavigation,
                 request.HideFooter,
                 request.ShowChatAgent,
-                DraftContentJson: SerializeDraftContent(request.DraftContent));
+                DraftContentJson: SerializeDraftContent(request.DraftContent),
+                PreviousPathBehavior: request.PreviousPathBehavior);
 
             var result = await pagesActor.UpdateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -237,6 +241,23 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             logger.LogError(ex, "Error updating page {Id}", id);
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<IResult> GetRouteChangeImpact(
+        long id,
+        [FromBody] PageRouteChangeRequest request,
+        [FromServices] IAeroPageActor pagesActor,
+        CancellationToken ct)
+    {
+        var impact = await pagesActor.GetRouteChangeImpactAsync(id, request.Slug, request.ParentId, ct);
+        return string.IsNullOrWhiteSpace(impact.ErrorMessage)
+            ? TypedResults.Ok(impact)
+            : TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to calculate page route impact",
+                Detail = impact.ErrorMessage,
+                Status = StatusCodes.Status400BadRequest
+            });
     }
 
     private static async Task<IResult> ListPageTranslations(

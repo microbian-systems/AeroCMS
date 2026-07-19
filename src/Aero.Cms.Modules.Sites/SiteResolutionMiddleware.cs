@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Infrastructure;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Sites;
 
@@ -21,9 +22,7 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
         /// <summary>
     /// InvokeAsync method.
     /// </summary>
-public async Task InvokeAsync(
-        HttpContext context,
-        ISiteLookupService siteLookup)
+public async Task InvokeAsync(HttpContext context)
     {
         // The manager resolves site from user cookie selection, not hostname.
         if (IsSiteResolutionBypassPath(context.Request.Path))
@@ -41,8 +40,9 @@ public async Task InvokeAsync(
 
         var host = context.Request.Host.Host;
         var normalized = HostNormalizer.Normalize(host);
+        var siteLookup = context.RequestServices.GetRequiredService<ISiteLookupService>();
 
-        var site = await siteLookup.ResolveByHostAsync(normalized);
+        var site = await siteLookup.ResolveByHostAsync(normalized, context.RequestAborted);
 
         if (site is null || !site.IsEnabled)
         {

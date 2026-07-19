@@ -9,7 +9,7 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Content.Rendering;
 
 /// <summary>
-/// Resolves a public content type URL ({typeAlias}/{entrySlug}) and renders
+/// Resolves a public content type URL (/content/{typeAlias}/{entrySlug}) and renders
 /// the matching content item through the existing Scriban pipeline.
 /// </summary>
 public sealed class ContentTypeUrlRenderer(

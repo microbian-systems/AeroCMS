@@ -197,6 +197,35 @@ public sealed class SitePipelineChainTests
         await siteLookup.DidNotReceive().ResolveByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task SiteResolutionMiddleware_StaticAsset_DoesNotResolveSiteLookupService()
+    {
+        var serviceResolutionCount = 0;
+        var builder = WebApplication.CreateBuilder([]);
+        builder.Services.AddScoped<ISiteLookupService>(_ =>
+        {
+            serviceResolutionCount++;
+            return Substitute.For<ISiteLookupService>();
+        });
+        builder.WebHost.UseTestServer();
+
+        var app = builder.Build();
+        app.UseMiddleware<SiteResolutionMiddleware>();
+        app.Run(context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            return Task.CompletedTask;
+        });
+
+        await app.StartAsync();
+        await using var _ = app;
+
+        var response = await app.GetTestClient().GetAsync("/js/app.js");
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(serviceResolutionCount).IsEqualTo(0);
+    }
+
     // ──────────────────────────────────────────────────
     // AliasRewriteRule tests (site-scoped)
     // ──────────────────────────────────────────────────
@@ -209,8 +238,8 @@ public sealed class SitePipelineChainTests
             .Returns(CreateSite(42, "testsite.com"));
 
         var aliasCache = Substitute.For<IAliasRuleCache>();
-        aliasCache.Find(42, "/old-page")
-            .Returns(new AliasRuleEntry(42, "/old-page", "/new-page", 301));
+        aliasCache.Find(42, "en-US", "/old-page")
+            .Returns(new AliasRuleEntry(42, "en-US", "/old-page", "/new-page", 301));
 
         using var host = await CreateHostAsync(siteLookup, aliasCache);
 
@@ -227,6 +256,29 @@ public sealed class SitePipelineChainTests
     }
 
     [Test]
+    public async Task AliasRewriteRule_CulturePrefixedRequest_PreservesCulturePrefix()
+    {
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        siteLookup.ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>())
+            .Returns(CreateSite(42, "testsite.com"));
+
+        var aliasCache = Substitute.For<IAliasRuleCache>();
+        aliasCache.Find(42, "en-US", "/old-page")
+            .Returns(new AliasRuleEntry(42, "en-US", "/old-page", "/new-page", 301));
+
+        using var host = await CreateHostAsync(siteLookup, aliasCache);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/en-us/old-page?foo=bar")
+        {
+            Headers = { { "Host", "testsite.com" } }
+        };
+
+        var response = await host.GetTestClient().SendAsync(request);
+
+        await Assert.That((int)response.StatusCode).IsEqualTo(301);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/en-us/new-page?foo=bar");
+    }
+
+    [Test]
     public async Task AliasRewriteRule_NoMatchingAlias_PassesThrough()
     {
         var siteLookup = Substitute.For<ISiteLookupService>();
@@ -234,7 +286,7 @@ public sealed class SitePipelineChainTests
             .Returns(CreateSite(42, "testsite.com"));
 
         var aliasCache = Substitute.For<IAliasRuleCache>();
-        aliasCache.Find(42, "/some-page").Returns((AliasRuleEntry?)null);
+        aliasCache.Find(42, "en-US", "/some-page").Returns((AliasRuleEntry?)null);
 
         using var host = await CreateHostAsync(siteLookup, aliasCache);
 
@@ -266,10 +318,10 @@ public sealed class SitePipelineChainTests
             .Returns(CreateSite(2, "siteb.com"));
 
         var aliasCache = Substitute.For<IAliasRuleCache>();
-        aliasCache.Find(1, "/blog")
-            .Returns(new AliasRuleEntry(1, "/blog", "/blog-a", 301));
-        aliasCache.Find(2, "/blog")
-            .Returns(new AliasRuleEntry(2, "/blog", "/blog-b", 301));
+        aliasCache.Find(1, "en-US", "/blog")
+            .Returns(new AliasRuleEntry(1, "en-US", "/blog", "/blog-a", 301));
+        aliasCache.Find(2, "en-US", "/blog")
+            .Returns(new AliasRuleEntry(2, "en-US", "/blog", "/blog-b", 301));
 
         using var host = await CreateHostAsync(siteLookup, aliasCache);
         var client = host.GetTestClient();
@@ -315,7 +367,10 @@ public sealed class SitePipelineChainTests
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Found);
         await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/nosite");
         // Alias cache should NOT have been queried — site resolution short-circuited
-        aliasCache.DidNotReceive().Find(Arg.Any<long>(), Arg.Any<string>());
+        aliasCache.DidNotReceive().Find(
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
     }
 
     // ──────────────────────────────────────────────────
@@ -330,7 +385,8 @@ public sealed class SitePipelineChainTests
             .Returns(CreateSite(42, "testsite.com"));
 
         var aliasCache = Substitute.For<IAliasRuleCache>();
-        aliasCache.Find(42, "/test").Returns(new AliasRuleEntry(42, "/test", "/redirected", 301));
+        aliasCache.Find(42, "en-US", "/test")
+            .Returns(new AliasRuleEntry(42, "en-US", "/test", "/redirected", 301));
 
         using var host = await CreateHostAsync(siteLookup, aliasCache);
         var client = host.GetTestClient();
@@ -349,7 +405,7 @@ public sealed class SitePipelineChainTests
         Received.InOrder(() =>
         {
             siteLookup.ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>());
-            aliasCache.Find(42, "/test");
+            aliasCache.Find(42, "en-US", "/test");
         });
     }
 
@@ -387,9 +443,9 @@ public sealed class SitePipelineChainTests
         // We'll use the cache after RefreshAsync with mocked Marten
 
         // Actually test the SitePathKey equality
-        var key1 = new SitePathKey(1, "/test");
-        var key2 = new SitePathKey(2, "/test");
-        var key1b = new SitePathKey(1, "/test");
+        var key1 = new SitePathKey(1, "en-US", "/test");
+        var key2 = new SitePathKey(2, "en-US", "/test");
+        var key1b = new SitePathKey(1, "en-US", "/test");
 
         await Assert.That(key1.Equals(key1b)).IsTrue();
         await Assert.That(key1.Equals(key2)).IsFalse();
@@ -398,11 +454,12 @@ public sealed class SitePipelineChainTests
     [Test]
     public async Task SitePathKey_IsValueType()
     {
-        var key1 = new SitePathKey(1, "/test");
+        var key1 = new SitePathKey(1, "en-US", "/test");
         var key2 = key1; // copy
-        key2 = new SitePathKey(2, "/other");
+        key2 = new SitePathKey(2, "en-US", "/other");
 
         await Assert.That(key1.SiteId).IsEqualTo(1);
+        await Assert.That(key1.Culture).IsEqualTo("en-US");
         await Assert.That(key1.Path).IsEqualTo("/test");
     }
 
@@ -505,7 +562,8 @@ public sealed class SitePipelineChainTests
         // 1. Site resolution middleware
         app.UseMiddleware<SiteResolutionMiddleware>();
 
-        // 2. Alias rewrite middleware
+        // 2. Alias rewrite middleware. In production this runs before request
+        // localization, so the rule resolves site-supported cultures itself.
         var rule = app.Services.GetRequiredService<AliasRewriteRule>();
         var rewriteOptions = new RewriteOptions().Add(rule);
         app.UseRewriter(rewriteOptions);

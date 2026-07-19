@@ -86,11 +86,14 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         /// <summary>
     /// OnGetAsync method.
     /// </summary>
-public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
-        var slugWithoutCulture = AeroCultureRoute.StripLeadingCulture(Slug);
-        var pageSlug = string.IsNullOrWhiteSpace(slugWithoutCulture) ? "docs" : "docs/" + slugWithoutCulture.TrimStart('/');
+        // The localized route has already consumed both the culture and the "docs"
+        // prefix. Treat the catch-all as a document path, not as another culture-aware
+        // URL; valid path segments such as "api" can also be accepted by CultureInfo.
+        var documentPath = Slug?.Trim().Trim('/');
+        var pageSlug = string.IsNullOrWhiteSpace(documentPath) ? "docs" : $"docs/{documentPath}";
 
         var result = await _docsService.GetPublishedBySlugAsync(pageSlug, RequestedCulture, cancellationToken);
 

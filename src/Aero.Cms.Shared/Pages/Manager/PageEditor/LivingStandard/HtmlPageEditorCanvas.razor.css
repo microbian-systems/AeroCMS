@@ -94,21 +94,53 @@
 
 .aero-page-canvas__surface ::deep .aero-editor-node {
     position: relative;
-    min-height: 1.25rem;
+    min-height: 2rem;
     outline: 1px dashed transparent;
     outline-offset: -1px;
     transition: outline-color 100ms ease, box-shadow 100ms ease;
 }
 
-.aero-page-canvas__surface ::deep .aero-editor-node:hover {
-    outline-color: #c4b5fd;
+.aero-page-canvas__surface ::deep .aero-editor-node[data-aero-can-have-children="true"] {
+    min-height: 3rem;
 }
 
-.aero-page-canvas__surface ::deep .aero-editor-node-selected {
+.aero-page-canvas__surface ::deep .aero-editor-node.aero-editor-node-container {
+    min-height: clamp(5rem, 8vw, 7rem);
+    outline-color: var(--pe-canvas-container-border, #c4b5fd);
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node:is(
+    form,
+    fieldset,
+    table,
+    details,
+    dialog,
+    figure,
+    picture) {
+    min-height: 4.5rem;
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node:is(
+    button,
+    input,
+    select,
+    textarea,
+    audio,
+    video,
+    progress,
+    meter) {
+    min-height: 2.75rem;
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node:hover {
+    outline-color: var(--pe-canvas-container-border-hover, #a78bfa);
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node.aero-editor-node-selected {
     z-index: 1;
-    outline: 2px solid #7c3aed;
+    outline: 2px solid var(--pe-canvas-container-border-selected, #6d28d9);
     outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgb(124 58 237 / 12%);
+    box-shadow: 0 0 0 3px var(--pe-canvas-container-selection-ring, rgb(109 40 217 / 14%));
 }
 
 .aero-page-canvas__surface.aero-sort-active,

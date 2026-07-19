@@ -104,9 +104,14 @@ public async Task<AeroRequestResponse<AliasViewModel>> CreateAsync(IRequest requ
         {
             Id = Snowflake.NewId(),
             SiteId = create.SiteId,
-            OldPath = create.OldPath,
-            NewPath = create.NewPath,
-            Notes = create.Notes
+            Culture = AliasDocument.NormalizeCulture(create.Culture),
+            OldPath = AliasDocument.NormalizePath(create.OldPath),
+            NormalizedOldPath = AliasDocument.NormalizePath(create.OldPath),
+            NewPath = AliasDocument.NormalizePath(create.NewPath),
+            Notes = create.Notes,
+            OwnerId = null,
+            OwnerType = null,
+            IsAutomatic = false
         };
 
         session.Store(doc);
@@ -131,8 +136,10 @@ public async Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(IRequest requ
         if (doc is null)
             return NotFound($"Alias {update.Id} not found");
 
-        doc.OldPath = update.OldPath;
-        doc.NewPath = update.NewPath;
+        doc.Culture = AliasDocument.NormalizeCulture(update.Culture);
+        doc.OldPath = AliasDocument.NormalizePath(update.OldPath);
+        doc.NormalizedOldPath = AliasDocument.NormalizePath(update.OldPath);
+        doc.NewPath = AliasDocument.NormalizePath(update.NewPath);
         doc.Notes = update.Notes;
         doc.ModifiedOn = DateTimeOffset.UtcNow;
 
@@ -266,6 +273,9 @@ public async Task<List<AliasViewModel>> GetAllAliasesAsync(
         OldPath = doc.OldPath,
         NewPath = doc.NewPath,
         Notes = doc.Notes,
+        Culture = doc.Culture,
+        StatusCode = doc.StatusCode,
+        IsAutomatic = doc.IsAutomatic,
         CreatedOn = doc.CreatedOn,
         ModifiedOn = doc.ModifiedOn,
         CreatedBy = doc.CreatedBy,

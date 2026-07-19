@@ -1,6 +1,8 @@
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Html;
 using Aero.Core;
@@ -30,6 +32,7 @@ public sealed class PageContentServiceTests
         _harness = new SableTestHarness();
         _harness.WithSchema<PageDocument>(SchemaMode.Flexible);
         _harness.WithSchema<ContentSlugDocument>();
+        _harness.WithSchema<AliasDocument>();
         await _harness.InitializeAsync();
 
         _bus = Substitute.For<IMessageBus>();
@@ -255,6 +258,263 @@ public sealed class PageContentServiceTests
         reservations.Single(x => x.OwnerId == child.Id).NormalizedSlug.ShouldBe("renamed-parent/child");
     }
 
+    [Test]
+    public async Task UpdateAsync_UnpublishedPage_RenamesWithoutAliasDecision()
+    {
+        var service = CreateRouteAwareService();
+        var page = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Draft Page", "draft-page", null, null, null),
+            CancellationToken.None)).Value;
+
+        var result = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(page.Id, "Renamed Draft", "renamed-draft", null, null, null),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var aliases = await _harness.Session.Query<AliasDocument>().ToListAsync();
+        aliases.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UpdateAsync_PreviouslyPublishedPage_RequiresExplicitAliasDecision()
+    {
+        var service = CreateRouteAwareService();
+        var page = await CreatePreviouslyPublishedPageAsync(service, "Published Page", "published-page");
+
+        var result = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(page.Id, "Renamed Page", "renamed-page", null, null, null),
+            CancellationToken.None);
+
+        result.IsFailure.ShouldBeTrue();
+        var reloaded = await _harness.Session.LoadAsync<PageDocument>(page.Id);
+        reloaded.ShouldNotBeNull();
+        reloaded.Slug.ShouldBe("published-page");
+        reloaded.Path.ShouldBe("/published-page");
+    }
+
+    [Test]
+    public async Task UpdateAsync_PreviouslyPublishedPage_PreservesOldRouteAsPermanentAlias()
+    {
+        var service = CreateRouteAwareService();
+        var page = await CreatePreviouslyPublishedPageAsync(service, "Published Page", "published-page");
+
+        var result = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Renamed Page",
+                "renamed-page",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var alias = (await _harness.Session.Query<AliasDocument>().ToListAsync()).Single();
+        alias.SiteId.ShouldBe(42);
+        alias.Culture.ShouldBe("en-US");
+        alias.OwnerId.ShouldBe(page.Id);
+        alias.OwnerType.ShouldBe("Page");
+        alias.IsAutomatic.ShouldBeTrue();
+        alias.OldPath.ShouldBe("/published-page");
+        alias.NormalizedOldPath.ShouldBe("/published-page");
+        alias.NewPath.ShouldBe("/renamed-page");
+        alias.StatusCode.ShouldBe(301);
+    }
+
+    [Test]
+    public async Task UpdateAsync_PreviouslyPublishedPage_CanExplicitlyDiscardOldRoute()
+    {
+        var service = CreateRouteAwareService();
+        var page = await CreatePreviouslyPublishedPageAsync(service, "Published Page", "published-page");
+
+        var result = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Renamed Page",
+                "renamed-page",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.Discard),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        (await _harness.Session.Query<AliasDocument>().ToListAsync()).ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UpdateAsync_PreviouslyPublishedPage_ReturningToFormerRoute_ReclaimsAliasWithoutLoop()
+    {
+        var service = CreateRouteAwareService();
+        var page = await CreatePreviouslyPublishedPageAsync(service, "Published Page", "published-page");
+
+        var firstRename = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Renamed Page",
+                "renamed-page",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+        firstRename.IsSuccess.ShouldBeTrue();
+
+        var returnToOriginal = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Published Page",
+                "published-page",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+
+        returnToOriginal.IsSuccess.ShouldBeTrue();
+        var aliases = await _harness.Session.Query<AliasDocument>().ToListAsync();
+        aliases.Count.ShouldBe(1);
+        aliases[0].OldPath.ShouldBe("/renamed-page");
+        aliases[0].NewPath.ShouldBe("/published-page");
+        aliases[0].OldPath.ShouldNotBe(aliases[0].NewPath);
+    }
+
+    [Test]
+    public async Task UpdateAsync_PreviouslyPublishedPage_DiscardingNewOldRoute_RetargetsEarlierAliases()
+    {
+        var service = CreateRouteAwareService();
+        var page = await CreatePreviouslyPublishedPageAsync(service, "Page A", "page-a");
+
+        var preserveFirstRoute = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Page B",
+                "page-b",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+        preserveFirstRoute.IsSuccess.ShouldBeTrue();
+
+        var discardSecondRoute = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Page C",
+                "page-c",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.Discard),
+            CancellationToken.None);
+
+        discardSecondRoute.IsSuccess.ShouldBeTrue();
+        var aliases = await _harness.Session.Query<AliasDocument>().ToListAsync();
+        aliases.Count.ShouldBe(1);
+        aliases[0].OldPath.ShouldBe("/page-a");
+        aliases[0].NewPath.ShouldBe("/page-c");
+    }
+
+    [Test]
+    public async Task UpdateAsync_RenamingPublishedParent_PreservesPublishedDescendantRoutes()
+    {
+        var service = CreateRouteAwareService();
+        var parent = await CreatePreviouslyPublishedPageAsync(service, "Parent", "parent");
+        var child = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Child", "child", null, null, null, ParentId: parent.Id),
+            CancellationToken.None)).Value;
+        child.PublishedVersion = 1;
+        _harness.Session.Store(child);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await service.UpdateAsync(
+            parent.Id,
+            new UpdatePageRequest(
+                parent.Id,
+                "Renamed Parent",
+                "renamed-parent",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var aliases = await _harness.Session.Query<AliasDocument>()
+            .OrderBy(x => x.OldPath)
+            .ToListAsync();
+        aliases.Count.ShouldBe(2);
+        aliases.Single(x => x.OwnerId == parent.Id).NewPath.ShouldBe("/renamed-parent");
+        var childAlias = aliases.Single(x => x.OwnerId == child.Id);
+        childAlias.OldPath.ShouldBe("/parent/child");
+        childAlias.NewPath.ShouldBe("/renamed-parent/child");
+    }
+
+    [Test]
+    public async Task UpdateAsync_RenamingPublishedParent_DoesNotChangeSamePathInAnotherCulture()
+    {
+        var service = CreateRouteAwareService();
+        var parent = await CreatePreviouslyPublishedPageAsync(service, "Parent", "parent");
+        var child = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Child", "child", null, null, null, ParentId: parent.Id),
+            CancellationToken.None)).Value;
+        child.PublishedVersion = 1;
+
+        var frenchParent = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Parent FR", "parent-fr", null, null, null),
+            CancellationToken.None)).Value;
+        var frenchChild = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Child FR", "child-fr", null, null, null, ParentId: frenchParent.Id),
+            CancellationToken.None)).Value;
+
+        frenchParent.Culture = "fr-FR";
+        frenchParent.Slug = "parent";
+        frenchParent.Path = "/parent";
+        frenchParent.PublishedVersion = 1;
+        frenchChild.Culture = "fr-FR";
+        frenchChild.Slug = "child";
+        frenchChild.Path = "/parent/child";
+        frenchChild.PublishedVersion = 1;
+        _harness.Session.Store(child);
+        _harness.Session.Store(frenchParent);
+        _harness.Session.Store(frenchChild);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await service.UpdateAsync(
+            parent.Id,
+            new UpdatePageRequest(
+                parent.Id,
+                "Renamed Parent",
+                "renamed-parent",
+                null,
+                null,
+                null,
+                PreviousPathBehavior: PreviousPathBehavior.CreatePermanentRedirect),
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var reloadedFrenchParent = await _harness.Session.LoadAsync<PageDocument>(frenchParent.Id);
+        var reloadedFrenchChild = await _harness.Session.LoadAsync<PageDocument>(frenchChild.Id);
+        reloadedFrenchParent.ShouldNotBeNull();
+        reloadedFrenchChild.ShouldNotBeNull();
+        reloadedFrenchParent.Path.ShouldBe("/parent");
+        reloadedFrenchChild.Path.ShouldBe("/parent/child");
+
+        var aliases = await _harness.Session.Query<AliasDocument>().ToListAsync();
+        aliases.ShouldAllBe(x => x.Culture == "en-US");
+        aliases.Any(x => x.OwnerId == frenchParent.Id).ShouldBeFalse();
+        aliases.Any(x => x.OwnerId == frenchChild.Id).ShouldBeFalse();
+    }
+
     // -----------------------------------------------------------------------
     //  Helper
     // -----------------------------------------------------------------------
@@ -264,6 +524,41 @@ public sealed class PageContentServiceTests
         ctx.SiteId.Returns(siteId);
         ctx.TenantId.Returns(siteId * 10);
         return ctx;
+    }
+
+    private AeroPageContentService CreateRouteAwareService()
+    {
+        var aliasWriter = new PageRouteAliasWriter();
+        var pageTreeService = new PageTreeService(
+            _harness.Session,
+            _siteContext,
+            _bus,
+            NullLogger<PageTreeService>.Instance,
+            aliasWriter);
+        return new AeroPageContentService(
+            _harness.Session,
+            _bus,
+            _siteContext,
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            CreateStyleProfileResolver(),
+            pageTreeService: pageTreeService,
+            aliasWriter: aliasWriter);
+    }
+
+    private async Task<PageDocument> CreatePreviouslyPublishedPageAsync(
+        AeroPageContentService service,
+        string title,
+        string slug)
+    {
+        var page = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest(title, slug, null, null, null),
+            CancellationToken.None)).Value;
+        page.PublishedVersion = 1;
+        _harness.Session.Store(page);
+        await _harness.Session.SaveChangesAsync();
+        return page;
     }
 
     private static IHtmlContentValidator CreateContentValidator()

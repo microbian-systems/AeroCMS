@@ -1077,7 +1077,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         {
             Id = Snowflake.NewId(),
             SiteId = siteId,
+            Culture = defaultCulture,
             OldPath = "/404",
+            NormalizedOldPath = AliasDocument.NormalizePath("/404"),
             NewPath = "/oops",
             Notes = "Auto-seeded 404 redirect"
         };
@@ -1088,7 +1090,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         {
             Id = Snowflake.NewId(),
             SiteId = siteId,
+            Culture = defaultCulture,
             OldPath = "/500",
+            NormalizedOldPath = AliasDocument.NormalizePath("/500"),
             NewPath = "/oops",
             Notes = "Auto-seeded 500 redirect"
         };
@@ -1099,7 +1103,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         {
             Id = Snowflake.NewId(),
             SiteId = siteId,
+            Culture = defaultCulture,
             OldPath = "/setup",
+            NormalizedOldPath = AliasDocument.NormalizePath("/setup"),
             NewPath = "/",
             Notes = "Auto-seeded setup redirect"
         };

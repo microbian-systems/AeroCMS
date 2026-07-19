@@ -6,6 +6,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Modules.Aliases.Areas.Api.v1;
+using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
@@ -72,6 +73,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // Core alias services
         services.AddScoped<IAliasRepository, AliasRepository>();
         services.AddScoped<IAliasService, AliasService>();
+        services.AddScoped<IPageRouteAliasWriter, PageRouteAliasWriter>();
 
         // Grain-backed alias service (Orleans actor) — service wrapper
         services.AddScoped<IAeroAliasService, AeroAliasService>();
@@ -120,7 +122,10 @@ public void Configure(StoreOptions opts)
         // DocumentAlias not available in AeroDB
         opts.Schema.For<AliasDocument>().Identity(x => x.Id);
         opts.Schema.For<AliasDocument>().Index(x => x.SiteId);
-        opts.Schema.For<AliasDocument>().UniqueIndex(x => new { x.SiteId, x.OldPath }); // site-scoped composite unique
+        opts.Schema.For<AliasDocument>().Index(x => x.Culture);
+        opts.Schema.For<AliasDocument>().Index(x => x.OwnerId);
+        opts.Schema.For<AliasDocument>()
+            .UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedOldPath });
         opts.Schema.For<AliasDocument>().Index(x => x.NewPath);
         opts.Schema.For<AliasDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<AliasDocument>().Index(x => x.ModifiedOn);

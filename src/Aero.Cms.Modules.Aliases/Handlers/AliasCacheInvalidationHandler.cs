@@ -24,7 +24,7 @@ public async Task Handle(AliasCreated e)
     {
         log.LogInformation("Alias created ({Id}, '{OldPath}' → '{NewPath}') — refreshing cache",
             e.Document.Id, e.Document.OldPath, e.Document.NewPath);
-        await cache.RefreshAsync();
+        await InvalidateAndRefreshAsync();
     }
 
         /// <summary>
@@ -34,7 +34,7 @@ public async Task Handle(AliasUpdated e)
     {
         log.LogInformation("Alias updated ({Id}, '{OldPath}' → '{NewPath}') — refreshing cache",
             e.Document.Id, e.Document.OldPath, e.Document.NewPath);
-        await cache.RefreshAsync();
+        await InvalidateAndRefreshAsync();
     }
 
         /// <summary>
@@ -43,6 +43,14 @@ public async Task Handle(AliasUpdated e)
 public async Task Handle(AliasDeleted e)
     {
         log.LogInformation("Alias deleted ({Id}) — refreshing cache", e.Document.Id);
+        await InvalidateAndRefreshAsync();
+    }
+
+    private async Task InvalidateAndRefreshAsync()
+    {
+        // Empty-cache fallback is safer than serving a stale permanent redirect
+        // if the database refresh fails.
+        cache.Invalidate();
         await cache.RefreshAsync();
     }
 }

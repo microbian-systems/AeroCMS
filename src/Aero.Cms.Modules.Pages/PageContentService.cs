@@ -6,9 +6,11 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Requests;
+using PageRouteChangeImpact = Aero.Cms.Abstractions.Http.Clients.PageRouteChangeImpact;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Localization;
+using Aero.Cms.Services;
 using Aero.Core.Http;
 using System.Globalization;
 using System.Text.Json;
@@ -98,7 +100,8 @@ public sealed class AeroPageContentService(
     ISiteStyleProfileResolver styleProfileResolver,
     string? actor = null,
     IFusionCache? cache = null,
-    IPageTreeService? pageTreeService = null) : IPageContentService
+    IPageTreeService? pageTreeService = null,
+    IPageRouteAliasWriter? aliasWriter = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
@@ -469,6 +472,35 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             var oldSlug = page.Slug;
             var oldPath = page.Path;
             var oldParentId = page.ParentId;
+            PageRouteChangeImpact? routeImpact = null;
+
+            if (!string.Equals(oldSlug, request.Slug, StringComparison.Ordinal)
+                || oldParentId != request.ParentId)
+            {
+                if (pageTreeService is null)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.DatabaseError("Page hierarchy service is required to update a page route."));
+                }
+
+                var impactResult = await pageTreeService.GetRouteChangeImpactAsync(
+                    page.Id,
+                    request.ParentId,
+                    request.Slug,
+                    cancellationToken);
+                if (impactResult is Result<PageRouteChangeImpact, AeroError>.Failure impactFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(impactFailure.Error);
+                }
+
+                routeImpact = ((Result<PageRouteChangeImpact, AeroError>.Ok)impactResult).Value;
+                if (routeImpact.RequiresDecision && request.PreviousPathBehavior is null)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.ConflictError(
+                            "This route has previously been published. Choose whether to preserve the old URL as a permanent redirect."));
+                }
+            }
 
             if (request.DraftContentJson is not null)
             {
@@ -563,7 +595,41 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 }
             }
 
+            PageRouteAliasStageResult? aliasStage = null;
+            if (routeImpact?.RequiresDecision == true)
+            {
+                if (aliasWriter is null)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.ConfigurationError("The page route alias writer is not configured."));
+                }
+
+                var aliasResult = await aliasWriter.StageAsync(
+                    session,
+                    routeImpact.PreviouslyPublishedRoutes
+                        .Select(item => new PageRouteAliasCandidate(
+                            item.PageId,
+                            page.SiteId,
+                            item.Culture,
+                            item.OldPath,
+                            item.NewPath,
+                            request.PreviousPathBehavior == PreviousPathBehavior.CreatePermanentRedirect))
+                        .ToList(),
+                    cancellationToken);
+                if (aliasResult is Result<PageRouteAliasStageResult, AeroError>.Failure aliasFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(aliasFailure.Error);
+                }
+
+                aliasStage = ((Result<PageRouteAliasStageResult, AeroError>.Ok)aliasResult).Value;
+            }
+
             await session.SaveChangesAsync(cancellationToken);
+
+            if (aliasStage?.HasChanges == true && aliasWriter is not null)
+            {
+                await aliasWriter.OnCommittedAsync(CancellationToken.None);
+            }
 
             // Publish events via Wolverine outbox
             await bus.PublishAsync(new PageViewModelUpdated(
@@ -575,6 +641,14 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             }
 
             await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, request.Slug, oldSlug));
+
+            if (aliasStage?.HasChanges == true)
+            {
+                await bus.PublishAsync(new PageRouteAliasesChangedEvent(
+                    page.SiteId,
+                    page.Culture,
+                    DateTimeOffset.UtcNow));
+            }
 
             logger.LogInformation("Updated page {PageId}: {Title} (slug={Slug})", id, page.Title, page.Slug);
             return Prelude.Ok<PageDocument, AeroError>(page);

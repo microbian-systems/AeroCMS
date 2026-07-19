@@ -9,7 +9,8 @@ public record CreateAliasRequest(
     long SiteId,
     string OldPath,
     string NewPath,
-    string? Notes = null
+    string? Notes = null,
+    string Culture = "en-US"
 ) : IRequest;
 
 /// <summary>
@@ -21,7 +22,8 @@ public record UpdateAliasRequest(
     long Id,
     string OldPath,
     string NewPath,
-    string? Notes = null
+    string? Notes = null,
+    string Culture = "en-US"
 ) : IRequest;
 
 /// <summary>

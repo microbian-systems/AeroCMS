@@ -25,6 +25,18 @@ public record AliasViewModel : AeroEntityViewModel
     /// </summary>
     [Id(2)]
     public string? Notes { get; set; }
+
+    /// <summary>Gets or sets the route culture.</summary>
+    [Id(3)]
+    public string Culture { get; set; } = "en-US";
+
+    /// <summary>Gets or sets the redirect status code.</summary>
+    [Id(4)]
+    public int StatusCode { get; set; } = 301;
+
+    /// <summary>Gets whether this alias is managed by a content route.</summary>
+    [Id(5)]
+    public bool IsAutomatic { get; set; }
 }
 
 

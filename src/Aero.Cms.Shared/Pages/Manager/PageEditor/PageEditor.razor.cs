@@ -204,8 +204,8 @@ protected string PageSlug { get; set; } = string.Empty;
     /// </summary>
 protected string Summary { get; set; } = string.Empty;
 
-    /// <summary>Tracks whether the slug should auto-populate from the title.</summary>
-    private enum SlugState { Auto, Loaded, Locked }
+    /// <summary>Tracks whether the slug should continue following the title.</summary>
+    private enum SlugState { Auto, Locked }
     private SlugState _slugState = SlugState.Auto;
 
     // Redundant ID removed to avoid ambiguity with ManagerComponent Base.Id
@@ -327,6 +327,7 @@ protected List<ToastMessage> Toasts { get; set; } = [];
     /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
     private enum PageState { Clean, Dirty }
     private PageState _pageState = PageState.Dirty;  // new pages start dirty
+    private bool _routeDecisionPending;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -403,7 +404,9 @@ protected override async Task OnInitializedAsync()
             LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
-            _slugState = SlugState.Loaded;  // preserve DB slug — never auto-overwrite
+            // A loaded page follows its title until the author explicitly edits
+            // the slug. This keeps the common title -> URL workflow predictable.
+            _slugState = SlugState.Auto;
             Summary = page.Excerpt ?? string.Empty;
             SeoTitle = page.SeoTitle ?? string.Empty;
             SeoDescription = page.SeoDescription ?? string.Empty;
@@ -1661,7 +1664,7 @@ protected string FormatCulture(string? culture)
 
     private async Task AutoSaveAsync()
     {
-        if (_pageState != PageState.Dirty) return;
+        if (_pageState != PageState.Dirty || _routeDecisionPending) return;
 
         if (Id == 0 || Id is null)
         {
@@ -1697,15 +1700,17 @@ protected string FormatCulture(string? culture)
             }
         }
 
+        // Normalize at the editor boundary so preview, preflight, and persistence
+        // all operate on the same URL segment.
+        PageSlug = TitleToSlug(
+            string.IsNullOrWhiteSpace(PageSlug) ? PageTitle : PageSlug.Trim().Trim('/'));
+
+        var routeDecision = await ResolvePreviousPathBehaviorAsync(showSuccessToast);
+        if (!routeDecision.Continue)
+            return;
+
         IsSaving = true;
         await InvokeAsync(StateHasChanged);
-
-        // Ensure slug has a value before saving — derive from title if empty
-        if (string.IsNullOrWhiteSpace(PageSlug))
-        {
-            PageSlug = TitleToSlug(PageTitle);
-            _slugState = SlugState.Locked;
-        }
 
         try
         {
@@ -1723,7 +1728,8 @@ protected string FormatCulture(string? culture)
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    DraftContent: HtmlEditor.Content
+                    DraftContent: HtmlEditor.Content,
+                    PreviousPathBehavior: routeDecision.Behavior
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -1767,7 +1773,8 @@ protected string FormatCulture(string? culture)
                     LoadedPage = createOk.Value;
                     _loadedPageId = Id;
                     _isPersistedPageLoaded = true;
-                    _slugState = SlugState.Locked;  // preserve generated slug going forward
+                    // Keep following the title unless the author explicitly
+                    // edited the slug.
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
                     await LoadPageTranslationsAsync();
@@ -1797,6 +1804,81 @@ protected string FormatCulture(string? culture)
             IsSaving = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task<(bool Continue, PreviousPathBehavior? Behavior)> ResolvePreviousPathBehaviorAsync(
+        bool isManualSave)
+    {
+        if (Id is not { } id
+            || LoadedPage is null
+            || (string.Equals(LoadedPage.Slug, PageSlug, StringComparison.Ordinal)
+                && LoadedPage.ParentId == ParentId))
+        {
+            _routeDecisionPending = false;
+            return (true, null);
+        }
+
+        var impactResult = await PagesClient.GetRouteChangeImpactAsync(
+            id,
+            new PageRouteChangeRequest(PageSlug, ParentId));
+        if (impactResult is Result<PageRouteChangeImpact, AeroError>.Failure failure)
+        {
+            ShowToast(L["Unable to check the URL change: {0}", failure.Error], "error");
+            return (false, null);
+        }
+
+        var impact = ((Result<PageRouteChangeImpact, AeroError>.Ok)impactResult).Value;
+        if (!impact.RequiresDecision)
+        {
+            _routeDecisionPending = false;
+            return (true, null);
+        }
+
+        _routeDecisionPending = true;
+        if (!isManualSave)
+            return (false, null);
+
+        var affectedCount = impact.PreviouslyPublishedRoutes.Count;
+        var keepRedirects = await DialogService.Confirm(
+            L[
+                affectedCount == 1
+                    ? "This page has already been published at '{0}'. Keep that URL working by creating a permanent redirect to '{1}'?"
+                    : "This change affects {2} previously published URLs, beginning with '{0}'. Keep them working by creating permanent redirects to their new URLs?",
+                impact.OldPath,
+                impact.NewPath,
+                affectedCount],
+            L["Preserve Published URLs"],
+            new ConfirmOptions
+            {
+                OkButtonText = L["Keep Old URLs"],
+                CancelButtonText = L["Don't Keep"]
+            });
+
+        if (keepRedirects == true)
+        {
+            _routeDecisionPending = false;
+            return (true, PreviousPathBehavior.CreatePermanentRedirect);
+        }
+
+        var discardConfirmed = await DialogService.Confirm(
+            L[
+                affectedCount == 1
+                    ? "Continue without a redirect? Existing links to '{0}' will stop working."
+                    : "Continue without redirects? Existing links to {1} published URLs will stop working.",
+                impact.OldPath,
+                affectedCount],
+            L["Discard Published URLs"],
+            new ConfirmOptions
+            {
+                OkButtonText = L["Continue Without Redirects"],
+                CancelButtonText = L["Cancel Save"]
+            });
+
+        if (discardConfirmed != true)
+            return (false, null);
+
+        _routeDecisionPending = false;
+        return (true, PreviousPathBehavior.Discard);
     }
 
         /// <summary>
@@ -1874,6 +1956,7 @@ protected void UpdateLastSaved()
     {
         PageTitle = title;
         MarkDirty();
+        _routeDecisionPending = false;
         if (_slugState == SlugState.Auto)
             PageSlug = TitleToSlug(title);
     }
@@ -1883,7 +1966,32 @@ protected void UpdateLastSaved()
     {
         PageSlug = slug;
         MarkDirty();
+        _routeDecisionPending = false;
         _slugState = SlugState.Locked;
+    }
+
+    /// <summary>Returns the slug to automatic title synchronization.</summary>
+    protected void UseTitleForSlug()
+    {
+        _slugState = SlugState.Auto;
+        PageSlug = TitleToSlug(PageTitle);
+        _routeDecisionPending = false;
+        MarkDirty();
+    }
+
+    /// <summary>Normalizes a manually entered slug after editing.</summary>
+    protected void NormalizePageSlug()
+    {
+        PageSlug = TitleToSlug(PageSlug.Trim().Trim('/'));
+        _routeDecisionPending = false;
+        MarkDirty();
+    }
+
+    /// <summary>Marks a parent change as a route-affecting edit.</summary>
+    protected void MarkRouteDirty()
+    {
+        _routeDecisionPending = false;
+        MarkDirty();
     }
 
     /// <summary>Converts a human-readable title to a URL-friendly slug.</summary>

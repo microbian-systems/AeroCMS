@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
+using Aero.Cms.Services;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using IRequest = Aero.Core.Commands.IRequest;
+using PageRouteChangeImpact = Aero.Cms.Abstractions.Http.Clients.PageRouteChangeImpact;
 
 namespace Aero.Cms.Modules.Pages.Grains;
 
@@ -49,12 +51,14 @@ public AeroPageGrain(
         var contentValidator = _services.GetRequiredService<IHtmlContentValidator>();
         var styleCompiler = _services.GetRequiredService<IStyleCompiler>();
         var styleProfileResolver = _services.GetRequiredService<ISiteStyleProfileResolver>();
+        var aliasWriter = _services.GetService<IPageRouteAliasWriter>();
         var fixedSiteContext = new FixedSiteContext(siteId);
         var pageTreeService = new PageTreeService(
             session,
             fixedSiteContext,
             bus,
-            _services.GetRequiredService<ILogger<PageTreeService>>());
+            _services.GetRequiredService<ILogger<PageTreeService>>(),
+            aliasWriter);
         return new AeroPageContentService(
             session,
             bus,
@@ -65,7 +69,8 @@ public AeroPageGrain(
             styleProfileResolver,
             "system",
             cache,
-            pageTreeService);
+            pageTreeService,
+            aliasWriter);
     }
 
     // ── IHaveState<PageViewModel> ────────────────────────────────────
@@ -250,6 +255,37 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
     }
 
     // ── IAeroPageActor page-specific methods ───────────────────────────
+
+    /// <inheritdoc />
+    public async Task<PageRouteChangeImpact> GetRouteChangeImpactAsync(
+        long id,
+        string slug,
+        long? parentId,
+        CancellationToken ct)
+    {
+        await using var loadSession = await _store.QuerySessionAsync();
+        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
+        if (page is null)
+            return new PageRouteChangeImpact(id, string.Empty, string.Empty, [], $"Page {id} not found.");
+
+        await using var session = await _store.LightweightSessionAsync();
+        var siteContext = new FixedSiteContext(page.SiteId);
+        var treeService = new PageTreeService(
+            session,
+            siteContext,
+            _services.GetRequiredService<IMessageBus>(),
+            _services.GetRequiredService<ILogger<PageTreeService>>(),
+            _services.GetService<IPageRouteAliasWriter>());
+
+        var result = await treeService.GetRouteChangeImpactAsync(id, parentId, slug, ct);
+        return result switch
+        {
+            Result<PageRouteChangeImpact, AeroError>.Ok ok => ok.Value,
+            Result<PageRouteChangeImpact, AeroError>.Failure failure =>
+                new PageRouteChangeImpact(id, page.Path, page.Path, [], failure.Error.ToString()),
+            _ => new PageRouteChangeImpact(id, page.Path, page.Path, [], "Unexpected route-impact result.")
+        };
+    }
 
     /// <summary>
     /// Delegates to <see cref="AeroPageContentService"/> for site-scoped paged query.

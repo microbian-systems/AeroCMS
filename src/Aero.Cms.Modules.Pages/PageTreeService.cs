@@ -1,5 +1,8 @@
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Data.Queries;
+using Aero.Cms.Services;
 using Aero.Core.Http;
 using Wolverine;
 
@@ -31,7 +34,20 @@ public interface IPageTreeService
     /// Moves a page under a new parent (or to root). Validates no circular reference.
     /// </summary>
     Task<Result<PageDocument, AeroError>> MoveAsync(
-        long pageId, long? newParentId, int? order = null, CancellationToken ct = default);
+        long pageId,
+        long? newParentId,
+        int? order = null,
+        PreviousPathBehavior? previousPathBehavior = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Computes all historically published routes affected by a proposed slug or parent change.
+    /// </summary>
+    Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
+        long pageId,
+        long? newParentId,
+        string slug,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Creates the hierarchy path for a new/updated page.
@@ -66,6 +82,7 @@ public sealed class PageTreeService : IPageTreeService
     private readonly ISiteContext _siteContext;
     private readonly IMessageBus _bus;
     private readonly ILogger<PageTreeService> _logger;
+    private readonly IPageRouteAliasWriter? _aliasWriter;
 
         /// <summary>
     /// Initializes a new instance of the <see cref="PageTreeService"/> class.
@@ -74,12 +91,14 @@ public PageTreeService(
         IDocumentSession session,
         ISiteContext siteContext,
         IMessageBus bus,
-        ILogger<PageTreeService> logger)
+        ILogger<PageTreeService> logger,
+        IPageRouteAliasWriter? aliasWriter = null)
     {
         _session = session;
         _siteContext = siteContext;
         _bus = bus;
         _logger = logger;
+        _aliasWriter = aliasWriter;
     }
 
         /// <summary>
@@ -135,7 +154,7 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsy
         /// <summary>
     /// GetAncestorsAsync method.
     /// </summary>
-public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
+    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
         long pageId, CancellationToken ct = default)
     {
         try
@@ -181,11 +200,91 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAs
         }
     }
 
+    /// <inheritdoc />
+    public async Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
+        long pageId,
+        long? newParentId,
+        string slug,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var page = await _session.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageRouteChangeImpact, AeroError>(
+                    AeroError.NotFoundError($"Page {pageId} not found."));
+            }
+
+            var pathResult = await ComputePathAsync(
+                page.SiteId,
+                newParentId,
+                slug,
+                page.Id,
+                ct);
+            if (pathResult is Result<(string Path, int Depth), AeroError>.Failure pathFailure)
+            {
+                return Prelude.Fail<PageRouteChangeImpact, AeroError>(pathFailure.Error);
+            }
+
+            var newPath = ((Result<(string Path, int Depth), AeroError>.Ok)pathResult).Value.Path;
+            if (string.Equals(page.Path, newPath, StringComparison.Ordinal))
+            {
+                return Prelude.Ok<PageRouteChangeImpact, AeroError>(
+                    new PageRouteChangeImpact(page.Id, page.Path, newPath, []));
+            }
+
+            var affected = new List<PageRouteChangeItem>();
+            if (page.PublishedVersion > 0)
+            {
+                affected.Add(new PageRouteChangeItem(
+                    page.Id,
+                    page.Title,
+                    page.Culture,
+                    page.Path,
+                    newPath));
+            }
+
+            var descendants = await _session.QueryAsync(
+                new PagesByPathPrefixQuery
+                {
+                    SiteId = page.SiteId,
+                    PathPrefix = page.Path.TrimEnd('/') + "/"
+                },
+                ct);
+
+            foreach (var descendant in descendants.Where(x =>
+                         x.PublishedVersion > 0
+                         && string.Equals(x.Culture, page.Culture, StringComparison.OrdinalIgnoreCase)))
+            {
+                affected.Add(new PageRouteChangeItem(
+                    descendant.Id,
+                    descendant.Title,
+                    descendant.Culture,
+                    descendant.Path,
+                    newPath + descendant.Path[page.Path.Length..]));
+            }
+
+            return Prelude.Ok<PageRouteChangeImpact, AeroError>(
+                new PageRouteChangeImpact(page.Id, page.Path, newPath, affected));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to compute route impact for page {PageId}", pageId);
+            return Prelude.Fail<PageRouteChangeImpact, AeroError>(
+                AeroError.DatabaseError("Failed to compute page route impact."));
+        }
+    }
+
         /// <summary>
     /// MoveAsync method.
     /// </summary>
 public async Task<Result<PageDocument, AeroError>> MoveAsync(
-        long pageId, long? newParentId, int? order = null, CancellationToken ct = default)
+        long pageId,
+        long? newParentId,
+        int? order = null,
+        PreviousPathBehavior? previousPathBehavior = null,
+        CancellationToken ct = default)
     {
         try
         {
@@ -220,21 +319,28 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
             var oldPath = page.Path;
             var oldParentId = page.ParentId;
 
-            // Compute new path
-            string newPath;
-            int newDepth;
+            var impactResult = await GetRouteChangeImpactAsync(pageId, newParentId, page.Slug, ct);
+            if (impactResult is Result<PageRouteChangeImpact, AeroError>.Failure impactFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(impactFailure.Error);
+            }
 
-            if (newParentId.HasValue)
+            var impact = ((Result<PageRouteChangeImpact, AeroError>.Ok)impactResult).Value;
+            if (impact.RequiresDecision && previousPathBehavior is null)
             {
-                var parent = await _session.LoadAsync<PageDocument>(newParentId.Value, ct);
-                newPath = parent!.Path.TrimEnd('/') + "/" + page.Slug;
-                newDepth = parent.Depth + 1;
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ConflictError(
+                        "This route has previously been published. Choose whether to preserve the old URL as a permanent redirect."));
             }
-            else
+
+            var pathResult = await ComputePathAsync(siteId, newParentId, page.Slug, page.Id, ct);
+            if (pathResult is Result<(string Path, int Depth), AeroError>.Failure pathFailure)
             {
-                newPath = "/" + page.Slug;
-                newDepth = 0;
+                return Prelude.Fail<PageDocument, AeroError>(pathFailure.Error);
             }
+
+            var (newPath, newDepth) =
+                ((Result<(string Path, int Depth), AeroError>.Ok)pathResult).Value;
 
             page.ParentId = newParentId;
             page.Path = newPath;
@@ -255,7 +361,8 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
                         PathPrefix = oldPath + "/"
                     }, ct);
 
-                foreach (var descendant in descendants)
+                foreach (var descendant in descendants.Where(x =>
+                             string.Equals(x.Culture, page.Culture, StringComparison.OrdinalIgnoreCase)))
                 {
                     var oldDescendantPath = descendant.Path;
                     descendant.Path = newPath + descendant.Path[oldPath.Length..];
@@ -265,12 +372,54 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
                 }
             }
 
+            PageRouteAliasStageResult? aliasStage = null;
+            if (impact.RequiresDecision)
+            {
+                if (_aliasWriter is null)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.ConfigurationError("The page route alias writer is not configured."));
+                }
+
+                var aliasResult = await _aliasWriter.StageAsync(
+                    _session,
+                    impact.PreviouslyPublishedRoutes
+                        .Select(item => new PageRouteAliasCandidate(
+                            item.PageId,
+                            siteId,
+                            item.Culture,
+                            item.OldPath,
+                            item.NewPath,
+                            previousPathBehavior == PreviousPathBehavior.CreatePermanentRedirect))
+                        .ToList(),
+                    ct);
+                if (aliasResult is Result<PageRouteAliasStageResult, AeroError>.Failure aliasFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(aliasFailure.Error);
+                }
+
+                aliasStage = ((Result<PageRouteAliasStageResult, AeroError>.Ok)aliasResult).Value;
+            }
+
             await _session.SaveChangesAsync(ct);
+
+            if (aliasStage?.HasChanges == true && _aliasWriter is not null)
+            {
+                await _aliasWriter.OnCommittedAsync(CancellationToken.None);
+            }
 
             // Publish path change via Wolverine outbox for alias/sitemap modules
             if (oldPath != newPath)
             {
                 await _bus.PublishAsync(new PageSlugChanged(page.Id, oldPath, newPath));
+            }
+
+            if (aliasStage?.HasChanges == true)
+            {
+                await _bus.PublishAsync(new PageRouteAliasesChangedEvent(
+                    siteId,
+                    page.Culture,
+                    DateTimeOffset.UtcNow));
             }
 
             _logger.LogInformation(
@@ -399,7 +548,8 @@ public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
 
             var depthDelta = newPath.Count(c => c == '/') - oldPath.Count(c => c == '/');
 
-            foreach (var descendant in descendants)
+            foreach (var descendant in descendants.Where(x =>
+                         string.Equals(x.Culture, page.Culture, StringComparison.OrdinalIgnoreCase)))
             {
                 var oldDescendantPath = descendant.Path;
                 descendant.Path = newPath + descendant.Path[oldPath.Length..];
@@ -408,10 +558,8 @@ public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
                 await UpdateSlugReservationAsync(descendant, oldDescendantPath, ct);
             }
 
-            await _session.SaveChangesAsync(ct);
-
             _logger.LogInformation(
-                "Updated {Count} descendant paths for page {PageId}: {OldPath} → {NewPath}",
+                "Staged {Count} descendant path updates for page {PageId}: {OldPath} → {NewPath}",
                 descendants.Count, pageId, oldPath, newPath);
 
             return Prelude.Ok<bool, AeroError>(true);
