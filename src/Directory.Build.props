@@ -43,7 +43,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup Label="Package information">
-		<Version>0.0.9.3-alpha</Version>
+		<Version>0.0.9.4-alpha</Version>
 		<Authors>Aero Cms</Authors>
 		<Company>Microbian Systems</Company>
 		<Copyright>Copyright (c) 2025 Microbians</Copyright>
