@@ -12,8 +12,8 @@ namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 /// operations.
 /// </summary>
 /// <remarks>
-/// The route group does not attach an authorization policy. The host is responsible
-/// for protecting the configured admin API prefix.
+/// Read/compute operations require site read permission; hierarchy mutation requires
+/// site update permission.
 /// </remarks>
 public static class PagesTreeApi
 {
@@ -28,43 +28,53 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
             .WithTags("Admin - Pages Tree");
 
         group.MapGet("/", GetTree)
-            .WithName("GetPageTree");
+            .WithName("GetPageTree")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/children", GetChildren)
-            .WithName("GetPageChildren");
+            .WithName("GetPageChildren")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/translation-groups/children", GetTranslationGroupChildren)
-            .WithName("GetPageTranslationGroupChildren");
+            .WithName("GetPageTranslationGroupChildren")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/navigation", GetNavigation)
-            .WithName("GetNavigationTree");
+            .WithName("GetNavigationTree")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/breadcrumb/{id:long}", GetBreadcrumb)
-            .WithName("GetBreadcrumb");
+            .WithName("GetBreadcrumb")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/ancestors/{id:long}", GetAncestors)
-            .WithName("GetAncestors");
+            .WithName("GetAncestors")
+            .RequireAuthorization("site:read");
 
         group.MapPut("/{id:long}/move", MovePage)
-            .WithName("MovePage");
+            .WithName("MovePage")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/compute-path", ComputePath)
-            .WithName("ComputePath");
+            .WithName("ComputePath")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/next-order", GetNextOrder)
-            .WithName("GetNextOrder");
+            .WithName("GetNextOrder")
+            .RequireAuthorization("site:read");
     }
 
     private static async Task<IResult> GetTree(
         [FromServices] IPageTreeService treeService,
         [FromServices] IQuerySession query,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var result = await treeService.GetTreeAsync(ct);
         return result switch
         {
             Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
-                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, ct)),
+                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, siteContext.SiteId, ct)),
             _ => ToApiResult(result)
         };
     }
@@ -72,6 +82,7 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> GetChildren(
         [FromServices] IPageTreeService treeService,
         [FromServices] IQuerySession query,
+        [FromServices] ISiteContext siteContext,
         [FromQuery] long? parentId,
         CancellationToken ct)
     {
@@ -79,7 +90,7 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
         return result switch
         {
             Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
-                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, ct)),
+                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, siteContext.SiteId, ct)),
             _ => ToApiResult(result)
         };
     }
@@ -208,6 +219,7 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
     private static async Task<List<object>> MapToTreeItemsAsync(
         IQuerySession query,
         IReadOnlyList<PageDocument> pages,
+        long siteId,
         CancellationToken ct)
     {
         var pageIds = pages.Select(p => p.Id).ToList();
@@ -216,7 +228,8 @@ public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
 
         // Single batch query: find which IDs are parents of non-deleted pages
         var parentIds = await query.Query<PageDocument>()
-            .Where(x => x.ParentId.HasValue
+            .Where(x => x.SiteId == siteId
+                && x.ParentId.HasValue
                 && pageIds.Contains(x.ParentId!.Value)
                 && x.Deleted == false)
             .Select(x => x.ParentId!.Value)

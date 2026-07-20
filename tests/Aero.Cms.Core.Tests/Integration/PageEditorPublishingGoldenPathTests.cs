@@ -193,7 +193,7 @@ public sealed class PageEditorPublishingGoldenPathTests
         var actor = Substitute.For<IAeroPageActor>();
         actor.GetBySlugAsync(siteId, page.Slug, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new AeroRequestResponse<PageViewModel>(viewModel, null!));
-        actor.ListCultureVariantsAsync(pageId, Arg.Any<CancellationToken>())
+        actor.ListCultureVariantsAsync(pageId, siteId, Arg.Any<CancellationToken>())
             .Returns([viewModel]);
 
         var siteContext = Substitute.For<ISiteContext>();

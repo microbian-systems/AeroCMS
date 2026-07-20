@@ -10,9 +10,9 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 public interface IAliasHttpClient
 {
         /// <summary>
-    /// GetAllBySiteAsync method.
+    /// Gets aliases for the site selected by the current request context.
     /// </summary>
-Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllBySiteAsync(long siteId, CancellationToken ct = default);
+Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
         /// <summary>
     /// CreateAsync method.
     /// </summary>
@@ -35,10 +35,10 @@ public class AliasesHttpClient(HttpClient httpClient, ILogger<AliasesHttpClient>
 public override string Path => "admin/aliases";
 
         /// <summary>
-    /// GetAllBySiteAsync method.
+    /// Gets aliases for the site selected by the current request context.
     /// </summary>
-public Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
-        => GetAsync<IReadOnlyList<AliasViewModel>>($"?siteId={siteId}", ct);
+public Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<AliasViewModel>>(string.Empty, ct);
 
         /// <summary>
     /// CreateAsync method.

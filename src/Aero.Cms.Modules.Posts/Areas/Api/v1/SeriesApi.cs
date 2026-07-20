@@ -17,7 +17,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// <summary>
 /// Maps the series administration HTTP surface onto the series actor and Sable translation queries.
 /// </summary>
-/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
+/// <remarks>
+/// The route group requires an authenticated principal. Site-specific permission policies are
+/// applied in a later hardening phase.
+/// </remarks>
 public static class SeriesApi
 {
     /// <summary>
@@ -27,7 +30,8 @@ public static class SeriesApi
 public static void MapSeriesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/series")
-            .WithTags("Admin - Series");
+            .WithTags("Admin - Series")
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllSeries)
             .WithName("GetAllSeries");

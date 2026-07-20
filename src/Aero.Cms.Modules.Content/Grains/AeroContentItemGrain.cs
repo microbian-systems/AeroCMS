@@ -20,9 +20,8 @@ namespace Aero.Cms.Modules.Content.Grains;
 /// <see cref="IServiceScopeFactory"/> to handle complex entity logic.
 /// </summary>
 /// <remarks>
-/// Persistence operations accept site identity from their arguments or view models; the grain does
-/// not independently authorize callers or compare against a current-site context. Identifier-only
-/// delete and publication operations therefore require callers to enforce site ownership.
+/// Persistence operations require an explicit selected-site argument. Identifier-only inherited
+/// CRUD fails closed, and scoped operations repeat ownership checks in the service layer.
 /// Notifications are published after successful persistence and are best effort.
 /// </remarks>
 public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
@@ -69,15 +68,17 @@ public Task UpdateStateAsync(ContentItemViewModel state, CancellationToken ct)
     // ── ICruddable<ContentItemViewModel, long> ───────────────────────
 
         /// <summary>
-    /// Loads an item by its globally unique identifier and maps service failures to not found.
+    /// Rejects identifier-only lookup because a site scope is required.
     /// </summary>
-    /// <remarks>No site predicate or ownership check is applied.</remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, CancellationToken ct)
+    /// <remarks>Use the overload that accepts <c>siteId</c> for a scoped lookup.</remarks>
+public Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        => Task.FromResult(Fail("A site scope is required to load a content item"));
+
+public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
-
-        var result = await contentService.LoadAsync(id, ct);
+        var result = await contentService.LoadAsync(siteId, id, ct);
         return result switch
         {
             Result<ContentItem, AeroError>.Ok ok => Ok(MapToViewModel(ok.Value)),
@@ -96,12 +97,8 @@ public Task<AeroRequestResponse<ContentItemViewModel>> GetByIdsAsync(long[] ids,
     /// Reports that request-based creation is unsupported.
     /// </summary>
     /// <remarks>The request and cancellation token are ignored; use <see cref="SaveDraftAsync"/>.</remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> CreateAsync(IRequest request, CancellationToken ct)
-    {
-        // Content items don't use the standard IRequest pattern — Create is handled
-        // via SaveDraftAsync with a fully constructed ContentItem.
-        return Fail("Use CreateContentItemAsync instead of CreateAsync for content items");
-    }
+public Task<AeroRequestResponse<ContentItemViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("A site-scoped content item save is required"));
 
         /// <summary>
     /// Reports that request-based updates are unsupported.
@@ -112,30 +109,26 @@ public Task<AeroRequestResponse<ContentItemViewModel>> UpdateAsync(IRequest requ
         /// <summary>
     /// Reports that request-based deletion is unsupported.
     /// </summary>
-public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
-    {
-        // Content items use DeleteAsync(long id) instead of the IRequest pattern.
-        // This overload exists to satisfy ICruddable<ContentItemViewModel, long>.
-        return Fail("Use DeleteAsync(long id) for content items");
-    }
+public Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("A site-scoped content item delete is required"));
 
         /// <summary>
     /// Deletes an item by identifier and publishes a post-commit notification when its prior state loaded.
     /// </summary>
     /// <returns>An empty successful view model after deletion, or an error response on failure.</returns>
     /// <remarks>
-    /// No site ownership check is applied. A delete may succeed without a notification when the
-    /// pre-delete load failed.
+    /// Both the pre-delete load and command use the selected site. A successful delete is notified
+    /// only when the prior current-site state was loaded.
     /// </remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default)
+public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, long siteId, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
 
-        var existing = await contentService.LoadAsync(id, ct);
+        var existing = await contentService.LoadAsync(siteId, id, ct);
 
-        var result = await commandService.DeleteAsync(id, ct);
+        var result = await commandService.DeleteAsync(siteId, id, ct);
         if (result is Result<bool, AeroError>.Ok)
         {
             if (existing is Result<ContentItem, AeroError>.Ok ok)
@@ -197,10 +190,11 @@ public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByType
     /// <returns>The persisted view model or an error response.</returns>
     /// <remarks>
     /// A blank culture fails before scope creation; an invalid nonblank culture throws during
-    /// conversion. Site identity is accepted from <paramref name="vm"/> without authorization.
+    /// conversion. The explicit selected site is authoritative; updates also preserve stored
+    /// ownership and relationship identity.
     /// Newness is determined from the incoming identifier before a Snowflake identifier is assigned.
     /// </remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, CancellationToken ct)
+public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, long siteId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(vm.Culture))
         {
@@ -209,8 +203,23 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(Cont
 
         await using var scope = _scopeFactory.CreateAsyncScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
+        var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
 
         var isNew = vm.Id == 0;
+        if (!isNew)
+        {
+            var existing = await contentService.LoadAsync(siteId, vm.Id, ct);
+            if (existing is not Result<ContentItem, AeroError>.Ok found)
+                return NotFound($"Content item {vm.Id} not found");
+            vm.SiteId = found.Value.SiteId;
+            vm.ContentTypeAlias = found.Value.ContentTypeAlias;
+            vm.TranslationGroupId = found.Value.TranslationGroupId;
+            vm.SourceItemId = found.Value.SourceItemId;
+        }
+        else
+        {
+            vm.SiteId = siteId;
+        }
         var item = ToEntity(vm);
         var result = await commandService.SaveDraftAsync(item, ct);
 
@@ -236,14 +245,14 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(Cont
     /// Loads and publishes an item by identifier.
     /// </summary>
     /// <returns>A not-found response for load failure, the published model on success, or a generic failure.</returns>
-    /// <remarks>No site ownership check or publication notification is performed here.</remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, CancellationToken ct)
+    /// <remarks>The load is scoped to the selected site. No publication notification is emitted.</remarks>
+public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, long siteId, CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
-        var loadResult = await contentService.LoadAsync(id, ct);
+        var loadResult = await contentService.LoadAsync(siteId, id, ct);
         if (loadResult is not Result<ContentItem, AeroError>.Ok ok)
             return NotFound($"Content item {id} not found");
 
@@ -258,14 +267,14 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long i
         /// <summary>
     /// Loads an item by identifier, marks it draft, clears publication time, and saves it.
     /// </summary>
-    /// <remarks>No site ownership check or unpublication notification is performed here.</remarks>
-public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, CancellationToken ct)
+    /// <remarks>The load is scoped to the selected site. No unpublication notification is emitted.</remarks>
+public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
-        var loadResult = await contentService.LoadAsync(id, ct);
+        var loadResult = await contentService.LoadAsync(siteId, id, ct);
         if (loadResult is not Result<ContentItem, AeroError>.Ok ok)
             return NotFound($"Content item {id} not found");
 
@@ -335,7 +344,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
 
         return new ContentItem
         {
-            Id = vm.Id != 0 ? vm.Id : Snowflake.NewId(),
+            Id = vm.Id,
             SiteId = vm.SiteId,
             ContentTypeAlias = vm.ContentTypeAlias,
             Title = vm.Title,

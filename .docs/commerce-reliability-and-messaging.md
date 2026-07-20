@@ -251,6 +251,59 @@ Each payment authorization, capture, refund, and void uses a stable
 payment-provider idempotency key. A retried handler must query or safely replay the
 same provider operation rather than create a second charge.
 
+#### Payment provider strategy boundary
+
+Stripe and PayPal are the first-release payment providers. The Commerce module
+uses a provider-neutral Strategy boundary rather than allowing provider SDK types
+to escape into checkout, order, or payment domain contracts.
+
+The intended shape is:
+
+```text
+checkout/payment application service
+  -> payment-provider resolver/factory
+      -> IPaymentProviderStrategy
+          -> Stripe adapter
+          -> PayPal adapter
+```
+
+The strategy contract owns provider operations such as creating or confirming a
+payment, authorization, capture, void, refund, status lookup/reconciliation, and
+verified webhook translation. It returns canonical Commerce results and state;
+provider request/response models remain inside the adapter.
+
+The provider resolver selects only from server-configured providers that are
+enabled for the authoritative tenant/site. A caller may select among offered
+checkout options, but it cannot select an unconfigured provider, account, or
+credential.
+
+Link, Google Pay, and Apple Pay are modeled as provider-reported checkout
+capabilities/payment methods, not as peer processor strategies. For example,
+Stripe can surface supported wallets through its Payment Element when the
+underlying configuration, domain, browser, device, and customer are eligible.
+A wallet becomes its own provider strategy only if a future direct integration
+owns a distinct authorization, capture, refund, reconciliation, and webhook
+lifecycle.
+
+Use supporting patterns only at boundaries where they add a concrete guarantee:
+
+- **Adapter** isolates Stripe and PayPal SDK/API models.
+- **Factory/registry** resolves the configured strategy without reflection.
+- **Decorator** adds telemetry, audit, and idempotency enforcement around provider
+  calls; it must not perform blind payment retries.
+- **Observer** is implemented through canonical post-commit/outbox events rather
+  than provider-specific events leaking across modules.
+- The existing order/payment state machines remain authoritative for legal
+  transitions; provider status strings are translated at the adapter boundary.
+
+Each strategy declares capabilities such as authorization, delayed capture,
+partial/full refund, void, reconciliation, and supported wallet methods. Checkout
+must use capability checks instead of provider-name conditionals.
+
+References:
+
+- [Stripe Payment Element and wallet behavior](https://docs.stripe.com/stripe-js/reference)
+
 Payment workflows require explicit compensation rules, for example:
 
 - release inventory when authorization fails;
@@ -352,4 +405,3 @@ The commerce implementation is not complete until automated tests demonstrate:
 - [ ] Define payment-provider idempotency, reconciliation, and compensation policies.
 - [ ] Add the acceptance tests listed above.
 - [ ] Document and test the modular-monolith-to-microservices extraction boundary.
-

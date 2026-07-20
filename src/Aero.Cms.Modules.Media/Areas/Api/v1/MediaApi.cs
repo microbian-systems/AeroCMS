@@ -12,8 +12,8 @@ namespace Aero.Cms.Modules.Media.Areas.Api.v1;
 /// File I/O remains here; persistence delegates to <see cref="IAeroMediaActor"/> (Orleans grain).
 /// </summary>
 /// <remarks>
-/// These handlers do not add authorization or site-ownership checks. The host must protect the
-/// admin route group and constrain actor operations to the authorized site.
+/// These handlers require an authenticated principal. Site-ownership checks remain a later
+/// hardening phase.
 /// </remarks>
 public static class MediaApi
 {
@@ -31,13 +31,14 @@ public static class MediaApi
     /// </summary>
     /// <param name="app">The endpoint route builder.</param>
     /// <remarks>
-    /// The HTML-editor upload explicitly disables antiforgery, and this method does not attach an
-    /// authorization policy. The surrounding host pipeline must supply the intended protections.
+    /// The HTML-editor upload explicitly disables antiforgery. All routes require authentication;
+    /// site-specific authorization remains a later hardening phase.
     /// </remarks>
 public static void MapMediaApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/media")
-            .WithTags("Admin - Media");
+            .WithTags("Admin - Media")
+            .RequireAuthorization();
 
         group.MapPost("/folder", CreateFolder).WithName("CreateFolder");
         group.MapGet("/", GetAllMedia).WithName("GetAllMedia");

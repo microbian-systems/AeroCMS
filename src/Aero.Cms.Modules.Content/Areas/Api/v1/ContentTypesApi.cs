@@ -27,11 +27,11 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             .WithTags("Admin - Content Types")
             .RequireAuthorization();
 
-        group.MapGet("/", ListContentTypes).WithName("ListContentTypes");
-        group.MapGet("/{alias}", GetContentTypeByAlias).WithName("GetContentTypeByAlias");
-        group.MapPost("/", CreateContentType).WithName("CreateContentType");
-        group.MapPut("/{alias}", UpdateContentType).WithName("UpdateContentType");
-        group.MapDelete("/{alias}", DeleteContentType).WithName("DeleteContentType");
+        group.MapGet("/", ListContentTypes).RequireAuthorization("site:read").WithName("ListContentTypes");
+        group.MapGet("/{alias}", GetContentTypeByAlias).RequireAuthorization("site:read").WithName("GetContentTypeByAlias");
+        group.MapPost("/", CreateContentType).RequireAuthorization("site:create").WithName("CreateContentType");
+        group.MapPut("/{alias}", UpdateContentType).RequireAuthorization("site:update").WithName("UpdateContentType");
+        group.MapDelete("/{alias}", DeleteContentType).RequireAuthorization("site:delete").WithName("DeleteContentType");
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 ScheduleConfig = request.ScheduleConfig
             };
 
-            var result = await contentTypeActor.CreateAsync(vm, ct);
+            var result = await contentTypeActor.CreateAsync(vm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to create content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-types/{result.data.Alias}", MapToDetail(result.data));
@@ -200,7 +200,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.ScribanTemplate = request.ScribanTemplate;
             existing.ScheduleConfig = request.ScheduleConfig;
 
-            var result = await contentTypeActor.UpdateAsync(existing, ct);
+            var result = await contentTypeActor.UpdateAsync(existing, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to update content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
                 : TypedResults.Ok(MapToDetail(result.data));

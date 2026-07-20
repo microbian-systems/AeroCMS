@@ -97,15 +97,16 @@ public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
     /// This actor contract provides no site identifier, so the load is not site-scoped and no
     /// authorization check is performed by the grain.
     /// </remarks>
-    public async Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, CancellationToken ct)
-    {
-        await using var session = await _store.QuerySessionAsync();
-        var doc = await session.LoadAsync<DocsPage>(id, ct);
+public Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, CancellationToken ct)
+    => Task.FromResult(Fail("A site scope is required to load a doc by identifier"));
 
-        return doc is not null
-            ? Ok(doc.ToViewModel())
-            : NotFound($"Doc {id} not found");
-    }
+public async Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct)
+{
+    await using var session = await _store.LightweightSessionAsync();
+    var service = CreateDocsService(session, siteId);
+    var result = await service.GetByIdAsync(id, ct);
+    return result is Result<DocsPage?, AeroError>.Ok { Value: not null } ok ? Ok(ok.Value.ToViewModel()) : NotFound($"Doc {id} not found");
+}
 
     /// <summary>
     /// Loads a set of identifiers and returns only the first matching view model.
@@ -114,93 +115,20 @@ public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
     /// <param name="ct">The token used for the lightweight session.</param>
     /// <returns>The first match, an empty model when no records match, or an error response.</returns>
     /// <remarks>Callers must authorize every identifier before invoking this cross-site query.</remarks>
-public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
-    {
-        await using var session = await _store.LightweightSessionAsync();
-        // ICruddable doesn't provide siteId; the service queries by IDs
-        // without scoping to a site (caller is responsible for auth).
-        var docsService = CreateDocsService(session, siteId: 0);
-        var result = await docsService.GetByIdsAsync(ids, ct);
-
-        if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Ok ok)
-        {
-            var primary = ok.Value.Count > 0 ? ok.Value[0].ToViewModel() : new DocViewModel();
-            return Ok(primary);
-        }
-        if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "GetByIds failed");
-        return Ok(new DocViewModel());
-    }
+public Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+    => Task.FromResult(Fail("A site scope is required to load docs by identifier"));
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not CreateDocRequest create)
-            return Fail("Expected CreateDocRequest");
-
-        await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, create.SiteId);
-        var result = await docsService.CreateAsync(create, ct);
-
-        if (result is Result<DocsPage, AeroError>.Ok ok)
-            return Ok(ok.Value.ToViewModel());
-        if (result is Result<DocsPage, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Create failed");
-        return Fail("Unexpected result");
-    }
+public Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+    => Task.FromResult(Fail("A site-scoped doc save operation is required"));
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not UpdateDocRequest update)
-            return Fail("Expected UpdateDocRequest");
-
-        // Load doc to obtain its SiteId (not present on UpdateDocRequest)
-        await using var loadSession = await _store.QuerySessionAsync();
-        var doc = await loadSession.LoadAsync<DocsPage>(update.Id, ct);
-
-        if (doc is null)
-            return NotFound($"Doc {update.Id} not found");
-
-        var siteId = doc.SiteId;
-
-        await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteId);
-        var result = await docsService.UpdateAsync(update.Id, update, ct);
-
-        if (result is Result<DocsPage, AeroError>.Ok ok)
-            return Ok(ok.Value.ToViewModel());
-        if (result is Result<DocsPage, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Update failed");
-        return Fail("Unexpected result");
-    }
+public Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+    => Task.FromResult(Fail("A site-scoped doc save operation is required"));
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not DeleteDocRequest delete)
-            return Fail("Expected DeleteDocRequest");
-
-        // Load doc to obtain SiteId and capture the view model
-        await using var loadSession = await _store.QuerySessionAsync();
-        var doc = await loadSession.LoadAsync<DocsPage>(delete.Id, ct);
-
-        if (doc is null)
-            return NotFound($"Doc {delete.Id} not found");
-
-        var siteId = doc.SiteId;
-        var vm = doc.ToViewModel();
-
-        await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteId);
-        var result = await docsService.DeleteAsync(delete.Id, ct);
-
-        if (result is Result<bool, AeroError>.Ok)
-            return Ok(vm);
-        if (result is Result<bool, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Delete failed");
-        return Fail("Unexpected result");
-    }
+public Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+    => Task.FromResult(Fail("A site-scoped doc delete operation is required"));
 
     // ── ICanFindBySite<DocViewModel, long> ──────────────────────────────
 
@@ -307,10 +235,10 @@ public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, Ca
     }
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default)
+public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, vm.SiteId);
+        var docsService = CreateDocsService(session, siteId);
         var result = await docsService.SaveFromViewModelAsync(vm, ct);
 
         if (result is Result<DocsPage, AeroError>.Ok ok)
@@ -325,14 +253,10 @@ public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, 
 /// The source identifier is loaded without an expected-site constraint. A missing record or
 /// service failure is represented as an empty list.
 /// </remarks>
-public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, long siteId, CancellationToken ct = default)
     {
-        var siteIdResult = await ResolveSiteIdAsync(id, ct);
-        if (siteIdResult is null)
-            return [];
-
         await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var docsService = CreateDocsService(session, siteId);
         var result = await docsService.ListCultureVariantsAsync(id, ct);
 
         if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Ok ok)
@@ -341,14 +265,10 @@ public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, Cancella
     }
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default)
+public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, long siteId, string culture, string slug, CancellationToken ct = default)
     {
-        var siteIdResult = await ResolveSiteIdAsync(id, ct);
-        if (siteIdResult is null)
-            return NotFound($"Doc {id} not found");
-
         await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var docsService = CreateDocsService(session, siteId);
         var result = await docsService.ForkToCultureAsync(id, culture, slug, ct);
 
         if (result is Result<DocsPage, AeroError>.Ok ok)
@@ -359,14 +279,10 @@ public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long
     }
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default)
+public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, long siteId, CancellationToken ct = default)
     {
-        var siteIdResult = await ResolveSiteIdAsync(id, ct);
-        if (siteIdResult is null)
-            return NotFound($"Doc {id} not found");
-
         await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var docsService = CreateDocsService(session, siteId);
         var result = await docsService.PublishAsync(id, ct);
 
         if (result is Result<DocsPage, AeroError>.Ok ok)
@@ -377,14 +293,10 @@ public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, Cance
     }
 
 /// <inheritdoc />
-public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default)
+public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct = default)
     {
-        var siteIdResult = await ResolveSiteIdAsync(id, ct);
-        if (siteIdResult is null)
-            return NotFound($"Doc {id} not found");
-
         await using var session = await _store.LightweightSessionAsync();
-        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var docsService = CreateDocsService(session, siteId);
         var result = await docsService.UnpublishAsync(id, ct);
 
         if (result is Result<DocsPage, AeroError>.Ok ok)
@@ -454,16 +366,15 @@ public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
         return Fail("Unexpected result");
     }
 
-    /// <summary>
-    /// Loads only the site identifier associated with a page identifier.
-    /// </summary>
-    /// <remarks>The identifier lookup is not authorized or constrained by an expected site.</remarks>
-    private async Task<long?> ResolveSiteIdAsync(long id, CancellationToken ct)
-    {
-        await using var loadSession = await _store.QuerySessionAsync();
-        var doc = await loadSession.LoadAsync<DocsPage>(id, ct);
-        return doc?.SiteId;
-    }
+public async Task<AeroRequestResponse<DocViewModel>> DeleteDocAsync(long id, long siteId, CancellationToken ct = default)
+{
+    await using var session = await _store.LightweightSessionAsync();
+    var service = CreateDocsService(session, siteId);
+    var load = await service.GetByIdAsync(id, ct);
+    if (load is not Result<DocsPage?, AeroError>.Ok { Value: not null } found) return NotFound($"Doc {id} not found");
+    var deleted = await service.DeleteAsync(id, ct);
+    return deleted is Result<bool, AeroError>.Ok ? Ok(found.Value.ToViewModel()) : NotFound($"Doc {id} not found");
+}
 
     // ── AeroRequestResponse helpers ──────────────────────────────────────
 

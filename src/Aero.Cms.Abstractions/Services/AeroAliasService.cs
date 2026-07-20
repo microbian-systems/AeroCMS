@@ -9,23 +9,19 @@ namespace Aero.Cms.Abstractions.Services;
 public interface IAeroAliasService
 {
     /// <summary>Create alias. Throws <see cref="InvalidOperationException"/> on grain error.</summary>
-    Task<AliasViewModel> CreateAsync(CreateAliasRequest request, CancellationToken ct = default);
+    Task<AliasViewModel> CreateAsync(CreateAliasRequest request, long siteId, CancellationToken ct = default);
 
     /// <summary>Delete alias. Throws <see cref="InvalidOperationException"/> on grain error.</summary>
-    Task DeleteAsync(DeleteAliasRequest request, CancellationToken ct = default);
+    Task DeleteAsync(DeleteAliasRequest request, long siteId, CancellationToken ct = default);
 
         /// <summary>
     /// GetAllAliasesAsync method.
     /// </summary>
-Task<List<AliasViewModel>> GetAllAliasesAsync(long? siteId = null, CancellationToken ct = default);
+Task<List<AliasViewModel>> GetAllAliasesAsync(long siteId, CancellationToken ct = default);
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
-Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct = default);
-        /// <summary>
-    /// GetByIdsAsync method.
-    /// </summary>
-Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct = default);
+Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct = default);
         /// <summary>
     /// GetBySiteIdAsync method.
     /// </summary>
@@ -34,18 +30,6 @@ Task<AeroRequestResponse<AliasViewModel>> GetBySiteIdAsync(long siteId, AeroSear
     /// GetBySlugAsync method.
     /// </summary>
 Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct = default);
-        /// <summary>
-    /// GetStateAsync method.
-    /// </summary>
-Task<AliasViewModel> GetStateAsync(CancellationToken ct);
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
-Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct = default);
-        /// <summary>
-    /// UpdateStateAsync method.
-    /// </summary>
-Task UpdateStateAsync(AliasViewModel state, CancellationToken ct);
 }
 
 /// <summary>
@@ -58,25 +42,25 @@ public class AeroAliasService(IGrainFactory grainFactory) : IAeroAliasService
         /// <summary>
     /// CreateAsync method.
     /// </summary>
-public async Task<AliasViewModel> CreateAsync(CreateAliasRequest request, CancellationToken ct = default)
+public async Task<AliasViewModel> CreateAsync(CreateAliasRequest request, long siteId, CancellationToken ct = default)
     {
-        var result = await actor.CreateAsync(request, ct);
+        var result = await actor.CreateAliasAsync(request, siteId, ct);
         return Unwrap(result);
     }
 
         /// <summary>
     /// DeleteAsync method.
     /// </summary>
-public async Task DeleteAsync(DeleteAliasRequest request, CancellationToken ct = default)
+public async Task DeleteAsync(DeleteAliasRequest request, long siteId, CancellationToken ct = default)
     {
-        var result = await actor.DeleteAsync(request, ct);
+        var result = await actor.DeleteAliasAsync(request.Id, siteId, ct);
         Unwrap(result); // throws on error
     }
 
         /// <summary>
     /// GetAllAliasesAsync method.
     /// </summary>
-public Task<List<AliasViewModel>> GetAllAliasesAsync(long? siteId = null, CancellationToken ct = default)
+public Task<List<AliasViewModel>> GetAllAliasesAsync(long siteId, CancellationToken ct = default)
     {
         var result = actor.GetAllAliasesAsync(siteId, ct);
         return result;
@@ -85,20 +69,12 @@ public Task<List<AliasViewModel>> GetAllAliasesAsync(long? siteId = null, Cancel
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
-public Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct = default)
+public Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct = default)
     {
-        var result = actor.GetByIdAsync(id, ct);
+        var result = actor.GetByIdAsync(id, siteId, ct);
         return result;
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
-    /// </summary>
-public async Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct = default)
-    {
-        var result = await actor.GetByIdsAsync(ids, ct);
-        return result;
-    }
 
         /// <summary>
     /// GetBySiteIdAsync method.
@@ -118,31 +94,6 @@ public async Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteI
         return result;
     }
 
-        /// <summary>
-    /// GetStateAsync method.
-    /// </summary>
-public Task<AliasViewModel> GetStateAsync(CancellationToken ct)
-    {
-        var result = actor.GetStateAsync(ct);
-        return result;
-    }
-
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
-public Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct = default)
-    {
-        var result = actor.UpdateAsync(request, ct);
-        return result;
-    }
-
-        /// <summary>
-    /// UpdateStateAsync method.
-    /// </summary>
-public async Task UpdateStateAsync(AliasViewModel state, CancellationToken ct)
-    {
-        await actor.UpdateStateAsync(state, ct);
-    }
 
     private static AliasViewModel Unwrap(AeroRequestResponse<AliasViewModel> result)
     {

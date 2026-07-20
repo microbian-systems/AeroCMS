@@ -146,7 +146,10 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
     /// <returns>Culture links plus an <c>x-default</c> link when the default-culture variant exists.</returns>
     private async Task<IReadOnlyList<AlternatePostLink>> BuildAlternateLinksAsync(PostViewModel post, CancellationToken cancellationToken)
     {
-        var variants = await postActor.ListCultureVariantsAsync(post.Id, cancellationToken);
+        var variants = await postActor.ListCultureVariantsAsync(
+            post.Id,
+            siteContext.SiteId,
+            cancellationToken);
         if (variants.Count == 0)
             variants = [post];
 

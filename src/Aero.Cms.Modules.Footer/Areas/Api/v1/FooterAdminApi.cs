@@ -16,9 +16,8 @@ namespace Aero.Cms.Modules.Footer.Areas.Api.v1;
 /// Maps the minimal API surface for footer administration, culture variants, publication, and history.
 /// </summary>
 /// <remarks>
-/// Most authoring operations enforce current-site ownership through <see cref="IFooterService"/>.
-/// Event-history lookup reads the requested stream directly and does not perform that ownership check.
-/// The route group does not attach authorization or rate-limiting metadata, so the host must secure it.
+/// Authoring and history operations enforce current-site ownership through <see cref="IFooterService"/>.
+/// The route group requires an authenticated principal but does not attach rate-limiting metadata.
 /// </remarks>
 public static class FooterAdminApi
 {
@@ -36,21 +35,21 @@ public static class FooterAdminApi
     public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/footers")
-            .WithTags("Admin - Footers");
+            .WithTags("Admin - Footers")
+            .RequireAuthorization();
 
-        group.MapGet("/", ListFooters).WithName("ListFooters");
-        group.MapGet("/{id:long}", GetFooterById).WithName("GetFooterById");
-        group.MapGet("/details/{id:long}", GetFooterById).WithName("GetFooterDetailsById");
-        group.MapGet("/{id:long}/translations", ListFooterTranslations).WithName("ListFooterTranslations");
-        group.MapPost("/", CreateFooter).WithName("CreateFooter");
-        group.MapPost("/{id:long}/translations", ForkFooterToCulture).WithName("ForkFooterToCulture");
-        group.MapPost("/{id:long}/ai-translate", TranslateFooterWithAi).WithName("TranslateFooterWithAi");
-        group.MapPut("/{id:long}", SaveDraftCompatibility).WithName("UpdateFooter");
-        group.MapPut("/{id:long}/draft", SaveDraft).WithName("SaveFooterDraft");
-        group.MapPut("/{id:long}/publish", Publish).WithName("PublishFooter");
-        group.MapPut("/{id:long}/default", SetDefault).WithName("SetDefaultFooter");
-        group.MapDelete("/{id:long}", Archive).WithName("ArchiveFooter");
-        group.MapGet("/{id:long}/events", GetEvents).WithName("GetFooterEvents");
+        group.MapGet("/", ListFooters).RequireAuthorization("site:read").WithName("ListFooters");
+        group.MapGet("/{id:long}", GetFooterById).RequireAuthorization("site:read").WithName("GetFooterById");
+        group.MapGet("/details/{id:long}", GetFooterById).RequireAuthorization("site:read").WithName("GetFooterDetailsById");
+        group.MapGet("/{id:long}/translations", ListFooterTranslations).RequireAuthorization("site:read").WithName("ListFooterTranslations");
+        group.MapPost("/", CreateFooter).RequireAuthorization("site:create").WithName("CreateFooter");
+        group.MapPost("/{id:long}/translations", ForkFooterToCulture).RequireAuthorization("site:create").WithName("ForkFooterToCulture");
+        group.MapPost("/{id:long}/ai-translate", TranslateFooterWithAi).RequireAuthorization("site:create", "site:update").WithName("TranslateFooterWithAi");
+        group.MapPut("/{id:long}/draft", SaveDraft).RequireAuthorization("site:update").WithName("SaveFooterDraft");
+        group.MapPut("/{id:long}/publish", Publish).RequireAuthorization("site:update").WithName("PublishFooter");
+        group.MapPut("/{id:long}/default", SetDefault).RequireAuthorization("site:update").WithName("SetDefaultFooter");
+        group.MapDelete("/{id:long}", Archive).RequireAuthorization("site:delete").WithName("ArchiveFooter");
+        group.MapGet("/{id:long}/events", GetEvents).RequireAuthorization("site:read").WithName("GetFooterEvents");
     }
 
     private static async Task<IResult> ListFooters(
@@ -242,22 +241,6 @@ public static class FooterAdminApi
             .ToList()));
     }
 
-    private static async Task<IResult> SaveDraftCompatibility(
-        long id,
-        [FromBody] UpdateFooterRequest request,
-        [FromServices] IFooterService service,
-        [FromServices] IValidator<UpdateFooterRequest> validator,
-        CancellationToken cancellationToken = default)
-    {
-        var current = await service.GetAsync(id, cancellationToken);
-        if (current is Result<FooterDocument, AeroError>.Failure)
-        {
-            return ToProblem(current);
-        }
-
-        return await SaveDraft(id, request, service, validator, expectedVersion: null, expectedRevision: null, cancellationToken);
-    }
-
     private static async Task<IResult> SaveDraft(
         long id,
         [FromBody] UpdateFooterRequest request,
@@ -318,8 +301,18 @@ public static class FooterAdminApi
         return detail is Result<FooterDetail, AeroError>.Ok ok ? TypedResults.Ok(ok.Value) : ToProblem(detail);
     }
 
-    private static async Task<IResult> GetEvents(long id, IQuerySession querySession, CancellationToken cancellationToken)
+    private static async Task<IResult> GetEvents(
+        long id,
+        [FromServices] IFooterService service,
+        [FromServices] IQuerySession querySession,
+        CancellationToken cancellationToken)
     {
+        var existing = await service.GetAsync(id, cancellationToken);
+        if (existing is Result<FooterDocument, AeroError>.Failure)
+        {
+            return ToProblem(existing);
+        }
+
         var events = await querySession.Events.FetchStreamAsync(FooterStreams.Footer(id), ct: cancellationToken);
         var history = events.Select(e => new FooterEventItem(
             e.Version,

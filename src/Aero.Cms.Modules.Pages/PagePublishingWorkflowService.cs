@@ -11,9 +11,8 @@ namespace Aero.Cms.Modules.Pages;
 /// Defines publication-state transitions for tracked page documents.
 /// </summary>
 /// <remarks>
-/// Operations load pages by identifier and do not independently enforce authorization or
-/// current-site ownership. Callers must authorize the transition and verify the page belongs
-/// to the intended site before invoking this workflow.
+/// Administrative publication uses the overload carrying an authorized site identifier,
+/// so ownership is checked in the same session that performs the mutation.
 /// </remarks>
 public interface IPagePublishingWorkflowService
 {
@@ -54,6 +53,14 @@ public interface IPagePublishingWorkflowService
     Task<Result<bool, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default);
 
     /// <summary>
+    /// Validates and immediately publishes a page only when it belongs to the authorized site.
+    /// </summary>
+    Task<Result<bool, AeroError>> PublishNowAsync(
+        long pageId,
+        long authorizedSiteId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Marks a page as archived and sends page-update notifications.
     /// </summary>
     /// <param name="pageId">The page identifier.</param>
@@ -71,8 +78,8 @@ public interface IPagePublishingWorkflowService
 /// transaction coordinated by this service. A notification failure can therefore
 /// be returned after the page state has already been saved. Public operations catch
 /// cancellation exceptions raised in their bodies and translate them to database
-/// error results. Pages are loaded by identifier without a current-site or authorization
-/// check; those boundaries remain the caller's responsibility.
+/// error results. The explicit-site publication overload is the administrative boundary;
+/// unscoped lifecycle methods remain available for seed and internal workflows.
 /// </remarks>
 public sealed class PagePublishingWorkflowService(
     IDocumentSession session,
@@ -187,6 +194,30 @@ public sealed class PagePublishingWorkflowService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to publish page {PageId}", pageId);
+            return AeroError.DatabaseError("Failed to publish page.");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<bool, AeroError>> PublishNowAsync(
+        long pageId,
+        long authorizedSiteId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(pageId, ct);
+            return page is null || page.SiteId != authorizedSiteId
+                ? AeroError.NotFoundError($"Page {pageId} not found.")
+                : await PublishAsync(page, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to publish page {PageId} for authorized site {SiteId}",
+                pageId,
+                authorizedSiteId);
             return AeroError.DatabaseError("Failed to publish page.");
         }
     }

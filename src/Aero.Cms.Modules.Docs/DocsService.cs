@@ -66,7 +66,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(Cancel
         {
             var cacheKey = BuildCacheKey("all");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.Items.All(x => x.SiteId == _siteContext.SiteId))
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
             var docs = await _session.Query<DocsPage>()
@@ -98,7 +98,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(
             var currentCulture = GetCurrentCulture(culture);
             var cacheKey = BuildCacheKey($"published:{currentCulture}");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.Items.All(x => x.SiteId == _siteContext.SiteId && x.PublicationState == ContentPublicationState.Published && x.Culture == currentCulture))
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
             var docs = await _session.Query<DocsPage>()
@@ -126,7 +126,7 @@ public async Task<Result<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroE
         {
             var cacheKey = BuildCacheKey($"paged:{skip}:{take}");
             var cached = await TryGetCacheAsync<DocsPagePagedCacheEntry>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.Items.All(x => x.SiteId == _siteContext.SiteId))
                 return Ok<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroError>((cached.Items, cached.TotalCount));
 
             var siteId = _siteContext.SiteId;
@@ -155,7 +155,7 @@ public async Task<Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, Canc
         {
             var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
             var cached = await TryGetCacheAsync<DocsPage>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.SiteId == _siteContext.SiteId)
                 return Ok<DocsPage?, AeroError>(cached);
 
             var doc = await _session.Query<DocsPage>()
@@ -185,7 +185,7 @@ public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string s
             var currentCulture = GetCurrentCulture(culture);
             var cacheKey = BuildCacheKey($"slug-pub:{currentCulture}:{NormalizeCachePart(slug)}");
             var cached = await TryGetCacheAsync<DocsPage>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.SiteId == _siteContext.SiteId && cached.PublicationState == ContentPublicationState.Published)
                 return Ok<DocsPage?, AeroError>(cached);
 
             var doc = await FindPublishedBySlugAndCultureAsync(slug, currentCulture, ct);
@@ -215,7 +215,7 @@ public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, Cancellati
         {
             var cacheKey = BuildCacheKey($"id:{id}");
             var cached = await TryGetCacheAsync<DocsPage>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.SiteId == _siteContext.SiteId)
                 return Ok<DocsPage?, AeroError>(cached);
 
             var doc = await _session.LoadAsync<DocsPage>(id, ct);
@@ -237,11 +237,24 @@ public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, Cancellati
     {
         try
         {
-            var existing = await _session.LoadAsync<DocsPage>(page.Id, ct);
+            if (page.SiteId != 0 && page.SiteId != _siteContext.SiteId)
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{page.Id}' not found or access denied"));
+
+            var existing = page.Id == 0 ? null : await _session.LoadAsync<DocsPage>(page.Id, ct);
+            if (existing is not null && existing.SiteId != _siteContext.SiteId)
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{page.Id}' not found or access denied"));
+
+            if (page.Id == 0)
+                page.Id = Snowflake.NewId();
+            if (page.ParentId is { } parentId && !await BelongsToCurrentSiteAsync(parentId, ct))
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError("Parent doc not found or access denied"));
+            if (page.TranslationGroupId is { } groupId && !await TranslationGroupBelongsToCurrentSiteAsync(groupId, ct))
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError("Translation group not found or access denied"));
+
             var oldSlug = existing?.Slug;
             page.SiteId = _siteContext.SiteId;
             page.Culture = NormalizeCulture(page.Culture);
-            page.TranslationGroupId ??= page.Id == 0 ? null : page.Id;
+            page.TranslationGroupId = existing?.TranslationGroupId ?? page.TranslationGroupId ?? page.Id;
 
             var now = DateTimeOffset.UtcNow;
             page.ModifiedOn = now;
@@ -301,10 +314,11 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetByIdsAsync(long
     {
         try
         {
-            var docs = await _session.Query<DocsPage>()
-                .Where(x => ids.Contains(x.Id))
+            var siteDocs = await _session.Query<DocsPage>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .ToListAsync(ct);
-            return Ok<IReadOnlyList<DocsPage>, AeroError>(docs);
+            var requested = ids.ToHashSet();
+            return Ok<IReadOnlyList<DocsPage>, AeroError>(siteDocs.Where(x => requested.Contains(x.Id)).ToList());
         }
         catch (Exception ex)
         {
@@ -358,7 +372,10 @@ public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, strin
             if (existing is not null)
                 return Fail<DocsPage, AeroError>(AeroError.ValidationError([$"A {culture} translation already exists."]));
 
-            var parentId = await ResolveTranslatedParentIdAsync(source.ParentId, culture, ct);
+            var parentResult = await ResolveTranslatedParentIdAsync(source.ParentId, culture, ct);
+            if (parentResult is Result<long?, AeroError>.Failure parentFailure)
+                return Fail<DocsPage, AeroError>(parentFailure.Error);
+            var parentId = ((Result<long?, AeroError>.Ok)parentResult).Value;
             var now = DateTimeOffset.UtcNow;
             var fork = new DocsPage
             {
@@ -470,7 +487,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
             var currentCulture = GetCurrentCulture(culture);
             var cacheKey = BuildCacheKey($"children:{currentCulture}:{parentId}");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.Items.All(x => x.SiteId == _siteContext.SiteId))
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
             var children = await _session.Query<DocsPage>()
@@ -497,7 +514,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         {
             var cacheKey = BuildCacheKey("top-level-categories");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
-            if (cached is not null)
+            if (cached is not null && cached.Items.All(x => x.SiteId == _siteContext.SiteId))
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
             var rootDoc = await _session.Query<DocsPage>()
@@ -579,15 +596,23 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
     {
         try
         {
-            var existing = await _session.LoadAsync<DocsPage>(vm.Id, ct);
+            var existing = vm.Id == 0 ? null : await _session.LoadAsync<DocsPage>(vm.Id, ct);
+            if (vm.Id != 0 && existing is null)
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{vm.Id}' not found or access denied"));
+            if (existing is not null && existing.SiteId != _siteContext.SiteId)
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{vm.Id}' not found or access denied"));
             var isNew = existing is null;
+
+            // Validate every submitted relationship before mutating a tracked existing record.
+            if (vm.ParentId is { } parentId && !await BelongsToCurrentSiteAsync(parentId, ct))
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError("Parent doc not found or access denied"));
 
             var doc = isNew
                 ? new DocsPage { Id = Snowflake.NewId() }
                 : existing!;
 
-            doc.SiteId = vm.SiteId;
-            doc.TranslationGroupId = vm.TranslationGroupId ?? (isNew ? null : doc.TranslationGroupId);
+            doc.SiteId = _siteContext.SiteId;
+            doc.TranslationGroupId = isNew ? doc.Id : doc.TranslationGroupId;
             doc.Culture = NormalizeCulture(vm.Culture);
             doc.Title = vm.Title ?? string.Empty;
             doc.Slug = vm.Slug ?? string.Empty;
@@ -595,8 +620,8 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
             doc.MarkdownContent = vm.MarkdownContent;
             doc.SeoTitle = vm.SeoTitle;
             doc.SeoDescription = vm.SeoDescription;
-            doc.PublicationState = vm.PublicationState;
-            doc.PublishedOn = vm.PublishedOn;
+            doc.PublicationState = isNew ? ContentPublicationState.Draft : vm.PublicationState;
+            doc.PublishedOn = isNew ? null : vm.PublishedOn;
             doc.ShowHeaderNavigation = vm.ShowHeaderNavigation;
             doc.HeaderImageUrl = vm.HeaderImageUrl;
             doc.ParentId = vm.ParentId;
@@ -698,14 +723,14 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
     /// A missing parent or translated parent leaves the original parent identifier in place.
     /// The initial parent load is identifier-only; the subsequent translation lookup is site-scoped.
     /// </remarks>
-    private async Task<long?> ResolveTranslatedParentIdAsync(long? sourceParentId, string culture, CancellationToken ct)
+    private async Task<Result<long?, AeroError>> ResolveTranslatedParentIdAsync(long? sourceParentId, string culture, CancellationToken ct)
     {
         if (sourceParentId is not { } parentId)
-            return null;
+            return Ok<long?, AeroError>(null);
 
         var parent = await _session.LoadAsync<DocsPage>(parentId, ct);
-        if (parent is null)
-            return sourceParentId;
+        if (parent is null || parent.SiteId != _siteContext.SiteId)
+            return Fail<long?, AeroError>(AeroError.NotFoundError("Source parent not found or access denied"));
 
         var parentSetId = parent.TranslationGroupId ?? parent.Id;
         var translatedParent = await _session.Query<DocsPage>()
@@ -715,8 +740,19 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
                 && doc.Culture == culture,
                 ct);
 
-        return translatedParent?.Id ?? sourceParentId;
+        return Ok<long?, AeroError>(translatedParent?.Id ?? parent.Id);
     }
+
+    private async Task<bool> BelongsToCurrentSiteAsync(long id, CancellationToken ct)
+    {
+        var page = await _session.LoadAsync<DocsPage>(id, ct);
+        return page is not null && page.SiteId == _siteContext.SiteId;
+    }
+
+    private async Task<bool> TranslationGroupBelongsToCurrentSiteAsync(long translationGroupId, CancellationToken ct)
+        => await _session.Query<DocsPage>()
+            .FirstOrDefaultAsync(x => x.SiteId == _siteContext.SiteId && (x.TranslationGroupId == translationGroupId || x.Id == translationGroupId), ct)
+            is not null;
 
     /// <summary>
     /// Canonicalizes a .NET culture name and substitutes <c>en-US</c> for blank input.

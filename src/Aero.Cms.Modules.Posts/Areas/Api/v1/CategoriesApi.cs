@@ -17,7 +17,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// <summary>
 /// Maps the category administration HTTP surface onto the category actor and Sable count queries.
 /// </summary>
-/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
+/// <remarks>
+/// The route group requires an authenticated principal. Site-specific permission policies are
+/// applied in a later hardening phase.
+/// </remarks>
 public static class CategoriesApi
 {
     /// <summary>
@@ -27,7 +30,8 @@ public static class CategoriesApi
 public static void MapCategoriesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/categories")
-            .WithTags("Admin - Categories");
+            .WithTags("Admin - Categories")
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllCategories)
             .WithName("GetAllCategories");

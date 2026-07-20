@@ -16,8 +16,8 @@ namespace Aero.Cms.Modules.Navigation.Areas.Api.v1;
 /// Maps administrative navigation-menu editing, publication, translation, defaulting, archive, and history endpoints.
 /// </summary>
 /// <remarks>
-/// This mapper does not call <c>RequireAuthorization</c>. The host must secure the
-/// <c>admin/navigations</c> route group and establish the manager site context.
+/// The <c>admin/navigations</c> route group requires an authenticated principal and each endpoint
+/// declares its exact site permission.
 /// </remarks>
 public static class NavigationAdminApi
 {
@@ -28,45 +28,55 @@ public static class NavigationAdminApi
 public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/navigations")
-            .WithTags("Admin - Navigations");
+            .WithTags("Admin - Navigations")
+            .RequireAuthorization();
 
         group.MapGet("/", ListNavigations)
+            .RequireAuthorization("site:read")
             .WithName("ListNavigationMenus");
 
         group.MapGet("/{id:long}", GetNavigationById)
+            .RequireAuthorization("site:read")
             .WithName("GetNavigationMenuById");
 
         group.MapGet("/details/{id:long}", GetNavigationById)
+            .RequireAuthorization("site:read")
             .WithName("GetNavigationMenuDetailsById");
 
         group.MapGet("/{id:long}/translations", ListNavigationTranslations)
+            .RequireAuthorization("site:read")
             .WithName("ListNavigationMenuTranslations");
 
         group.MapPost("/", CreateNavigation)
+            .RequireAuthorization("site:create")
             .WithName("CreateNavigationMenu");
 
         group.MapPost("/{id:long}/translations", ForkNavigationToCulture)
+            .RequireAuthorization("site:create")
             .WithName("ForkNavigationMenuToCulture");
 
         group.MapPost("/{id:long}/ai-translate", TranslateNavigationWithAi)
+            .RequireAuthorization("site:create", "site:update")
             .WithName("TranslateNavigationMenuWithAi");
 
-        group.MapPut("/{id:long}", SaveDraftCompatibility)
-            .WithName("UpdateNavigationMenu");
-
         group.MapPut("/{id:long}/draft", SaveDraft)
+            .RequireAuthorization("site:update")
             .WithName("SaveNavigationMenuDraft");
 
         group.MapPut("/{id:long}/publish", Publish)
+            .RequireAuthorization("site:update")
             .WithName("PublishNavigationMenu");
 
         group.MapPut("/{id:long}/default", SetDefault)
+            .RequireAuthorization("site:update")
             .WithName("SetDefaultNavigationMenu");
 
         group.MapDelete("/{id:long}", Archive)
+            .RequireAuthorization("site:delete")
             .WithName("ArchiveNavigationMenu");
 
         group.MapGet("/{id:long}/events", GetEvents)
+            .RequireAuthorization("site:read")
             .WithName("GetNavigationMenuEvents");
     }
 
@@ -296,25 +306,6 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
     }
 
     /// <summary>
-    /// Preserves the legacy update route by saving without a caller-supplied concurrency version.
-    /// </summary>
-    private static async Task<IResult> SaveDraftCompatibility(
-        long id,
-        [FromBody] UpdateNavigationRequest request,
-        [FromServices] INavMenuService service,
-        [FromServices] IValidator<UpdateNavigationRequest> validator,
-        CancellationToken cancellationToken = default)
-    {
-        var current = await service.GetAsync(id, cancellationToken);
-        if (current is Result<NavMenuDocument, AeroError>.Failure)
-        {
-            return ToProblem(current);
-        }
-
-        return await SaveDraft(id, request, service, validator, expectedVersion: null, expectedRevision: null, cancellationToken);
-    }
-
-    /// <summary>
     /// Validates and saves a draft using the preferred version or legacy revision query token.
     /// </summary>
     private static async Task<IResult> SaveDraft(
@@ -414,15 +405,18 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
     /// <param name="querySession">The event query session.</param>
     /// <param name="cancellationToken">The request-abort token.</param>
     /// <returns>The ordered stream history.</returns>
-    /// <remarks>
-    /// This handler does not load <see cref="NavMenuDocument"/> or compare its site with the
-    /// current manager context. The host or endpoint policy must prevent cross-site identifier access.
-    /// </remarks>
     private static async Task<IResult> GetEvents(
         long id,
-        IQuerySession querySession,
+        [FromServices] INavMenuService service,
+        [FromServices] IQuerySession querySession,
         CancellationToken cancellationToken)
     {
+        var existing = await service.GetAsync(id, cancellationToken);
+        if (existing is Result<NavMenuDocument, AeroError>.Failure)
+        {
+            return ToProblem(existing);
+        }
+
         var events = await querySession.Events.FetchStreamAsync(NavMenuStreams.Menu(id), ct: cancellationToken);
         var history = events.Select(e => new NavigationEventItem(
             e.Version,

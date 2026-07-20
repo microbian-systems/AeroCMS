@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Markdig;
+using Microsoft.AspNetCore.Authorization;
 using CreatePostRequest = Aero.Cms.Modules.Posts.Requests.CreatePostRequest;
 using UpdatePostRequest = Aero.Cms.Modules.Posts.Requests.UpdatePostRequest;
 
@@ -19,7 +20,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// <summary>
 /// Maps post administration, publication, import, translation, and preview endpoints.
 /// </summary>
-/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
+/// <remarks>
+/// Administrative and preview endpoints require an authenticated principal. Site-specific
+/// permission policies are applied in a later hardening phase.
+/// </remarks>
 public static class PostsApi
 {
     /// <summary>
@@ -29,64 +33,83 @@ public static class PostsApi
     public static void MapBlogApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/blogs")
-            .WithTags("Admin - Blog");
+            .WithTags("Admin - Blog")
+            .RequireAuthorization();
 
         group.MapGet("/", ListPosts)
-            .WithName("ListPosts");
+            .WithName("ListPosts")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/translation-groups", ListPostTranslationGroups)
-            .WithName("ListPostTranslationGroups");
+            .WithName("ListPostTranslationGroups")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/{id:long}", GetPostById)
-            .WithName("GetPostById");
+            .WithName("GetPostById")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/{id:long}/translations", ListPostTranslations)
-            .WithName("ListPostTranslations");
+            .WithName("ListPostTranslations")
+            .RequireAuthorization("site:read");
 
         group.MapGet("/slug/{slug}", GetPostBySlug)
-            .WithName("GetPostBySlug");
+            .WithName("GetPostBySlug")
+            .RequireAuthorization("site:read");
 
         group.MapPost("/", CreatePost)
-            .WithName("CreatePost");
+            .WithName("CreatePost")
+            .RequireAuthorization("site:create");
 
         group.MapPost("/{id:long}/translations", ForkPostToCulture)
-            .WithName("ForkPostToCulture");
+            .WithName("ForkPostToCulture")
+            .RequireAuthorization("site:create");
 
         group.MapPost("/{id:long}/ai-translate", TranslatePostWithAi)
-            .WithName("TranslatePostWithAi");
+            .WithName("TranslatePostWithAi")
+            .RequireAuthorization("site:update");
 
         group.MapPut("/{id:long}", UpdatePost)
-            .WithName("UpdatePost");
+            .WithName("UpdatePost")
+            .RequireAuthorization("site:update");
 
         group.MapDelete("/{id:long}", DeletePost)
-            .WithName("DeletePost");
+            .WithName("DeletePost")
+            .RequireAuthorization("site:delete");
 
         group.MapDelete("/translation-groups/{translationGroupId:long}", DeletePostTranslationGroup)
-            .WithName("DeletePostTranslationGroup");
+            .WithName("DeletePostTranslationGroup")
+            .RequireAuthorization("site:delete");
 
         group.MapPost("/translation-groups/{translationGroupId:long}/publish", PublishPostTranslationGroup)
-            .WithName("PublishPostTranslationGroup");
+            .WithName("PublishPostTranslationGroup")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/translation-groups/{translationGroupId:long}/unpublish", UnpublishPostTranslationGroup)
-            .WithName("UnpublishPostTranslationGroup");
+            .WithName("UnpublishPostTranslationGroup")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/{id:long}/publish", PublishPost)
-            .WithName("PublishPost");
+            .WithName("PublishPost")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/{id:long}/unpublish", UnpublishPost)
-            .WithName("UnpublishPost");
+            .WithName("UnpublishPost")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/import", ImportPosts)
-            .WithName("ImportPosts");
+            .WithName("ImportPosts")
+            .RequireAuthorization("site:create");
 
         // Preview endpoints (moved from Headless PreviewApi)
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/{{id:long}}", PreviewBlogPost)
             .WithName("PreviewBlogPost")
-            .WithTags("Admin - Preview");
+            .WithTags("Admin - Preview")
+            .RequireAuthorization("site:read");
 
         app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/render-fragment", PreviewBlogPostFragment)
             .WithName("PreviewBlogPostFragment")
-            .WithTags("Admin - Preview");
+            .WithTags("Admin - Preview")
+            .RequireAuthorization("site:read");
     }
 
     /// <summary>
@@ -177,9 +200,10 @@ public static class PostsApi
     private static async Task<IResult> GetPostById(
         long id,
         [FromServices] IAeroPostActor postsActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken = default)
     {
-        var result = await postsActor.GetByIdAsync(id, cancellationToken);
+        var result = await postsActor.GetByIdAsync(id, siteContext.SiteId, cancellationToken);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(MapToBlogDetail(result.data));
@@ -192,9 +216,14 @@ public static class PostsApi
     private static async Task<IResult> ListPostTranslations(
         long id,
         [FromServices] IAeroPostActor postsActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken = default)
     {
-        var variants = await postsActor.ListCultureVariantsAsync(id, cancellationToken);
+        var source = await postsActor.GetByIdAsync(id, siteContext.SiteId, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(source.error.Message))
+            return TypedResults.NotFound();
+
+        var variants = await postsActor.ListCultureVariantsAsync(id, siteContext.SiteId, cancellationToken);
         return TypedResults.Ok(variants.Select(MapToBlogDetail).ToList());
     }
 
@@ -206,9 +235,19 @@ public static class PostsApi
         long id,
         [FromBody] ForkBlogCultureRequest request,
         [FromServices] IAeroPostActor postsActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken = default)
     {
-        var result = await postsActor.ForkPostForCultureAsync(id, request.Culture, request.Slug, cancellationToken);
+        var source = await postsActor.GetByIdAsync(id, siteContext.SiteId, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(source.error.Message))
+            return TypedResults.NotFound();
+
+        var result = await postsActor.ForkPostForCultureAsync(
+            id,
+            siteContext.SiteId,
+            request.Culture,
+            request.Slug,
+            cancellationToken);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(new { error = result.error })
             : TypedResults.Ok(MapToBlogDetail(result.data));
@@ -417,10 +456,20 @@ public static class PostsApi
     {
         try
         {
+            if (request.Id != id)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Post identifier mismatch",
+                    Detail = "The request body post identifier must match the route identifier.",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
             var siteId = siteContext.SiteId;
 
             // Load existing post
-            var loadResult = await postsActor.GetByIdAsync(id, cancellationToken);
+            var loadResult = await postsActor.GetByIdAsync(id, siteId, cancellationToken);
             if (!string.IsNullOrWhiteSpace(loadResult.error.Message))
                 return TypedResults.NotFound(new { error = loadResult.error.Message });
 
@@ -489,7 +538,7 @@ public static class PostsApi
             var siteId = siteContext.SiteId;
 
             // Load first for audit info
-            var loadResult = await postsActor.GetByIdAsync(id, cancellationToken);
+            var loadResult = await postsActor.GetByIdAsync(id, siteId, cancellationToken);
             if (!string.IsNullOrWhiteSpace(loadResult.error.Message))
                 return TypedResults.NotFound();
 
@@ -524,6 +573,12 @@ public static class PostsApi
         var result = await postService.DeleteTranslationGroupAsync(translationGroupId, cancellationToken);
         return result switch
         {
+            Result<int, AeroError>.Failure { Error: AeroError.NotFound } => TypedResults.NotFound(new ProblemDetails
+            {
+                Title = "Post translation group not found",
+                Detail = $"Post translation group '{translationGroupId}' was not found.",
+                Status = StatusCodes.Status404NotFound
+            }),
             Result<int, AeroError>.Ok ok => TypedResults.Ok(new DeleteBlogTranslationGroupResult(ok.Value)),
             Result<int, AeroError>.Failure failure => TypedResults.BadRequest(new ProblemDetails
             {
@@ -579,6 +634,10 @@ public static class PostsApi
         try
         {
             var siteId = siteContext.SiteId;
+            var existing = await postsActor.GetByIdAsync(id, siteId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+                return TypedResults.NotFound();
+
             var result = await postsActor.PublishPostAsync(id, siteId, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(result.error.Message))
@@ -609,6 +668,10 @@ public static class PostsApi
         try
         {
             var siteId = siteContext.SiteId;
+            var existing = await postsActor.GetByIdAsync(id, siteId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+                return TypedResults.NotFound();
+
             var result = await postsActor.UnpublishPostAsync(id, siteId, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(result.error.Message))
@@ -635,22 +698,15 @@ public static class PostsApi
         IPostContentService postService,
         CancellationToken cancellationToken)
     {
-        var variantsResult = await postService.ListCultureVariantsAsync(translationGroupId, cancellationToken);
-        if (variantsResult is Result<IReadOnlyList<PostDocument>, AeroError>.Failure variantsFailure)
-        {
-            return TypedResults.BadRequest(new ProblemDetails
+        var result = await postService.SetTranslationGroupPublicationStateAsync(
+            translationGroupId,
+            state,
+            cancellationToken);
+
+        if (result is Result<IReadOnlyList<PostDocument>, AeroError>.Failure
             {
-                Title = "Failed to load post translations",
-                Detail = GetErrorMessage(variantsFailure.Error),
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        var variants = variantsResult is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
-            ? ok.Value
-            : [];
-
-        if (variants.Count == 0)
+                Error: AeroError.NotFound
+            })
         {
             return TypedResults.NotFound(new ProblemDetails
             {
@@ -660,34 +716,22 @@ public static class PostsApi
             });
         }
 
-        var items = new List<PublicationBulkItem>();
-        foreach (var post in variants)
+        if (result is Result<IReadOnlyList<PostDocument>, AeroError>.Failure)
         {
-            post.PublicationState = state;
-            post.PublishedOn = state == ContentPublicationState.Published
-                ? post.PublishedOn ?? DateTimeOffset.UtcNow
-                : null;
-
-            var saveResult = await postService.SaveAsync(post, cancellationToken);
-            if (saveResult is Result<PostDocument, AeroError>.Failure saveFailure)
-            {
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Failed to update post publication state",
-                    Detail = GetErrorMessage(saveFailure.Error),
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            if (saveResult is Result<PostDocument, AeroError>.Ok saveOk)
-            {
-                items.Add(new PublicationBulkItem(
-                    saveOk.Value.Id,
-                    saveOk.Value.Culture,
-                    saveOk.Value.Title,
-                    saveOk.Value.PublicationState == ContentPublicationState.Published));
-            }
+            return TypedResults.Problem(
+                title: "Unable to update post translations",
+                detail: "The post translation publication state could not be updated.",
+                statusCode: StatusCodes.Status500InternalServerError);
         }
+
+        var ok = (Result<IReadOnlyList<PostDocument>, AeroError>.Ok)result;
+        var items = ok.Value
+            .Select(post => new PublicationBulkItem(
+                post.Id,
+                post.Culture,
+                post.Title,
+                post.PublicationState == ContentPublicationState.Published))
+            .ToList();
 
         return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
@@ -698,13 +742,31 @@ public static class PostsApi
     private static async Task<IResult> ImportPosts(
         [FromBody] ImportFileRequest request,
         [FromServices] IPostImportService importService,
+        [FromServices] ISiteContext siteContext,
+        [FromServices] IAuthorizationService authorizationService,
+        HttpContext httpContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PostsApi));
         try
         {
-            var result = await importService.ImportAsync(request, cancellationToken);
+            if (string.Equals(
+                    request.DuplicateBehavior,
+                    DuplicateSlugBehavior.Overwrite,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var updateAuthorization = await authorizationService.AuthorizeAsync(
+                    httpContext.User,
+                    policyName: "site:update");
+                if (!updateAuthorization.Succeeded)
+                    return TypedResults.Forbid();
+            }
+
+            var result = await importService.ImportAsync(
+                request,
+                siteContext.SiteId,
+                cancellationToken);
 
             if (result is Result<ImportBlogResult, AeroError>.Failure failure)
             {
@@ -750,13 +812,14 @@ public static class PostsApi
     private static async Task<IResult> PreviewBlogPost(
         long id,
         IAeroPostActor postsActor,
+        ISiteContext siteContext,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PostsApi));
         try
         {
-            var result = await postsActor.GetByIdAsync(id, ct);
+            var result = await postsActor.GetByIdAsync(id, siteContext.SiteId, ct);
             if (string.IsNullOrWhiteSpace(result.error.Message) && result.data.Id > 0)
                 return TypedResults.Ok(new PreviewResponse<PostViewModel>(result.data, "blog-post"));
 

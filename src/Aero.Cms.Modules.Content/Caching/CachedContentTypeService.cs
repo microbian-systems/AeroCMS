@@ -28,7 +28,7 @@ internal sealed class CachedContentTypeService(
     {
         var key = ContentCacheKeys.TypeByAlias(siteId, alias);
         var cached = await cache.TryGetAsync<ContentTypeDefinition>(key, token: ct);
-        if (cached.HasValue)
+        if (cached.HasValue && cached.Value.SiteId == siteId && string.Equals(cached.Value.Alias, alias, StringComparison.OrdinalIgnoreCase))
         {
             return Prelude.Ok<ContentTypeDefinition, AeroError>(
                 ContentCacheSnapshot.Clone(cached.Value));
@@ -50,7 +50,7 @@ internal sealed class CachedContentTypeService(
     {
         var key = ContentCacheKeys.TypeList(siteId);
         var cached = await cache.TryGetAsync<ContentTypeListCacheEntry>(key, token: ct);
-        if (cached.HasValue)
+        if (cached.HasValue && cached.Value.Items.All(item => item.SiteId == siteId))
         {
             return Prelude.Ok<IReadOnlyList<ContentTypeDefinition>, AeroError>(
                 cached.Value.Items.Select(ContentCacheSnapshot.Clone).ToList());
@@ -144,5 +144,5 @@ internal sealed class CachedContentTypeService(
     /// <summary>
     /// Wraps a mutable list so list snapshots are cached and cloned as one value.
     /// </summary>
-    private sealed record ContentTypeListCacheEntry(List<ContentTypeDefinition> Items);
+    internal sealed record ContentTypeListCacheEntry(List<ContentTypeDefinition> Items);
 }

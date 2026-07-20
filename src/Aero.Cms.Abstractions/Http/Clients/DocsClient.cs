@@ -144,7 +144,9 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
 
     /// <inheritdoc />
     public Task<Result<DocsDetail, AeroError>> SaveAsync(DocsDetail page, CancellationToken ct = default)
-        => PostAsync<DocsDetail, DocsDetail>("", page, ct);
+        => page.Id == 0
+            ? PostAsync<DocsDetail, DocsDetail>("", page, ct)
+            : PutAsync<DocsDetail, DocsDetail>($"{page.Id}", page, ct);
 
     /// <inheritdoc />
     public Task<Result<DocsDetail, AeroError>> CreateChildAsync(long spaceId, long parentId, DocsCreateChildRequest request, CancellationToken ct = default)

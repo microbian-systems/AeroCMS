@@ -13,9 +13,8 @@ namespace Aero.Cms.Modules.Modules.Areas.Api.v1;
 /// Maps administrative endpoints over the modules currently registered in dependency injection.
 /// </summary>
 /// <remarks>
-/// The route group does not add an authorization requirement. Hosts must apply an authorization
-/// convention or middleware policy before exposing module state. Enable and disable operations
-/// mutate only the in-memory module instance and are not persisted.
+/// The route group requires the <c>AeroAdmin</c> policy because module state is store-wide.
+/// Enable and disable operations mutate only the in-memory module instance and are not persisted.
 /// </remarks>
 public static class ModulesApi
 {
@@ -26,7 +25,8 @@ public static class ModulesApi
     public static void MapModulesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/modules")
-            .WithTags("Admin - Modules");
+            .WithTags("Admin - Modules")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/", GetAllModules)
             .WithName("GetAllModules");

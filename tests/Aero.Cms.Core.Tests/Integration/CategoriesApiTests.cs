@@ -5,11 +5,11 @@ using Aero.Cms.Modules.Posts.Areas.Api.v1;
 using Aero.Cms.Modules.Posts.Models;
 using Aero.Core.Http;
 using AeroDB.Sable;
-using Alba;
+using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -23,38 +23,47 @@ public class CategoriesApiTests
             .WithSchema<Category>();
         await harness.InitializeAsync();
 
-        await using var host = AlbaHost.For(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                // Register the real SurrealDB session
-                services.AddSingleton<IDocumentSession>(harness.Session);
-                services.AddSingleton<IQuerySession>(harness.Session);
+        await using var app = await CreateAppAsync(harness);
+        using var client = app.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/admin/categories");
+        request.WithTestUser(42);
 
-                // Stub dependencies required by the CategoriesApi handlers
-                services.AddSingleton<IAeroCategoryActor>(new StubCategoryActor());
-                services.AddSingleton<ISiteContext>(new StubSiteContext());
+        using var response = await client.SendAsync(request);
 
-                services.AddLogging();
-                services.AddRouting();
-            });
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
 
-            builder.Configure(app =>
-            {
-                app.UseRouting();
-                app.UseEndpoints(endpoints =>
-                {
-                    endpoints.MapCategoriesApi();
-                });
-            });
-        });
+    [Test]
+    public async Task GetAllCategories_AnonymousRequestReturnsUnauthorized()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<Category>();
+        await harness.InitializeAsync();
+        await using var app = await CreateAppAsync(harness);
+        using var client = app.GetTestClient();
 
-        // Verify the route works with real in-memory data
-        var result = await host.Scenario(s =>
-        {
-            s.Get.Url("/api/v1/admin/categories");
-            s.StatusCodeShouldBe(200);
-        });
+        using var response = await client.GetAsync("/api/v1/admin/categories");
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+    }
+
+    private static async Task<WebApplication> CreateAppAsync(SableTestHarness harness)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton<IDocumentSession>(harness.Session);
+        builder.Services.AddSingleton<IQuerySession>(harness.Session);
+        builder.Services.AddSingleton<IAeroCategoryActor>(new StubCategoryActor());
+        builder.Services.AddSingleton<ISiteContext>(new StubSiteContext());
+        builder.Services.AddLogging();
+        builder.Services.AddTestAuthentication();
+
+        var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapCategoriesApi();
+        await app.StartAsync();
+        return app;
     }
 
     /// <summary>

@@ -10,8 +10,8 @@ namespace Aero.Cms.Modules.Manager.Areas.Api.v1;
 /// Maps administrative aggregate-count and recent-audit dashboard endpoints.
 /// </summary>
 /// <remarks>
-/// The mapper does not attach authorization or site/tenant filters. The host must secure the
-/// route group, and consumers must treat the current counts and activity as store-wide data.
+/// The route group requires the <c>AeroAdmin</c> policy because its counts and activity are
+/// store-wide and do not apply site or tenant filters.
 /// Unexpected exception messages are copied into problem responses after logging.
 /// </remarks>
 public static class DashboardApi
@@ -23,7 +23,8 @@ public static class DashboardApi
     public static void MapDashboardApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/dashboard")
-            .WithTags("Admin - Dashboard");
+            .WithTags("Admin - Dashboard")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/stats", GetDashboardStats)
             .WithName("GetDashboardStats");

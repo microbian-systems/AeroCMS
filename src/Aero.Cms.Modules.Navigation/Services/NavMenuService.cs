@@ -155,13 +155,17 @@ public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, Cance
 
     /// <inheritdoc />
 public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        long siteId,
         long id,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var menu = await session.LoadAsync<NavMenuDocument>(id, cancellationToken);
-            if (menu is null || menu.State == NavMenuLifecycleState.Archived || !menu.HasPublishedSnapshot)
+            if (menu is null ||
+                menu.SiteId != siteId ||
+                menu.State == NavMenuLifecycleState.Archived ||
+                !menu.HasPublishedSnapshot)
             {
                 return Ok<NavMenuSnapshot?, AeroError>(null);
             }
@@ -212,7 +216,9 @@ public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
             }
 
             navMenuId = await ResolveCultureVariantIdAsync(siteId, navMenuId.Value, GetCurrentCulture(), cancellationToken);
-            return await GetPublishedSnapshotAsync(navMenuId.Value, cancellationToken);
+            return navMenuId is null
+                ? Ok<NavMenuSnapshot?, AeroError>(null)
+                : await GetPublishedSnapshotAsync(siteId, navMenuId.Value, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -618,12 +624,8 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
     /// <param name="defaultMenuId">The fallback menu identifier.</param>
     /// <param name="culture">The normalized requested UI culture.</param>
     /// <param name="cancellationToken">The token used for persistence reads.</param>
-    /// <returns>The matching published variant identifier, or <paramref name="defaultMenuId"/>.</returns>
-    /// <remarks>
-    /// The initial identifier load is not site-constrained. The caller is responsible for ensuring
-    /// a page override identifies a menu belonging to <paramref name="siteId"/>.
-    /// </remarks>
-    private async Task<long> ResolveCultureVariantIdAsync(
+    /// <returns>The matching published variant identifier, the validated base identifier, or null.</returns>
+    private async Task<long?> ResolveCultureVariantIdAsync(
         long siteId,
         long defaultMenuId,
         string culture,
@@ -631,7 +633,14 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
     {
         var defaultMenu = await session.LoadAsync<NavMenuDocument>(defaultMenuId, cancellationToken);
         if (defaultMenu is null ||
-            string.Equals(defaultMenu.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
+            defaultMenu.SiteId != siteId ||
+            defaultMenu.State == NavMenuLifecycleState.Archived ||
+            !defaultMenu.HasPublishedSnapshot)
+        {
+            return null;
+        }
+
+        if (string.Equals(defaultMenu.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
             defaultMenu.TranslationGroupId is null)
         {
             return defaultMenuId;

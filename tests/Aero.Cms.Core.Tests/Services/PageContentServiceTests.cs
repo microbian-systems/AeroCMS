@@ -168,6 +168,165 @@ public sealed class PageContentServiceTests
     }
 
     [Test]
+    public async Task LoadAsync_CrossSite_ReturnsNotFound()
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Other site",
+            Slug = "other-site"
+        };
+        _harness.Session.Store(page);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.LoadAsync(page.Id);
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<PageDocument?, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitCrossSiteId_IsRejected()
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Other site",
+            Slug = "other-site",
+            Path = "/other-site"
+        };
+
+        var result = await _service.SaveAsync(page);
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<PageDocument, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+        var stored = await _harness.Session.LoadAsync<PageDocument>(page.Id);
+        stored.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task CreateAsync_CrossSiteParent_IsRejectedWithoutPersistingChild()
+    {
+        var parent = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Other parent",
+            Slug = "other-parent",
+            Path = "/other-parent"
+        };
+        _harness.Session.Store(parent);
+        await _harness.Session.SaveChangesAsync();
+
+        var pageTreeService = new PageTreeService(
+            _harness.Session,
+            _siteContext,
+            _bus,
+            NullLogger<PageTreeService>.Instance);
+        var service = new AeroPageContentService(
+            _harness.Session,
+            _bus,
+            _siteContext,
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            CreateStyleProfileResolver(),
+            pageTreeService: pageTreeService);
+
+        var result = await service.CreateAsync(new CreatePageRequest(
+            "Cross-site child",
+            "cross-site-child",
+            null,
+            null,
+            null,
+            ParentId: parent.Id));
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<PageDocument, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+        var pages = await _harness.Session.Query<PageDocument>().ToListAsync();
+        pages.ShouldNotContain(x => x.Title == "Cross-site child");
+    }
+
+    [Test]
+    public async Task DeleteMultipleAsync_MixedSiteBatch_IsRejectedAtomically()
+    {
+        var ownPage = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 42,
+            Title = "Own page",
+            Slug = "own-page",
+            Path = "/own-page"
+        };
+        var foreignPage = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Foreign page",
+            Slug = "foreign-page",
+            Path = "/foreign-page"
+        };
+        _harness.Session.Store(ownPage);
+        _harness.Session.Store(foreignPage);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.DeleteMultipleAsync(
+            [ownPage.Id, foreignPage.Id],
+            deleteDescendants: false);
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<int, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+        await using var verificationSession = await _harness.OpenSessionAsync();
+        (await verificationSession.LoadAsync<PageDocument>(ownPage.Id)).ShouldNotBeNull();
+        (await verificationSession.LoadAsync<PageDocument>(foreignPage.Id)).ShouldNotBeNull();
+    }
+
+    [Test]
+    public async Task DeleteMultipleAsync_DuplicateIds_ReturnsActualDistinctDeletedCount()
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 42,
+            Title = "Delete once",
+            Slug = "delete-once",
+            Path = "/delete-once"
+        };
+        _harness.Session.Store(page);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.DeleteMultipleAsync(
+            [page.Id, page.Id],
+            deleteDescendants: false);
+
+        result.IsSuccess.ShouldBeTrue();
+        ((Result<int, AeroError>.Ok)result).Value.ShouldBe(1);
+    }
+
+    [Test]
+    public async Task DeleteTranslationGroupAsync_ForeignGroup_ReturnsNotFound()
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            TranslationGroupId = 800,
+            Title = "Foreign translation",
+            Slug = "foreign-translation",
+            Path = "/foreign-translation"
+        };
+        _harness.Session.Store(page);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.DeleteTranslationGroupAsync(800);
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<int, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+    }
+
+    [Test]
     public async Task UpdateAsync_RenamingPage_UpdatesPathAndSlugReservation()
     {
         var pageTreeService = new PageTreeService(

@@ -35,6 +35,14 @@ public sealed class AeroContentTypeService(
     /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTypeDefinition definition, CancellationToken ct = default)
     {
+        ContentTypeDocument? stored = null;
+        if (definition.Id != 0)
+        {
+            stored = await session.LoadAsync<ContentTypeDocument>(definition.Id, ct);
+            if (stored is null || stored.SiteId != definition.SiteId)
+                return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.NotFoundError($"Content type '{definition.Id}' not found."));
+        }
+
         var existing = await session.Query<ContentTypeDocument>()
             .FirstOrDefaultAsync(x => x.SiteId == definition.SiteId && x.Alias == definition.Alias, ct);
 
@@ -50,8 +58,8 @@ public sealed class AeroContentTypeService(
 
         var doc = new ContentTypeDocument
         {
-            Id = definition.Id == 0 ? Snowflake.NewId() : definition.Id,
-            SiteId = definition.SiteId,
+            Id = stored?.Id ?? Snowflake.NewId(),
+            SiteId = stored?.SiteId ?? definition.SiteId,
             Alias = definition.Alias,
             Name = definition.Name,
             Description = definition.Description,

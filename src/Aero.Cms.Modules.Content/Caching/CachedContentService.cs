@@ -14,9 +14,8 @@ namespace Aero.Cms.Modules.Content.Caching;
 /// <param name="invalidator">The post-commit invalidator for stale identities and rendered responses.</param>
 /// <param name="logger">The logger for best-effort cache-write failures.</param>
 /// <remarks>
-/// Identifier keys are not site-qualified and rely on globally unique item identifiers. Cache
-/// read failures propagate; cache population and post-commit invalidation failures are logged and
-/// suppressed.
+/// Identifier and slug keys are site-qualified. Cache read failures propagate; cache population
+/// and post-commit invalidation failures are logged and suppressed.
 /// </remarks>
 internal sealed class CachedContentService(
     AeroContentService inner,
@@ -26,17 +25,17 @@ internal sealed class CachedContentService(
 {
     /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> LoadAsync(
-        long id,
+        long siteId, long id,
         CancellationToken ct = default)
     {
-        var key = ContentCacheKeys.ItemById(id);
+        var key = ContentCacheKeys.ItemById(siteId, id);
         var cached = await cache.TryGetAsync<ContentItem>(key, token: ct);
-        if (cached.HasValue)
+        if (cached.HasValue && cached.Value.SiteId == siteId && cached.Value.Id == id)
         {
             return Prelude.Ok<ContentItem, AeroError>(ContentCacheSnapshot.Clone(cached.Value));
         }
 
-        var result = await inner.LoadAsync(id, ct);
+        var result = await inner.LoadAsync(siteId, id, ct);
         if (result is Result<ContentItem, AeroError>.Ok ok)
         {
             await SetAsync(ok.Value, ct);
@@ -53,7 +52,7 @@ internal sealed class CachedContentService(
     {
         var key = ContentCacheKeys.ItemBySlug(siteId, slug);
         var cached = await cache.TryGetAsync<ContentItem>(key, token: ct);
-        if (cached.HasValue)
+        if (cached.HasValue && cached.Value.SiteId == siteId && string.Equals(cached.Value.Slug, slug, StringComparison.OrdinalIgnoreCase))
         {
             return Prelude.Ok<ContentItem, AeroError>(ContentCacheSnapshot.Clone(cached.Value));
         }
@@ -77,7 +76,11 @@ internal sealed class CachedContentService(
     {
         var key = ContentCacheKeys.ItemByTypedSlug(siteId, contentTypeAlias, culture, slug);
         var cached = await cache.TryGetAsync<ContentItem>(key, token: ct);
-        if (cached.HasValue)
+        if (cached.HasValue &&
+            cached.Value.SiteId == siteId &&
+            string.Equals(cached.Value.ContentTypeAlias, contentTypeAlias, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(cached.Value.Culture, System.Globalization.CultureInfo.GetCultureInfo(culture).Name, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(cached.Value.Slug, slug, StringComparison.OrdinalIgnoreCase))
         {
             return Prelude.Ok<ContentItem, AeroError>(ContentCacheSnapshot.Clone(cached.Value));
         }
@@ -109,7 +112,7 @@ internal sealed class CachedContentService(
         ContentItemCacheIdentity? oldIdentity = null;
         if (item.Id > 0)
         {
-            var existing = await inner.LoadAsync(item.Id, ct);
+            var existing = await inner.LoadAsync(item.SiteId, item.Id, ct);
             if (existing is Result<ContentItem, AeroError>.Ok ok)
             {
                 oldIdentity = ToIdentity(ok.Value);
@@ -127,28 +130,29 @@ internal sealed class CachedContentService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> ExistsAsync(long id, CancellationToken ct = default)
+    public async Task<bool> ExistsAsync(long siteId, long id, CancellationToken ct = default)
     {
         var cached = await cache.TryGetAsync<ContentItem>(
-            ContentCacheKeys.ItemById(id),
+            ContentCacheKeys.ItemById(siteId, id),
             token: ct);
-        return cached.HasValue || await inner.ExistsAsync(id, ct);
+        return (cached.HasValue && cached.Value.SiteId == siteId && cached.Value.Id == id) ||
+               await inner.ExistsAsync(siteId, id, ct);
     }
 
     /// <inheritdoc />
     /// <remarks>A successful delete is not converted to failure by cache invalidation errors.</remarks>
     public async Task<Result<bool, AeroError>> DeleteAsync(
-        long id,
+        long siteId, long id,
         CancellationToken ct = default)
     {
         ContentItemCacheIdentity? oldIdentity = null;
-        var existing = await inner.LoadAsync(id, ct);
+        var existing = await inner.LoadAsync(siteId, id, ct);
         if (existing is Result<ContentItem, AeroError>.Ok ok)
         {
             oldIdentity = ToIdentity(ok.Value);
         }
 
-        var result = await inner.DeleteAsync(id, ct);
+        var result = await inner.DeleteAsync(siteId, id, ct);
         if (result is Result<bool, AeroError>.Ok { Value: true })
         {
             await invalidator.InvalidateItemAsync(oldIdentity, null);
@@ -177,7 +181,7 @@ internal sealed class CachedContentService(
                     item.Slug)
             };
             await cache.SetAsync(
-                ContentCacheKeys.ItemById(item.Id),
+                ContentCacheKeys.ItemById(item.SiteId, item.Id),
                 snapshot,
                 tags: tags,
                 token: ct);

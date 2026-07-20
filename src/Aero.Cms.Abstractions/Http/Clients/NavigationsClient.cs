@@ -47,15 +47,6 @@ Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long i
     Task<Result<NavigationDetail, AeroError>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Updates an existing navigation menu.
-    /// </summary>
-    /// <param name="id">The navigation identifier to update.</param>
-    /// <param name="request">The update navigation request.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The updated navigation detail or an error.</returns>
-    Task<Result<NavigationDetail, AeroError>> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default);
-
-    /// <summary>
     /// Saves a navigation menu draft using the event-sourced navigation API.
     /// </summary>
     /// <param name="id">The navigation identifier to update.</param>
@@ -140,12 +131,6 @@ public Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync
     public Task<Result<NavigationDetail, AeroError>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default)
     {
         return PostAsync<CreateNavigationRequest, NavigationDetail>(string.Empty, request, ct);
-    }
-
-    /// <inheritdoc />
-    public Task<Result<NavigationDetail, AeroError>> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default)
-    {
-        return PutAsync<UpdateNavigationRequest, NavigationDetail>(id.ToString(), request, ct);
     }
 
     /// <inheritdoc />

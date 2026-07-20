@@ -55,8 +55,8 @@ public string? SiteLogoUrl => Snapshot?.SiteLogoUrl;
     /// the existing <see cref="Snapshot"/> value is left unchanged.
     /// </returns>
     /// <remarks>
-    /// The service contract requires trusted callers to ensure that a page override belongs
-    /// to <paramref name="siteId"/>.
+    /// The site-scoped resolver validates the override against <paramref name="siteId"/>.
+    /// Invalid, unpublished, archived, or foreign overrides resolve to no snapshot.
     /// </remarks>
 public async Task<Result<bool, AeroError>> ResolveAsync(
         long siteId,

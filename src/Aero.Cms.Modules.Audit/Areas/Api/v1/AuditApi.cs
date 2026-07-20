@@ -9,17 +9,18 @@ namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 public static class AuditApi
 {
     /// <summary>
-    /// Maps <c>GET /api/admin/audit/</c> and names the endpoint <c>GetAuditFeed</c>.
+    /// Maps <c>GET /api/v1/admin/audit/</c> and names the endpoint <c>GetAuditFeed</c>.
     /// </summary>
     /// <param name="app">The route builder that receives the audit endpoint group.</param>
     /// <remarks>
-    /// This method applies an API tag but does not add authorization metadata. Access control
-    /// is therefore the responsibility of the surrounding route or application pipeline.
+    /// The route group requires the <c>AeroAdmin</c> policy because the endpoint reads raw
+    /// events across the entire store without site or tenant filtering.
     /// </remarks>
 public static void MapAuditApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/audit")
-            .WithTags("Admin - Audit");
+            .WithTags("Admin - Audit")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/", GetAuditFeed)
             .WithName("GetAuditFeed");

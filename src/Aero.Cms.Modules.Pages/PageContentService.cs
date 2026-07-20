@@ -198,11 +198,14 @@ public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, Cancellat
             var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
-                return Prelude.Ok<PageDocument?, AeroError>(cached);
+                return cached.SiteId == _siteContext.SiteId
+                    ? Prelude.Ok<PageDocument?, AeroError>(cached)
+                    : Prelude.Fail<PageDocument?, AeroError>(
+                        AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
             }
 
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            if (document is null)
+            if (document is null || document.SiteId != _siteContext.SiteId)
             {
                 return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
             }
@@ -449,20 +452,38 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
             var depth = 0;
             var order = 0;
 
-            if (parentId is not null and > 0 && pageTreeService is not null)
+            if (parentId is not null and > 0)
             {
-                var pathResult = await pageTreeService.ComputePathAsync(siteId, parentId, page.Slug, ct: cancellationToken);
-                if (pathResult is Result<(string Path, int Depth), AeroError>.Ok pathOk)
+                var parent = await session.LoadAsync<PageDocument>(parentId.Value, cancellationToken);
+                if (parent is null || parent.SiteId != siteId || parent.Deleted)
                 {
-                    path = pathOk.Value.Path;
-                    depth = pathOk.Value.Depth;
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.NotFoundError($"Parent page with id '{parentId}' not found or access denied"));
                 }
 
-                var orderResult = await pageTreeService.GetNextSiblingOrderAsync(siteId, parentId, cancellationToken);
-                if (orderResult is Result<int, AeroError>.Ok orderOk)
+                if (pageTreeService is null)
                 {
-                    order = orderOk.Value;
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.DatabaseError("Page hierarchy service is required to create a child page."));
                 }
+
+                var pathResult = await pageTreeService.ComputePathAsync(siteId, parentId, page.Slug, ct: cancellationToken);
+                if (pathResult is Result<(string Path, int Depth), AeroError>.Failure pathFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(pathFailure.Error);
+                }
+
+                var pathOk = (Result<(string Path, int Depth), AeroError>.Ok)pathResult;
+                path = pathOk.Value.Path;
+                depth = pathOk.Value.Depth;
+
+                var orderResult = await pageTreeService.GetNextSiblingOrderAsync(siteId, parentId, cancellationToken);
+                if (orderResult is Result<int, AeroError>.Failure orderFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(orderFailure.Error);
+                }
+
+                order = ((Result<int, AeroError>.Ok)orderResult).Value;
             }
 
             page.ParentId = parentId;
@@ -827,16 +848,28 @@ public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long
 
         try
         {
-            var idList = ids.ToList();
+            var requestedIds = ids.Distinct().ToList();
+            var requestedPages = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && requestedIds.Contains(x.Id)
+                    && x.Deleted == false)
+                .ToListAsync(cancellationToken);
+
+            // Validate the entire request before staging any deletion. This makes a
+            // mixed-site or partially missing batch fail atomically and conceal which
+            // identifier was outside the authorized site.
+            if (requestedPages.Count != requestedIds.Count)
+            {
+                return Prelude.Fail<int, AeroError>(
+                    AeroError.NotFoundError("One or more pages were not found or access was denied."));
+            }
+
+            var idList = requestedIds.ToList();
 
             // If cascade requested, expand the id list to include all descendants
             if (deleteDescendants)
             {
-                var pages = await session.Query<PageDocument>()
-                    .Where(x => x.SiteId == _siteContext.SiteId && idList.Contains(x.Id) && x.Deleted == false)
-                    .ToListAsync(cancellationToken);
-
-                foreach (var page in pages)
+                foreach (var page in requestedPages)
                 {
                     var prefix = page.Path == "/" ? "/" : page.Path.TrimEnd('/') + "/";
                     var descendants = await session.Query<PageDocument>()
@@ -884,7 +917,9 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
 
             if (variants.Count == 0)
             {
-                return Prelude.Ok<int, AeroError>(0);
+                return Prelude.Fail<int, AeroError>(
+                    AeroError.NotFoundError(
+                        $"Page translation group '{translationGroupId}' was not found or access was denied."));
             }
 
             var ids = variants.Select(x => x.Id).ToList();
@@ -917,6 +952,11 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             if (page.SiteId == 0)
             {
                 page.SiteId = _siteContext.SiteId;
+            }
+            else if (page.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.NotFoundError($"Page with id '{page.Id}' not found or access denied"));
             }
 
             var validationResult = await ValidatePage(page);
@@ -1155,7 +1195,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         CancellationToken cancellationToken)
     {
         var sourceParent = await session.LoadAsync<PageDocument>(sourceParentId, cancellationToken);
-        if (sourceParent is null)
+        if (sourceParent is null || sourceParent.SiteId != _siteContext.SiteId || sourceParent.Deleted)
         {
             return null;
         }
@@ -1172,7 +1212,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
 
         return await session.Query<PageDocument>()
             .FirstOrDefaultAsync(x =>
-                x.SiteId == sourceParent.SiteId &&
+                x.SiteId == _siteContext.SiteId &&
                 x.TranslationGroupId == sourceParent.TranslationGroupId &&
                 x.Culture == targetCulture &&
                 x.Deleted == false,

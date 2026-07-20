@@ -86,14 +86,12 @@ Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken 
     /// <summary>
     /// Reads the latest published snapshot for a non-archived menu.
     /// </summary>
+    /// <param name="siteId">The site that must own the navigation menu.</param>
     /// <param name="id">The navigation menu identifier.</param>
     /// <param name="cancellationToken">The token used for document and event-stream reads.</param>
     /// <returns>The latest published snapshot, <see langword="null"/> when unavailable or cancelled, or a database failure.</returns>
-    /// <remarks>
-    /// This identifier-based read does not enforce current-site ownership. Callers must establish
-    /// the menu-to-site relationship before exposing the snapshot across a trust boundary.
-    /// </remarks>
 Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        long siteId,
         long id,
         CancellationToken cancellationToken = default);
 
@@ -105,11 +103,9 @@ Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
     /// <param name="cancellationToken">The token used for all persistence reads.</param>
     /// <returns>The published snapshot, <see langword="null"/> when none is available or resolution is cancelled, or a database failure.</returns>
     /// <remarks>
-    /// The current UI culture selects a published variant when available. The method does not
-    /// verify that <paramref name="pageOverrideId"/> belongs to <paramref name="siteId"/> before
-    /// the identifier-based published-snapshot read; trusted callers must enforce that invariant.
-    /// Requested cancellation during resolution returns no snapshot, but non-cancellation failures
-    /// from culture-variant resolution can propagate instead of becoming an <see cref="AeroError"/>.
+    /// The current UI culture selects a same-site published variant when available. Invalid or
+    /// foreign overrides and defaults resolve to no snapshot. Requested cancellation during
+    /// resolution returns no snapshot.
     /// </remarks>
 Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
         long siteId,

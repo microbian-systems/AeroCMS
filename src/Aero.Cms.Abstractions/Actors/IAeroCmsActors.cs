@@ -3,6 +3,7 @@
 using Aero.Actors;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Requests;
 
 namespace Aero.Cms.Abstractions.Actors;
 
@@ -11,12 +12,17 @@ namespace Aero.Cms.Abstractions.Actors;
 /// </summary>
 public interface IAeroAliasActor : IAeroCmsContentActor<AliasViewModel>
 {
+    /// <summary>Gets an alias only when it belongs to the selected site.</summary>
+    Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
+    /// <summary>Creates an alias in the selected site.</summary>
+    Task<AeroRequestResponse<AliasViewModel>> CreateAliasAsync(CreateAliasRequest request, long siteId, CancellationToken ct);
+    /// <summary>Deletes an alias only when it belongs to the selected site.</summary>
+    Task<AeroRequestResponse<AliasViewModel>> DeleteAliasAsync(long id, long siteId, CancellationToken ct);
     /// <summary>
-    /// Get all aliases, optionally filtered by <paramref name="siteId"/>.
-    /// Returns the full list (unpaged).
+    /// Gets the full unpaged alias list for the selected site.
     /// </summary>
     Task<List<AliasViewModel>> GetAllAliasesAsync(
-        long? siteId = null,
+        long siteId,
         CancellationToken ct = default);
 }
 /// <summary>
@@ -47,6 +53,8 @@ public interface IAeroSeriesActor : IAeroCmsContentActor<SeriesViewModel>
 /// </summary>
 public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
 {
+    /// <summary>Gets a doc only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Get all docs for a site (unpaged).</summary>
     Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, CancellationToken ct = default);
     /// <summary>Get children of a parent doc within a site.</summary>
@@ -54,15 +62,17 @@ public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
     /// <summary>Get top-level doc categories for a site.</summary>
     Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default);
     /// <summary>Save a doc (create or update).</summary>
-    Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default);
+    Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, long siteId, CancellationToken ct = default);
+    /// <summary>Deletes a doc only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<DocViewModel>> DeleteDocAsync(long id, long siteId, CancellationToken ct = default);
     /// <summary>Get all culture variants for a doc.</summary>
-    Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+    Task<List<DocViewModel>> ListCultureVariantsAsync(long id, long siteId, CancellationToken ct = default);
     /// <summary>Create a culture-specific copy of a doc.</summary>
-    Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default);
+    Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, long siteId, string culture, string slug, CancellationToken ct = default);
     /// <summary>Publish a doc.</summary>
-    Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default);
+    Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, long siteId, CancellationToken ct = default);
     /// <summary>Unpublish a doc.</summary>
-    Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default);
+    Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct = default);
     /// <summary>Create a child section inside a docs space.</summary>
     Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(long siteId, long spaceId, long parentId, string title, string? summary, CancellationToken ct = default);
     /// <summary>Move a section inside a docs space.</summary>
@@ -97,9 +107,16 @@ Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, Cancellation
 /// </summary>
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
+    /// <summary>Gets a page only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
+    /// <summary>Updates a page only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, long siteId, CancellationToken ct);
+    /// <summary>Deletes a page only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, long siteId, CancellationToken ct);
     /// <summary>Computes the persisted route impact of changing a page slug or parent.</summary>
     Task<PageRouteChangeImpact> GetRouteChangeImpactAsync(
         long id,
+        long siteId,
         string slug,
         long? parentId,
         CancellationToken ct);
@@ -109,21 +126,28 @@ public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
     /// <summary>Get all pages (paged + optional search) for a site.</summary>
     Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(long siteId, int skip, int take, string? search, CancellationToken ct);
     /// <summary>Publish a page (event sourcing).</summary>
-    Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct);
+    Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Unpublish a page (event sourcing).</summary>
-    Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct);
+    Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct);
     /// <summary>List all culture variants for a page.</summary>
-    Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct);
+    Task<List<PageViewModel>> ListCultureVariantsAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Create a draft culture variant for a page.</summary>
-    Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(long id, string culture, string slug, CancellationToken ct);
+    Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(long id, long siteId, string culture, string slug, CancellationToken ct);
     /// <summary>Delete multiple pages.</summary>
-    Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct);
+    Task<PageBulkDeleteActorResult> DeleteMultipleAsync(
+        long[] ids,
+        long siteId,
+        bool deleteDescendants,
+        CancellationToken ct);
 }
 /// <summary>
 /// Defines an interface for IAeroPostActor.
 /// </summary>
 public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
 {
+    /// <summary>Gets a post only when it belongs to the authorized site.</summary>
+    Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
+
     /// <summary>
     /// Get all blog posts (paged + optional search) for a specific site.
     /// </summary>
@@ -159,11 +183,11 @@ public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
     /// <summary>Find a published post by slug within a site and culture.</summary>
     Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct);
 
-    /// <summary>List all culture variants for a post.</summary>
-    Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct);
+    /// <summary>List all culture variants for a post within the authorized site.</summary>
+    Task<List<PostViewModel>> ListCultureVariantsAsync(long id, long siteId, CancellationToken ct);
 
-    /// <summary>Create a draft culture variant for a post.</summary>
-    Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct);
+    /// <summary>Create a draft culture variant for a post within the authorized site.</summary>
+    Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, long siteId, string culture, string slug, CancellationToken ct);
 
     /// <summary>Get latest N published posts.</summary>
     Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct);
@@ -200,17 +224,19 @@ public interface IAeroTagActor : IAeroCmsContentActor<TagViewModel>
 /// </summary>
 public interface IAeroContentItemActor : IAeroCmsContentActor<ContentItemViewModel>
 {
+    /// <summary>Get a content item by identifier within a site.</summary>
+    Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Get content items by type (paged).</summary>
     Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByTypeAsync(
         long siteId, string contentTypeAlias, int skip, int take, CancellationToken ct);
     /// <summary>Save a content item as draft (create or update).</summary>
-    Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, CancellationToken ct = default);
+    Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, long siteId, CancellationToken ct = default);
     /// <summary>Publish a content item.</summary>
-    Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, CancellationToken ct);
+    Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Unpublish a content item.</summary>
-    Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, CancellationToken ct);
+    Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Delete a content item by id.</summary>
-    Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, long siteId, CancellationToken ct = default);
 }
 /// <summary>
 /// Defines an interface for IAeroContentTypeActor.
@@ -222,9 +248,9 @@ public interface IAeroContentTypeActor : IAeroActor
     /// <summary>Get a content type by alias.</summary>
     Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default);
     /// <summary>Create a content type definition.</summary>
-    Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default);
+    Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, long siteId, CancellationToken ct = default);
     /// <summary>Update a content type definition.</summary>
-    Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default);
+    Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, long siteId, CancellationToken ct = default);
     /// <summary>Delete a content type by alias.</summary>
     Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default);
 }

@@ -19,11 +19,12 @@ public static class FilesApi
     /// Maps the general-file endpoints beneath the versioned admin route.
     /// </summary>
     /// <param name="app">The endpoint route builder.</param>
-    /// <remarks>This method does not attach an authorization policy to the route group.</remarks>
+    /// <remarks>The route group requires an authenticated principal.</remarks>
     public static void MapFilesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/files")
-            .WithTags("Admin - Files");
+            .WithTags("Admin - Files")
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllFiles)
             .WithName("GetAllFiles");

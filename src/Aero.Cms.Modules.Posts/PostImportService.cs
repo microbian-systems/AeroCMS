@@ -14,17 +14,19 @@ public interface IPostImportService
     /// <summary>
     /// Imports blog posts from a Base64-encoded upload.
     /// </summary>
-    /// <param name="request">The encoded file, site selection, duplicate policy, and publication options.</param>
+    /// <param name="request">The encoded file, duplicate policy, and publication options.</param>
+    /// <param name="authorizedSiteId">The selected site that the caller has been authorized to import into.</param>
     /// <param name="ct">A token used to cancel parsing, image lookup, and persistence.</param>
     /// <returns>A success with imported, skipped, and per-post error details, or a pipeline failure.</returns>
     /// <remarks>
-    /// Posts and the General series use the positive site identifier supplied in
-    /// <paramref name="request"/>, while tag resolution and duplicate-slug discovery use the
-    /// injected current-site context. Callers must authorize the import and ensure those site
-    /// identifiers agree. Cancellation is returned as an <see cref="AeroError"/> failure.
+    /// The request's client-supplied site identifier is ignored. All taxonomy, duplicate lookup,
+    /// post, series, and slug operations use <paramref name="authorizedSiteId"/>. Cancellation is
+    /// returned as an <see cref="AeroError"/> failure.
     /// </remarks>
     Task<Result<ImportBlogResult, AeroError>> ImportAsync(
-        ImportFileRequest request, CancellationToken ct = default);
+        ImportFileRequest request,
+        long authorizedSiteId,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -45,7 +47,6 @@ public sealed class PostsImportService : IPostImportService
     private readonly IEnumerable<IPostImportParser> _parsers;
     private readonly IDocumentSession _session;
     private readonly IPexelsService? _pexels;
-    private readonly ISiteContext _siteContext;
     private readonly ILogger<PostsImportService> _log;
 
     /// <summary>
@@ -54,19 +55,16 @@ public sealed class PostsImportService : IPostImportService
     /// <param name="parsers">The parser strategies searched in enumeration order.</param>
     /// <param name="session">The session used to queue and commit taxonomy, post, and slug changes.</param>
     /// <param name="pexels">An optional image search service.</param>
-    /// <param name="siteContext">The server-side site fallback and taxonomy query boundary.</param>
     /// <param name="log">The diagnostic logger.</param>
-public PostsImportService(
+    public PostsImportService(
         IEnumerable<IPostImportParser> parsers,
         IDocumentSession session,
         IPexelsService? pexels,
-        ISiteContext siteContext,
         ILogger<PostsImportService> log)
     {
         _parsers = parsers;
         _session = session;
         _pexels = pexels;
-        _siteContext = siteContext;
         _log = log;
     }
 
@@ -75,16 +73,25 @@ public PostsImportService(
     /// Image resolution runs for every parsed candidate before duplicate skipping and is throttled
     /// to three concurrent Pexels calls. New taxonomy documents, the General series, posts, and slug
     /// reservations are queued on one session and saved once when at least one post is imported.
-    /// Posts and the General series use <see cref="ImportFileRequest.SiteId"/>, but tag and
-    /// duplicate-slug queries use the injected current-site context; callers must keep those
-    /// scopes aligned. Per-post processing exceptions are reported without aborting remaining
-    /// candidates.
+    /// The client-supplied <see cref="ImportFileRequest.SiteId"/> is replaced with the authorized
+    /// site identifier, which is then used for every persistence and lookup operation. Per-post
+    /// processing exceptions are reported without aborting remaining candidates.
     /// </remarks>
     public async Task<Result<ImportBlogResult, AeroError>> ImportAsync(
-        ImportFileRequest request, CancellationToken ct = default)
+        ImportFileRequest request,
+        long authorizedSiteId,
+        CancellationToken ct = default)
     {
         try
         {
+            if (authorizedSiteId <= 0)
+            {
+                return Prelude.Fail<ImportBlogResult, AeroError>(
+                    AeroError.CreateError("A selected site is required for blog import"));
+            }
+
+            request = request with { SiteId = authorizedSiteId };
+
             // 1. Decode the file
             byte[] fileData;
             try
@@ -125,11 +132,6 @@ public PostsImportService(
                     AeroError.CreateError("Unexpected parse result"));
             }
 
-            // Fallback: if the client didn't provide a SiteId (e.g. from NoopSiteContext in WASM),
-            // stamp it from the server-side ISiteContext (reads cookie / IAeroSiteSlice).
-            var effectiveSiteId = request.SiteId > 0 ? request.SiteId : _siteContext.SiteId;
-            request = request with { SiteId = effectiveSiteId };
-
             var importablePosts = parseOk.Value;
             if (importablePosts.Count == 0)
             {
@@ -146,11 +148,11 @@ public PostsImportService(
             }
 
             // 4. Batch resolve tags across all posts
-            var tagMap = await ResolveTagsAsync(importablePosts, ct);
+            var tagMap = await ResolveTagsAsync(importablePosts, authorizedSiteId, ct);
             var generalSeriesId = await EnsureGeneralSeriesIdAsync(request.SiteId, ct);
 
             // 5. Pre-check existing slugs
-            var existingSlugs = await GetExistingSlugsAsync(importablePosts, ct);
+            var existingSlugs = await GetExistingSlugsAsync(importablePosts, authorizedSiteId, ct);
 
             // 6. Determine duplicate behavior
             var behavior = (request.DuplicateBehavior ?? DuplicateSlugBehavior.Skip).ToLowerInvariant();
@@ -215,7 +217,7 @@ public PostsImportService(
                     if (existingSlug is not null && behavior == DuplicateSlugBehavior.Overwrite)
                     {
                         var existingDoc = await _session.LoadAsync<PostDocument>(existingSlug.OwnerId, ct);
-                        if (existingDoc is not null)
+                        if (existingDoc is not null && existingDoc.SiteId == authorizedSiteId)
                         {
                             // Remove old slug reservation for this owner
                             var oldSlugDoc = await _session.Query<ContentSlugDocument>()
@@ -242,10 +244,15 @@ public PostsImportService(
                             if (request.DefaultAuthorId.HasValue)
                                 document.AuthorId = request.DefaultAuthorId;
                         }
-                        else
+                        else if (existingDoc is null)
                         {
                             // Existing slug but no document — treat as new
                             document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request, generalSeriesId);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException(
+                                "The existing post was not found in the authorized site.");
                         }
                     }
                     else
@@ -352,7 +359,9 @@ public PostsImportService(
     /// </summary>
     /// <remarks>New tags are not committed by this method.</remarks>
     private async Task<Dictionary<string, long>> ResolveTagsAsync(
-        List<ImportablePost> posts, CancellationToken ct)
+        List<ImportablePost> posts,
+        long siteId,
+        CancellationToken ct)
     {
         // Collect all unique tag strings
         var allTags = posts
@@ -367,7 +376,7 @@ public PostsImportService(
 
         // Query existing tags
         var existingTags = await _session.Query<Tag>()
-            .Where(t => t.SiteId == _siteContext.SiteId && allTags.Contains(t.Slug))
+            .Where(t => t.SiteId == siteId && allTags.Contains(t.Slug))
             .ToListAsync(ct);
 
         var tagMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -385,7 +394,7 @@ public PostsImportService(
                     Id = Snowflake.NewId(),
                     Name = tagSlug,  // Use slug as name if no display name available
                     Slug = tagSlug,
-                    SiteId = _siteContext.SiteId
+                    SiteId = siteId
                 };
                 tagMap[tagSlug] = tag.Id;
                 newTags.Add(tag);
@@ -430,7 +439,9 @@ public PostsImportService(
     /// Loads current-site blog-post reservations matching the candidate slugs.
     /// </summary>
     private async Task<IReadOnlyList<ContentSlugDocument>> GetExistingSlugsAsync(
-        List<ImportablePost> posts, CancellationToken ct)
+        List<ImportablePost> posts,
+        long siteId,
+        CancellationToken ct)
     {
         var slugs = posts
             .Select(p => ContentSlugDocument.Normalize(p.Slug))
@@ -443,7 +454,7 @@ public PostsImportService(
 
         return await _session.Query<ContentSlugDocument>()
             .Where(s =>
-                s.SiteId == _siteContext.SiteId &&
+                s.SiteId == siteId &&
                 slugs.Contains(s.NormalizedSlug) &&
                 s.OwnerType == ContentSlugOwnerType.BlogPost)
             .ToListAsync(ct);

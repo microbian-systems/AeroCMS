@@ -12,6 +12,7 @@ using ZiggyCreatures.Caching.Fusion;
 using FluentValidation;
 using Aero.Cms.Html;
 using Aero.Cms.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -125,6 +126,20 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             options.Conventions.AddAreaPageRoute("Cms", "/page", "/");
             options.Conventions.AddAreaPageRoute("Cms", "/page", "/{**slug}");
             options.Conventions.AddAreaPageRoute("Cms", "/page", "/_cms/preview/pages/drafts/{draftId:long}");
+            options.Conventions.AddAreaPageRouteModelConvention("Cms", "/page", model =>
+            {
+                foreach (var selector in model.Selectors)
+                {
+                    var template = selector.AttributeRouteModel?.Template;
+                    if (string.Equals(
+                            template?.TrimStart('/'),
+                            "_cms/preview/pages/drafts/{draftId:long}",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        selector.EndpointMetadata.Add(new AuthorizeAttribute("site:read"));
+                    }
+                }
+            });
         });
     }
 

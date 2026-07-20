@@ -18,9 +18,9 @@ internal static class ContentCacheKeys
     public static string TypeList(long siteId) =>
         $"cms:content-type:{siteId}:list";
 
-    /// <summary>Builds a globally keyed content-item identifier key.</summary>
-    public static string ItemById(long itemId) =>
-        $"cms:content-item:id:{itemId}";
+    /// <summary>Builds a site-qualified content-item identifier key.</summary>
+    public static string ItemById(long siteId, long itemId) =>
+        $"cms:content-item:{siteId}:id:{itemId}";
 
     /// <summary>Builds a site-qualified normalized, but type-agnostic, item-slug key.</summary>
     public static string ItemBySlug(long siteId, string slug) =>

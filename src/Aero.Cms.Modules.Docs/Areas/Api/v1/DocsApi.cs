@@ -14,9 +14,8 @@ namespace Aero.Cms.Modules.Docs.Areas.Api.v1;
 /// </summary>
 /// <remarks>
 /// Handlers delegate to <see cref="IAeroDocsActor"/> and translate its error model into HTTP
-/// results. The route group does not attach authorization metadata. Some identifier-based
-/// handlers also do not compare the loaded page with the request's current site, so the host
-/// must enforce authorization and site ownership before these endpoints are exposed.
+/// results. The route group requires an authenticated principal and every identifier-bearing
+/// operation is constrained to the selected site.
 /// </remarks>
 public static class DocsApi
 {
@@ -25,28 +24,29 @@ public static class DocsApi
     /// </summary>
     /// <param name="app">The route builder that receives the admin route group.</param>
     /// <remarks>
-    /// Routes are added beneath <c>/{api-prefix}admin/docs</c>. This method does not call
-    /// <c>RequireAuthorization</c>; host-level conventions or middleware must protect the group.
+    /// Routes are added beneath <c>/{api-prefix}admin/docs</c> and require authentication.
     /// </remarks>
 public static void MapDocsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/docs")
-            .WithTags("Admin - Docs");
+            .WithTags("Admin - Docs")
+            .RequireAuthorization();
 
-        group.MapGet("/", ListDocs);
-        group.MapGet("/{id:long}", GetDocById);
-        group.MapGet("/by-slug/{*slug}", GetDocBySlug);
-        group.MapGet("/categories", GetCategories);
-        group.MapGet("/{parentId:long}/children", GetChildren);
-        group.MapGet("/{id:long}/translations", ListTranslations);
-        group.MapPost("/{id:long}/translations", ForkToCulture);
-        group.MapPost("/", SaveDoc);
-        group.MapPost("/{spaceId:long}/sections/{parentId:long}/children", CreateChildSection);
-        group.MapPost("/{spaceId:long}/sections/{id:long}/move", MoveSection);
-        group.MapPost("/{spaceId:long}/sections/reorder", ReorderSections);
-        group.MapPost("/{id:long}/publish", PublishDoc);
-        group.MapPost("/{id:long}/unpublish", UnpublishDoc);
-        group.MapDelete("/{id:long}", DeleteDoc);
+        group.MapGet("/", ListDocs).RequireAuthorization("site:read");
+        group.MapGet("/{id:long}", GetDocById).RequireAuthorization("site:read");
+        group.MapGet("/by-slug/{*slug}", GetDocBySlug).RequireAuthorization("site:read");
+        group.MapGet("/categories", GetCategories).RequireAuthorization("site:read");
+        group.MapGet("/{parentId:long}/children", GetChildren).RequireAuthorization("site:read");
+        group.MapGet("/{id:long}/translations", ListTranslations).RequireAuthorization("site:read");
+        group.MapPost("/{id:long}/translations", ForkToCulture).RequireAuthorization("site:create");
+        group.MapPost("/", CreateDoc).RequireAuthorization("site:create");
+        group.MapPut("/{id:long}", UpdateDoc).RequireAuthorization("site:update");
+        group.MapPost("/{spaceId:long}/sections/{parentId:long}/children", CreateChildSection).RequireAuthorization("site:create");
+        group.MapPost("/{spaceId:long}/sections/{id:long}/move", MoveSection).RequireAuthorization("site:update");
+        group.MapPost("/{spaceId:long}/sections/reorder", ReorderSections).RequireAuthorization("site:update");
+        group.MapPost("/{id:long}/publish", PublishDoc).RequireAuthorization("site:update");
+        group.MapPost("/{id:long}/unpublish", UnpublishDoc).RequireAuthorization("site:update");
+        group.MapDelete("/{id:long}", DeleteDoc).RequireAuthorization("site:delete");
     }
 
     /// <summary>
@@ -67,9 +67,10 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> GetDocById(
         long id,
         [FromServices] IAeroDocsActor docsActor,
+        ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await docsActor.GetByIdAsync(id, ct);
+        var result = await docsActor.GetByIdAsync(id, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(result.data);
@@ -111,6 +112,8 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
         ISiteContext siteContext,
         CancellationToken ct)
     {
+        var parent = await docsActor.GetByIdAsync(parentId, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(parent.error.Message)) return TypedResults.NotFound(parent.error);
         var docs = await docsActor.GetChildrenAsync(parentId, siteContext.SiteId, ct);
         return TypedResults.Ok(docs);
     }
@@ -122,10 +125,12 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     /// </summary>
     private static async Task<IResult> ListTranslations(
         long id,
-        [FromServices] IAeroDocsActor docsActor,
+        [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext,
         CancellationToken ct)
     {
-        var docs = await docsActor.ListCultureVariantsAsync(id, ct);
+        var source = await docsActor.GetByIdAsync(id, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(source.error.Message)) return TypedResults.NotFound(source.error);
+        var docs = await docsActor.ListCultureVariantsAsync(id, siteContext.SiteId, ct);
         return TypedResults.Ok(docs);
     }
 
@@ -137,32 +142,39 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> ForkToCulture(
         long id,
         [FromBody] ForkDocsCultureRequest request,
-        [FromServices] IAeroDocsActor docsActor,
+        [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await docsActor.ForkDocForCultureAsync(id, request.Culture, request.Slug, ct);
+        var source = await docsActor.GetByIdAsync(id, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(source.error.Message)) return TypedResults.NotFound(source.error);
+        var result = await docsActor.ForkDocForCultureAsync(id, siteContext.SiteId, request.Culture, request.Slug, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(result.error)
             : TypedResults.Ok(result.data);
     }
 
     /// <summary>
-    /// Overwrites the submitted site identifier with the request site and saves the view model.
-    /// For an existing identifier, the actor loads the document without first comparing its
-    /// stored site to the request site; callers must verify ownership before saving because the
-    /// service subsequently applies the request site.
+    /// Creates a new draft in the selected site. The submitted site and publication fields are not authoritative.
     /// </summary>
-    private static async Task<IResult> SaveDoc(
+    private static async Task<IResult> CreateDoc(
         [FromBody] DocViewModel vm,
         [FromServices] IAeroDocsActor docsActor,
         ISiteContext siteContext,
         CancellationToken ct)
     {
-        vm.SiteId = siteContext.SiteId;
-        var result = await docsActor.SaveAsync(vm, ct);
+        if (vm.Id != 0) return TypedResults.BadRequest(new DocErrorViewModel { Message = "A new doc must not specify an identifier" });
+        var result = await docsActor.SaveAsync(vm, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(result.error)
             : TypedResults.Ok(result.data);
+    }
+
+    private static async Task<IResult> UpdateDoc(long id, [FromBody] DocViewModel vm, [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext, CancellationToken ct)
+    {
+        if (vm.Id != id) return TypedResults.BadRequest(new DocErrorViewModel { Message = "Route and body doc identifiers must match" });
+        if (!await Exists(docsActor, id, siteContext.SiteId, ct)) return TypedResults.NotFound();
+        var result = await docsActor.SaveAsync(vm, siteContext.SiteId, ct);
+        return !string.IsNullOrWhiteSpace(result.error.Message) ? TypedResults.BadRequest(result.error) : TypedResults.Ok(result.data);
     }
 
     /// <summary>
@@ -171,12 +183,12 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     /// </summary>
     private static async Task<IResult> DeleteDoc(
         long id,
-        [FromServices] IAeroDocsActor docsActor,
+        [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await docsActor.DeleteAsync(new DeleteDocRequest(id), ct);
+        var result = await docsActor.DeleteDocAsync(id, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.BadRequest(result.error)
+            ? TypedResults.NotFound(result.error)
             : TypedResults.NoContent();
     }
 
@@ -191,6 +203,7 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
         ISiteContext siteContext,
         CancellationToken ct)
     {
+        if (!await Exists(docsActor, spaceId, siteContext.SiteId, ct) || !await Exists(docsActor, parentId, siteContext.SiteId, ct)) return TypedResults.NotFound();
         var result = await docsActor.CreateChildSectionAsync(siteContext.SiteId, spaceId, parentId, request.Title, request.Summary, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(result.error)
@@ -208,6 +221,7 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
         ISiteContext siteContext,
         CancellationToken ct)
     {
+        if (!await Exists(docsActor, spaceId, siteContext.SiteId, ct) || !await Exists(docsActor, id, siteContext.SiteId, ct) || !await Exists(docsActor, request.NewParentId, siteContext.SiteId, ct)) return TypedResults.NotFound();
         var result = await docsActor.MoveSectionAsync(siteContext.SiteId, spaceId, id, request.NewParentId, request.Order, request.RewriteSlug, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(result.error)
@@ -224,6 +238,7 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
         ISiteContext siteContext,
         CancellationToken ct)
     {
+        if (!await Exists(docsActor, spaceId, siteContext.SiteId, ct) || !await Exists(docsActor, request.ParentId, siteContext.SiteId, ct) || !await AllExist(docsActor, request.OrderedIds, siteContext.SiteId, ct)) return TypedResults.NotFound();
         var result = await docsActor.ReorderSectionsAsync(siteContext.SiteId, spaceId, request.ParentId, request.OrderedIds, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(result.error)
@@ -236,12 +251,12 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     /// </summary>
     private static async Task<IResult> PublishDoc(
         long id,
-        [FromServices] IAeroDocsActor docsActor,
+        [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await docsActor.PublishAsync(id, ct);
+        var result = await docsActor.PublishAsync(id, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.BadRequest(result.error)
+            ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(result.data);
     }
 
@@ -251,12 +266,17 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
     /// </summary>
     private static async Task<IResult> UnpublishDoc(
         long id,
-        [FromServices] IAeroDocsActor docsActor,
+        [FromServices] IAeroDocsActor docsActor, ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await docsActor.UnpublishAsync(id, ct);
+        var result = await docsActor.UnpublishAsync(id, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.BadRequest(result.error)
+            ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(result.data);
     }
+
+    private static async Task<bool> Exists(IAeroDocsActor actor, long id, long siteId, CancellationToken ct)
+        => string.IsNullOrWhiteSpace((await actor.GetByIdAsync(id, siteId, ct)).error.Message);
+    private static async Task<bool> AllExist(IAeroDocsActor actor, IEnumerable<long> ids, long siteId, CancellationToken ct)
+    { foreach (var id in ids.Distinct()) if (!await Exists(actor, id, siteId, ct)) return false; return true; }
 }

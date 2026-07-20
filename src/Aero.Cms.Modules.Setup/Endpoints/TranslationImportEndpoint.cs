@@ -22,7 +22,8 @@ public static class TranslationImportEndpoint
 public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/localization")
-            .WithTags("Admin - Localization");
+            .WithTags("Admin - Localization")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapPost("/translations/import", ImportTranslations)
             .WithName("ImportTranslations");
@@ -35,7 +36,7 @@ public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointR
     /// </summary>
     /// <remarks>
     /// Successful responses include aggregate import counts and per-entry errors produced by
-    /// the import service. The endpoint itself does not add an authorization policy.
+    /// the import service. The containing route group requires the <c>AeroAdmin</c> policy.
     /// </remarks>
     private static async Task<IResult> ImportTranslations(
         [FromBody] TranslationImportFileRequest request,

@@ -17,7 +17,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// <summary>
 /// Maps the tag administration HTTP surface onto the tag actor and Sable count queries.
 /// </summary>
-/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
+/// <remarks>
+/// The route group requires an authenticated principal. Site-specific permission policies are
+/// applied in a later hardening phase.
+/// </remarks>
 public static class TagsApi
 {
     /// <summary>
@@ -27,7 +30,8 @@ public static class TagsApi
 public static void MapTagsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/tags")
-            .WithTags("Admin - Tags");
+            .WithTags("Admin - Tags")
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllTags)
             .WithName("GetAllTags");

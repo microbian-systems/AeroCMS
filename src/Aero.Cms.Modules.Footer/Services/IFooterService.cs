@@ -95,14 +95,15 @@ public interface IFooterService
     /// <summary>
     /// Reads the latest published snapshot from an explicit footer stream.
     /// </summary>
+    /// <param name="siteId">The site that must own the footer.</param>
     /// <param name="id">The footer identifier.</param>
     /// <param name="cancellationToken">A token forwarded to document and event-stream reads.</param>
     /// <returns>
     /// The latest published snapshot, or <see langword="null"/> when the footer is missing, archived,
     /// unpublished, or the current operation is cancelled.
     /// </returns>
-    /// <remarks>This method does not enforce ownership against the current site context.</remarks>
     Task<Result<FooterSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        long siteId,
         long id,
         CancellationToken cancellationToken = default);
 

@@ -64,6 +64,30 @@ public sealed class PagePublishingWorkflowHtmlTests
     }
 
     [Test]
+    public async Task PublishNowAsync_WithAuthorizedSite_RejectsCrossSitePageWithoutMutation()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var page = CreatePage(9_204, CreateValidContent("Do not publish"));
+        page.SiteId = 99;
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var service = CreateService(harness.Session);
+
+        var result = await service.PublishNowAsync(page.Id, authorizedSiteId: 7);
+
+        result.IsFailure.ShouldBeTrue();
+        ((Result<bool, AeroError>.Failure)result).Error.ShouldBeOfType<AeroError.NotFound>();
+        await using var verificationSession = await harness.OpenSessionAsync();
+        var restored = await verificationSession.LoadAsync<PageDocument>(page.Id);
+        restored.ShouldNotBeNull();
+        restored!.PublicationState.ShouldBe(ContentPublicationState.Draft);
+        restored.PublishedVersion.ShouldBe(0);
+        restored.PublishedContent.ShouldBeNull();
+    }
+
+    [Test]
     public async Task SubmitForReviewAsync_validates_the_draft_and_saves_state_directly()
     {
         await using var harness = new SableTestHarness()

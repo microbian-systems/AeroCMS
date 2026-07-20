@@ -9,9 +9,9 @@ namespace Aero.Cms.Modules.Users.Areas.Api.v1;
 /// Maps administrative Identity user, role, password, and site-assignment operations.
 /// </summary>
 /// <remarks>
-/// This mapper does not attach authorization or tenant/site policies. The host must restrict
-/// the route group to trusted administrators and enforce any tenant boundary externally.
-/// Unexpected exception messages are copied into problem responses after logging.
+/// The route group requires the <c>AeroAdmin</c> policy. Tenant-specific assignment validation
+/// remains the responsibility of later hardening work. Unexpected exception messages are copied
+/// into problem responses after logging.
 /// </remarks>
 public static class UsersApi
 {
@@ -22,7 +22,8 @@ public static class UsersApi
     public static void MapUsersApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/users")
-            .WithTags("Admin - Users");
+            .WithTags("Admin - Users")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/", GetAllUsers)
             .WithName("GetAllUsers");

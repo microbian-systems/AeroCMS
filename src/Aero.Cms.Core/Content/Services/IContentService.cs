@@ -14,13 +14,13 @@ namespace Aero.Cms.Core.Content.Services;
 /// </remarks>
 public interface IContentService
 {
-    /// <summary>Loads a content item by its identifier.</summary>
+    /// <summary>Loads a content item by site and identifier.</summary>
     /// <param name="id">The content-item identifier.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns>
     /// The item on success, or a failed result when no item has the specified identifier.
     /// </returns>
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
-    Task<Result<ContentItem, AeroError>> LoadAsync(long id, CancellationToken ct = default);
+    Task<Result<ContentItem, AeroError>> LoadAsync(long siteId, long id, CancellationToken ct = default);
 
     /// <summary>Loads a site-scoped content item by its slug.</summary>
     /// <param name="siteId">The owning site identifier.</param><param name="slug">The item's slug.</param><param name="ct">A token that can cancel the operation.</param>
@@ -51,16 +51,17 @@ public interface IContentService
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
     Task<Result<ContentItem, AeroError>> SaveAsync(ContentItem item, CancellationToken ct = default);
 
-    /// <summary>Determines whether a content item exists.</summary>
+    /// <summary>Determines whether a content item exists in a site.</summary>
     /// <param name="id">The content-item identifier.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns><see langword="true"/> when the item exists; otherwise <see langword="false"/>.</returns>
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
-    Task<bool> ExistsAsync(long id, CancellationToken ct = default);
+    Task<bool> ExistsAsync(long siteId, long id, CancellationToken ct = default);
 
-    /// <summary>Queues deletion of a content item by identifier and commits the session.</summary>
+    /// <summary>Deletes a content item only when it belongs to the supplied site.</summary>
     /// <param name="id">The content-item identifier.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns>A successful result containing <see langword="true"/> after the commit completes.</returns>
-    /// <remarks>This operation does not first verify that the item exists.</remarks>
+    /// <remarks>The current-site document is loaded and deleted as one scoped operation. Missing or
+    /// foreign-site identifiers return a failed result without deleting data.</remarks>
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long siteId, long id, CancellationToken ct = default);
 }

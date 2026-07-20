@@ -27,6 +27,7 @@ public sealed class DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
     private static readonly PathString AdminApiPathPrefix = "/api/v1/admin";
+    private static readonly PathString DraftPreviewPathPrefix = "/_cms/preview";
 
     /// <summary>
     /// Gets the current site identifier.
@@ -78,6 +79,7 @@ public long TenantId
 
         var path = httpContext.Request.Path;
         return path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase) ||
-               path.StartsWithSegments(AdminApiPathPrefix, StringComparison.OrdinalIgnoreCase);
+               path.StartsWithSegments(AdminApiPathPrefix, StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments(DraftPreviewPathPrefix, StringComparison.OrdinalIgnoreCase);
     }
 }

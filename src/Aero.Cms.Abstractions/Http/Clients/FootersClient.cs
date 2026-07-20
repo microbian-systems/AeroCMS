@@ -33,10 +33,6 @@ Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(long id, A
     /// </summary>
 Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default);
         /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
-Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default);
-        /// <summary>
     /// SaveDraftAsync method.
     /// </summary>
 Task<Result<FooterDetail, AeroError>> SaveDraftAsync(long id, UpdateFooterRequest request, long expectedVersion, CancellationToken ct = default);
@@ -100,12 +96,6 @@ public Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(lon
     /// </summary>
 public Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default)
         => PostAsync<CreateFooterRequest, FooterDetail>(string.Empty, request, ct);
-
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
-public Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default)
-        => PutAsync<UpdateFooterRequest, FooterDetail>(id.ToString(), request, ct);
 
         /// <summary>
     /// SaveDraftAsync method.

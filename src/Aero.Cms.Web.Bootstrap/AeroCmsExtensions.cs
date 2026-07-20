@@ -1,6 +1,7 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
 using Aero.Cms.Core;
@@ -146,11 +147,35 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 cookie.SlidingExpiration = true;
                 cookie.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.ConfigureApplicationCookie?.Invoke(cookie);
+            })
+            .AddCookie(ExternalMemberAuthenticationDefaults.Scheme, cookie =>
+            {
+                cookie.Cookie.Name = ".AeroCms.Member";
+                cookie.Cookie.HttpOnly = true;
+                cookie.Cookie.SameSite = SameSiteMode.Lax;
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.SlidingExpiration = false;
+                cookie.Events.OnValidatePrincipal = context =>
+                    context.HttpContext.RequestServices
+                        .GetRequiredService<ExternalMemberCookieValidator>()
+                        .ValidateAsync(context);
             });
 
         services.AddAuthorization(authorization =>
         {
             authorization.AddPolicy("AeroAdmin", policy => policy.RequireRole("Admin"));
+            authorization.AddPolicy(ExternalMemberAuthenticationDefaults.Policy, policy =>
+            {
+                policy.AddAuthenticationSchemes(ExternalMemberAuthenticationDefaults.Scheme);
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context => ExternalMemberPrincipal.TryRead(context.User, out _));
+            });
+            authorization.AddPolicy(ExternalMemberAuthenticationDefaults.SitePolicy, policy =>
+            {
+                policy.AddAuthenticationSchemes(ExternalMemberAuthenticationDefaults.Scheme);
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new ExternalMemberSiteRequirement());
+            });
             options.ConfigureAuthorization?.Invoke(authorization);
         });
 
@@ -367,6 +392,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         configureComponents?.Invoke(componentBuilder);
 
         app.MapIdentityApi();
+        app.MapExternalMemberApi();
         app.MapAeroCmsEndpoints();
 
         if (options.EnableOpenApi)

@@ -1,4 +1,6 @@
 using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Authentication;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Models.Entities;
 using AeroDB.AspNetIdentity;
@@ -7,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Aero.Modular;
+using AeroDB.Sable;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -30,7 +34,7 @@ namespace Aero.Cms.Modules.Identity;
 /// </para>
 /// </remarks>
 [Module(nameof(IdentityModule))]
-public class IdentityModule : AeroWebModule
+public class IdentityModule : AeroWebModule, IConfigureAeroDB
 {
     /// <summary>
     /// Gets the stable module name used for discovery.
@@ -99,5 +103,23 @@ public class IdentityModule : AeroWebModule
             .AddSignInManager()
             .AddDefaultTokenProviders()
             .AddAeroDBStores<AeroUser, AeroRole, long>();
+
+        services.AddScoped<ICurrentPrincipal, CurrentPrincipal>();
+        services.AddScoped<ExternalMemberCookieValidator>();
+        services.AddScoped<IAuthorizationHandler, ExternalMemberSiteAuthorizationHandler>();
     }
+
+    /// <summary>Configures local external-member documents and their lookup constraints.</summary>
+    public void Configure(AeroDB.Sable.StoreOptions opts)
+    {
+        opts.Schema.For<ExternalMember>().Index(member => member.IsActive);
+        opts.Schema.For<ExternalMemberSession>().Index(session => session.ExternalMemberId);
+        opts.Schema.For<ExternalMemberSession>().Index(session => session.ExpiresAt);
+        opts.Schema.For<ExternalMemberSiteAssignment>()
+            .UniqueIndex(assignment => new { assignment.ExternalMemberId, assignment.SiteId });
+        opts.Schema.For<ExternalMemberSiteAssignment>().Index(assignment => assignment.TenantId);
+    }
+
+    /// <summary>Applies the external-member schema through the service-aware configuration hook.</summary>
+    public void Configure(IServiceProvider? services, AeroDB.Sable.StoreOptions opts) => Configure(opts);
 }

@@ -10,9 +10,8 @@ namespace Aero.Cms.Modules.Settings.Areas.Api.v1;
 /// <see cref="IAeroSettingActor"/>.
 /// </summary>
 /// <remarks>
-/// The route group does not add an authorization requirement. Hosts must apply an authorization
-/// convention or middleware policy before exposing these endpoints because values are returned
-/// and mutated without site or tenant scoping.
+/// The route group requires the <c>AeroAdmin</c> policy because values are returned and mutated
+/// without site or tenant scoping.
 /// </remarks>
 public static class SettingsApi
 {
@@ -23,7 +22,8 @@ public static class SettingsApi
 public static void MapSettingsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/settings")
-            .WithTags("Admin - Settings");
+            .WithTags("Admin - Settings")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/", GetAllSettings)
             .WithName("GetAllSettings");

@@ -29,11 +29,9 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 /// <param name="styleProfileResolver">Resolves the site's allowed style profile.</param>
 /// <param name="logger">The page logger.</param>
 /// <remarks>
-/// Draft selection is controlled by <see cref="DraftId"/>. This model does not perform
-/// an authorization or site-ownership check for that identifier-only lookup; the host must
-/// protect preview endpoints and verify that the requested draft belongs to the current site.
-/// Public responses receive a five-minute cache header, while previews are marked
-/// no-store.
+/// Draft selection is controlled by <see cref="DraftId"/> and is scoped to the
+/// manager-selected site. Public responses receive a five-minute cache header,
+/// while previews are marked no-store.
 /// </remarks>
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
@@ -136,7 +134,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
 
         if (DraftId is { } draftId)
         {
-            result = await pageActor.GetByIdAsync(draftId, cancellationToken);
+            result = await pageActor.GetByIdAsync(draftId, siteContext.SiteId, cancellationToken);
         }
         else if (string.IsNullOrWhiteSpace(requestedSlug))
         {
@@ -184,11 +182,12 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         await using (var session = await documentStore.QuerySessionAsync())
         {
             var document = await session.LoadAsync<PageDocument>(vm.Id, cancellationToken);
-            if (document is null)
+            if (document is null || document.SiteId != siteContext.SiteId)
             {
                 logger.LogWarning(
-                    "Public page metadata resolved to missing PageDocument {PageId} for Slug={Slug}",
+                    "Page metadata resolved to missing or cross-site PageDocument {PageId} for SiteId={SiteId}, Slug={Slug}",
                     vm.Id,
+                    siteContext.SiteId,
                     requestedSlug);
                 return NotFound();
             }
@@ -268,7 +267,10 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         PageViewModel page,
         CancellationToken cancellationToken)
     {
-        var variants = await pageActor.ListCultureVariantsAsync(page.Id, cancellationToken);
+        var variants = await pageActor.ListCultureVariantsAsync(
+            page.Id,
+            siteContext.SiteId,
+            cancellationToken);
         if (variants.Count == 0)
             variants = [page];
 

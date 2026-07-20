@@ -15,7 +15,7 @@ namespace Aero.Cms.Modules.Content.Grains;
 /// <see cref="IContentTypeService"/> via <see cref="IServiceScopeFactory"/>.
 /// </summary>
 /// <remarks>
-/// Site identity is supplied by each caller and is not independently authorized. Successful
+/// Site identity is supplied explicitly by each caller and is forced onto mutations. Successful
 /// mutations publish non-durable notifications after persistence.
 /// </remarks>
 public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
@@ -73,12 +73,14 @@ public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string ali
         /// <summary>
     /// Assigns a new Snowflake identifier, saves a definition, and publishes a created notification.
     /// </summary>
-    /// <remarks>Site identity is accepted from <paramref name="vm"/> without authorization.</remarks>
-public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
+    /// <remarks>The explicit site argument is authoritative; the view-model site is overwritten.</remarks>
+public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, long siteId, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
+        vm.Id = 0;
+        vm.SiteId = siteId;
         var definition = ToEntity(vm, isNew: true);
         var result = await service.SaveAsync(definition, ct);
 
@@ -98,14 +100,15 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(Content
     }
 
         /// <summary>
-    /// Saves a definition with its supplied identifier and publishes an updated notification.
+    /// Saves a definition under the selected site and publishes an updated notification.
     /// </summary>
-    /// <remarks>The grain does not first verify that the identifier, site, or alias already exists.</remarks>
-public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
+    /// <remarks>The service rejects missing or foreign identifiers and enforces per-site alias uniqueness.</remarks>
+public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, long siteId, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
+        vm.SiteId = siteId;
         var definition = ToEntity(vm, isNew: false);
         var result = await service.SaveAsync(definition, ct);
 
@@ -194,7 +197,7 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
 
         return new ContentTypeDefinition
         {
-            Id = isNew ? Snowflake.NewId() : vm.Id,
+            Id = isNew ? 0 : vm.Id,
             SiteId = vm.SiteId,
             Alias = vm.Alias,
             Name = vm.Name,

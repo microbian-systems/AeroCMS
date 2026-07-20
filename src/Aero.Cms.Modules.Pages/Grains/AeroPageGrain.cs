@@ -23,10 +23,9 @@ namespace Aero.Cms.Modules.Pages.Grains;
 /// and delegates each operation to the service.
 /// </summary>
 /// <remarks>
-/// Several identifier-only actor contracts do not carry a site identifier. Those
-/// methods load the page directly to discover its site and therefore assume callers
-/// are authorized before crossing the actor boundary. The in-memory state exposed by
-/// <c>IHaveState</c> is not persisted by this grain.
+/// Administrative operations accept an explicit authorized site identifier. Inherited
+/// identifier-only CRUD methods fail closed because they cannot establish a tenant
+/// boundary. The in-memory state exposed by <c>IHaveState</c> is not persisted by this grain.
 /// </remarks>
 public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 {
@@ -97,43 +96,27 @@ public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
 
     // ── ICruddable<PageViewModel, long> ──────────────────────────────
 
-    /// <summary>
-    /// Loads a page directly by identifier because <see cref="ICruddable{T,TKey}"/>
-    /// does not provide a site scope.
-    /// </summary>
-    /// <param name="id">The page identifier.</param>
-    /// <param name="ct">The token used for the direct store load.</param>
-    /// <returns>The page response, or a not-found response.</returns>
-    public async Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, CancellationToken ct)
-    {
-        await using var session = await _store.QuerySessionAsync();
-        var doc = await session.LoadAsync<PageDocument>(id, ct);
+    /// <inheritdoc />
+    public Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        => Task.FromResult(Fail("An explicit site scope is required."));
 
-        return doc is not null
-            ? Ok(doc.ToViewModel())
-            : NotFound($"Page {id} not found");
+    /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct)
+    {
+        await using var session = await _store.LightweightSessionAsync();
+        var pageService = CreatePageService(session, siteId);
+        var result = await pageService.LoadAsync(id, ct);
+
+        return result switch
+        {
+            Result<PageDocument?, AeroError>.Ok { Value: not null } ok => Ok(ok.Value.ToViewModel()),
+            _ => NotFound($"Page {id} not found")
+        };
     }
 
-    /// <summary>
-    /// Queries pages directly by identifier because the CRUD contract does not
-    /// provide a site scope.
-    /// </summary>
-    /// <param name="ids">The page identifiers.</param>
-    /// <param name="ct">The token used for the store query.</param>
-    /// <returns>
-    /// A successful response containing the first returned page, or an empty page
-    /// model when no records match. Query ordering is not specified.
-    /// </returns>
-    public async Task<AeroRequestResponse<PageViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
-    {
-        await using var session = await _store.QuerySessionAsync();
-        var docs = await session.Query<PageDocument>()
-            .Where(x => ids.Contains(x.Id))
-            .ToListAsync(ct);
-
-        var primary = docs.Count > 0 ? docs[0].ToViewModel() : new PageViewModel();
-        return Ok(primary);
-    }
+    /// <inheritdoc />
+    public Task<AeroRequestResponse<PageViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        => Task.FromResult(Fail("An explicit site scope is required."));
 
     /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, CancellationToken ct)
@@ -153,56 +136,63 @@ public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest reque
     }
 
     /// <inheritdoc />
-public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+public Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("An explicit site scope is required."));
+
+    /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(
+        IRequest request,
+        long siteId,
+        CancellationToken ct)
     {
         if (request is not UpdatePageRequest update)
             return Fail("Expected UpdatePageRequest");
-
-        // Load page from store to obtain its SiteId (not present on UpdatePageRequest)
-        await using var loadSession = await _store.QuerySessionAsync();
-        var page = await loadSession.LoadAsync<PageDocument>(update.Id, ct);
-
-        if (page is null)
-            return NotFound($"Page {update.Id} not found");
-
-        var siteId = page.SiteId;
 
         await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.UpdateAsync(update.Id, update, ct);
 
-        if (result is Result<PageDocument, AeroError>.Ok ok)
-            return Ok(ok.Value.ToViewModel());
-        if (result is Result<PageDocument, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Update failed");
-        return Fail("Unexpected result");
+        return result switch
+        {
+            Result<PageDocument, AeroError>.Ok ok => Ok(ok.Value.ToViewModel()),
+            Result<PageDocument, AeroError>.Failure { Error: AeroError.NotFound } =>
+                NotFound($"Page {update.Id} not found"),
+            Result<PageDocument, AeroError>.Failure fail =>
+                Fail(fail.Error.ToString() ?? "Update failed"),
+            _ => Fail("Unexpected result")
+        };
     }
 
     /// <inheritdoc />
-public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+public Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("An explicit site scope is required."));
+
+    /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(
+        IRequest request,
+        long siteId,
+        CancellationToken ct)
     {
         if (request is not DeletePageRequest delete)
             return Fail("Expected DeletePageRequest");
 
-        // Load page from store to obtain SiteId and capture the view model
-        await using var loadSession = await _store.QuerySessionAsync();
-        var page = await loadSession.LoadAsync<PageDocument>(delete.Id, ct);
-
-        if (page is null)
-            return NotFound($"Page {delete.Id} not found");
-
-        var siteId = page.SiteId;
-        var vm = page.ToViewModel();
+        var lookup = await GetByIdAsync(delete.Id, siteId, ct);
+        if (!string.IsNullOrWhiteSpace(lookup.error.Message))
+            return lookup;
 
         await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.DeleteAsync(delete.Id, ct);
 
-        if (result is Result<bool, AeroError>.Ok)
-            return Ok(vm);
-        if (result is Result<bool, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Delete failed");
-        return Fail("Unexpected result");
+        return result switch
+        {
+            Result<bool, AeroError>.Ok => Ok(lookup.data),
+            Result<bool, AeroError>.Failure { Error: AeroError.NotFound } =>
+                NotFound($"Page {delete.Id} not found"),
+            Result<bool, AeroError>.Failure fail =>
+                Fail(fail.Error.ToString() ?? "Delete failed"),
+            _ => Fail("Unexpected result")
+        };
     }
 
     // ── ICanFindBySite<PageViewModel, long> ──────────────────────────
@@ -267,17 +257,17 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
     /// <inheritdoc />
     public async Task<PageRouteChangeImpact> GetRouteChangeImpactAsync(
         long id,
+        long siteId,
         string slug,
         long? parentId,
         CancellationToken ct)
     {
-        await using var loadSession = await _store.QuerySessionAsync();
-        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
-        if (page is null)
+        var lookup = await GetByIdAsync(id, siteId, ct);
+        if (!string.IsNullOrWhiteSpace(lookup.error.Message))
             return new PageRouteChangeImpact(id, string.Empty, string.Empty, [], $"Page {id} not found.");
 
         await using var session = await _store.LightweightSessionAsync();
-        var siteContext = new FixedSiteContext(page.SiteId);
+        var siteContext = new FixedSiteContext(siteId);
         var treeService = new PageTreeService(
             session,
             siteContext,
@@ -290,8 +280,18 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
         {
             Result<PageRouteChangeImpact, AeroError>.Ok ok => ok.Value,
             Result<PageRouteChangeImpact, AeroError>.Failure failure =>
-                new PageRouteChangeImpact(id, page.Path, page.Path, [], failure.Error.ToString()),
-            _ => new PageRouteChangeImpact(id, page.Path, page.Path, [], "Unexpected route-impact result.")
+                new PageRouteChangeImpact(
+                    id,
+                    lookup.data.Path ?? string.Empty,
+                    lookup.data.Path ?? string.Empty,
+                    [],
+                    failure.Error.ToString()),
+            _ => new PageRouteChangeImpact(
+                id,
+                lookup.data.Path ?? string.Empty,
+                lookup.data.Path ?? string.Empty,
+                [],
+                "Unexpected route-impact result.")
         };
     }
 
@@ -310,86 +310,84 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
     }
 
     /// <inheritdoc />
-public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
+    public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(
+        long id,
+        long siteId,
+        CancellationToken ct)
     {
         await using var scope = _services.CreateAsyncScope();
         var workflow = scope.ServiceProvider.GetRequiredService<IPagePublishingWorkflowService>();
-        var result = await workflow.PublishNowAsync(id, ct);
-
+        var result = await workflow.PublishNowAsync(id, siteId, ct);
+        if (result is Result<bool, AeroError>.Failure { Error: AeroError.NotFound })
+            return NotFound($"Page {id} not found");
         if (result is Result<bool, AeroError>.Failure fail)
             return Fail(fail.Error.ToString() ?? "Publish failed");
 
-        await using var session = await _store.QuerySessionAsync();
-        var page = await session.LoadAsync<PageDocument>(id, ct);
-
-        return page is not null
-            ? Ok(page.ToViewModel())
-            : NotFound($"Page {id} not found");
+        return await GetByIdAsync(id, siteId, ct);
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// This direct actor path sets the document to draft and clears
-    /// <c>PublishedOn</c>, but does not publish notifications or clear the stored
-    /// published snapshot.
-    /// </remarks>
-public async Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct)
-        => await TogglePublishStateAsync(id, ContentPublicationState.Draft, ct);
+    public Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(
+        long id,
+        long siteId,
+        CancellationToken ct)
+        => TogglePublishStateAsync(id, siteId, ContentPublicationState.Draft, ct);
 
     /// <inheritdoc />
-    /// <remarks>Lookup or service failures are represented as an empty list.</remarks>
-public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
+    public async Task<List<PageViewModel>> ListCultureVariantsAsync(
+        long id,
+        long siteId,
+        CancellationToken ct)
     {
-        await using var loadSession = await _store.QuerySessionAsync();
-        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
-
-        if (page is null)
+        await using var session = await _store.LightweightSessionAsync();
+        var pageService = CreatePageService(session, siteId);
+        var sourceResult = await pageService.LoadAsync(id, ct);
+        if (sourceResult is not Result<PageDocument?, AeroError>.Ok { Value: not null } source)
             return [];
 
-        var TranslationGroupId = page.TranslationGroupId ?? page.Id;
-
-        await using var session = await _store.LightweightSessionAsync();
-        var pageService = CreatePageService(session, page.SiteId);
-        var result = await pageService.ListCultureVariantsAsync(TranslationGroupId, ct);
-
+        var translationGroupId = source.Value.TranslationGroupId ?? source.Value.Id;
+        var result = await pageService.ListCultureVariantsAsync(translationGroupId, ct);
         return result is Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok
             ? ok.Value.Select(p => p.ToViewModel()).ToList()
             : [];
     }
 
     /// <inheritdoc />
-public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
+    public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
         long id,
+        long siteId,
         string culture,
         string slug,
         CancellationToken ct)
     {
-        await using var loadSession = await _store.QuerySessionAsync();
-        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
-
-        if (page is null)
-            return NotFound($"Page {id} not found");
-
         await using var session = await _store.LightweightSessionAsync();
-        var pageService = CreatePageService(session, page.SiteId);
+        var pageService = CreatePageService(session, siteId);
         var result = await pageService.ForkPageForCultureAsync(id, culture, slug, ct);
 
-        if (result is Result<PageDocument, AeroError>.Ok ok)
-            return Ok(ok.Value.ToViewModel());
-        if (result is Result<PageDocument, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? "Culture fork failed");
-        return Fail("Unexpected result");
+        return result switch
+        {
+            Result<PageDocument, AeroError>.Ok ok => Ok(ok.Value.ToViewModel()),
+            Result<PageDocument, AeroError>.Failure { Error: AeroError.NotFound } =>
+                NotFound($"Page {id} not found"),
+            Result<PageDocument, AeroError>.Failure fail =>
+                Fail(fail.Error.ToString() ?? "Culture fork failed"),
+            _ => Fail("Unexpected result")
+        };
     }
 
     private async Task<AeroRequestResponse<PageViewModel>> TogglePublishStateAsync(
-        long id, ContentPublicationState state, CancellationToken ct)
+        long id,
+        long siteId,
+        ContentPublicationState state,
+        CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
-        var page = await session.LoadAsync<PageDocument>(id, ct);
-
-        if (page is null)
+        var pageService = CreatePageService(session, siteId);
+        var lookup = await pageService.LoadAsync(id, ct);
+        if (lookup is not Result<PageDocument?, AeroError>.Ok { Value: not null } pageResult)
             return NotFound($"Page {id} not found");
 
+        var page = pageResult.Value;
         var now = DateTimeOffset.UtcNow;
         if (state == ContentPublicationState.Published)
         {
@@ -408,30 +406,27 @@ public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// The first identifier determines the site scope for the entire batch. A missing
-    /// first page or any service failure is represented as a zero count.
-    /// </remarks>
-public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct)
+    public async Task<PageBulkDeleteActorResult> DeleteMultipleAsync(
+        long[] ids,
+        long siteId,
+        bool deleteDescendants,
+        CancellationToken ct)
     {
         if (ids.Length == 0)
-            return 0;
-
-        // Load the first page to determine the SiteId for the bulk operation
-        await using var loadSession = await _store.QuerySessionAsync();
-        var firstPage = await loadSession.LoadAsync<PageDocument>(ids[0], ct);
-        if (firstPage is null)
-            return 0;
-
-        var siteId = firstPage.SiteId;
+            return new PageBulkDeleteActorResult();
 
         await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.DeleteMultipleAsync(ids, deleteDescendants, ct);
-
-        if (result is Result<int, AeroError>.Ok ok)
-            return ok.Value;
-        return 0;
+        return result switch
+        {
+            Result<int, AeroError>.Ok ok => new PageBulkDeleteActorResult { Deleted = ok.Value },
+            Result<int, AeroError>.Failure { Error: AeroError.NotFound } =>
+                new PageBulkDeleteActorResult { NotFound = true },
+            Result<int, AeroError>.Failure failure =>
+                new PageBulkDeleteActorResult { Error = failure.Error.ToString() },
+            _ => new PageBulkDeleteActorResult { Error = "Unexpected bulk delete result." }
+        };
     }
 
     // ── AeroRequestResponse helpers ────────────────────────────────────

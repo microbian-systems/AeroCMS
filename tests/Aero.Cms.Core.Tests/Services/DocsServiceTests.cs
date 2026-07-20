@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Docs;
 using Aero.Cms.Modules.Pages;
@@ -202,6 +203,52 @@ public sealed class DocsServiceTests
         result.IsSuccess.ShouldBeTrue();
         var pages = ((global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>.Ok)result).Value;
         pages.Select(page => page.Slug).ShouldBe(["docs", "docs/getting-started"]);
+    }
+
+    [Test]
+    public async Task SaveFromViewModelAsync_ForeignExistingId_IsRejectedWithoutRehoming()
+    {
+        var foreign = new DocsPage { Id = 401, SiteId = 99, Title = "Foreign", Slug = "foreign" };
+        _session.Store(foreign);
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveFromViewModelAsync(new DocViewModel
+        {
+            Id = foreign.Id, SiteId = 42, Title = "Attacker title", Slug = "attacker-slug"
+        });
+
+        result.IsFailure.ShouldBeTrue();
+        var stored = await _session.LoadAsync<DocsPage>(foreign.Id);
+        stored!.SiteId.ShouldBe(99);
+        stored.Title.ShouldBe("Foreign");
+    }
+
+    [Test]
+    public async Task SaveAsync_RejectsForeignParentAndTranslationGroup()
+    {
+        var foreign = new DocsPage { Id = 501, SiteId = 99, TranslationGroupId = 501, Title = "Foreign", Slug = "foreign" };
+        _session.Store(foreign);
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new DocsPage
+        {
+            Title = "Local", Slug = "local", ParentId = foreign.Id, TranslationGroupId = foreign.Id
+        });
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_OnlyReturnsCurrentSitePages()
+    {
+        _session.Store(
+            new DocsPage { Id = 601, SiteId = 42, Title = "Local", Slug = "local" },
+            new DocsPage { Id = 602, SiteId = 99, Title = "Foreign", Slug = "foreign" });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.GetByIdsAsync([601, 602]);
+        var pages = ((global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>.Ok)result).Value;
+        pages.Select(x => x.Id).ShouldBe([601]);
     }
 
     private static ISiteContext CreateSiteContext(long siteId)

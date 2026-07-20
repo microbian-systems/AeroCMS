@@ -154,13 +154,17 @@ public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, Cance
 
     /// <inheritdoc />
 public async Task<Result<FooterSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        long siteId,
         long id,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var footer = await session.LoadAsync<FooterDocument>(id, cancellationToken);
-            if (footer is null || footer.State == FooterLifecycleState.Archived || !footer.HasPublishedSnapshot)
+            if (footer is null ||
+                footer.SiteId != siteId ||
+                footer.State == FooterLifecycleState.Archived ||
+                !footer.HasPublishedSnapshot)
             {
                 return Ok<FooterSnapshot?, AeroError>(null);
             }
@@ -202,7 +206,9 @@ public async Task<Result<FooterSnapshot?, AeroError>> ResolveSnapshotAsync(
             if (footerId is not null)
             {
                 footerId = await ResolveCultureVariantIdAsync(siteId, footerId.Value, GetCurrentCulture(), cancellationToken);
-                return await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
+                return footerId is null
+                    ? Ok<FooterSnapshot?, AeroError>(null)
+                    : await GetPublishedSnapshotAsync(siteId, footerId.Value, cancellationToken);
             }
 
             var fallback = await session.Query<FooterDocument>()
@@ -210,9 +216,19 @@ public async Task<Result<FooterSnapshot?, AeroError>> ResolveSnapshotAsync(
                 .OrderBy(x => x.CreatedOn)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            return fallback is null
+            if (fallback is null)
+            {
+                return Ok<FooterSnapshot?, AeroError>(null);
+            }
+
+            var resolvedFallbackId = await ResolveCultureVariantIdAsync(
+                siteId,
+                fallback.Id,
+                GetCurrentCulture(),
+                cancellationToken);
+            return resolvedFallbackId is null
                 ? Ok<FooterSnapshot?, AeroError>(null)
-                : await GetPublishedSnapshotAsync(fallback.Id, cancellationToken);
+                : await GetPublishedSnapshotAsync(siteId, resolvedFallbackId.Value, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -554,7 +570,7 @@ public async Task<Result<FooterDocument, AeroError>> ForkToCultureAsync(
         }
     }
 
-    private async Task<long> ResolveCultureVariantIdAsync(
+    private async Task<long?> ResolveCultureVariantIdAsync(
         long siteId,
         long defaultFooterId,
         string culture,
@@ -562,7 +578,14 @@ public async Task<Result<FooterDocument, AeroError>> ForkToCultureAsync(
     {
         var defaultFooter = await session.LoadAsync<FooterDocument>(defaultFooterId, cancellationToken);
         if (defaultFooter is null ||
-            string.Equals(defaultFooter.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
+            defaultFooter.SiteId != siteId ||
+            defaultFooter.State == FooterLifecycleState.Archived ||
+            !defaultFooter.HasPublishedSnapshot)
+        {
+            return null;
+        }
+
+        if (string.Equals(defaultFooter.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
             defaultFooter.TranslationGroupId is null)
         {
             return defaultFooterId;

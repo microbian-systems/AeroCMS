@@ -106,12 +106,12 @@ public sealed class ContentCommandService(
     /// </remarks>
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
     public async Task<Result<bool, AeroError>> DeleteAsync(
-        long id, CancellationToken ct = default)
+        long siteId, long id, CancellationToken ct = default)
     {
         // Verify the item exists before attempting deletion
-        if (!await contentService.ExistsAsync(id, ct))
+        if (!await contentService.ExistsAsync(siteId, id, ct))
             return AeroError.NotFoundError($"Content item '{id}' not found.");
 
-        return await contentService.DeleteAsync(id, ct);
+        return await contentService.DeleteAsync(siteId, id, ct);
     }
 }

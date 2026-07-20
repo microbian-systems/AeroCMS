@@ -110,7 +110,7 @@ public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
 
     /// <inheritdoc />
     /// <remarks>Not-found, unpublished, and service failures are all collapsed to <see langword="null"/>.</remarks>
-public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct)
+    public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
@@ -124,20 +124,21 @@ public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, stri
     /// Resolves a source post, then returns the variants in its translation group.
     /// </summary>
     /// <param name="id">The identifier of any variant in the group.</param>
+    /// <param name="siteId">The authorized site boundary for the source and returned variants.</param>
     /// <param name="ct">A token used to cancel persistence queries.</param>
     /// <returns>Mapped variants, or an empty list when the source or service result is unavailable.</returns>
-    /// <remarks>The source lookup is by identifier and derives its site from the document; it does not accept a caller site scope.</remarks>
-public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
+    /// <remarks>The source must belong to <paramref name="siteId"/> before its translation group is queried.</remarks>
+    public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, long siteId, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
         var source = await loadSession.LoadAsync<PostDocument>(id, ct);
-        if (source is null)
+        if (source is null || source.SiteId != siteId)
             return [];
 
         var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
         await using var session = await _store.LightweightSessionAsync();
-        var postService = CreatePostService(session, source.SiteId);
+        var postService = CreatePostService(session, siteId);
         var result = await postService.ListCultureVariantsAsync(TranslationGroupId, ct);
         return result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
             ? ok.Value.Select(MapToViewModel).ToList()
@@ -148,20 +149,26 @@ public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, Cancell
     /// Creates and persists a draft culture variant of a source post.
     /// </summary>
     /// <param name="id">The source post identifier.</param>
+    /// <param name="siteId">The authorized site boundary for the source and new variant.</param>
     /// <param name="culture">The target culture.</param>
     /// <param name="slug">The target slug.</param>
     /// <param name="ct">A token used to cancel persistence work.</param>
     /// <returns>The persisted variant or an error response.</returns>
-    /// <remarks>The initial source lookup is not supplied with a caller site; the source document determines the service scope.</remarks>
-public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct)
+    /// <remarks>The source must belong to <paramref name="siteId"/> before a variant can be created.</remarks>
+    public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(
+        long id,
+        long siteId,
+        string culture,
+        string slug,
+        CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
         var source = await loadSession.LoadAsync<PostDocument>(id, ct);
-        if (source is null)
+        if (source is null || source.SiteId != siteId)
             return NotFound($"Post {id} not found");
 
         await using var session = await _store.LightweightSessionAsync();
-        var postService = CreatePostService(session, source.SiteId);
+        var postService = CreatePostService(session, siteId);
         var result = await postService.ForkPostForCultureAsync(id, culture, slug, ct);
         if (result is Result<PostDocument, AeroError>.Ok ok)
             return Ok(MapToViewModel(ok.Value));
@@ -177,6 +184,16 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
     /// </remarks>
     public async Task<AeroRequestResponse<PostViewModel>> SavePostAsync(PostViewModel vm, long siteId, CancellationToken ct)
     {
+        if (vm.SiteId != 0 && vm.SiteId != siteId)
+            return NotFound($"Post {vm.Id} not found");
+
+        await using (var query = await _store.QuerySessionAsync())
+        {
+            var existing = await query.LoadAsync<PostDocument>(vm.Id, ct);
+            if (existing is not null && existing.SiteId != siteId)
+                return NotFound($"Post {vm.Id} not found");
+        }
+
         vm.SeriesId ??= await EnsureGeneralSeriesIdAsync(siteId, ct);
 
         var post = MapToDocument(vm);
@@ -214,28 +231,24 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
     /// <remarks>Loading and saving use separate sessions; a missing or wrong-site post produces a failure response.</remarks>
     public async Task<AeroRequestResponse<PostViewModel>> PublishPostAsync(long id, long siteId, CancellationToken ct)
     {
-        var vm = await LoadAsync(id, siteId, ct);
-        if (vm is null)
-            return Fail($"Blog post with id '{id}' not found or access denied");
-
-        vm.PublicationState = ContentPublicationState.Published;
-        vm.PublishedOn = DateTimeOffset.UtcNow;
-
-        return await SavePostAsync(vm, siteId, ct);
+        await using var session = await _store.LightweightSessionAsync();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.SetPublicationStateAsync(id, ContentPublicationState.Published, ct);
+        return result is Result<PostDocument, AeroError>.Ok ok
+            ? Ok(MapToViewModel(ok.Value))
+            : Fail($"Blog post with id '{id}' not found or access denied");
     }
 
     /// <inheritdoc />
     /// <remarks>Loading and saving use separate sessions; a missing or wrong-site post produces a failure response.</remarks>
     public async Task<AeroRequestResponse<PostViewModel>> UnpublishPostAsync(long id, long siteId, CancellationToken ct)
     {
-        var vm = await LoadAsync(id, siteId, ct);
-        if (vm is null)
-            return Fail($"Blog post with id '{id}' not found or access denied");
-
-        vm.PublicationState = ContentPublicationState.Draft;
-        vm.PublishedOn = null;
-
-        return await SavePostAsync(vm, siteId, ct);
+        await using var session = await _store.LightweightSessionAsync();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.SetPublicationStateAsync(id, ContentPublicationState.Draft, ct);
+        return result is Result<PostDocument, AeroError>.Ok ok
+            ? Ok(MapToViewModel(ok.Value))
+            : Fail($"Blog post with id '{id}' not found or access denied");
     }
 
     // ── ICruddable<PostViewModel, long> (direct IDocumentStore access) ──────
@@ -247,11 +260,14 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
     /// <param name="ct">A token used to cancel the query.</param>
     /// <returns>The mapped post or a not-found response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        => Fail("A site scope is required to load a post by identifier");
+
+    /// <inheritdoc />
+public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct)
     {
-        await using var session = await _store.QuerySessionAsync();
-        var doc = await session.LoadAsync<PostDocument>(id, ct);
-        return doc is not null
-            ? Ok(MapToViewModel(doc))
+        var post = await LoadAsync(id, siteId, ct);
+        return post is not null
+            ? Ok(post)
             : NotFound($"Post {id} not found");
     }
 
@@ -262,14 +278,7 @@ public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, Canc
     /// <param name="ct">A token used to cancel the query.</param>
     /// <returns>A successful response containing the first match or an empty view model.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
-    {
-        await using var session = await _store.QuerySessionAsync();
-        var docs = await session.Query<PostDocument>()
-            .Where(x => ids.Contains(x.Id))
-            .ToListAsync(ct);
-        var primary = docs.Count > 0 ? MapToViewModel(docs[0]) : new PostViewModel();
-        return Ok(primary);
-    }
+        => Fail("A site scope is required to load posts by identifier");
 
     /// <summary>
     /// Adapts a recognized actor create request to a new post and delegates persistence to <see cref="SavePostAsync"/>.
@@ -278,29 +287,7 @@ public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, 
     /// <param name="ct">A token used to cancel persistence work.</param>
     /// <returns>The saved post or an error response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> CreateAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not CreatePostRequest create)
-            return Fail("Expected CreatePostRequest");
-
-        var id = Snowflake.NewId();
-
-        var vm = new PostViewModel
-        {
-            Id = id,
-            SiteId = create.SiteId,
-            Title = create.Title,
-            Slug = create.Slug,
-            Excerpt = create.Summary,
-            SeoTitle = create.SeoTitle,
-            SeoDescription = create.SeoDescription,
-            PublicationState = create.PublicationState,
-            CreatedOn = DateTimeOffset.UtcNow,
-            CreatedBy = "system",
-            ModifiedBy = "system"
-        };
-
-        return await SavePostAsync(vm, create.SiteId, ct);
-    }
+        => Fail("A site-scoped post save operation is required");
 
     /// <summary>
     /// Loads a post by identifier, applies actor-request fields, and delegates persistence.
@@ -309,25 +296,7 @@ public async Task<AeroRequestResponse<PostViewModel>> CreateAsync(IRequest reque
     /// <param name="ct">A token used to cancel persistence work.</param>
     /// <returns>The saved post, a not-found response, or a request-type failure response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not UpdatePostRequest update)
-            return Fail("Expected UpdatePostRequest");
-
-        await using var session = await _store.QuerySessionAsync();
-        var existing = await session.LoadAsync<PostDocument>(update.Id, ct);
-        if (existing is null)
-            return NotFound($"Post {update.Id} not found");
-
-        existing.Title = update.Title;
-        existing.Slug = update.Slug;
-        existing.Excerpt = update.Summary;
-        existing.SeoTitle = update.SeoTitle;
-        existing.SeoDescription = update.SeoDescription;
-        existing.PublicationState = update.PublicationState;
-
-        var vm = MapToViewModel(existing);
-        return await SavePostAsync(vm, existing.SiteId, ct);
-    }
+        => Fail("A site-scoped post save operation is required");
 
     /// <summary>
     /// Resolves the post's site from persistence and delegates its deletion.
@@ -336,17 +305,7 @@ public async Task<AeroRequestResponse<PostViewModel>> UpdateAsync(IRequest reque
     /// <param name="ct">A token used to cancel persistence work.</param>
     /// <returns>The deleted post, a not-found response, or an error response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not DeletePostRequest delete)
-            return Fail("Expected DeletePostRequest");
-
-        await using var session = await _store.QuerySessionAsync();
-        var existing = await session.LoadAsync<PostDocument>(delete.Id, ct);
-        if (existing is null)
-            return NotFound($"Post {delete.Id} not found");
-
-        return await DeletePostAsync(delete.Id, existing.SiteId, ct);
-    }
+        => Fail("A site-scoped post delete operation is required");
 
     // ── ICanFindBySite<PostViewModel, long> ──────────────────────────
 

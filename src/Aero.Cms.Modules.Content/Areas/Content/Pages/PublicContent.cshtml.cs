@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 
@@ -21,6 +22,7 @@ namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 /// trusted template output and is not sanitized by this page model.
 /// </remarks>
 [OutputCache(PolicyName = "ContentPublicPolicy")]
+[AllowAnonymous]
 public sealed class PublicContentModel(
     ISiteContext siteContext,
     ContentTypeUrlRenderer renderer,

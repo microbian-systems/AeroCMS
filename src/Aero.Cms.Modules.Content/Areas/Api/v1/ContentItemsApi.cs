@@ -32,15 +32,15 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             .WithTags("Admin - Content Items")
             .RequireAuthorization();
 
-        group.MapGet("/", ListContentItems).WithName("ListContentItems");
-        group.MapGet("/{alias}/{id:long}", GetContentItem).WithName("GetContentItem");
-        group.MapPost("/{alias}", CreateContentItem).WithName("CreateContentItem");
-        group.MapPut("/{alias}/{id:long}", UpdateContentItem).WithName("UpdateContentItem");
-        group.MapDelete("/{alias}/{id:long}", DeleteContentItem).WithName("DeleteContentItem");
-        group.MapPost("/{alias}/{id:long}/publish", PublishContentItem).WithName("PublishContentItem");
-        group.MapPost("/{alias}/{id:long}/unpublish", UnpublishContentItem).WithName("UnpublishContentItem");
-        group.MapGet("/{alias}/{id:long}/translations", ListContentItemTranslations).WithName("ListContentItemTranslations");
-        group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture).WithName("ForkContentItemToCulture");
+        group.MapGet("/", ListContentItems).RequireAuthorization("site:read").WithName("ListContentItems");
+        group.MapGet("/{alias}/{id:long}", GetContentItem).RequireAuthorization("site:read").WithName("GetContentItem");
+        group.MapPost("/{alias}", CreateContentItem).RequireAuthorization("site:create").WithName("CreateContentItem");
+        group.MapPut("/{alias}/{id:long}", UpdateContentItem).RequireAuthorization("site:update").WithName("UpdateContentItem");
+        group.MapDelete("/{alias}/{id:long}", DeleteContentItem).RequireAuthorization("site:delete").WithName("DeleteContentItem");
+        group.MapPost("/{alias}/{id:long}/publish", PublishContentItem).RequireAuthorization("site:update").WithName("PublishContentItem");
+        group.MapPost("/{alias}/{id:long}/unpublish", UnpublishContentItem).RequireAuthorization("site:update").WithName("UnpublishContentItem");
+        group.MapGet("/{alias}/{id:long}/translations", ListContentItemTranslations).RequireAuthorization("site:read").WithName("ListContentItemTranslations");
+        group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture).RequireAuthorization("site:create").WithName("ForkContentItemToCulture");
     }
 
     /// <summary>
@@ -111,8 +111,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         if (siteId <= 0)
             return MissingSite();
 
-        var result = await contentActor.GetByIdAsync(id, ct);
-        if (!IsCurrentSiteItem(result, siteId, alias))
+        var result = await contentActor.GetByIdAsync(id, siteId, ct);
+        if (!IsCurrentSiteItem(result, siteId, alias, id))
             return TypedResults.NotFound();
 
         return TypedResults.Ok(MapToDetail(result.data));
@@ -157,9 +157,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 ScheduleUnpublishUtc = request.ScheduleUnpublishUtc
             };
 
-            var result = await contentActor.SaveDraftAsync(vm, ct);
+            var result = await contentActor.SaveDraftAsync(vm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to create content item", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
+                ? ContentMutationFailure("Failed to create content item")
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -193,8 +193,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 return MissingSite();
 
             // Load existing to preserve fields not in request
-            var existing = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(existing, siteId, alias))
+            var existing = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias, id))
                 return TypedResults.NotFound();
 
             var existingVm = existing.data;
@@ -213,9 +213,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;
 
-            var result = await contentActor.SaveDraftAsync(existingVm, ct);
+            var result = await contentActor.SaveDraftAsync(existingVm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to update content item", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
+                ? ContentMutationFailure("Failed to update content item")
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -253,13 +253,13 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             if (siteId <= 0)
                 return MissingSite();
 
-            var existing = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(existing, siteId, alias))
+            var existing = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias, id))
                 return TypedResults.NotFound();
 
-            var result = await contentActor.DeleteAsync(id, ct);
+            var result = await contentActor.DeleteAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to delete content item", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
+                ? ContentMutationFailure("Failed to delete content item")
                 : TypedResults.NoContent();
         }
         catch (Exception ex)
@@ -272,7 +272,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     /// <summary>
     /// Publishes an item after validating its current-site and alias ownership.
     /// </summary>
-    /// <returns>HTTP 200, HTTP 404 for lookup or actor errors, or HTTP 500 on exceptions.</returns>
+    /// <returns>HTTP 200, HTTP 404 for lookup failures, HTTP 400 for mutation failures, or HTTP 500 on exceptions.</returns>
     private static async Task<IResult> PublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -287,13 +287,13 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             if (siteId <= 0)
                 return MissingSite();
 
-            var existing = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(existing, siteId, alias))
+            var existing = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias, id))
                 return TypedResults.NotFound();
 
-            var result = await contentActor.PublishAsync(id, ct);
+            var result = await contentActor.PublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.NotFound(result.error)
+                ? ContentMutationFailure("Failed to publish content item")
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -306,7 +306,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     /// <summary>
     /// Returns a published item to draft after validating its current-site and alias ownership.
     /// </summary>
-    /// <returns>HTTP 200, HTTP 404 for lookup or actor errors, or HTTP 500 on exceptions.</returns>
+    /// <returns>HTTP 200, HTTP 404 for lookup failures, HTTP 400 for mutation failures, or HTTP 500 on exceptions.</returns>
     private static async Task<IResult> UnpublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -321,13 +321,13 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             if (siteId <= 0)
                 return MissingSite();
 
-            var existing = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(existing, siteId, alias))
+            var existing = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias, id))
                 return TypedResults.NotFound();
 
-            var result = await contentActor.UnpublishAsync(id, ct);
+            var result = await contentActor.UnpublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.NotFound(result.error)
+                ? ContentMutationFailure("Failed to unpublish content item")
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -360,8 +360,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             if (siteId <= 0)
                 return MissingSite();
 
-            var source = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(source, siteId, alias))
+            var source = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(source, siteId, alias, id))
                 return TypedResults.NotFound();
 
             var groupId = source.data.TranslationGroupId ?? source.data.Id;
@@ -403,8 +403,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             if (siteId <= 0)
                 return MissingSite();
 
-            var source = await contentActor.GetByIdAsync(id, ct);
-            if (!IsCurrentSiteItem(source, siteId, alias))
+            var source = await contentActor.GetByIdAsync(id, siteId, ct);
+            if (!IsCurrentSiteItem(source, siteId, alias, id))
                 return TypedResults.NotFound();
 
             var culture = NormalizeCulture(request.Culture);
@@ -433,7 +433,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var fork = new ContentItemViewModel
             {
-                Id = Snowflake.NewId(),
+                Id = 0,
                 SiteId = siteId,
                 ContentTypeAlias = alias,
                 Title = source.data.Title,
@@ -445,14 +445,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 PublicationState = ContentPublicationState.Draft
             };
 
-            var result = await contentActor.SaveDraftAsync(fork, ct);
+            var result = await contentActor.SaveDraftAsync(fork, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Failed to create content item translation",
-                    Detail = result.error.Message,
-                    Status = StatusCodes.Status400BadRequest
-                })
+                ? ContentMutationFailure("Failed to create content item translation")
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -546,13 +541,15 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         => culture?.Trim() ?? string.Empty;
 
     /// <summary>
-    /// Accepts an actor response only when it succeeded and matches both site and type alias.
+    /// Accepts an actor response only when it succeeded and matches identifier, site, and type alias.
     /// </summary>
     private static bool IsCurrentSiteItem(
         AeroRequestResponse<ContentItemViewModel> result,
         long siteId,
-        string alias)
+        string alias,
+        long id)
         => string.IsNullOrWhiteSpace(result.error.Message) &&
+           result.data.Id == id &&
            result.data.SiteId == siteId &&
            string.Equals(result.data.ContentTypeAlias, alias, StringComparison.OrdinalIgnoreCase);
 
@@ -564,6 +561,14 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         {
             Title = "No current site selected",
             Detail = "Select a site in the manager before managing content entries.",
+            Status = StatusCodes.Status400BadRequest
+        });
+
+    private static IResult ContentMutationFailure(string title)
+        => TypedResults.BadRequest(new ProblemDetails
+        {
+            Title = title,
+            Detail = "The requested content mutation could not be completed.",
             Status = StatusCodes.Status400BadRequest
         });
 }

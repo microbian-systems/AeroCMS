@@ -23,8 +23,8 @@ public sealed class AeroNavBarViewComponent(
     /// <param name="pageOverrideId">An optional menu identifier supplied by trusted page configuration.</param>
     /// <returns>The default component view with the resolved <see cref="NavMenuContext"/> as its model.</returns>
     /// <remarks>
-    /// The resolver does not independently verify that the override belongs to the current site;
-    /// callers must not bind this identifier directly from untrusted request input.
+    /// The site-scoped resolver validates the override against the current site. Invalid,
+    /// unpublished, archived, or foreign overrides render with no navigation snapshot.
     /// </remarks>
 public async Task<IViewComponentResult> InvokeAsync(long? pageOverrideId = null)
     {

@@ -81,6 +81,18 @@ Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId,
     /// </remarks>
 Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
 
+    /// <summary>Changes one current-site post's publication state and commits once.</summary>
+Task<Result<PostDocument, AeroError>> SetPublicationStateAsync(
+        long id,
+        ContentPublicationState state,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Changes all current-site variants in a translation group and commits once.</summary>
+Task<Result<IReadOnlyList<PostDocument>, AeroError>> SetTranslationGroupPublicationStateAsync(
+        long translationGroupId,
+        ContentPublicationState state,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Lists published current-culture posts in the current site that contain a tag identifier.
     /// </summary>
@@ -261,7 +273,10 @@ public async Task<Result<PostDocument?, AeroError>> LoadAsync(long id, Cancellat
             var cached = await TryGetCacheAsync<PostDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
-                return Prelude.Ok<PostDocument?, AeroError>(cached);
+                return cached.SiteId == _siteContext.SiteId
+                    ? Prelude.Ok<PostDocument?, AeroError>(cached)
+                    : Prelude.Fail<PostDocument?, AeroError>(
+                        AeroError.NotFoundError($"Blog post with id '{id}' not found or access denied"));
             }
 
             var document = await session.LoadAsync<PostDocument>(id, cancellationToken);
@@ -300,7 +315,11 @@ public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug,
             var cached = await TryGetCacheAsync<PostDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
-                return Prelude.Ok<PostDocument?, AeroError>(cached);
+                return cached.SiteId == _siteContext.SiteId
+                    && cached.PublicationState == ContentPublicationState.Published
+                    ? Prelude.Ok<PostDocument?, AeroError>(cached)
+                    : Prelude.Fail<PostDocument?, AeroError>(
+                        AeroError.NotFoundError($"Blog post with slug '{routeSlug}' not found"));
             }
 
             var normalizedSlug = ContentSlugDocument.Normalize(routeSlug);
@@ -313,7 +332,7 @@ public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug,
             }
 
             var document = await session.LoadAsync<PostDocument>(reservation.OwnerId, cancellationToken);
-            if (document is null)
+            if (document is null || document.SiteId != _siteContext.SiteId)
                 return Prelude.Fail<PostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with id '{reservation.OwnerId}' not found"));
 
             // Filter by published state — unpublished posts must not be publicly accessible
@@ -377,9 +396,20 @@ public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, 
             ValidateId(post.Id);
 
             var existingPost = await session.LoadAsync<PostDocument>(post.Id, cancellationToken);
-            // Only stamp SiteId from context when not already set by the caller (e.g. seed).
-            if (existingPost is null && post.SiteId == 0)
-                post.SiteId = _siteContext.SiteId;
+            if ((post.SiteId != 0 && post.SiteId != _siteContext.SiteId)
+                || (existingPost is not null && existingPost.SiteId != _siteContext.SiteId))
+            {
+                return Prelude.Fail<PostDocument, AeroError>(
+                    AeroError.NotFoundError($"Blog post with id '{post.Id}' not found or access denied"));
+            }
+
+            post.SiteId = _siteContext.SiteId;
+            var relationshipError = await ValidateRelationshipsAsync(post, cancellationToken);
+            if (relationshipError is not null)
+            {
+                return Prelude.Fail<PostDocument, AeroError>(relationshipError);
+            }
+
             post.Culture = ContentSlugDocument.NormalizeCulture(post.Culture);
             post.TranslationGroupId ??= post.Id;
             await ContentSlugReservation.ReserveAsync(
@@ -544,6 +574,63 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
     }
 
     /// <summary>
+    /// Rejects taxonomy identifiers that do not belong to the selected site without disclosing
+    /// whether the referenced resource exists elsewhere.
+    /// </summary>
+    private async Task<AeroError?> ValidateRelationshipsAsync(
+        PostDocument post,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+        var tagIds = post.TagIds.Distinct().ToList();
+        var categoryIds = post.CategoryIds.Distinct().ToList();
+        post.TagIds = tagIds;
+        post.CategoryIds = categoryIds;
+
+        if (post.SeriesId is { } seriesId)
+        {
+            if (seriesId <= 0)
+            {
+                errors.Add("Series identifier must be positive.");
+            }
+            else
+            {
+                var series = await session.LoadAsync<Series>(seriesId, cancellationToken);
+                if (series is null || series.SiteId != _siteContext.SiteId)
+                    errors.Add("The selected series is not valid for the current site.");
+            }
+        }
+
+        if (tagIds.Any(id => id <= 0))
+        {
+            errors.Add("Tag identifiers must be positive.");
+        }
+        else if (tagIds.Count > 0)
+        {
+            var tags = await session.Query<Tag>()
+                .Where(x => x.SiteId == _siteContext.SiteId && tagIds.Contains(x.Id))
+                .ToListAsync(cancellationToken);
+            if (tags.Count != tagIds.Count)
+                errors.Add("One or more selected tags are not valid for the current site.");
+        }
+
+        if (categoryIds.Any(id => id <= 0))
+        {
+            errors.Add("Category identifiers must be positive.");
+        }
+        else if (categoryIds.Count > 0)
+        {
+            var categories = await session.Query<Category>()
+                .Where(x => x.SiteId == _siteContext.SiteId && categoryIds.Contains(x.Id))
+                .ToListAsync(cancellationToken);
+            if (categories.Count != categoryIds.Count)
+                errors.Add("One or more selected categories are not valid for the current site.");
+        }
+
+        return errors.Count == 0 ? null : AeroError.ValidationError(errors);
+    }
+
+    /// <summary>
     /// Verifies that an identifier can be parsed by the configured Snowflake representation.
     /// </summary>
     private static void ValidateId(long id)
@@ -587,11 +674,95 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
     }
 
     /// <inheritdoc />
+public async Task<Result<PostDocument, AeroError>> SetPublicationStateAsync(
+        long id,
+        ContentPublicationState state,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ValidateId(id);
+            var post = await session.LoadAsync<PostDocument>(id, cancellationToken);
+            if (post is null || post.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PostDocument, AeroError>(
+                    AeroError.NotFoundError($"Blog post with id '{id}' not found or access denied"));
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            post.PublicationState = state;
+            post.PublishedOn = state == ContentPublicationState.Published
+                ? post.PublishedOn ?? now
+                : null;
+            post.ModifiedOn = now;
+            post.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+
+            session.Store(post);
+            await session.SaveChangesAsync(cancellationToken);
+            await PublishContentUpdatedAsync(post, post.Slug, cancellationToken);
+            return Prelude.Ok<PostDocument, AeroError>(post);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<PostDocument, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> SetTranslationGroupPublicationStateAsync(
+        long translationGroupId,
+        ContentPublicationState state,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ValidateId(translationGroupId);
+            var variants = await session.Query<PostDocument>()
+                .Where(x =>
+                    x.SiteId == _siteContext.SiteId
+                    && x.TranslationGroupId == translationGroupId)
+                .ToListAsync(cancellationToken);
+
+            if (variants.Count == 0)
+            {
+                return Prelude.Fail<IReadOnlyList<PostDocument>, AeroError>(
+                    AeroError.NotFoundError(
+                        $"Post translation group '{translationGroupId}' not found or access denied"));
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var post in variants)
+            {
+                post.PublicationState = state;
+                post.PublishedOn = state == ContentPublicationState.Published
+                    ? post.PublishedOn ?? now
+                    : null;
+                post.ModifiedOn = now;
+                post.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+                session.Store(post);
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+
+            foreach (var post in variants)
+            {
+                await PublishContentUpdatedAsync(post, post.Slug, cancellationToken);
+            }
+
+            return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(variants);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<IReadOnlyList<PostDocument>, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// Documents and reservations are committed together. Update events are then published one by
     /// one; a later publication failure is returned after the deletion has already committed.
     /// </remarks>
-public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -601,18 +772,28 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
 
             if (variants.Count == 0)
             {
-                return Prelude.Ok<int, AeroError>(0);
+                return Prelude.Fail<int, AeroError>(
+                    AeroError.NotFoundError(
+                        $"Post translation group '{translationGroupId}' not found or access denied"));
             }
 
             var ids = variants.Select(x => x.Id).ToList();
+            var reservations = await session.Query<ContentSlugDocument>()
+                .Where(x =>
+                    x.SiteId == _siteContext.SiteId
+                    && ids.Contains(x.OwnerId)
+                    && x.OwnerType == ContentSlugOwnerType.BlogPost)
+                .ToListAsync(cancellationToken);
 
-            session.DeleteWhere<PostDocument>(x =>
-                x.SiteId == _siteContext.SiteId && ids.Contains(x.Id));
+            foreach (var reservation in reservations)
+            {
+                session.Delete(reservation);
+            }
 
-            session.DeleteWhere<ContentSlugDocument>(x =>
-                x.SiteId == _siteContext.SiteId
-                && ids.Contains(x.OwnerId)
-                && x.OwnerType == ContentSlugOwnerType.BlogPost);
+            foreach (var variant in variants)
+            {
+                session.Delete(variant);
+            }
 
             await session.SaveChangesAsync(cancellationToken);
 

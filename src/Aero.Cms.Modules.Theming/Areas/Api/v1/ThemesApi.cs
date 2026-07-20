@@ -9,9 +9,9 @@ namespace Aero.Cms.Modules.Theming.Areas.Api.v1;
 /// Maps administrative theme discovery and currently unimplemented mutation operations.
 /// </summary>
 /// <remarks>
-/// The route mapper does not attach authorization. The host must secure the administrative group.
-/// Active-theme state is currently hard-coded rather than persisted. Unexpected exception
-/// messages are copied into problem responses after logging.
+/// The route group requires the <c>AeroAdmin</c> policy because theme discovery and mutation
+/// affect the store-wide runtime. Active-theme state is currently hard-coded rather than
+/// persisted. Unexpected exception messages are copied into problem responses after logging.
 /// </remarks>
 public static class ThemesApi
 {
@@ -22,7 +22,8 @@ public static class ThemesApi
     public static void MapThemesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/themes")
-            .WithTags("Admin - Themes");
+            .WithTags("Admin - Themes")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/", GetAllThemes)
             .WithName("GetAllThemes");

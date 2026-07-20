@@ -11,10 +11,9 @@ namespace Aero.Cms.Modules.Users.Areas.Api.v1;
 /// Maps current-principal profile, password, and avatar operations.
 /// </summary>
 /// <remarks>
-/// The route mapper does not attach an authorization policy. The host must protect the
-/// administrative route group; handlers return unauthorized when no numeric name-identifier
-/// claim resolves to an Identity user. Unexpected exception messages are copied into problem
-/// responses after logging.
+/// The route group requires an authenticated principal. Handlers also return unauthorized when
+/// no numeric name-identifier claim resolves to an Identity user. Unexpected exception messages
+/// are copied into problem responses after logging.
 /// </remarks>
 public static class ProfileApi
 {
@@ -25,7 +24,8 @@ public static class ProfileApi
     public static void MapProfileApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/profile")
-            .WithTags("Admin - Profile");
+            .WithTags("Admin - Profile")
+            .RequireAuthorization();
 
         group.MapGet("/", GetProfile)
             .WithName("GetCurrentProfile");

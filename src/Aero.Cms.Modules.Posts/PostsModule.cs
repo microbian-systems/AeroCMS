@@ -8,6 +8,7 @@ using Aero.Cms.Modules.Posts.Parsers;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -100,6 +101,20 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/blog/{slug}");
             options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/{culture}/blog/{slug}");
             options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/_cms/preview/blog/drafts/{draftId:long}");
+            options.Conventions.AddAreaPageRouteModelConvention("Blog", "/PostsDetailPage", model =>
+            {
+                foreach (var selector in model.Selectors)
+                {
+                    var template = selector.AttributeRouteModel?.Template;
+                    if (string.Equals(
+                            template?.TrimStart('/'),
+                            "_cms/preview/blog/drafts/{draftId:long}",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        selector.EndpointMetadata.Add(new AuthorizeAttribute("site:read"));
+                    }
+                }
+            });
         });
     }
 

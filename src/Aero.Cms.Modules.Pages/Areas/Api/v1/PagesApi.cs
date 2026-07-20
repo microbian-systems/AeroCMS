@@ -24,9 +24,8 @@ namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 /// existing services (IPageTreeService, INavigationService).
 /// </summary>
 /// <remarks>
-/// These mappings label routes as administrative but do not attach an authorization
-/// policy. The host is responsible for protecting the admin prefix and draft-preview
-/// operations.
+/// Administrative and preview endpoints require the matching permission for the
+/// site selected in the manager context.
 /// </remarks>
 public static class PagesApi
 {
@@ -41,67 +40,87 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             .WithTags("Admin - Pages");
         
         group.MapGet("/", ListPages)
-            .WithName("ListPages");
+            .WithName("ListPages")
+            .RequireAuthorization("site:read");
         
         group.MapGet("/{id:long}", GetPageById)
-            .WithName("GetPageById");
+            .WithName("GetPageById")
+            .RequireAuthorization("site:read");
         
         group.MapGet("/slug/{*slug}", GetPageBySlug)
-            .WithName("GetPageBySlug");
+            .WithName("GetPageBySlug")
+            .RequireAuthorization("site:read");
         
         group.MapGet("/drafts/{id:long}", PreviewDraftPage)
-            .WithName("PreviewDraftPage");
+            .WithName("PreviewDraftPage")
+            .RequireAuthorization("site:read");
         
         group.MapPost("/", CreatePage)
-            .WithName("CreatePage");
+            .WithName("CreatePage")
+            .RequireAuthorization("site:create");
 
         group.MapGet("/{id:long}/translations", ListPageTranslations)
-            .WithName("ListPageTranslations");
+            .WithName("ListPageTranslations")
+            .RequireAuthorization("site:read");
 
         group.MapPost("/{id:long}/translations", ForkPageToCulture)
-            .WithName("ForkPageToCulture");
+            .WithName("ForkPageToCulture")
+            .RequireAuthorization("site:create");
 
         group.MapPost("/{id:long}/ai-translate", TranslatePageWithAi)
-            .WithName("TranslatePageWithAi");
+            .WithName("TranslatePageWithAi")
+            .RequireAuthorization("site:update");
         
         group.MapPut("/{id:long}", UpdatePage)
-            .WithName("UpdatePage");
+            .WithName("UpdatePage")
+            .RequireAuthorization("site:update");
 
         group.MapPost("/{id:long}/route-impact", GetRouteChangeImpact)
-            .WithName("GetPageRouteChangeImpact");
+            .WithName("GetPageRouteChangeImpact")
+            .RequireAuthorization("site:read");
         
         group.MapDelete("/{id:long}", DeletePage)
-            .WithName("DeletePage");
+            .WithName("DeletePage")
+            .RequireAuthorization("site:delete");
 
         group.MapDelete("/translation-groups/{translationGroupId:long}", DeleteTranslationGroup)
-            .WithName("DeletePageTranslationGroup");
+            .WithName("DeletePageTranslationGroup")
+            .RequireAuthorization("site:delete");
 
         group.MapPut("/translation-groups/{translationGroupId:long}/publish", PublishTranslationGroup)
-            .WithName("PublishPageTranslationGroup");
+            .WithName("PublishPageTranslationGroup")
+            .RequireAuthorization("site:update");
 
         group.MapPut("/translation-groups/{translationGroupId:long}/unpublish", UnpublishTranslationGroup)
-            .WithName("UnpublishPageTranslationGroup");
+            .WithName("UnpublishPageTranslationGroup")
+            .RequireAuthorization("site:update");
         
         group.MapDelete("/{id:long}/cascade", DeletePageCascade)
-            .WithName("DeletePageCascade");
+            .WithName("DeletePageCascade")
+            .RequireAuthorization("site:delete");
         
         group.MapPost("/delete-multiple", DeleteMultiplePages)
-            .WithName("DeleteMultiplePages");
+            .WithName("DeleteMultiplePages")
+            .RequireAuthorization("site:delete");
         
         group.MapPut("/{id:long}/publish", PublishPage)
-            .WithName("PublishPage");
+            .WithName("PublishPage")
+            .RequireAuthorization("site:update");
         
         group.MapPut("/{id:long}/unpublish", UnpublishPage)
-            .WithName("UnpublishPage");
+            .WithName("UnpublishPage")
+            .RequireAuthorization("site:update");
 
         // Preview endpoints (moved from Headless PreviewApi)
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/pages/{{id:long}}", PreviewPage)
             .WithName("PreviewPage")
-            .WithTags("Admin - Preview");
+            .WithTags("Admin - Preview")
+            .RequireAuthorization("site:read");
 
         app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/pages/render-fragment", PreviewPageFragment)
             .WithName("PreviewPageFragment")
-            .WithTags("Admin - Preview");
+            .WithTags("Admin - Preview")
+            .RequireAuthorization("site:update");
     }
 
     // ── Grain-backed handlers ─────────────────────────────────────────
@@ -137,9 +156,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> GetPageById(
         long id,
         [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await pagesActor.GetByIdAsync(id, ct);
+        var result = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(MapToDetail(result.data));
@@ -157,8 +177,17 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             : TypedResults.Ok(MapToDetail(result.data));
     }
 
-    private static IResult PreviewDraftPage(long id, [FromQuery] long? previewVersion = null)
+    private static async Task<IResult> PreviewDraftPage(
+        long id,
+        [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] long? previewVersion = null,
+        CancellationToken ct = default)
     {
+        var result = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(result.error.Message))
+            return TypedResults.NotFound(result.error);
+
         var url = previewVersion is { } version
             ? $"/_cms/preview/pages/drafts/{id}?previewVersion={version}"
             : $"/_cms/preview/pages/drafts/{id}";
@@ -175,6 +204,16 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
+            if (request.ParentId is > 0)
+            {
+                var parent = await pagesActor.GetByIdAsync(
+                    request.ParentId.Value,
+                    siteContext.SiteId,
+                    ct);
+                if (!string.IsNullOrWhiteSpace(parent.error.Message))
+                    return TypedResults.NotFound(parent.error);
+            }
+
             var grainRequest = new GrainCreateRequest(
                 request.Title,
                 request.Slug,
@@ -212,6 +251,7 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromBody] Aero.Cms.Abstractions.Http.Clients.UpdatePageRequest request,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
@@ -233,7 +273,21 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 DraftContentJson: SerializeDraftContent(request.DraftContent),
                 PreviousPathBehavior: request.PreviousPathBehavior);
 
-            var result = await pagesActor.UpdateAsync(grainRequest, ct);
+            var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+                return TypedResults.NotFound(existing.error);
+
+            if (request.ParentId is > 0)
+            {
+                var parent = await pagesActor.GetByIdAsync(
+                    request.ParentId.Value,
+                    siteContext.SiteId,
+                    ct);
+                if (!string.IsNullOrWhiteSpace(parent.error.Message))
+                    return TypedResults.NotFound(parent.error);
+            }
+
+            var result = await pagesActor.UpdateAsync(grainRequest, siteContext.SiteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails
                 {
@@ -254,9 +308,19 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         long id,
         [FromBody] PageRouteChangeRequest request,
         [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        var impact = await pagesActor.GetRouteChangeImpactAsync(id, request.Slug, request.ParentId, ct);
+        var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(existing.error.Message))
+            return TypedResults.NotFound(existing.error);
+
+        var impact = await pagesActor.GetRouteChangeImpactAsync(
+            id,
+            siteContext.SiteId,
+            request.Slug,
+            request.ParentId,
+            ct);
         return string.IsNullOrWhiteSpace(impact.ErrorMessage)
             ? TypedResults.Ok(impact)
             : TypedResults.BadRequest(new ProblemDetails
@@ -271,12 +335,17 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         long id,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var variants = await pagesActor.ListCultureVariantsAsync(id, ct);
+            var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+                return TypedResults.NotFound(existing.error);
+
+            var variants = await pagesActor.ListCultureVariantsAsync(id, siteContext.SiteId, ct);
             return TypedResults.Ok(variants.Select(MapToDetail).ToList());
         }
         catch (Exception ex)
@@ -291,12 +360,22 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromBody] ForkPageCultureRequest request,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pagesActor.ForkPageForCultureAsync(id, request.Culture, request.Slug, ct);
+            var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+                return TypedResults.NotFound(existing.error);
+
+            var result = await pagesActor.ForkPageForCultureAsync(
+                id,
+                siteContext.SiteId,
+                request.Culture,
+                request.Slug,
+                ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails
                 {
@@ -413,9 +492,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> DeletePage(
         long id,
         [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await pagesActor.DeleteAsync(new DeletePageRequest(id), ct);
+        var result = await pagesActor.DeleteAsync(new DeletePageRequest(id), siteContext.SiteId, ct);
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.NotFound(result.error)
             : TypedResults.Ok(true);
@@ -430,6 +510,13 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         return result switch
         {
             Result<int, AeroError>.Ok ok => TypedResults.Ok(new DeleteMultipleResult(ok.Value)),
+            Result<int, AeroError>.Failure { Error: AeroError.NotFound } =>
+                TypedResults.NotFound(new ProblemDetails
+                {
+                    Title = "Page translation group not found",
+                    Detail = "The requested translation group was not found.",
+                    Status = StatusCodes.Status404NotFound
+                }),
             Result<int, AeroError>.Failure failure => TypedResults.BadRequest(new ProblemDetails
             {
                 Title = "Failed to delete translation group",
@@ -467,33 +554,54 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> DeletePageCascade(
         long id,
         [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        var result = await pagesActor.DeleteAsync(new DeletePageRequest(id), ct);
-        return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.NotFound(result.error)
+        var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
+        if (!string.IsNullOrWhiteSpace(existing.error.Message))
+            return TypedResults.NotFound(existing.error);
+
+        var result = await pagesActor.DeleteMultipleAsync([id], siteContext.SiteId, true, ct);
+        if (result.NotFound)
+            return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
+        if (!string.IsNullOrWhiteSpace(result.Error))
+            return TypedResults.Problem(result.Error);
+
+        return result.Deleted == 0
+            ? TypedResults.NotFound(new { error = $"Page with id '{id}' not found." })
             : TypedResults.Ok(true);
     }
 
     private static async Task<IResult> DeleteMultiplePages(
         [FromBody] DeleteMultiplePagesRequest request,
         [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        var count = await pagesActor.DeleteMultipleAsync(request.Ids.ToArray(), request.DeleteDescendants, ct);
-        return TypedResults.Ok(new { deleted = count });
+        var result = await pagesActor.DeleteMultipleAsync(
+            request.Ids.ToArray(),
+            siteContext.SiteId,
+            request.DeleteDescendants,
+            ct);
+        if (result.NotFound)
+            return TypedResults.NotFound(new { error = "One or more pages were not found." });
+        if (!string.IsNullOrWhiteSpace(result.Error))
+            return TypedResults.Problem(result.Error);
+
+        return TypedResults.Ok(new { deleted = result.Deleted });
     }
 
     private static async Task<IResult> PublishPage(
         long id,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pagesActor.PublishAsync(id, ct);
+            var result = await pagesActor.PublishAsync(id, siteContext.SiteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.NotFound(result.error)
                 : TypedResults.Ok(MapToDetail(result.data));
@@ -509,12 +617,13 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         long id,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pagesActor.UnpublishAsync(id, ct);
+            var result = await pagesActor.UnpublishAsync(id, siteContext.SiteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.NotFound(result.error)
                 : TypedResults.Ok(MapToDetail(result.data));

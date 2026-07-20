@@ -19,9 +19,9 @@ namespace Aero.Cms.Modules.Footer;
 /// Registers the footer authoring, persistence, rendering, and administrative API services.
 /// </summary>
 /// <remarks>
-/// Footer and site-default projections run inline with event persistence. The module does not
-/// register authorization policies, output caching, or cache invalidation; hosts are responsible
-/// for applying those concerns to the mapped administrative endpoints.
+/// Footer and site-default projections run inline with event persistence. Administrative endpoints
+/// declare exact site read, create, update, and delete policies. The module does not configure
+/// output caching or cache invalidation.
 /// </remarks>
 [Module(nameof(FooterModule))]
 public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
@@ -97,7 +97,7 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
     /// </summary>
     /// <param name="builder">The route builder that receives the endpoint group.</param>
     /// <returns>A completed task after route registration.</returns>
-    /// <remarks>The module does not attach an authorization policy to the endpoint group.</remarks>
+    /// <remarks>Each administrative endpoint declares its exact required site policy.</remarks>
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapFooterAdminApi();

@@ -15,7 +15,7 @@ namespace Aero.Cms.Modules.Aliases.Grains;
 
 /// <summary>
 /// Orleans actor implementing alias CRUD through a fresh lightweight document
-/// session per persistence operation. Successful create, update, and delete
+/// session per persistence operation. Successful scoped create and delete
 /// commits occur before their corresponding Wolverine event is published.
 /// <para>
 /// Its in-memory <see cref="AliasViewModel"/> state is separate from persisted
@@ -72,123 +72,74 @@ public Task UpdateStateAsync(AliasViewModel state, CancellationToken ct)
     // ── ICruddable<AliasViewModel, long> ──────────────────────────────
 
     /// <summary>Loads an alias by ID, returning a response whose error message reports absence.</summary>
-public async Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct)
-    {
-        await using var session = await _store.LightweightSessionAsync();
-        var doc = await session.LoadAsync<AliasDocument>(id, ct);
+public Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        => Task.FromResult(Fail("A site scope is required to load an alias by identifier"));
 
-        return doc is not null
-            ? Ok(MapToViewModel(doc))
-            : NotFound($"Alias {id} not found");
-    }
-
-    /// <summary>
-    /// Loads aliases whose IDs occur in <paramref name="ids"/>. Due to the
-    /// response contract, only the first mapped alias is exposed as the primary
-    /// response value; an empty match produces an empty view model without error.
-    /// </summary>
-public async Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
-    {
-        await using var session = await _store.LightweightSessionAsync();
-        var docs = await session.Query<AliasDocument>()
-            .Where(x => ids.Contains(x.Id))
-            .ToListAsync(ct);
-
-        var results = docs.Select(MapToViewModel).ToList();
-        return Ok(results);
-    }
+public async Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct)
+{
+    await using var session = await _store.LightweightSessionAsync();
+    var doc = await session.Query<AliasDocument>()
+        .FirstOrDefaultAsync(x => x.Id == id && x.SiteId == siteId, ct);
+    return doc is not null ? Ok(MapToViewModel(doc)) : NotFound($"Alias {id} not found");
+}
 
     /// <summary>
-    /// Creates a manually owned alias only when <paramref name="request"/> is a
-    /// <see cref="CreateAliasRequest"/>. It normalizes culture and paths, commits
-    /// the new document, then publishes <see cref="AliasCreated"/>; another
-    /// request type returns an error response without persistence.
+    /// Rejects the inherited identifier-only collection lookup because it has no site boundary.
     /// </summary>
-public async Task<AeroRequestResponse<AliasViewModel>> CreateAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not CreateAliasRequest create)
-            return Fail("Expected CreateAliasRequest");
-
-        await using var session = await _store.LightweightSessionAsync();
-
-        var doc = new AliasDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = create.SiteId,
-            Culture = AliasDocument.NormalizeCulture(create.Culture),
-            OldPath = AliasDocument.NormalizePath(create.OldPath),
-            NormalizedOldPath = AliasDocument.NormalizePath(create.OldPath),
-            NewPath = AliasDocument.NormalizePath(create.NewPath),
-            Notes = create.Notes,
-            OwnerId = null,
-            OwnerType = null,
-            IsAutomatic = false
-        };
-
-        session.Store(doc);
-        await session.SaveChangesAsync(ct);
-
-        await _bus.PublishAsync(new AliasCreated(doc));
-
-        return Ok(MapToViewModel(doc));
-    }
+public Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        => Task.FromResult(Fail("A site scope is required to load aliases by identifier"));
 
     /// <summary>
-    /// Updates a persisted alias only when <paramref name="request"/> is an
-    /// <see cref="UpdateAliasRequest"/>. It returns an error response for a
-    /// mismatched request or missing document, otherwise normalizes paths and
-    /// culture, commits, then publishes <see cref="AliasUpdated"/>.
+    /// Rejects the inherited create contract because it has no trusted site argument.
     /// </summary>
-public async Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+public Task<AeroRequestResponse<AliasViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("A site-scoped alias create operation is required"));
+
+public async Task<AeroRequestResponse<AliasViewModel>> CreateAliasAsync(CreateAliasRequest create, long siteId, CancellationToken ct)
+{
+    await using var session = await _store.LightweightSessionAsync();
+    var doc = new AliasDocument
     {
-        if (request is not UpdateAliasRequest update)
-            return Fail("Expected UpdateAliasRequest");
-
-        await using var session = await _store.LightweightSessionAsync();
-        var doc = await session.LoadAsync<AliasDocument>(update.Id, ct);
-
-        if (doc is null)
-            return NotFound($"Alias {update.Id} not found");
-
-        doc.Culture = AliasDocument.NormalizeCulture(update.Culture);
-        doc.OldPath = AliasDocument.NormalizePath(update.OldPath);
-        doc.NormalizedOldPath = AliasDocument.NormalizePath(update.OldPath);
-        doc.NewPath = AliasDocument.NormalizePath(update.NewPath);
-        doc.Notes = update.Notes;
-        doc.ModifiedOn = DateTimeOffset.UtcNow;
-
-        session.Store(doc);
-        await session.SaveChangesAsync(ct);
-
-        await _bus.PublishAsync(new AliasUpdated(doc));
-
-        return Ok(MapToViewModel(doc));
-    }
+        Id = Snowflake.NewId(),
+        SiteId = siteId,
+        Culture = AliasDocument.NormalizeCulture(create.Culture),
+        OldPath = AliasDocument.NormalizePath(create.OldPath),
+        NormalizedOldPath = AliasDocument.NormalizePath(create.OldPath),
+        NewPath = AliasDocument.NormalizePath(create.NewPath),
+        Notes = create.Notes,
+        OwnerId = null,
+        OwnerType = null,
+        IsAutomatic = false
+    };
+    session.Store(doc);
+    await session.SaveChangesAsync(ct);
+    await _bus.PublishAsync(new AliasCreated(doc));
+    return Ok(MapToViewModel(doc));
+}
 
     /// <summary>
-    /// Deletes an alias only when <paramref name="request"/> is a
-    /// <see cref="DeleteAliasRequest"/>. It returns an error response for a
-    /// mismatched request or missing document; successful deletion commits before
-    /// publishing <see cref="AliasDeleted"/>.
+    /// Rejects inherited updates; the administrative alias API has no update route.
     /// </summary>
-public async Task<AeroRequestResponse<AliasViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
-    {
-        if (request is not DeleteAliasRequest delete)
-            return Fail("Expected DeleteAliasRequest");
+public Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("Alias updates are not supported by the administrative API"));
 
-        await using var session = await _store.LightweightSessionAsync();
-        var doc = await session.LoadAsync<AliasDocument>(delete.Id, ct);
+    /// <summary>
+    /// Rejects the inherited delete contract because it has no trusted site argument.
+    /// </summary>
+public Task<AeroRequestResponse<AliasViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        => Task.FromResult(Fail("A site-scoped alias delete operation is required"));
 
-        if (doc is null)
-            return NotFound($"Alias {delete.Id} not found");
-
-        session.Delete(doc);
-        await session.SaveChangesAsync(ct);
-
-        await _bus.PublishAsync(new AliasDeleted(doc));
-
-        return Ok(MapToViewModel(doc));
-    }
+public async Task<AeroRequestResponse<AliasViewModel>> DeleteAliasAsync(long id, long siteId, CancellationToken ct)
+{
+    await using var session = await _store.LightweightSessionAsync();
+    var doc = await session.Query<AliasDocument>()
+        .FirstOrDefaultAsync(x => x.Id == id && x.SiteId == siteId, ct);
+    if (doc is null) return NotFound($"Alias {id} not found");
+    session.Delete(doc);
+    await session.SaveChangesAsync(ct);
+    await _bus.PublishAsync(new AliasDeleted(doc));
+    return Ok(MapToViewModel(doc));
+}
 
     // ── ICanFindBySite<AliasViewModel, long> ──────────────────────────
 
@@ -250,22 +201,19 @@ public Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteId, str
     // ── IAeroAliasActor.GetAllAliasesAsync ────────────────────────────
 
     /// <summary>
-    /// Gets all aliases, optionally restricted to a site, ordered by old path.
+    /// Gets all aliases for the supplied site, ordered by old path.
     /// Unlike the inherited collection response methods, this method returns the
     /// complete mapped collection.
     /// </summary>
 public async Task<List<AliasViewModel>> GetAllAliasesAsync(
-        long? siteId = null,
+        long siteId,
         CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
 
-        IQueryable<AliasDocument> query = session.Query<AliasDocument>();
-
-        if (siteId.HasValue)
-            query = query.Where(x => x.SiteId == siteId.Value);
-
-        var docs = await query.OrderBy(x => x.OldPath).ToListAsync(ct);
+        var docs = await session.Query<AliasDocument>()
+            .Where(x => x.SiteId == siteId)
+            .OrderBy(x => x.OldPath).ToListAsync(ct);
         return docs.Select(MapToViewModel).ToList();
     }
 

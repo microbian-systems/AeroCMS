@@ -243,13 +243,16 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
     {
         try
         {
-            if (orderedIds.Count == 0)
-                return Ok<bool, AeroError>(true);
-
             var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, null, ct);
             var parent = docs.FirstOrDefault(doc => doc.Id == parentId);
             if (parent is null || !IsWithinSpace(parent, spaceId, docs))
                 return Fail<bool, AeroError>(AeroError.NotFoundError("Parent section not found in this docs space"));
+
+            if (orderedIds.Count == 0)
+                return Ok<bool, AeroError>(true);
+
+            if (orderedIds.Distinct().Count() != orderedIds.Count)
+                return Fail<bool, AeroError>(AeroError.ValidationError(["Reorder request contains duplicate section identifiers"]));
 
             var siblings = docs
                 .Where(doc => doc.ParentId == parentId)

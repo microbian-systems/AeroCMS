@@ -56,20 +56,20 @@ public sealed class ReferenceExistenceValidator(IContentService contentService) 
                 && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
             {
                 foreach (var refItem in element.EnumerateArray())
-                    await CheckReference(refItem, field, failures, ct);
+                    await CheckReference(item.SiteId, refItem, field, failures, ct);
             }
             else
             {
-                await CheckReference(element, field, failures, ct);
+                await CheckReference(item.SiteId, element, field, failures, ct);
             }
         }
 
         return failures;
     }
 
-    private async Task CheckReference(System.Text.Json.JsonElement element, ContentFieldDefinition field, List<ValidationFailure> failures, CancellationToken ct)
+    private async Task CheckReference(long siteId, System.Text.Json.JsonElement element, ContentFieldDefinition field, List<ValidationFailure> failures, CancellationToken ct)
     {
-        if (long.TryParse(element.GetString(), out var id) && !await contentService.ExistsAsync(id, ct))
+        if (long.TryParse(element.GetString(), out var id) && !await contentService.ExistsAsync(siteId, id, ct))
             failures.Add(new ValidationFailure(field.Name, $"Referenced item '{id}' for '{field.Label ?? field.Name}' not found."));
     }
 }

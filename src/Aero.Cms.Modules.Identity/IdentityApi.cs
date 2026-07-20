@@ -1,11 +1,16 @@
 using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Aero.Cms.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -54,11 +59,11 @@ public static class IdentityApi
     /// </item>
     /// </list>
     /// <para>
-    /// The route group adds only the <c>Admin - Identity</c> tag. It does not attach
-    /// authorization, explicit anonymous-access, rate-limiting, antiforgery, endpoint
-    /// names, or response-metadata conventions. Effective access therefore depends on
-    /// host policies; in the current host, requests can reach these handlers without an
-    /// authenticated principal and each handler supplies only the checks described here.
+    /// The route group adds only the <c>Admin - Identity</c> tag. Configuration, local login,
+    /// and logout are explicitly anonymous so a fallback policy cannot block authentication
+    /// bootstrap or cookie clearing. The current-user endpoint explicitly requires an
+    /// authenticated principal. The mapper does not attach rate-limiting, antiforgery,
+    /// endpoint names, or response-metadata conventions.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
@@ -72,11 +77,14 @@ public static class IdentityApi
         {
             var authenticationMode = configuration["AeroCms:Bootstrap:AuthenticationMode"] ?? "Local";
             return Results.Ok(new AuthenticationConfigResponse(authenticationMode));
-        });
+        }).AllowAnonymous();
 
-        group.MapGet("/me", GetCurrentUserAsync);
-        group.MapPost("/local/login", LocalLoginAsync);
-        group.MapPost("/logout", LogoutAsync);
+        group.MapGet("/me", GetCurrentUserAsync)
+            .RequireAuthorization();
+        group.MapPost("/local/login", LocalLoginAsync)
+            .AllowAnonymous();
+        group.MapPost("/logout", LogoutAsync)
+            .AllowAnonymous();
     }
 
     /// <summary>
@@ -341,4 +349,74 @@ public static class IdentityApi
     /// authentication, missing input, invalid credentials, and account lockout.
     /// </param>
     public sealed record LocalLoginResponse(bool Succeeded, string Message);
+}
+
+/// <summary>Maps storefront-member session endpoints without exposing the manager authentication surface.</summary>
+public static class ExternalMemberApi
+{
+    /// <summary>Maps the externally scoped current-member and logout endpoints.</summary>
+    public static void MapExternalMemberApi(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}member")
+            .WithTags("Storefront - Member");
+
+        group.MapGet("/me", GetCurrentMember)
+            .RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy,
+                ExternalMemberAuthenticationDefaults.SitePolicy);
+        group.MapPost("/logout", LogoutAsync)
+            .RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy);
+    }
+
+    private static IResult GetCurrentMember([FromServices] ICurrentPrincipal currentPrincipal)
+    {
+        if (!currentPrincipal.IsAuthenticated || currentPrincipal.Kind != PrincipalKind.ExternalMember ||
+            currentPrincipal.PrincipalId is not long memberId || currentPrincipal.ExternalSessionId is not long sessionId ||
+            currentPrincipal.SecurityVersion is not long securityVersion || string.IsNullOrWhiteSpace(currentPrincipal.AuthenticationProvider))
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(new CurrentExternalMemberResponse(memberId, currentPrincipal.AuthenticationProvider,
+            sessionId, securityVersion));
+    }
+
+    private static async Task<IResult> LogoutAsync(
+        [FromServices] ICurrentPrincipal currentPrincipal,
+        [FromServices] IQuerySession querySession,
+        [FromServices] IDocumentSession documentSession,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        IResult result = Results.NoContent();
+        try
+        {
+            if (currentPrincipal.ExternalSessionId is long sessionId)
+            {
+                var session = await querySession.LoadAsync<ExternalMemberSession>(sessionId, cancellationToken);
+                if (session is not null && currentPrincipal.PrincipalId == session.ExternalMemberId)
+                {
+                    session.RevokedAt = DateTimeOffset.UtcNow;
+                    session.ModifiedOn = session.RevokedAt;
+                    documentSession.Store(session);
+                    await documentSession.SaveChangesAsync(cancellationToken);
+                }
+            }
+
+            return result;
+        }
+        catch
+        {
+            result = Results.Problem(
+                detail: "The local member session could not be revoked. The browser member cookie was cleared.",
+                statusCode: StatusCodes.Status500InternalServerError);
+            return result;
+        }
+        finally
+        {
+            await httpContext.SignOutAsync(ExternalMemberAuthenticationDefaults.Scheme);
+        }
+    }
+
+    /// <summary>Describes the local external-member session visible to storefront code.</summary>
+    public sealed record CurrentExternalMemberResponse(long MemberId, string AuthenticationProvider, long SessionId, long SecurityVersion);
 }

@@ -25,8 +25,8 @@ namespace Aero.Cms.Modules.Sites;
 /// Maps manager endpoints for site selection, site administration, and client-error reporting.
 /// </summary>
 /// <remarks>
-/// These mappings do not attach authorization requirements. The host must secure the admin route
-/// prefix and ensure each caller may read or mutate the addressed tenant and site.
+/// Every mapped endpoint requires an authenticated principal. Site-specific permission policies
+/// for administration operations are applied in a later hardening phase.
 /// </remarks>
 public static class SitesApi
 {
@@ -38,7 +38,9 @@ public static class SitesApi
     public static void MapSitesApi(this IEndpointRouteBuilder app)
     {
         var sitesPath = $"/{HttpConstants.ApiPrefix}admin/sites";
-        var group = app.MapGroup(sitesPath).WithTags("Sites");
+        var group = app.MapGroup(sitesPath)
+            .WithTags("Sites")
+            .RequireAuthorization();
 
         // ── Current site (cookie-based selection) ──
         group.MapGet("/current", GetCurrentSite);
@@ -56,7 +58,8 @@ public static class SitesApi
 
         // ── Client error reporting ──
         var errorsGroup = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/errors")
-            .WithTags("Admin - Error Reporting");
+            .WithTags("Admin - Error Reporting")
+            .RequireAuthorization();
         errorsGroup.MapPost("/", ReportClientError);
     }
 
@@ -69,17 +72,26 @@ public static class SitesApi
     /// </summary>
     /// <param name="httpContext">The request containing the <c>AeroCms.SiteId</c> cookie.</param>
     /// <param name="siteLookup">The unscoped site lookup service.</param>
+    /// <param name="userSiteService">The assignment service used to validate non-admin access.</param>
+    /// <param name="cancellationToken">The request-aborted token.</param>
     /// <returns>An HTTP 200 response containing the matching site or a null body.</returns>
-    /// <remarks>The cookie value is not checked against the current user's assignments.</remarks>
+    /// <remarks>
+    /// Non-admin callers must hold the site's <c>read</c> permission before its details are returned.
+    /// </remarks>
     private static async Task<IResult> GetCurrentSite(
         HttpContext httpContext,
-        [FromServices] ISiteLookupService siteLookup)
+        [FromServices] ISiteLookupService siteLookup,
+        [FromServices] IUserSiteService userSiteService,
+        CancellationToken cancellationToken)
     {
         var cookie = httpContext.Request.Cookies["AeroCms.SiteId"];
         if (string.IsNullOrEmpty(cookie) || !long.TryParse(cookie, out var siteId))
             return Results.Ok(null);
 
-        var allSites = await siteLookup.GetAllAsync();
+        if (!await CanReadSiteAsync(httpContext.User, siteId, userSiteService, cancellationToken))
+            return Results.Forbid();
+
+        var allSites = await siteLookup.GetAllAsync(cancellationToken);
         var site = allSites.FirstOrDefault(s => s.Id == siteId);
         return Results.Ok(site);
     }
@@ -90,23 +102,30 @@ public static class SitesApi
     /// <param name="request">The requested site selection.</param>
     /// <param name="httpContext">The current request and response context.</param>
     /// <param name="siteLookup">The unscoped lookup used to verify that the site exists.</param>
+    /// <param name="userSiteService">The assignment service used to validate non-admin access.</param>
     /// <param name="bus">The message bus used for conditional audit publication.</param>
+    /// <param name="cancellationToken">The request-aborted token.</param>
     /// <returns>Bad request, not found, or an empty HTTP 200 response.</returns>
     /// <remarks>
-    /// Disabled sites and sites outside the user's assignments are not rejected. The audit event is
-    /// published only when the principal's name-identifier claim parses as a long, and publication
-    /// occurs after the cookie has been appended to the response.
+    /// Disabled sites are not rejected in this hardening phase. Non-admin callers must hold the
+    /// site's <c>read</c> permission. The audit event is published only when the principal's
+    /// name-identifier claim parses as a long, after the cookie has been appended to the response.
     /// </remarks>
     private static async Task<IResult> SetCurrentSite(
         [FromBody] SetCurrentSiteRequest request,
         HttpContext httpContext,
         [FromServices] ISiteLookupService siteLookup,
-        [FromServices] IMessageBus bus)
+        [FromServices] IUserSiteService userSiteService,
+        [FromServices] IMessageBus bus,
+        CancellationToken cancellationToken)
     {
         if (request.SiteId <= 0)
             return Results.BadRequest("A valid site id is required.");
 
-        var sites = await siteLookup.GetAllAsync();
+        if (!await CanReadSiteAsync(httpContext.User, request.SiteId, userSiteService, cancellationToken))
+            return Results.Forbid();
+
+        var sites = await siteLookup.GetAllAsync(cancellationToken);
         if (!sites.Any(site => site.Id == request.SiteId))
             return Results.NotFound();
 
@@ -128,6 +147,38 @@ public static class SitesApi
         }
 
         return Results.Ok();
+    }
+
+    /// <summary>
+    /// Determines whether the authenticated principal may read a selected site.
+    /// </summary>
+    /// <param name="user">The authenticated principal whose admin claims or identifier are evaluated.</param>
+    /// <param name="siteId">The requested site identifier.</param>
+    /// <param name="userSiteService">The service used for non-admin permission lookup.</param>
+    /// <param name="cancellationToken">The request-aborted token.</param>
+    /// <returns><see langword="true"/> for an administrator or an assigned user with read permission.</returns>
+    /// <remarks>
+    /// Administrators bypass assignment lookup. Other callers must expose a numeric Snowflake user
+    /// identifier and hold the case-insensitive <c>read</c> permission for the requested site.
+    /// </remarks>
+    private static async Task<bool> CanReadSiteAsync(
+        ClaimsPrincipal user,
+        long siteId,
+        IUserSiteService userSiteService,
+        CancellationToken cancellationToken)
+    {
+        if (user.IsInRole("Admin") || user.HasClaim("is_admin", "true"))
+            return true;
+
+        var claim = user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub");
+
+        return long.TryParse(claim, out var userId)
+            && await userSiteService.HasPermissionAsync(
+                userId,
+                siteId,
+                "read",
+                cancellationToken);
     }
 
     /// <summary>

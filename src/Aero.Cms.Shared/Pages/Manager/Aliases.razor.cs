@@ -36,7 +36,7 @@ public partial class Aliases
     /// hydrated from localStorage by ManagerShellLayout). Falls back to the
     /// default site API if state hasn't been hydrated yet.
     ///
-    /// SiteId MUST be passed from client to server on every request (REST is stateless).
+    /// The manager's site selection establishes the selected-site cookie used by server authorization.
     /// </summary>
     private async Task<long?> ResolveSiteIdAsync()
     {
@@ -63,7 +63,7 @@ public partial class Aliases
             var siteId = await ResolveSiteIdAsync();
             if (siteId is null) return;
 
-            var result = await AliasClient.GetAllBySiteAsync(siteId.Value);
+            var result = await AliasClient.GetAllAsync();
             if (result is Result<IReadOnlyList<AliasViewModel>, AeroError>.Ok ok)
             {
                 _count = ok.Value.Count;

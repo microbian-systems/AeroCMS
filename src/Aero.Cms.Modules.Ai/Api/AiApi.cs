@@ -17,8 +17,9 @@ namespace Aero.Cms.Modules.Ai.Api;
 /// Maps the administrative endpoints for AI settings, content enhancement, and translation.
 /// </summary>
 /// <remarks>
-/// The endpoint group requires the host's default authorization policy. Content submitted for
-/// enhancement or translation can be sent to the selected external AI provider.
+/// The endpoint group requires the host's default authorization policy. Global settings access
+/// additionally requires <c>AeroAdmin</c>. Content submitted for enhancement or translation can
+/// be sent to the selected external AI provider.
 /// </remarks>
 public static class AiApi
 {
@@ -27,9 +28,9 @@ public static class AiApi
     /// </summary>
     /// <param name="app">The route builder to update.</param>
     /// <remarks>
-    /// Maps authenticated endpoints beneath <c>/api/admin/ai</c> for settings, provider choices,
-    /// enhancement, and translation. No policy more specific than <c>RequireAuthorization()</c>
-    /// is attached here.
+    /// Maps authenticated endpoints beneath <c>/api/admin/ai</c>. Content enhancement,
+    /// translation, and provider choices use the host's default authorization policy, while
+    /// global settings reads and writes additionally require <c>AeroAdmin</c>.
     /// </remarks>
 public static void MapAiApi(this IEndpointRouteBuilder app)
     {
@@ -44,10 +45,12 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
             .WithName("TranslateContent");
 
         group.MapGet("/settings", GetSettings)
-            .WithName("GetAiSettings");
+            .WithName("GetAiSettings")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapPost("/settings", SaveSettings)
-            .WithName("SaveAiSettings");
+            .WithName("SaveAiSettings")
+            .RequireAuthorization("AeroAdmin");
 
         group.MapGet("/providers/options", GetProviderOptions)
             .WithName("GetAiProviderOptions");

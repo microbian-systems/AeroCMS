@@ -62,7 +62,59 @@ public class DynamicPageModelStatusCodeTests
         model.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
     }
 
-    private static DynamicPageModel CreateModel(SableTestHarness harness, PageDocument page)
+    [Test]
+    public async Task DraftPreview_UsesScopedActorLookup()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_403);
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetByIdAsync(page.Id, page.SiteId, Arg.Any<CancellationToken>())
+            .Returns(CreateActorResponse(page));
+        actor.ListCultureVariantsAsync(page.Id, page.SiteId, Arg.Any<CancellationToken>())
+            .Returns([]);
+        var model = CreateModel(harness, page, actor);
+        model.DraftId = page.Id;
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<PageResult>();
+        await actor.Received(1).GetByIdAsync(
+            page.Id,
+            page.SiteId,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task DraftPreview_RejectsDirectDocumentFromAnotherSite()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_404);
+        page.SiteId = 99;
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetByIdAsync(page.Id, 1, Arg.Any<CancellationToken>())
+            .Returns(CreateActorResponse(page));
+        var model = CreateModel(harness, page, actor);
+        model.DraftId = page.Id;
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+    }
+
+    private static DynamicPageModel CreateModel(
+        SableTestHarness harness,
+        PageDocument page,
+        IAeroPageActor? actor = null)
     {
         var vm = new PageViewModel
         {
@@ -77,11 +129,11 @@ public class DynamicPageModelStatusCodeTests
 
         var response = new AeroRequestResponse<PageViewModel>(vm, null!);
 
-        var pageActor = Substitute.For<IAeroPageActor>();
+        var pageActor = actor ?? Substitute.For<IAeroPageActor>();
         pageActor
             .GetBySlugAsync(Arg.Any<long>(), page.Slug, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(response);
-        pageActor.ListCultureVariantsAsync(page.Id, Arg.Any<CancellationToken>())
+        pageActor.ListCultureVariantsAsync(page.Id, 1, Arg.Any<CancellationToken>())
             .Returns([vm]);
 
         var siteContext = Substitute.For<ISiteContext>();
@@ -111,6 +163,20 @@ public class DynamicPageModelStatusCodeTests
             }
         };
     }
+
+    private static AeroRequestResponse<PageViewModel> CreateActorResponse(PageDocument page)
+        => new(
+            new PageViewModel
+            {
+                Id = page.Id,
+                SiteId = page.SiteId,
+                Title = page.Title,
+                Slug = page.Slug,
+                Culture = page.Culture,
+                IsPublished = true,
+                ShowHeaderNavigation = true
+            },
+            new PageErrorViewModel());
 
     private static ISiteStyleProfileResolver CreateStyleProfileResolver()
     {
