@@ -12,75 +12,154 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.Posts;
 
 /// <summary>
-/// Defines an interface for IPostContentService.
+/// Defines site-aware persistence, routing, publication, and taxonomy operations for blog posts.
 /// </summary>
 public interface IPostContentService
 {
-        /// <summary>
-    /// GetAllPostsAsync method.
+    /// <summary>
+    /// Lists posts for the current site and UI culture, including draft and published states.
     /// </summary>
+    /// <param name="skip">The number of matching posts to omit.</param>
+    /// <param name="take">The maximum number of posts to return.</param>
+    /// <param name="search">Optional text matched case-insensitively against title and slug.</param>
+    /// <param name="cancellationToken">A token used to cancel the query or cache access.</param>
+    /// <returns>A page and total count, or a failure describing an operational error.</returns>
 Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// LoadAsync method.
+
+    /// <summary>
+    /// Loads a post by identifier and requires it to belong to the current site.
     /// </summary>
+    /// <param name="id">A valid Snowflake post identifier.</param>
+    /// <param name="cancellationToken">A token used to cancel persistence or cache access.</param>
+    /// <returns>The document on success, or a failure for invalid, missing, or wrong-site identifiers.</returns>
 Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// FindBySlugAsync method.
+
+    /// <summary>
+    /// Resolves a published post by route slug for the current site and UI culture.
     /// </summary>
+    /// <param name="slug">The route slug, with or without a leading culture segment.</param>
+    /// <param name="cancellationToken">A token used to cancel persistence or cache access.</param>
+    /// <returns>The published document, or a failure when no eligible reservation and document exist.</returns>
 Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetLatestPostsAsync method.
+
+    /// <summary>
+    /// Lists the most recently published posts for the current site and UI culture.
     /// </summary>
+    /// <param name="count">The maximum number of posts to return.</param>
+    /// <param name="cancellationToken">A token used to cancel persistence or cache access.</param>
+    /// <returns>The ordered published posts, or a failure describing an operational error.</returns>
 Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// ListCultureVariantsAsync method.
+
+    /// <summary>
+    /// Lists all post documents in a translation group for the current site.
     /// </summary>
+    /// <param name="TranslationGroupId">The translation-group identifier.</param>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The culture-ordered variants, or a failure describing an operational error.</returns>
 Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// ForkPostForCultureAsync method.
+
+    /// <summary>
+    /// Creates and persists a draft culture variant of a post in the current site.
     /// </summary>
+    /// <param name="sourcePostId">The source post identifier.</param>
+    /// <param name="targetCulture">A culture supported by the source post's site.</param>
+    /// <param name="targetSlug">The route slug for the new variant.</param>
+    /// <param name="cancellationToken">A token used to cancel lookup and persistence work.</param>
+    /// <returns>The persisted draft, or a not-found, validation, conflict, or operational failure.</returns>
 Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// SaveAsync method.
+
+    /// <summary>
+    /// Creates or updates a post, reserves its culture-specific slug, stamps audit fields, and publishes an update event.
     /// </summary>
+    /// <param name="post">The document to persist.</param>
+    /// <param name="cancellationToken">A token used to cancel lookup, reservation, persistence, or publication work.</param>
+    /// <returns>The persisted document, or a failure describing validation or operational errors.</returns>
+    /// <remarks>
+    /// A new document with a zero site identifier is assigned to the current site; a nonzero site
+    /// identifier is retained. Callers must enforce authorization before passing existing or
+    /// explicitly site-owned documents.
+    /// </remarks>
 Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetByTagAsync method.
+
+    /// <summary>
+    /// Lists published current-culture posts in the current site that contain a tag identifier.
     /// </summary>
+    /// <param name="tagId">The tag identifier to match.</param>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The posts ordered by publication time descending, or an operational failure.</returns>
 Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetByCategoryAsync method.
+
+    /// <summary>
+    /// Lists published current-culture posts in the current site that contain a category identifier.
     /// </summary>
+    /// <param name="categoryId">The category identifier to match.</param>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The posts ordered by publication time descending, or an operational failure.</returns>
 Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetPagedPostsAsync method.
+
+    /// <summary>
+    /// Pages published posts for the current site and UI culture after a leading offset.
     /// </summary>
+    /// <param name="pageNumber">The page number passed to Sable pagination.</param>
+    /// <param name="pageSize">The requested page size.</param>
+    /// <param name="skip">The number of latest matching posts excluded before paging.</param>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The paged result, or a failure describing an operational error.</returns>
 Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetAllTagsAsync method.
+
+    /// <summary>
+    /// Lists base tag documents for the current site ordered by name.
     /// </summary>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The site tags, or a failure describing an operational error.</returns>
 Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetAllCategoriesAsync method.
+
+    /// <summary>
+    /// Lists base category documents for the current site ordered by name.
     /// </summary>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The site categories, or a failure describing an operational error.</returns>
 Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetAuthorAsync method.
+
+    /// <summary>
+    /// Loads an author by identifier.
     /// </summary>
+    /// <param name="authorId">A valid Snowflake author identifier.</param>
+    /// <param name="cancellationToken">A token used to cancel the lookup.</param>
+    /// <returns>The author, or a failure when it is invalid, missing, or cannot be loaded.</returns>
+    /// <remarks>Author documents are not site-owned, so the current site does not constrain this lookup.</remarks>
 Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteAsync method.
+
+    /// <summary>
+    /// Deletes a current-site post and its slug reservation, then publishes an update event.
     /// </summary>
+    /// <param name="id">A valid Snowflake post identifier.</param>
+    /// <param name="cancellationToken">A token used to cancel persistence or publication work.</param>
+    /// <returns><see langword="true"/> after deletion, or a failure for invalid, missing, wrong-site, or operational errors.</returns>
 Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteTranslationGroupAsync method.
+
+    /// <summary>
+    /// Deletes all current-site posts and slug reservations in a translation group.
     /// </summary>
+    /// <param name="translationGroupId">The translation-group identifier.</param>
+    /// <param name="cancellationToken">A token used to cancel persistence or publication work.</param>
+    /// <returns>The number of deleted variants, zero when none exist, or an operational failure.</returns>
 Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for PostContentService.
+/// Implements site-aware post operations over a caller-supplied Sable session.
 /// </summary>
+/// <param name="session">The session that owns queued writes and commits.</param>
+/// <param name="siteContext">The current site boundary used by scoped queries.</param>
+/// <param name="bus">An optional bus for post-commit content-update events.</param>
+/// <param name="httpContextAccessor">An optional source for the modifying principal name.</param>
+/// <param name="cache">An optional cache used by list and lookup operations.</param>
+/// <remarks>
+/// Public methods translate thrown exceptions, including cancellation exceptions, into
+/// <see cref="AeroError"/> failures. Database commits precede bus publication, so a returned
+/// publication failure does not imply that the database mutation was rolled back.
+/// </remarks>
 public sealed class PostContentService(
     IDocumentSession session,
     ISiteContext siteContext,
@@ -91,15 +170,19 @@ public sealed class PostContentService(
     private const string BlogCacheTag = "blog-index";
     private readonly ISiteContext _siteContext = siteContext;
 
-        /// <summary>
-    /// GetAllPostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
         => GetAllPostsAsync(skip, take, search, culture: null, cancellationToken);
 
-        /// <summary>
-    /// GetAllPostsAsync method.
+    /// <summary>
+    /// Lists posts for an explicit normalized culture, including drafts.
     /// </summary>
+    /// <param name="skip">The number of matching posts to omit.</param>
+    /// <param name="take">The maximum number of posts to return.</param>
+    /// <param name="search">Optional title-or-slug search text.</param>
+    /// <param name="culture">The requested culture; <see langword="null"/> uses the current UI culture.</param>
+    /// <param name="cancellationToken">A token used to cancel the query or cache access.</param>
+    /// <returns>A page and total count, or an <see cref="AeroError"/> failure.</returns>
 public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip, int take, string? search, string? culture, CancellationToken cancellationToken = default)
     {
         try
@@ -139,9 +222,7 @@ public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), A
         }
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -170,9 +251,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
         }
     }
 
-        /// <summary>
-    /// LoadAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -200,15 +279,17 @@ public async Task<Result<PostDocument?, AeroError>> LoadAsync(long id, Cancellat
         }
     }
 
-        /// <summary>
-    /// FindBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
         => FindBySlugAsync(slug, culture: null, cancellationToken);
 
-        /// <summary>
-    /// FindBySlugAsync method.
+    /// <summary>
+    /// Resolves a published post for an explicit culture, falling back to the site's default-culture reservation.
     /// </summary>
+    /// <param name="slug">The route slug, with or without a leading culture segment.</param>
+    /// <param name="culture">The requested culture; <see langword="null"/> uses the current UI culture.</param>
+    /// <param name="cancellationToken">A token used to cancel lookup and cache access.</param>
+    /// <returns>The published post, or an <see cref="AeroError"/> failure.</returns>
 public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
@@ -248,15 +329,17 @@ public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug,
         }
     }
 
-        /// <summary>
-    /// GetLatestPostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
         => GetLatestPostsAsync(count, culture: null, cancellationToken);
 
-        /// <summary>
-    /// GetLatestPostsAsync method.
+    /// <summary>
+    /// Lists the latest published posts for an explicit culture.
     /// </summary>
+    /// <param name="count">The maximum number of posts to return.</param>
+    /// <param name="culture">The requested culture; <see langword="null"/> uses the current UI culture.</param>
+    /// <param name="cancellationToken">A token used to cancel the query or cache access.</param>
+    /// <returns>The publication-time ordered posts, or an <see cref="AeroError"/> failure.</returns>
 public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, string? culture, CancellationToken cancellationToken = default)
     {
         try
@@ -285,9 +368,7 @@ public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPosts
         }
     }
 
-        /// <summary>
-    /// SaveAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default)
     {
         try
@@ -336,9 +417,7 @@ public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, 
         }
     }
 
-        /// <summary>
-    /// GetByTagAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default)
     {
         try
@@ -357,9 +436,7 @@ public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(
         }
     }
 
-        /// <summary>
-    /// GetByCategoryAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default)
     {
         try
@@ -378,15 +455,19 @@ public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryA
         }
     }
 
-        /// <summary>
-    /// GetPagedPostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
         => GetPagedPostsAsync(pageNumber, pageSize, skip, culture: null, cancellationToken);
 
-        /// <summary>
-    /// GetPagedPostsAsync method.
+    /// <summary>
+    /// Pages published posts for an explicit culture after a leading offset.
     /// </summary>
+    /// <param name="pageNumber">The page number passed to Sable pagination.</param>
+    /// <param name="pageSize">The requested page size.</param>
+    /// <param name="skip">The number of latest matching posts excluded before paging.</param>
+    /// <param name="culture">The requested culture; <see langword="null"/> uses the current UI culture.</param>
+    /// <param name="cancellationToken">A token used to cancel the query.</param>
+    /// <returns>The paged result, or an <see cref="AeroError"/> failure.</returns>
 public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip, string? culture, CancellationToken cancellationToken = default)
     {
         try
@@ -409,9 +490,7 @@ public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsyn
         }
     }
 
-        /// <summary>
-    /// GetAllTagsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -429,9 +508,7 @@ public async Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(Cancell
         }
     }
 
-        /// <summary>
-    /// GetAllCategoriesAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -449,9 +526,7 @@ public async Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAs
         }
     }
 
-        /// <summary>
-    /// GetAuthorAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default)
     {
         try
@@ -468,14 +543,23 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
         }
     }
 
+    /// <summary>
+    /// Verifies that an identifier can be parsed by the configured Snowflake representation.
+    /// </summary>
     private static void ValidateId(long id)
     {
         var snowflake = Id.Parse(id);
     }
 
+    /// <summary>
+    /// Prefixes a cache-key suffix with the current site boundary.
+    /// </summary>
     private string BuildCacheKey(string suffix)
         => $"cms:posts:{_siteContext.SiteId}:{suffix}";
 
+    /// <summary>
+    /// Finds a normalized slug reservation for the current site and exact culture.
+    /// </summary>
     private async Task<ContentSlugDocument?> FindSlugReservationAsync(
         string normalizedSlug,
         string culture,
@@ -487,6 +571,9 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
                 string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
                 cancellationToken);
 
+    /// <summary>
+    /// Falls back to the site's default culture only when the requested culture differs from it.
+    /// </summary>
     private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
         string normalizedSlug,
         string culture,
@@ -499,9 +586,11 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
         return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
     }
 
-        /// <summary>
-    /// DeleteTranslationGroupAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Documents and reservations are committed together. Update events are then published one by
+    /// one; a later publication failure is returned after the deletion has already committed.
+    /// </remarks>
 public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
     {
         try
@@ -540,9 +629,7 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
         }
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(
         long TranslationGroupId,
         CancellationToken cancellationToken = default)
@@ -562,9 +649,7 @@ public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVar
         }
     }
 
-        /// <summary>
-    /// ForkPostForCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
         long sourcePostId,
         string targetCulture,
@@ -603,6 +688,9 @@ public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
         }
     }
 
+    /// <summary>
+    /// Loads and normalizes the current site's default culture, using the CMS default when absent.
+    /// </summary>
     private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
     {
         var site = await session.LoadAsync<SitesModel>(_siteContext.SiteId, cancellationToken);
@@ -611,6 +699,9 @@ public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
         return ContentSlugDocument.NormalizeCulture(defaultCulture);
     }
 
+    /// <summary>
+    /// Determines whether a normalized culture is in a site's configured supported-culture set.
+    /// </summary>
     private async Task<bool> IsSupportedCultureAsync(long siteId, string culture, CancellationToken cancellationToken)
     {
         var site = await session.LoadAsync<SitesModel>(siteId, cancellationToken);
@@ -627,9 +718,15 @@ public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
             .Contains(culture, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Normalizes an explicit culture or the ambient UI culture.
+    /// </summary>
     private static string GetCurrentCulture(string? culture = null)
         => ContentSlugDocument.NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
+    /// <summary>
+    /// Reads an optional cache and returns <see langword="null"/> when caching is disabled or misses.
+    /// </summary>
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
     {
         if (cache is null)
@@ -641,19 +738,35 @@ public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
         return cached.HasValue ? cached.Value : null;
     }
 
+    /// <summary>
+    /// Stores a value under the shared blog-index invalidation tag when caching is enabled.
+    /// </summary>
     private Task SetCacheAsync<T>(string key, T value, CancellationToken cancellationToken) where T : class
         => cache is null
             ? Task.CompletedTask
             : cache.SetAsync(key, value, tags: [BlogCacheTag], token: cancellationToken).AsTask();
 
+    /// <summary>
+    /// Publishes a cache-invalidation event when a bus is available.
+    /// </summary>
     private Task PublishContentUpdatedAsync(PostDocument post, string? oldSlug, CancellationToken cancellationToken)
         => bus is null
             ? Task.CompletedTask
             : bus.PublishAsync(new BlogPostContentUpdatedEvent(post.Id, post.SiteId, post.Slug, oldSlug)).AsTask();
 
+    /// <summary>
+    /// Normalizes optional text for use as one cache-key segment.
+    /// </summary>
     private static string NormalizeCachePart(string? value)
         => string.IsNullOrWhiteSpace(value) ? "_" : value.Trim().Trim('/').ToLowerInvariant();
 
+    /// <summary>
+    /// Stores a cached post page together with the provider-reported total.
+    /// </summary>
     private sealed record BlogPostListCacheEntry(List<PostDocument> Items, long TotalCount);
+
+    /// <summary>
+    /// Stores a cached post collection.
+    /// </summary>
     private sealed record BlogPostCollectionCacheEntry(List<PostDocument> Items);
 }

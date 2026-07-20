@@ -18,8 +18,23 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
 /// <summary>
-/// Represents a class for DynamicPageModel.
+/// Resolves and renders the culture-aware public page or an explicitly requested
+/// draft preview as static HTML and native CSS.
 /// </summary>
+/// <param name="pageActor">The actor used for page and culture-variant lookups.</param>
+/// <param name="siteContext">The current site scope.</param>
+/// <param name="documentStore">The store used to load the selected HTML snapshot.</param>
+/// <param name="htmlRenderer">Renders the validated HTML tree.</param>
+/// <param name="styleCompiler">Compiles page-scoped styles against the site profile.</param>
+/// <param name="styleProfileResolver">Resolves the site's allowed style profile.</param>
+/// <param name="logger">The page logger.</param>
+/// <remarks>
+/// Draft selection is controlled by <see cref="DraftId"/>. This model does not perform
+/// an authorization or site-ownership check for that identifier-only lookup; the host must
+/// protect preview endpoints and verify that the requested draft belongs to the current site.
+/// Public responses receive a five-minute cache header, while previews are marked
+/// no-store.
+/// </remarks>
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
     IAeroPageActor pageActor,
@@ -30,40 +45,40 @@ public class DynamicPageModel(
     ISiteStyleProfileResolver styleProfileResolver,
     ILogger<DynamicPageModel> logger) : PageModel
 {
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets or sets the optional catch-all slug supplied by route binding.
     /// </summary>
 [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
-        /// <summary>
-    /// Gets or sets the Draft Id.
+    /// <summary>
+    /// Gets or sets the page identifier used to select draft content for preview.
     /// </summary>
 [BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-        /// <summary>
-    /// Gets or sets the Seo Title.
+    /// <summary>
+    /// Gets the resolved SEO title, falling back to the page title.
     /// </summary>
 public string? SeoTitle { get; private set; }
-        /// <summary>
-    /// Gets or sets the Title.
+    /// <summary>
+    /// Gets the resolved page title.
     /// </summary>
 public string? Title { get; private set; }
-        /// <summary>
-    /// Gets or sets the Show Header Navigation.
+    /// <summary>
+    /// Gets whether the layout should show header navigation.
     /// </summary>
 public bool ShowHeaderNavigation { get; private set; } = true;
-        /// <summary>
-    /// Gets or sets the Hide Footer.
+    /// <summary>
+    /// Gets whether the layout should hide its footer.
     /// </summary>
 public bool HideFooter { get; private set; }
-        /// <summary>
-    /// Gets or sets the Show Chat Agent.
+    /// <summary>
+    /// Gets whether the layout should expose the chat agent.
     /// </summary>
 public bool ShowChatAgent { get; private set; } = true;
-        /// <summary>
-        /// Gets the rendered Living Standard HTML snapshot.
+    /// <summary>
+    /// Gets the rendered Living Standard HTML snapshot.
     /// </summary>
 public string RenderedMarkup { get; private set; } = string.Empty;
 
@@ -71,42 +86,48 @@ public string RenderedMarkup { get; private set; } = string.Empty;
     /// Gets the validated, page-scoped native CSS emitted for the rendered snapshot.
     /// </summary>
 public string RenderedCss { get; private set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Page Id.
+    /// <summary>
+    /// Gets the resolved page identifier.
     /// </summary>
 public long? PageId { get; private set; }
-        /// <summary>
-    /// Gets or sets the Page Slug.
+    /// <summary>
+    /// Gets the resolved page slug.
     /// </summary>
 public string? PageSlug { get; private set; }
-        /// <summary>
-    /// Gets or sets the Requested Culture.
+    /// <summary>
+    /// Gets the UI culture requested for this page.
     /// </summary>
 public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
-        /// <summary>
-    /// Gets or sets the Rendered Culture.
+    /// <summary>
+    /// Gets the culture of the page variant that was rendered.
     /// </summary>
 public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
-        /// <summary>
-    /// Gets or sets the Is Culture Fallback.
+    /// <summary>
+    /// Gets whether the rendered variant differs from the requested culture.
     /// </summary>
 public bool IsCultureFallback { get; private set; }
-        /// <summary>
-    /// Gets or sets the Canonical Url.
+    /// <summary>
+    /// Gets the absolute culture-prefixed URL for the rendered variant.
     /// </summary>
 public string CanonicalUrl { get; private set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alternate Links.
+    /// <summary>
+    /// Gets links for published culture variants, including <c>x-default</c> when available.
     /// </summary>
 public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Culture Switcher Links.
+    /// <summary>
+    /// Gets culture-switcher links derived from the published alternate links.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-        /// <summary>
-    /// OnGetAsync method.
+    /// <summary>
+    /// Resolves the requested variant, loads the selected snapshot, compiles its styles,
+    /// and renders the Razor Page.
     /// </summary>
+    /// <param name="cancellationToken">The token used for actor, store, and profile operations.</param>
+    /// <returns>
+    /// A page result on success; HTTP 404 for lookup, document, or snapshot absence;
+    /// or HTTP 500 when style-profile resolution, compilation, or rendering fails.
+    /// </returns>
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
@@ -330,8 +351,10 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         Response.Headers.CacheControl = "public,max-age=300";
     }
 
-        /// <summary>
-    /// Represents a record for AlternatePageLink.
+    /// <summary>
+    /// Describes an alternate-language page URL for HTML link metadata.
     /// </summary>
+    /// <param name="Hreflang">The lower-case culture tag or <c>x-default</c>.</param>
+    /// <param name="Href">The absolute culture-prefixed URL.</param>
 public sealed record AlternatePageLink(string Hreflang, string Href);
 }

@@ -6,29 +6,20 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
-/// <summary>
-/// Represents a class for CategoryByIdQuery.
-/// </summary>
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class CategoryByIdQuery : EntityByIdQuery<CategoryModel>;
 
-/// <summary>
-/// Represents a class for CategoriesByIdsQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class CategoriesByIdsQuery : EntitiesByIdsQuery<CategoryModel>;
 
-/// <summary>
-/// Represents a class for CategoriesByNameQuery.
-/// </summary>
+/// <summary>Selects categories whose stored name exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class CategoriesByNameQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The name value used by the equality predicate.</summary>
 public required string Name { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
@@ -38,19 +29,14 @@ public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>
     }
 }
 
-/// <summary>
-/// Represents a class for CategoriesByNameContainsQuery.
-/// </summary>
+/// <summary>Selects categories whose non-null stored name contains a supplied substring.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class CategoriesByNameContainsQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The substring passed to <see cref="string.Contains(string)"/>.</summary>
 public required string Name { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
@@ -60,19 +46,14 @@ public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>
     }
 }
 
-/// <summary>
-/// Represents a class for CategoryBySlugQuery.
-/// </summary>
+/// <summary>Selects the first category whose stored slug exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no slug normalization and returns <see langword="null"/> when no category matches.</remarks>
 public sealed class CategoryBySlugQuery : ICompiledQuery<CategoryModel, CategoryModel?>
 {
-        /// <summary>
-    /// Gets or sets the Slug.
-    /// </summary>
+    /// <summary>The slug value used by the equality predicate.</summary>
 public required string Slug { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<CategoryModel>, CategoryModel?>> QueryIs()
     {
         return q => q
@@ -80,19 +61,14 @@ public Expression<Func<ISurrealDbQueryable<CategoryModel>, CategoryModel?>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for CategoriesByParentIdQuery.
-/// </summary>
+/// <summary>Selects direct child categories for a parent identifier.</summary>
+/// <remarks>Matches are ordered by stored category name.</remarks>
 public sealed class CategoriesByParentIdQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-        /// <summary>
-    /// Gets or sets the Parent Category Id.
-    /// </summary>
+    /// <summary>The parent identifier that must match <see cref="CategoryModel.ParentCategoryId"/>.</summary>
 public required long ParentCategoryId { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
@@ -102,14 +78,10 @@ public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>
     }
 }
 
-/// <summary>
-/// Represents a class for RootCategoriesQuery.
-/// </summary>
+/// <summary>Selects categories without a parent, ordered by stored name.</summary>
 public sealed class RootCategoriesQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
@@ -119,12 +91,8 @@ public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>
     }
 }
 
-/// <summary>
-/// Represents a class for CategoriesCreatedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class CategoriesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<CategoryModel>;
 
-/// <summary>
-/// Represents a class for CategoriesModifiedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class CategoriesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<CategoryModel>;

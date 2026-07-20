@@ -6,20 +6,33 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Identity;
 
-/// <summary>
-/// AeroDB-backed RoleStore for the Identity module.
-/// Wraps <see cref="AeroDBRoleStore{TRole, TKey}"/> with the Aero role type and a long key.
-/// </summary>
+/// <inheritdoc cref="AeroDBRoleStore{TRole, TKey}"/>
 /// <typeparam name="TRole">The role type, must inherit from <see cref="AeroRole"/>.</typeparam>
+/// <remarks>
+/// <para>
+/// This convenience wrapper fixes the key type to <see cref="long"/>. It is not
+/// registered by <see cref="IdentityModule.ConfigureServices"/>; the active
+/// registration resolves the base AeroDB role store directly.
+/// </para>
+/// <para>
+/// Operations are governed by the base store and its document sessions. This wrapper
+/// adds no cross-call transaction, concurrency, or tenant-isolation guarantees.
+/// </para>
+/// </remarks>
 public class RoleStore<TRole> : AeroDBRoleStore<TRole, long>
     where TRole : AeroRole, new()
 {
     /// <summary>
-    /// Constructs a new instance of <see cref="RoleStore{TRole}"/>.
+    /// Initializes the long-keyed AeroDB role-store wrapper.
     /// </summary>
-    /// <param name="store">The AeroDB document store.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="describer">Identity error describer.</param>
+    /// <param name="store">The document store used by the base implementation.</param>
+    /// <param name="logger">The logger forwarded to the base implementation.</param>
+    /// <param name="describer">
+    /// Optional factory for localized Identity error descriptions.
+    /// </param>
+    /// <remarks>
+    /// Constructing this type does not register it with ASP.NET Core Identity.
+    /// </remarks>
     public RoleStore(
         IDocumentStore store,
         ILogger<RoleStore<TRole>> logger,

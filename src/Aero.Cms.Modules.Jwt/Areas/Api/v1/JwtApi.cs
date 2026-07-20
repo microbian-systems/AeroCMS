@@ -10,22 +10,80 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Jwt.Areas.Api.v1;
 
 /// <summary>
-/// Represents a record for HeadlessRefreshTokenRequest.
+/// Carries a refresh token submitted to the headless refresh endpoint.
 /// </summary>
+/// <param name="RefreshToken">
+/// The raw token forwarded to the configured <c>IRefreshTokenService</c>.
+/// This record does not validate that the value is present or well formed.
+/// </param>
 public sealed record HeadlessRefreshTokenRequest(string RefreshToken);
 /// <summary>
-/// Represents a record for HeadlessJwtResponse.
+/// Returns an access token, a refresh token, and the endpoint's estimated
+/// access-token expiration time.
 /// </summary>
+/// <param name="AccessToken">The access token returned by the configured token service.</param>
+/// <param name="RefreshToken">The raw refresh token returned by the configured refresh-token service.</param>
+/// <param name="ExpiresAt">
+/// The expiration estimate calculated by the endpoint rather than parsed from
+/// <paramref name="AccessToken"/>.
+/// </param>
+/// <remarks>
+/// Both token values are bearer credentials and are returned without redaction.
+/// When the configured service is not the concrete <c>JwtTokenService</c>, the
+/// expiration estimate uses a 300-second fallback.
+/// </remarks>
 public sealed record HeadlessJwtResponse(string AccessToken, string RefreshToken, DateTimeOffset ExpiresAt);
 
 /// <summary>
-/// Represents a class for JwtApi.
+/// Maps the headless API-key-to-token and refresh-token HTTP endpoints.
 /// </summary>
+/// <remarks>
+/// Token generation, signing, refresh-token persistence, and rotation are
+/// delegated to services resolved from the host. This type does not establish
+/// key secrecy, rotation atomicity, old-token invalidation, cross-node
+/// persistence, tenant scope, or access-token revocation. The default refresh
+/// model's active-state predicate ignores its replacement link, so rotation
+/// does not make an otherwise unexpired, unrevoked old token inactive.
+/// </remarks>
 public static class JwtApi
 {
         /// <summary>
-    /// MapJwtApi method.
+    /// Maps <c>POST /api/v1/jwt/token</c> and
+    /// <c>POST /api/v1/jwt/refresh</c>.
     /// </summary>
+    /// <param name="app">The endpoint route builder to update.</param>
+    /// <remarks>
+    /// The token endpoint delegates API-key authentication, requests an access
+    /// token using the returned user's identifier, email, and roles, and creates
+    /// a refresh token labeled for the <c>headless</c> client. The refresh
+    /// endpoint first asks the refresh-token service to rotate and commit the
+    /// supplied credential, then validates the returned token and requires the
+    /// associated user to exist, be active, and not be deleted before requesting
+    /// another access token. Because rotation commits first, any later 401 or
+    /// 500 can leave the token-store mutation committed without returning the
+    /// replacement credential to the caller.
+    ///
+    /// The token handler returns 200 on success, 401 when API-key authentication
+    /// returns no user, and 500 for caught exceptions. The refresh handler
+    /// returns 200 on success, 401 when the newly returned credential does not
+    /// validate or its user is missing/inactive/deleted, and 500 for caught
+    /// exceptions. With the default service, an invalid, expired, or revoked old
+    /// refresh token can throw during rotation and therefore become a 500 rather
+    /// than a 401. Both 500 problem responses expose
+    /// <see cref="Exception.Message"/>.
+    ///
+    /// Neither JSON POST endpoint attaches an explicit authorization policy,
+    /// antiforgery metadata, rate limit, or tenant constraint. Cancellation is
+    /// forwarded to authentication, token, and refresh-token services, but not
+    /// to the Identity user and role lookups, whose APIs are called without this
+    /// request token.
+    ///
+    /// The default refresh-token implementation records replacement links but
+    /// <c>RefreshToken.IsActive</c> checks only revocation and expiration.
+    /// Consequently, a rotated old token remains reusable until it expires or
+    /// is explicitly revoked; this endpoint does not provide one-time-use
+    /// refresh semantics.
+    /// </remarks>
 public static void MapJwtApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}jwt")
@@ -102,7 +160,7 @@ public static void MapJwtApi(this IEndpointRouteBuilder app)
             var ipAddress = context?.Connection.RemoteIpAddress?.ToString();
             var userAgent = context?.Request.Headers.UserAgent.ToString();
 
-            // Rotate the refresh token
+            // The default service commits the rotation before this handler performs its later checks.
             var newToken = await refreshTokenService.RotateRefreshTokenAsync(
                 request.RefreshToken,
                 "headless",

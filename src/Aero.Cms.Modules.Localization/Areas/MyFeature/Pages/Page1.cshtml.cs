@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Aero.Cms.Modules.Localization.Areas.MyFeature.Pages
 {
         /// <summary>
-    /// Represents a class for Page1Model.
+    /// Handles the placeholder Localization module Razor Page.
     /// </summary>
 public class Page1Model : PageModel
     {
                 /// <summary>
-        /// OnGet method.
+        /// Handles GET requests without producing additional page state.
         /// </summary>
 public void OnGet()
         {

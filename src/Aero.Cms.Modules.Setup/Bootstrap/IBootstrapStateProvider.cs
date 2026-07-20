@@ -1,12 +1,13 @@
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Defines an interface for IBootstrapStateProvider.
+/// Provides the effective bootstrap state used to choose setup or runtime behavior.
 /// </summary>
 public interface IBootstrapStateProvider
 {
-        /// <summary>
-    /// GetState method.
+    /// <summary>
+    /// Reads the current bootstrap state.
     /// </summary>
+    /// <returns>A state snapshot derived from the provider's current configuration source.</returns>
 BootstrapState GetState();
 }

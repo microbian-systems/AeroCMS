@@ -3,6 +3,14 @@ using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
+/// <summary>
+/// Presents searchable HTML elements, responsive layout starters, and static component
+/// templates that can be inserted into the page editor.
+/// </summary>
+/// <remarks>
+/// The palette emits insertion intent only. The owning editor remains responsible for choosing
+/// a valid insertion point and enforcing the content-model policy.
+/// </remarks>
 public partial class HtmlElementPalette
 {
     private const int InitialComponentCount = 6;
@@ -60,18 +68,37 @@ public partial class HtmlElementPalette
     private bool _showAdvanced;
     private bool _showAllComponents;
 
+    /// <summary>
+    /// Gets or sets the element catalog entries available for palette grouping and filtering.
+    /// </summary>
+    /// <remarks>
+    /// Entries not marked as palette-visible are omitted. List items are also omitted because
+    /// they are created through guided list actions.
+    /// </remarks>
     [Parameter, EditorRequired]
     public IReadOnlyList<HtmlElementDefinition> Elements { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets the callback invoked with the tag name of an element insertion request.
+    /// </summary>
     [Parameter]
     public EventCallback<string> ElementRequested { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback invoked with the selected responsive layout starter.
+    /// </summary>
     [Parameter]
     public EventCallback<HtmlLayoutStarterKind> LayoutRequested { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback invoked with the selected static component template.
+    /// </summary>
     [Parameter]
     public EventCallback<HtmlComponentTemplateKind> ComponentRequested { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback that requests the HTML-fragment import workflow.
+    /// </summary>
     [Parameter]
     public EventCallback ImportRequested { get; set; }
 
@@ -121,6 +148,13 @@ public partial class HtmlElementPalette
         + FilteredLayoutOptions.Count
         + FilteredGroups.Sum(group => group.Elements.Count);
 
+    /// <summary>
+    /// Rebuilds the categorized element groups from the current catalog parameter.
+    /// </summary>
+    /// <remarks>
+    /// Category and element ordering use ordinal, case-insensitive comparison so the rendered
+    /// palette remains deterministic across cultures.
+    /// </remarks>
     protected override void OnParametersSet()
     {
         _groups = Elements
@@ -134,42 +168,113 @@ public partial class HtmlElementPalette
             .ToArray();
     }
 
+    /// <summary>
+    /// Determines whether an element's display name or tag matches the current search text.
+    /// </summary>
+    /// <param name="element">The catalog definition to test.</param>
+    /// <returns><see langword="true"/> when the element should remain visible.</returns>
     private bool MatchesSearch(HtmlElementDefinition element) =>
         string.IsNullOrWhiteSpace(SearchText)
         || element.DisplayName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
         || element.Tag.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Determines whether a palette option's label or description matches the current search.
+    /// </summary>
+    /// <param name="label">The user-facing option label.</param>
+    /// <param name="description">The user-facing option description.</param>
+    /// <returns><see langword="true"/> when the option should remain visible.</returns>
     private bool MatchesSearch(string label, string description) =>
         string.IsNullOrWhiteSpace(SearchText)
         || label.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
         || description.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Forwards an element insertion request to the owning editor.
+    /// </summary>
+    /// <param name="tagName">The catalog tag to insert.</param>
+    /// <returns>A task that completes when the callback has finished.</returns>
     private Task RequestElementAsync(string tagName) => ElementRequested.InvokeAsync(tagName);
 
+    /// <summary>
+    /// Forwards a layout starter insertion request to the owning editor.
+    /// </summary>
+    /// <param name="kind">The selected layout starter.</param>
+    /// <returns>A task that completes when the callback has finished.</returns>
     private Task RequestLayoutAsync(HtmlLayoutStarterKind kind) => LayoutRequested.InvokeAsync(kind);
 
+    /// <summary>
+    /// Forwards a static component insertion request to the owning editor.
+    /// </summary>
+    /// <param name="kind">The selected component template.</param>
+    /// <returns>A task that completes when the callback has finished.</returns>
     private Task RequestComponentAsync(HtmlComponentTemplateKind kind) => ComponentRequested.InvokeAsync(kind);
 
+    /// <summary>
+    /// Requests the fragment import workflow from the owning editor.
+    /// </summary>
+    /// <returns>A task that completes when the callback has finished.</returns>
     private Task RequestImportAsync() => ImportRequested.InvokeAsync();
 
+    /// <summary>
+    /// Toggles visibility of catalog elements outside the basic element allowlist.
+    /// </summary>
     private void ToggleAdvanced() => _showAdvanced = !_showAdvanced;
 
+    /// <summary>
+    /// Toggles between the initial component subset and the complete component catalog.
+    /// </summary>
     private void ToggleComponents() => _showAllComponents = !_showAllComponents;
 
+    /// <summary>
+    /// Creates a stable render key for a component category.
+    /// </summary>
+    /// <param name="category">The category name.</param>
+    /// <returns>A key namespaced to component groups.</returns>
     private static string ComponentGroupKey(string category) => $"component:{category}";
 
+    /// <summary>
+    /// Creates a stable render key for an element category.
+    /// </summary>
+    /// <param name="category">The category name.</param>
+    /// <returns>A key namespaced to element groups.</returns>
     private static string ElementGroupKey(string category) => $"element:{category}";
 
+    /// <summary>
+    /// Groups catalog elements under one palette category.
+    /// </summary>
+    /// <param name="Category">The display category.</param>
+    /// <param name="Elements">The elements in deterministic display order.</param>
     private sealed record ElementGroup(string Category, IReadOnlyList<HtmlElementDefinition> Elements);
 
+    /// <summary>
+    /// Groups static component templates under one palette category.
+    /// </summary>
+    /// <param name="Category">The display category.</param>
+    /// <param name="Options">The component choices in display order.</param>
     private sealed record ComponentGroup(string Category, IReadOnlyList<ComponentOption> Options);
 
+    /// <summary>
+    /// Describes one responsive layout starter presented by the palette.
+    /// </summary>
+    /// <param name="Kind">The layout starter identifier emitted to the owner.</param>
+    /// <param name="Label">The compact display label.</param>
+    /// <param name="Description">The user-facing layout description.</param>
+    /// <param name="Icon">The text glyph displayed for the option.</param>
     private sealed record LayoutOption(
         HtmlLayoutStarterKind Kind,
         string Label,
         string Description,
         string Icon);
 
+    /// <summary>
+    /// Describes one static component template presented by the palette.
+    /// </summary>
+    /// <param name="Kind">The component template identifier emitted to the owner.</param>
+    /// <param name="Label">The compact display label.</param>
+    /// <param name="Description">The user-facing component description.</param>
+    /// <param name="Icon">The text glyph displayed for the option.</param>
+    /// <param name="Category">The palette category used for grouping.</param>
     private sealed record ComponentOption(
         HtmlComponentTemplateKind Kind,
         string Label,

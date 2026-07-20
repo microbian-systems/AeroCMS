@@ -10,49 +10,107 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.OutputCache;
 
 /// <summary>
-/// Registers the ASP.NET Core output caching middleware and defines named caching policies
-/// for each content module (Pages, Blog, Docs).
-///
-/// Each policy is selected by placing [OutputCache(PolicyName = "...")] on the module's
-/// Razor Page models — see Page.cshtml.cs, PostsIndexPage.cshtml.cs, PostsDetailPage.cshtml.cs,
-/// DocsIndex.cshtml.cs, and Doc.cshtml.cs.
+/// Registers the Redis-compatible ASP.NET Core output-cache store, CMS response policies,
+/// and output-cache middleware.
 /// </summary>
+/// <remarks>
+/// <para>
+/// This module owns rendered HTTP-response caching. It is distinct from
+/// <c>Aero.Cms.Modules.Cache</c>, which configures FusionCache for application data and
+/// separately coordinates selected tag evictions.
+/// </para>
+/// <para>
+/// Responses are stored under the <c>aero:output:</c> Redis key namespace. The named policies
+/// use <see cref="CmsOutputCachePolicy"/> and resource locking. <c>PagesPolicy</c>,
+/// <c>BlogPolicy</c>, <c>BlogPartialPolicy</c>, and <c>ContentPublicPolicy</c> expire after five
+/// minutes; <c>DocsPolicy</c> and <c>DocsIndexPolicy</c> expire after ten minutes. Their coarse
+/// tags are respectively <c>pages-list</c>, <c>blog-index</c>, <c>blog-index</c>,
+/// <c>content-public</c>, <c>docs-index</c>, and <c>docs-index</c>.
+/// </para>
+/// <para>
+/// <c>PagesPolicy</c> additionally configures query variation for <c>slug</c>;
+/// <c>BlogPolicy</c> for <c>p</c> and <c>slug</c>; and <c>BlogPartialPolicy</c> for <c>p</c>.
+/// The remaining policies retain the custom policy's all-query variation. Every policy also
+/// varies by the origin, request path, and current UI culture established by
+/// <see cref="CmsOutputCachePolicy"/>.
+/// </para>
+/// <para>
+/// Policies take effect only on endpoints that select them, for example with
+/// <c>OutputCacheAttribute.PolicyName</c>. The coarse tags are not site-scoped, so evicting one
+/// removes every matching entry in this output-cache namespace. The registrations do not
+/// provide transactional invalidation, and the module does not claim coherence with
+/// FusionCache or any other cache layer.
+/// </para>
+/// </remarks>
 [Module(nameof(OutputCacheModule))]
 public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
+    /// <summary>
+    /// Gets the fixed module-discovery name.
     /// </summary>
-public override string Name => nameof(OutputCacheModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
-public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
-public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
-public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
-public override IReadOnlyList<string> Category => ["infrastructure", "performance"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
-public override IReadOnlyList<string> Tags => ["cache", "output-cache", "performance"];
-        /// <summary>
-    /// Gets or sets the Pipeline Order.
-    /// </summary>
-public int PipelineOrder => 200;
+    public override string Name => nameof(OutputCacheModule);
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <summary>
+    /// Gets the Aero CMS version reported by this module.
     /// </summary>
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    public override string Version => AeroConstants.Version;
+
+    /// <summary>
+    /// Gets the Aero CMS author metadata reported by this module.
+    /// </summary>
+    public override string Author => AeroConstants.Author;
+
+    /// <summary>
+    /// Gets the module names that must load before this module.
+    /// </summary>
+    /// <remarks>The output-cache module declares no module dependency.</remarks>
+    public override IReadOnlyList<string> Dependencies => [];
+
+    /// <summary>
+    /// Gets the module-discovery categories.
+    /// </summary>
+    public override IReadOnlyList<string> Category => ["infrastructure", "performance"];
+
+    /// <summary>
+    /// Gets the module-discovery tags.
+    /// </summary>
+    public override IReadOnlyList<string> Tags => ["cache", "output-cache", "performance"];
+
+    /// <summary>
+    /// Gets the ordering value used when the Aero CMS host composes module middleware.
+    /// </summary>
+    /// <remarks>
+    /// The value is 200. The host orders pipeline modules first by this value and then by their
+    /// module order; the host still controls where the complete module pipeline is inserted.
+    /// </remarks>
+    public int PipelineOrder => 200;
+
+    /// <summary>
+    /// Registers the Redis-compatible output-cache store and the named CMS output-cache policies.
+    /// </summary>
+    /// <param name="services">The service collection to receive output-cache registrations.</param>
+    /// <param name="config">
+    /// Configuration containing <c>AeroCms:Bootstrap:CacheMode</c> and the <c>cache</c>
+    /// connection string. A missing configuration uses local mode and
+    /// <c>localhost:33333</c>.
+    /// </param>
+    /// <param name="env">
+    /// The host environment. This implementation does not inspect the environment.
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// <c>AeroCms:Bootstrap:CacheMode</c> is neither <c>Local</c> nor <c>Server</c>, or server
+    /// mode has no non-blank <c>cache</c> connection string.
+    /// </exception>
+    /// <remarks>
+    /// Local mode falls back to <c>localhost:33333</c> when the connection string is blank.
+    /// Both supported modes register <c>AddStackExchangeRedisOutputCache</c> with the resolved
+    /// endpoint. Connection establishment and runtime store failures remain the responsibility
+    /// of the registered provider; this method does not contact the cache server.
+    /// </remarks>
+    public override void ConfigureServices(
+        IServiceCollection services,
+        IConfiguration? config = null,
+        IHostEnvironment? env = null)
     {
         var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Local";
         var cacheString = config?.GetConnectionString("cache");
@@ -144,9 +202,16 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         });
     }
 
-        /// <summary>
-    /// ConfigurePipeline method.
+    /// <summary>
+    /// Adds ASP.NET Core output-cache middleware to the application pipeline.
     /// </summary>
-public void ConfigurePipeline(IApplicationBuilder app)
+    /// <param name="app">The application pipeline builder.</param>
+    /// <remarks>
+    /// The host must insert the Aero CMS module pipeline after routing, authentication, and
+    /// authorization so endpoint policy metadata and the authenticated principal are available.
+    /// Calling this method makes the registered policies executable; endpoints must still select
+    /// a policy to cache responses.
+    /// </remarks>
+    public void ConfigurePipeline(IApplicationBuilder app)
         => app.UseOutputCache();
 }

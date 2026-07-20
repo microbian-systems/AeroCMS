@@ -1,9 +1,9 @@
 namespace Aero.Cms.Core.Content.Search;
 
 /// <summary>
-/// Represents a content item in the search index, containing extracted field tokens
-/// for full-text and faceted search.
+/// Mutable storage shape containing content metadata and extracted search tokens.
 /// </summary>
+/// <remarks>This type does not perform querying, ranking, or permission filtering.</remarks>
 public sealed class ContentSearchDocument
 {
     /// <summary>Document ID in the format "content:{siteId}:{contentItemId}".</summary>
@@ -30,6 +30,6 @@ public sealed class ContentSearchDocument
     /// <summary>Concatenated tokens from all indexed fields, for full-text search.</summary>
     public string FullText { get; set; } = string.Empty;
 
-    /// <summary>Per-field tokens for faceted search.</summary>
+    /// <summary>Per-field tokens keyed by content field name.</summary>
     public Dictionary<string, List<string>> FieldTokens { get; set; } = [];
 }

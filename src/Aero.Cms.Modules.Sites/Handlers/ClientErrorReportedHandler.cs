@@ -6,21 +6,22 @@ using Wolverine.Attributes;
 namespace Aero.Cms.Modules.Sites.Handlers;
 
 /// <summary>
-/// Handles <see cref="ClientErrorReported"/> events fired when the WASM manager
-/// reports an error from the client side.
-///
-/// Logs the error details for observability. In future, this could also:
-/// - Persist errors to a database table for dashboard/reporting
-/// - Send alerts via email/Slack for high-severity errors
-/// - Increment error counters in OpenTelemetry metrics
+/// Writes manager-reported client failures to the server log.
 /// </summary>
+/// <param name="logger">The structured logger receiving client error details.</param>
+/// <remarks>
+/// HTTP-request, database, and timeout reports are logged as errors; all other error types are
+/// logged as warnings. The handler performs no persistence, retry, or notification work.
+/// </remarks>
 [WolverineHandler]
 public sealed class ClientErrorReportedHandler(ILogger<ClientErrorReportedHandler> logger)
     : IWolverineHandler
 {
-        /// <summary>
-    /// Handle method.
+    /// <summary>
+    /// Records a client-side error report at a severity derived from its error type.
     /// </summary>
+    /// <param name="message">The client-supplied error details to record.</param>
+    /// <returns>An already-completed task after the log entry is emitted.</returns>
 public Task Handle(ClientErrorReported message)
     {
         if (message.ErrorType is "HttpRequest" or "Database" or "Timeout")

@@ -96,6 +96,17 @@ Agents should read relevant docs before generating code.
 - `docs/`
 - `./.skills/create-aero-module/SKILL.md`
 
+## Custom Agents
+
+Project-specific agents are defined in `.codex/agents/*.toml`.
+
+Before answering questions about available agents or delegating work:
+
+1. Inventory the agent TOML files.
+2. Use each file's `name`, `description`, and `developer_instructions`.
+3. Select the appropriate named agent instead of treating all sub-agents as generic.
+4. Follow the `orchestrator` workflow for meaningful implementation work.
+
 ## Skills
 
 Use the module creation skill when creating a new Aero CMS module:

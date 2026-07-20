@@ -4,8 +4,12 @@ using AeroDB.Sable;
 namespace Aero.Cms.Modules.Banner;
 
 /// <summary>
-/// Represents a class for BannerModel.
+/// Persisted banner content and its display-window metadata.
 /// </summary>
+/// <remarks>
+/// The model itself does not render <see cref="Message"/>, evaluate the schedule, scope the banner to a
+/// site or culture, or implement client-side dismissal. Those decisions must be made by a consumer.
+/// </remarks>
 public class BannerModel : SableDocument, IAuditable
 {
         /// <summary>
@@ -16,21 +20,13 @@ public string? Name { get; set; }
     /// Gets or sets the Description.
     /// </summary>
 public string? Description { get; set; }
-        /// <summary>
-    /// Gets or sets the Message.
-    /// </summary>
+    /// <summary>Gets or sets the banner message. This model does not sanitize or render it.</summary>
 public string Message { get; set; }
-        /// <summary>
-    /// Gets or sets the Start Date.
-    /// </summary>
+    /// <summary>Gets or sets the optional configured start of the banner's display window.</summary>
 public DateTimeOffset? StartDate { get; set; }
-        /// <summary>
-    /// Gets or sets the End Date.
-    /// </summary>
+    /// <summary>Gets or sets the optional configured end of the banner's display window.</summary>
 public DateTimeOffset? EndDate { get; set; }
-        /// <summary>
-    /// Gets or sets the Disable Close.
-    /// </summary>
+    /// <summary>Gets or sets whether a renderer should suppress a close affordance.</summary>
     public bool DisableClose { get; set; }
 
     // IAuditable

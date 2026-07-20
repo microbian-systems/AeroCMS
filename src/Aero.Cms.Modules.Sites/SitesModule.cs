@@ -15,43 +15,60 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Represents a class for SitesModule.
+/// Registers multi-site services, authorization policies, persistence schema, and admin endpoints.
 /// </summary>
+/// <remarks>
+/// The module is ordered before other web modules so host-based site context can wrap the public
+/// pipeline. Site-resolution middleware is omitted when the module is disabled in production.
+/// </remarks>
 [Module(nameof(SitesModule))]
 public class SitesModule : AeroWebModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
+    /// <summary>
+    /// Gets the stable module name used by module discovery.
     /// </summary>
 public override string Name => nameof(SitesModule);
-        /// <summary>
-    /// Gets or sets the Version.
+
+    /// <summary>
+    /// Gets the AeroCMS version exposed for this module.
     /// </summary>
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
+
+    /// <summary>
+    /// Gets the AeroCMS author metadata.
     /// </summary>
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Order.
+
+    /// <summary>
+    /// Gets the early execution order used to establish site context.
     /// </summary>
 public override short Order => -9999;
-        /// <summary>
-    /// Gets or sets the Dependencies.
+
+    /// <summary>
+    /// Gets the tenant module dependency that must be loaded first.
     /// </summary>
 public override IReadOnlyList<string> Dependencies => ["TenantModule"];
-        /// <summary>
-    /// Gets or sets the Category.
+
+    /// <summary>
+    /// Gets the module categories used by discovery and administration.
     /// </summary>
 public override IReadOnlyList<string> Category => ["multi-site", "website"];
-        /// <summary>
-    /// Gets or sets the Tags.
+
+    /// <summary>
+    /// Gets the searchable tags describing the module.
     /// </summary>
 public override IReadOnlyList<string> Tags => ["multi-site", "sites"];
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <summary>
+    /// Registers site repositories, services, authorization policies, and optional startup middleware.
     /// </summary>
+    /// <param name="services">The host service collection to mutate.</param>
+    /// <param name="config">The optional host configuration forwarded to the base module.</param>
+    /// <param name="env">The optional host environment forwarded to the base module.</param>
+    /// <remarks>
+    /// The four <c>site:*</c> policies use scoped assignment checks. When enabled, the startup filter
+    /// is inserted at index zero so site resolution wraps later filters.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
@@ -83,9 +100,15 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         }
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures site, host, and user-assignment document indexes.
     /// </summary>
+    /// <param name="opts">The AeroDB store options whose schema registrations are mutated.</param>
+    /// <remarks>
+    /// Site documents use optimistic concurrency. Host names are globally unique, while host-site
+    /// and assignment user/site fields receive query indexes. A tenant foreign key is intentionally
+    /// not configured.
+    /// </remarks>
 public void Configure(StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
@@ -113,17 +136,21 @@ public void Configure(StoreOptions opts)
         // the standard entity indexes (CreatedBy, ModifiedBy, CreatedOn, ModifiedOn).
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Applies the same schema configuration when invoked through the service-aware hook.
     /// </summary>
+    /// <param name="services">The service provider supplied by the host; it is not consumed.</param>
+    /// <param name="opts">The AeroDB store options to configure.</param>
 public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps the sites and client-error admin endpoints.
     /// </summary>
+    /// <param name="endpoints">The route builder receiving the endpoint groups.</param>
+    /// <returns>An already-completed task after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapSitesApi();

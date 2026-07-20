@@ -3,17 +3,23 @@ using AeroDB.Sable;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// One-time migration to populate hierarchy fields (Path, Depth, Order, Deleted)
-/// on existing PageDocument records. Run during module startup if needed.
+/// Backfills materialized hierarchy fields on page documents that predate the
+/// hierarchy model.
 /// </summary>
+/// <remarks>
+/// Migration writes are performed through one Sable session. If any page already
+/// has non-default hierarchy data, <see cref="MigrateAsync"/> skips the entire set.
+/// </remarks>
 public sealed class PageHierarchyMigration
 {
     private readonly IDocumentStore _store;
     private readonly ILogger<PageHierarchyMigration> _logger;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="PageHierarchyMigration"/> class.
     /// </summary>
+    /// <param name="store">The Sable document store used to inspect page documents.</param>
+    /// <param name="logger">The migration logger.</param>
 public PageHierarchyMigration(IDocumentStore store, ILogger<PageHierarchyMigration> logger)
     {
         _store = store;
@@ -21,8 +27,19 @@ public PageHierarchyMigration(IDocumentStore store, ILogger<PageHierarchyMigrati
     }
 
     /// <summary>
-    /// Returns true if migration is needed (any page has default Path).
+    /// Checks whether the hierarchy marker query completes without finding a root page
+    /// whose path is <c>/</c>.
     /// </summary>
+    /// <param name="ct">The token used while querying the document store.</param>
+    /// <returns>
+    /// <see langword="true"/> when no root page with the default path is found;
+    /// otherwise <see langword="false"/>. Store failures are logged and also return
+    /// <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// The return value reflects the current implementation, which is the inverse of
+    /// the method name: a matching default-path page produces <see langword="false"/>.
+    /// </remarks>
     public async Task<bool> IsMigrationNeededAsync(CancellationToken ct = default)
     {
         try
@@ -45,6 +62,12 @@ public PageHierarchyMigration(IDocumentStore store, ILogger<PageHierarchyMigrati
     /// Migrates all pages: sets Path, Depth, Order=0, and ensures Deleted=false.
     /// Pages are processed in dependency order (roots first, then by depth).
     /// </summary>
+    /// <param name="ct">The token used for the query and final save.</param>
+    /// <returns>A task that completes after the backfill is persisted or skipped.</returns>
+    /// <remarks>
+    /// Rooted trees are traversed recursively. Pages whose parent cannot be found are
+    /// subsequently treated as roots. Cancellation and store failures propagate.
+    /// </remarks>
     public async Task MigrateAsync(CancellationToken ct = default)
     {
         _logger.LogInformation("Starting page hierarchy migration...");

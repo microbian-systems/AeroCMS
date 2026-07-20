@@ -4,33 +4,21 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Forum;
 
 /// <summary>
-/// reddit style forum module for async discussions
+/// Identifies the forum module for asynchronous, threaded discussions.
 /// </summary>
 [Module(nameof(AeroForumModule))]
 public class AeroForumModule : AeroModuleBase
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name { get; } = nameof(AeroForumModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version { get; } = AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author { get; } = AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies { get; } = [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category { get; } = [];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags { get; } = [];
 }

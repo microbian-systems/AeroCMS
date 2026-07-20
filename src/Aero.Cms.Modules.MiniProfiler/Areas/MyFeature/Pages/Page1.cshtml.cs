@@ -2,15 +2,18 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.MiniProfiler.Areas.MyFeature.Pages
 {
-        /// <summary>
-    /// Represents a class for Page1Model.
+    /// <summary>
+    /// Provides the empty page model for the module's placeholder <c>Page1</c> Razor Page.
     /// </summary>
-public class Page1Model : PageModel
+    /// <remarks>
+    /// This page is unrelated to MiniProfiler result authorization or UI exposure and prepares no diagnostic data.
+    /// </remarks>
+    public class Page1Model : PageModel
     {
-                /// <summary>
-        /// OnGet method.
+        /// <summary>
+        /// Handles a GET request without performing work or modifying the response.
         /// </summary>
-public void OnGet()
+        public void OnGet()
         {
 
         }

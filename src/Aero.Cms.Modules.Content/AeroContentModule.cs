@@ -19,52 +19,45 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Content;
 
 /// <summary>
-/// Represents a class for ContentModule.
+/// Registers runtime-defined content schemas, items, rendering, caching, actors, and HTTP endpoints.
 /// </summary>
 [Module(nameof(ContentModule))]
 public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+        /// <inheritdoc />
 public override string Name => nameof(ContentModule);
 
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+        /// <inheritdoc />
 public override string Version => AeroConstants.Version;
 
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+        /// <inheritdoc />
 public override string Author => AeroConstants.Author;
 
-        /// <summary>
-    /// Gets or sets the Description.
-    /// </summary>
+        /// <inheritdoc />
 public override string Description => "Runtime-defined content types with Scriban-based rendering. " +
         "Managers define content type schemas (fields, validation, templates) at runtime. " +
         "Content items are stored as field bags (Dictionary<string, JsonElement>) and rendered " +
         "directly through the secure Scriban pipeline.";
 
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [nameof(CacheModule)];
 
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["content", "infrastructure"];
 
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["content", "content-types", "cms", "structured-data"];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Registers the content system, cache decorators, public renderer, Razor Page route, and grain proxies.
     /// </summary>
+    /// <param name="services">The service collection to mutate.</param>
+    /// <param name="config">Module configuration; not used directly.</param>
+    /// <param name="env">The host environment; not used directly.</param>
+    /// <remarks>
+    /// Existing <see cref="IContentTypeService"/> and <see cref="IContentService"/> registrations are
+    /// replaced by scoped cache decorators. Both actor contracts resolve fixed Orleans grain keys.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Register the entire content type system via the extension method
@@ -92,8 +85,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     }
 
         /// <summary>
-    /// Configure method.
+    /// Registers the built-in field-editor implementations with the module composition builder.
     /// </summary>
+    /// <param name="builder">The builder that records editors and their scoped registrations.</param>
 public override void Configure(IAeroModuleBuilder builder)
     {
         // Register the content types and field editors through the builder
@@ -106,8 +100,13 @@ public override void Configure(IAeroModuleBuilder builder)
     }
 
         /// <summary>
-    /// Configure method.
+    /// Configures content-type uniqueness and content-item/version query indexes.
     /// </summary>
+    /// <param name="opts">The document-store options whose schema is mutated.</param>
+    /// <remarks>
+    /// Content-type aliases are unique per site. Item slugs are indexed but are not declared unique
+    /// by this schema configuration.
+    /// </remarks>
 public void Configure(StoreOptions opts)
     {
         // AeroDB document configuration for the content type system
@@ -126,16 +125,20 @@ public void Configure(StoreOptions opts)
     }
 
         /// <summary>
-    /// Configure method.
+    /// Applies the content schema through the service-aware store configuration contract.
     /// </summary>
+    /// <param name="services">The service provider; not used.</param>
+    /// <param name="opts">The store options to configure.</param>
 public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
         /// <summary>
-    /// RunAsync method.
+    /// Maps the authenticated content-type and content-item administrative APIs.
     /// </summary>
+    /// <param name="builder">The endpoint route builder to mutate.</param>
+    /// <returns>A task already completed after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapContentTypesApi();

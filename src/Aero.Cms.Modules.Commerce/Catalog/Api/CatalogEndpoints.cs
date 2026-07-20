@@ -8,14 +8,26 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Commerce.Catalog.Api;
 
 /// <summary>
-/// Represents a class for CatalogEndpoints.
+/// Registers authenticated HTTP endpoints for catalog search and product mutation.
 /// </summary>
+/// <remarks>
+/// The route group requires authorization but applies no role, tenant, site, or ownership policy. Product create,
+/// update, and delete routes therefore rely on hosting configuration or another layer for administrative access.
+/// </remarks>
 public static class CatalogEndpoints
 {
-        /// <summary>
-    /// MapCatalogApi method.
+    /// <summary>
+    /// Maps the <c>/api/commerce/catalog</c> route group.
     /// </summary>
-public static IEndpointRouteBuilder MapCatalogApi(this IEndpointRouteBuilder builder)
+    /// <param name="builder">The route builder to which the authenticated routes are added.</param>
+    /// <returns>The supplied <paramref name="builder"/>.</returns>
+    /// <remarks>
+    /// The product list applies optional textual, category, and inclusive price filters with caller-supplied paging.
+    /// The create and update routes run <see cref="IValidator{T}"/> validation but ignore a failure returned by the
+    /// service; delete always returns 204 after awaiting the service. These routes expose no idempotency, optimistic
+    /// concurrency, stock reservation, or currency conversion behavior.
+    /// </remarks>
+    public static IEndpointRouteBuilder MapCatalogApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/catalog")

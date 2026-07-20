@@ -6,6 +6,7 @@ namespace Aero.Cms.Modules.Modules.Services;
 /// <summary>
 /// Default implementation of the module graph service with topological sorting.
 /// </summary>
+/// <param name="logger">The logger used for graph-size diagnostics.</param>
 public sealed class ModuleGraphService(ILogger<ModuleGraphService> logger) : IModuleGraphService
 {
     /// <inheritdoc/>
@@ -149,6 +150,11 @@ public sealed class ModuleGraphService(ILogger<ModuleGraphService> logger) : IMo
         };
     }
 
+    /// <summary>
+    /// Produces a deterministic dependency-first ordering using Kahn's algorithm.
+    /// </summary>
+    /// <returns>A read-only load order sorted alphabetically whenever multiple nodes are ready.</returns>
+    /// <exception cref="ModuleDependencyException">Thrown when the supplied graph contains a cycle.</exception>
     private IReadOnlyList<ModuleDescriptor> TopologicalSort(
         IReadOnlyList<ModuleDescriptor> descriptors,
         IReadOnlyDictionary<string, ModuleDescriptor> modulesByName)
@@ -220,6 +226,11 @@ public sealed class ModuleGraphService(ILogger<ModuleGraphService> logger) : IMo
         return result.AsReadOnly();
     }
 
+    /// <summary>
+    /// Finds the first dependency cycle encountered by a depth-first traversal.
+    /// </summary>
+    /// <returns>The cycle path without repeating its first member, or <see langword="null"/>.</returns>
+    /// <remarks>Duplicate descriptor names cause dictionary construction to throw before traversal.</remarks>
     private List<string>? FindCycle(IReadOnlyList<ModuleDescriptor> descriptors)
     {
         var modulesByName = descriptors.ToDictionary(
@@ -244,6 +255,9 @@ public sealed class ModuleGraphService(ILogger<ModuleGraphService> logger) : IMo
         return null;
     }
 
+    /// <summary>
+    /// Traverses dependencies while maintaining a recursion stack and extracts a detected cycle.
+    /// </summary>
     private List<string>? FindCycleDFS(
         string moduleName,
         HashSet<string> visited,

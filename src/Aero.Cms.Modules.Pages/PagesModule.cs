@@ -21,40 +21,38 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Represents a class for PagesModule.
+/// Registers page APIs, Razor routes, hierarchy services, HTML rendering, and
+/// Sable schemas for the Pages module.
 /// </summary>
 [Module(nameof(PagesModule))]
 public sealed class PagesModule : AeroWebModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name => nameof(PagesModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => ["SitesModule"];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["content", "pages"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
 
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <summary>
+    /// Registers site-scoped page services, the singleton page actor, HTML tooling,
+    /// validation, and public/preview Razor Page conventions.
     /// </summary>
+    /// <param name="services">The application service collection.</param>
+    /// <param name="config">The host configuration; this implementation does not read it.</param>
+    /// <param name="env">The host environment; this implementation does not read it.</param>
+    /// <remarks>
+    /// The scoped content-service factory captures the current site and user name at
+    /// the HTTP boundary. Outside an authenticated HTTP request, the audit actor is
+    /// <c>system</c>.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Content service — factory resolves ISiteContext + IHttpContextAccessor
@@ -130,9 +128,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         });
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures page and slug-reservation document schemas.
     /// </summary>
+    /// <param name="opts">The mutable Sable store options.</param>
+    /// <remarks>
+    /// Page documents use optimistic concurrency and soft deletion. Slug reservations
+    /// are unique per site, culture, and normalized slug.
+    /// </remarks>
 public void Configure(StoreOptions opts)
     {
         // ── PageDocument ──────────────────────────────────────────────────
@@ -178,17 +181,13 @@ public void Configure(StoreOptions opts)
 
     }
 
-        /// <summary>
-    /// Configure method.
-    /// </summary>
+    /// <inheritdoc />
 public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-        /// <summary>
-    /// RunAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapPagesApi();

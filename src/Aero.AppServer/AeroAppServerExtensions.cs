@@ -20,7 +20,7 @@ namespace Aero.AppServer;
 // combined in one project.  Can be combined with Aero.Modular (like aero.cms uses)
 
 /// <summary>
-/// Represents a class for AeroAppServerExtensions.
+/// Provides host registration and middleware extensions for AeroCMS infrastructure.
 /// </summary>
 public static class AeroAppServerExtensions
 {
@@ -41,9 +41,16 @@ public static class AeroAppServerExtensions
     /// Optional callback to configure the Orleans silo builder for grain assembly
     /// registration. The host passes a callback that adds each module's grain
     /// assembly via <c>ISiloBuilder.ConfigureApplicationParts()</c>.
-    /// Mirrors the Wolverine callback pattern. When null, only the application
-    /// base directory is scanned for grains.
+    /// Mirrors the Wolverine callback pattern. When null, this method does not
+    /// register any additional module grain assemblies.
     /// </param>
+    /// <returns>The same builder after infrastructure registrations have been added.</returns>
+    /// <remarks>
+    /// This method resolves bootstrap secrets immediately, creates the embedded database directory
+    /// when selected, and registers local database/cache hosted services conditionally. The built-in
+    /// TickerQ dashboard currently uses hard-coded basic-auth credentials; hosts must not expose it
+    /// beyond a trusted boundary until that existing configuration is replaced.
+    /// </remarks>
     public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
         this IHostApplicationBuilder builder,
         Action<WolverineOptions>? configureWolverine = null,
@@ -140,9 +147,11 @@ public static class AeroAppServerExtensions
         return Task.FromResult(builder);
     }
 
-        /// <summary>
-    /// UseAeroApplicationServer method.
+    /// <summary>
+    /// Adds the TickerQ dashboard middleware to the application pipeline.
     /// </summary>
+    /// <param name="app">The application whose middleware pipeline is being configured.</param>
+    /// <returns>The same application instance for further pipeline configuration.</returns>
 public static WebApplication UseAeroApplicationServer(this WebApplication app)
     {
         app.UseTickerQ();

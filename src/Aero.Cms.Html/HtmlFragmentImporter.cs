@@ -16,6 +16,9 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
     private readonly IHtmlContentValidator _contentValidator;
     private readonly HtmlFragmentImportLimits _limits;
 
+    /// <summary>Creates an importer with the same catalog and policies used at save and render boundaries.</summary>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A supplied import limit is outside the supported range.</exception>
     public HtmlFragmentImporter(
         HtmlElementCatalog catalog,
         IHtmlAttributePolicy attributePolicy,
@@ -34,6 +37,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         if (_limits.MaximumNodeCount is < 1 or > 5_000) throw new ArgumentOutOfRangeException(nameof(limits), "Maximum node count must be between one and 5000.");
     }
 
+    /// <inheritdoc />
     public Result<HtmlPageContent> Import(string fragment)
     {
         ArgumentNullException.ThrowIfNull(fragment);
@@ -87,6 +91,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         }
     }
 
+    /// <summary>Converts one supported DOM node while enforcing recursive resource limits.</summary>
     private HtmlNode? ConvertNode(INode domNode, HtmlNode parent, int depth, ref int nodeCount)
     {
         if (depth > _limits.MaximumDepth)
@@ -102,6 +107,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         };
     }
 
+    /// <summary>Preserves literal text while discarding formatting whitespace where HTML semantics permit.</summary>
     private HtmlNode? ConvertText(string? text, HtmlNode parent)
     {
         if (text is null)
@@ -117,6 +123,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         return HtmlNode.CreateText(text);
     }
 
+    /// <summary>Converts a canonical HTML element only after catalog, nesting, attribute, and URL checks succeed.</summary>
     private HtmlNode ConvertElement(IElement element, HtmlNode parent, int depth, ref int nodeCount)
     {
         if (!string.Equals(element.NamespaceUri, "http://www.w3.org/1999/xhtml", StringComparison.Ordinal)
@@ -172,6 +179,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         return node;
     }
 
+    /// <summary>Detects parser recovery or reparenting by comparing source and parsed element ancestry.</summary>
     private static bool MatchesSourceShape(INodeList nodes, IReadOnlyList<HtmlFragmentSourceElement> sourceElements)
     {
         var parsedElements = new List<HtmlFragmentSourceElement>();
@@ -182,6 +190,7 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
                 && string.Equals(pair.First.ParentTagName, pair.Second.ParentTagName, StringComparison.Ordinal));
     }
 
+    /// <summary>Collects parsed elements and direct-parent tags in depth-first source order.</summary>
     private static void CollectElements(
         INodeList nodes,
         string? parentTagName,
@@ -199,11 +208,14 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
         }
     }
 
+    /// <summary>Preserves whitespace-only text only where it is semantically significant.</summary>
     private static bool AcceptsMeaningfulWhitespace(HtmlNode parent) =>
         parent.Kind is HtmlNodeKind.Element
         && parent.TagName is "pre" or "textarea";
 
+    /// <summary>Rejects parser-normalized casing so imported source remains explicit and canonical.</summary>
     private static bool IsCanonicalLowerCase(string value) => value.All(character => !char.IsUpper(character));
 
+    /// <summary>Represents an expected validation failure during strict DOM conversion.</summary>
     private sealed class HtmlFragmentImportException(string message) : Exception(message);
 }

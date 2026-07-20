@@ -9,12 +9,14 @@ namespace Aero.Cms.Web.Core.Modules;
 public interface IAeroPipelineModule : IAeroModule
 {
         /// <summary>
-    /// Gets or sets the Pipeline Order.
+    /// Gets the middleware contribution order, defaulting to zero.
     /// </summary>
 int PipelineOrder => 0;
 
         /// <summary>
-    /// ConfigurePipeline method.
+    /// Adds this module's middleware to the supplied application builder.
     /// </summary>
+    /// <param name="app">The host-owned pipeline builder.</param>
+    /// <remarks>Registration is synchronous; ordering and the insertion point are controlled by the host integration.</remarks>
 void ConfigurePipeline(IApplicationBuilder app);
 }

@@ -11,16 +11,45 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Sites;
 
+/// <summary>
+/// Updates a site's native style-profile settings with optimistic revision checks.
+/// </summary>
+/// <remarks>
+/// This contract addresses a site by identifier and does not enforce caller authorization,
+/// tenant ownership, or current-site membership.
+/// </remarks>
 public interface ISiteStyleProfileService
 {
+    /// <summary>
+    /// Normalizes and conditionally persists a replacement style profile.
+    /// </summary>
+    /// <param name="siteId">The site document identifier.</param>
+    /// <param name="request">The expected revision and proposed breakpoint and color tokens.</param>
+    /// <param name="cancellationToken">The token used by document operations.</param>
+    /// <returns>
+    /// The current or newly persisted profile, or a not-found, validation, conflict, or database failure.
+    /// </returns>
+    /// <remarks>
+    /// Semantically unchanged settings do not increment the revision or publish a change event.
+    /// A successful mutation commits the site before publishing its notification.
+    /// </remarks>
     Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateAsync(
         long siteId,
         UpdateSiteStyleProfileRequest request,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Loads and normalizes the native style profile for a site.
+/// </summary>
+/// <param name="store">The document store used to create a short-lived query session.</param>
+/// <remarks>
+/// Resolution is identifier-based and does not apply authorization or tenant/current-site checks.
+/// All exceptions, including cancellation, are returned as database failures.
+/// </remarks>
 public sealed class SiteStyleProfileResolver(IDocumentStore store) : ISiteStyleProfileResolver
 {
+    /// <inheritdoc />
     public async Task<Result<IStyleProfile, AeroError>> ResolveAsync(
         long siteId,
         CancellationToken cancellationToken = default)
@@ -56,10 +85,25 @@ public sealed class SiteStyleProfileResolver(IDocumentStore store) : ISiteStyleP
     }
 }
 
+/// <summary>
+/// Persists normalized native style settings and publishes profile-change notifications.
+/// </summary>
+/// <param name="store">The document store used to create a short-lived mutation session.</param>
+/// <param name="messageBus">The bus used to publish post-commit change notifications.</param>
+/// <remarks>
+/// Site lookup is identifier-based. Callers are responsible for authorization and site ownership.
+/// Exceptions, including cancellation, are translated to result failures.
+/// </remarks>
 public sealed class SiteStyleProfileService(
     IDocumentStore store,
     IMessageBus messageBus) : ISiteStyleProfileService
 {
+    /// <inheritdoc />
+    /// <remarks>
+    /// The request revision is compared with the normalized stored revision before proposed settings
+    /// are normalized. On change, the site commit completes before event publication; a publication
+    /// failure is therefore reported as a database failure after the updated profile is durable.
+    /// </remarks>
     public async Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateAsync(
         long siteId,
         UpdateSiteStyleProfileRequest request,
@@ -151,6 +195,11 @@ public sealed class SiteStyleProfileService(
         }
     }
 
+    /// <summary>
+    /// Detects the provider's message-based transaction-conflict signal in an exception chain.
+    /// </summary>
+    /// <param name="exception">The exception whose inner chain is inspected.</param>
+    /// <returns><see langword="true"/> when any message begins with the transaction-conflict marker.</returns>
     private static bool IsTransactionConflict(Exception exception)
     {
         for (var current = exception; current is not null; current = current.InnerException)
@@ -166,6 +215,12 @@ public sealed class SiteStyleProfileService(
         return false;
     }
 
+    /// <summary>
+    /// Compares normalized settings using exact breakpoint and ordered token equality.
+    /// </summary>
+    /// <param name="current">The currently persisted normalized settings.</param>
+    /// <param name="proposed">The proposed normalized settings.</param>
+    /// <returns><see langword="true"/> when the breakpoint and token sequence match exactly.</returns>
     private static bool SemanticallyEquals(
         StyleProfileSettings current,
         StyleProfileSettings proposed)
@@ -176,10 +231,22 @@ public sealed class SiteStyleProfileService(
                    StyleColorTokenComparer.Instance);
     }
 
+    /// <summary>
+    /// Compares normalized style tokens by ordinal name and hexadecimal value.
+    /// </summary>
     private sealed class StyleColorTokenComparer : IEqualityComparer<StyleColorToken>
     {
+        /// <summary>
+        /// Gets the stateless comparer instance used for ordered token-sequence comparisons.
+        /// </summary>
         public static StyleColorTokenComparer Instance { get; } = new();
 
+        /// <summary>
+        /// Tests two tokens for reference equality or exact ordinal value equality.
+        /// </summary>
+        /// <param name="left">The first token.</param>
+        /// <param name="right">The second token.</param>
+        /// <returns><see langword="true"/> when both tokens represent the same normalized values.</returns>
         public bool Equals(StyleColorToken? left, StyleColorToken? right)
         {
             return ReferenceEquals(left, right) ||
@@ -189,6 +256,11 @@ public sealed class SiteStyleProfileService(
                    string.Equals(left.HexValue, right.HexValue, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Computes an ordinal hash from a token's name and hexadecimal value.
+        /// </summary>
+        /// <param name="value">The non-null token to hash.</param>
+        /// <returns>A combined ordinal hash code.</returns>
         public int GetHashCode(StyleColorToken value)
         {
             return HashCode.Combine(

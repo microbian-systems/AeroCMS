@@ -8,6 +8,10 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Produces encoded static HTML from the page-content tree for public rendering.
 /// </summary>
+/// <param name="catalog">The catalog that supplies canonical tags and void-element metadata.</param>
+/// <param name="contentPolicy">The nesting policy rechecked while traversing the tree.</param>
+/// <param name="attributePolicy">The attribute and URL policy rechecked immediately before emission.</param>
+/// <param name="contentValidator">The full-tree validator applied before any output is returned.</param>
 public sealed class HtmlStaticRenderer(
     HtmlElementCatalog catalog,
     IHtmlContentModelPolicy contentPolicy,
@@ -17,11 +21,19 @@ public sealed class HtmlStaticRenderer(
     /// <summary>
     /// Renders a page-content tree when every node, nesting relationship, and attribute is valid.
     /// </summary>
+    /// <param name="content">The complete page tree to validate and render.</param>
+    /// <returns>Encoded deterministic markup, or a validation failure without partial output.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="content"/> is <see langword="null"/>.</exception>
     public Result<string> Render(HtmlPageContent content) => RenderMarkup(content, compiledStyles: null);
 
     /// <summary>
     /// Renders page markup with precompiled classes and returns its separately hosted stylesheet.
     /// </summary>
+    /// <param name="content">The complete page tree to validate and render.</param>
+    /// <param name="compiledStyles">The classes and stylesheet previously compiled for the same content/profile snapshot.</param>
+    /// <returns>Encoded markup and the supplied stylesheet metadata, or a validation failure without partial output.</returns>
+    /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+    /// <remarks>The method does not verify that <paramref name="compiledStyles"/> was produced from <paramref name="content"/>.</remarks>
     public Result<RenderedHtmlPage> RenderPage(HtmlPageContent content, CompiledPageStyles compiledStyles)
     {
         ArgumentNullException.ThrowIfNull(compiledStyles);
@@ -40,6 +52,7 @@ public sealed class HtmlStaticRenderer(
         };
     }
 
+    /// <summary>Validates the complete tree before building markup in an isolated buffer.</summary>
     private Result<string> RenderMarkup(HtmlPageContent content, CompiledPageStyles? compiledStyles)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -65,6 +78,7 @@ public sealed class HtmlStaticRenderer(
         return new Result<string>.Ok(writer.ToString());
     }
 
+    /// <summary>Emits one node recursively, encoding literal text and rechecking direct containment.</summary>
     private Result<bool> RenderNode(
         HtmlNode node,
         HtmlNode? parent,
@@ -141,6 +155,9 @@ public sealed class HtmlStaticRenderer(
         return true;
     }
 
+    /// <summary>
+    /// Revalidates and encodes attributes, then merges explicit, theme, and compiled classes deterministically.
+    /// </summary>
     private Result<bool> WriteAttributes(
         HtmlNode node,
         HtmlElementDefinition definition,

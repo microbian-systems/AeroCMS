@@ -9,30 +9,58 @@ using Wolverine;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Defines an interface for IPageTreeService.
+/// Provides site-scoped reads and mutations over the materialized page hierarchy.
 /// </summary>
 public interface IPageTreeService
 {
     /// <summary>
     /// Gets the full tree for the current site, depth-first, ordered.
     /// </summary>
+    /// <param name="ct">The token used for the store query.</param>
+    /// <returns>Pages ordered by materialized path, or a database error.</returns>
     Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetTreeAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets immediate children of a parent page.
     /// </summary>
+    /// <param name="parentId">The parent identifier, or <see langword="null"/> for roots.</param>
+    /// <param name="ct">The token used for the store query.</param>
+    /// <returns>Children ordered by sibling order and title, or a database error.</returns>
     Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(
         long? parentId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Gets all ancestors from root to the given page (breadcrumb).
     /// </summary>
+    /// <param name="pageId">The descendant page identifier.</param>
+    /// <param name="ct">The token used for store queries.</param>
+    /// <returns>
+    /// Ancestors ordered by depth, an empty list for a root, a not-found error for
+    /// pages outside the current site, or a database error.
+    /// </returns>
     Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
         long pageId, CancellationToken ct = default);
 
     /// <summary>
-    /// Moves a page under a new parent (or to root). Validates no circular reference.
+    /// Moves a page under a new parent or to root.
     /// </summary>
+    /// <param name="pageId">The page to move.</param>
+    /// <param name="newParentId">The destination parent, or <see langword="null"/> for a root.</param>
+    /// <param name="order">The new sibling order; defaults to zero.</param>
+    /// <param name="previousPathBehavior">
+    /// The disposition of previously published routes. Required when the move affects
+    /// a page that has been published.
+    /// </param>
+    /// <param name="ct">The token used through the document commit.</param>
+    /// <returns>The moved page, or a not-found, conflict, configuration, or database error.</returns>
+    /// <remarks>
+    /// The page, any destination parent, and affected descendants must belong to the current
+    /// site. A destination found among the page's descendants is rejected, but the current
+    /// implementation does not explicitly reject the page itself as <paramref name="newParentId"/>.
+    /// Page, descendant, slug-reservation, and alias writes are staged in the same session and
+    /// saved together. Alias callbacks and Wolverine notifications run after that commit and
+    /// are not made transactional by this service.
+    /// </remarks>
     Task<Result<PageDocument, AeroError>> MoveAsync(
         long pageId,
         long? newParentId,
@@ -43,6 +71,14 @@ public interface IPageTreeService
     /// <summary>
     /// Computes all historically published routes affected by a proposed slug or parent change.
     /// </summary>
+    /// <param name="pageId">The page whose route may change.</param>
+    /// <param name="newParentId">The proposed parent.</param>
+    /// <param name="slug">The proposed slug.</param>
+    /// <param name="ct">The token used for store queries.</param>
+    /// <returns>
+    /// The old and proposed paths plus affected published routes for the page and
+    /// same-culture descendants, or an error.
+    /// </returns>
     Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
         long pageId,
         long? newParentId,
@@ -55,6 +91,13 @@ public interface IPageTreeService
     /// to prevent the page from conflicting with itself.
     /// Returns the computed Path and Depth.
     /// </summary>
+    /// <param name="siteId">The site in which to resolve the parent and sibling conflict.</param>
+    /// <param name="parentId">The parent identifier; null and non-positive values select the root.</param>
+    /// <param name="slug">The slug appended without further normalization.</param>
+    /// <param name="excludePageId">An existing page to exclude from sibling checks.</param>
+    /// <param name="ct">The token used for store queries.</param>
+    /// <returns>The computed path/depth pair, or a not-found, conflict, or database error.</returns>
+    /// <remarks>Root paths are returned directly and do not perform a sibling uniqueness query.</remarks>
     Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
         long siteId, long? parentId, string slug,
         long? excludePageId = null,
@@ -63,19 +106,36 @@ public interface IPageTreeService
     /// <summary>
     /// Gets the next available Order value for siblings (max + 1).
     /// </summary>
+    /// <param name="siteId">The site scope.</param>
+    /// <param name="parentId">The parent scope, or <see langword="null"/> for roots.</param>
+    /// <param name="ct">The token used for the store query.</param>
+    /// <returns>Zero when no siblings exist; otherwise the maximum order plus one, or a database error.</returns>
     Task<Result<int, AeroError>> GetNextSiblingOrderAsync(
         long siteId, long? parentId, CancellationToken ct = default);
 
     /// <summary>
     /// Updates the Path for a page and all its descendants after a slug or parent change.
     /// </summary>
+    /// <param name="pageId">The page used to verify site ownership and culture.</param>
+    /// <param name="oldPath">The path prefix currently held by descendants.</param>
+    /// <param name="newPath">The replacement path prefix.</param>
+    /// <param name="ct">The token used for store and reservation queries.</param>
+    /// <returns>A successful result after updates are staged, or a not-found/database error.</returns>
+    /// <remarks>
+    /// Only same-culture descendants are updated. This method stages descendant and
+    /// slug-reservation writes but does not save the session.
+    /// </remarks>
     Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
         long pageId, string oldPath, string newPath, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Represents a class for PageTreeService.
+/// Implements hierarchy operations over site-scoped Sable page documents.
 /// </summary>
+/// <remarks>
+/// Public operations catch cancellation exceptions raised inside their bodies and
+/// translate them to database-error results.
+/// </remarks>
 public sealed class PageTreeService : IPageTreeService
 {
     private readonly IDocumentSession _session;
@@ -84,9 +144,14 @@ public sealed class PageTreeService : IPageTreeService
     private readonly ILogger<PageTreeService> _logger;
     private readonly IPageRouteAliasWriter? _aliasWriter;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="PageTreeService"/> class.
     /// </summary>
+    /// <param name="session">The scoped Sable document session.</param>
+    /// <param name="siteContext">The current site scope.</param>
+    /// <param name="bus">Publishes post-commit route-change notifications.</param>
+    /// <param name="logger">The hierarchy logger.</param>
+    /// <param name="aliasWriter">The optional writer required to resolve published-route changes.</param>
 public PageTreeService(
         IDocumentSession session,
         ISiteContext siteContext,
@@ -101,9 +166,7 @@ public PageTreeService(
         _aliasWriter = aliasWriter;
     }
 
-        /// <summary>
-    /// GetTreeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetTreeAsync(CancellationToken ct = default)
     {
         try
@@ -125,9 +188,7 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetTreeAsync(C
         }
     }
 
-        /// <summary>
-    /// GetChildrenAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(
         long? parentId = null, CancellationToken ct = default)
     {
@@ -151,9 +212,7 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsy
         }
     }
 
-        /// <summary>
-    /// GetAncestorsAsync method.
-    /// </summary>
+    /// <inheritdoc />
     public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
         long pageId, CancellationToken ct = default)
     {
@@ -276,9 +335,7 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsy
         }
     }
 
-        /// <summary>
-    /// MoveAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument, AeroError>> MoveAsync(
         long pageId,
         long? newParentId,
@@ -436,9 +493,7 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
         }
     }
 
-        /// <summary>
-    /// ComputePathAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
         long siteId, long? parentId, string slug,
         long? excludePageId = null,
@@ -490,9 +545,7 @@ public async Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
         }
     }
 
-        /// <summary>
-    /// GetNextSiblingOrderAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<int, AeroError>> GetNextSiblingOrderAsync(
         long siteId, long? parentId, CancellationToken ct = default)
     {
@@ -518,9 +571,7 @@ public async Task<Result<int, AeroError>> GetNextSiblingOrderAsync(
         }
     }
 
-        /// <summary>
-    /// UpdateDescendantPathsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
         long pageId, string oldPath, string newPath, CancellationToken ct = default)
     {
@@ -588,7 +639,10 @@ public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
 }
 
 /// <summary>
-/// Raised when a page's slug or path changes. Handled by Alias + Sitemap modules via Wolverine.
+/// Notifies downstream consumers after a page's materialized path has been committed.
 /// </summary>
+/// <param name="PageId">The moved page identifier.</param>
+/// <param name="OldPath">The prior materialized path.</param>
+/// <param name="NewPath">The committed materialized path.</param>
 public sealed record PageSlugChanged(long PageId, string OldPath, string NewPath);
 

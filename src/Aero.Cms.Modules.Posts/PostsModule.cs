@@ -19,39 +19,35 @@ using ActorUpdateSeriesRequest = Aero.Cms.Abstractions.Requests.UpdateSeriesRequ
 namespace Aero.Cms.Modules.Posts;
 
 /// <summary>
-/// Represents a class for PostsModule.
+/// Integrates post persistence, actors, import services, public Razor Pages, and admin endpoints.
 /// </summary>
 [Module(nameof(PostsModule))]
 public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name => nameof(PostsModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["content", "blog"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <summary>
+    /// Registers post services, import strategies, actor proxies, validators, and public blog routes.
     /// </summary>
+    /// <param name="services">The application service collection to extend.</param>
+    /// <param name="config">The optional host configuration; this implementation does not read it.</param>
+    /// <param name="env">The optional host environment; this implementation does not read it.</param>
+    /// <remarks>
+    /// Actor interfaces resolve singleton Orleans proxies for the shared <c>0/aero</c> grain identity.
+    /// The method also adds this assembly as a Razor Pages application part and exposes both
+    /// culture-prefixed and unprefixed blog routes.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPostContentService, PostContentService>();
@@ -107,9 +103,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         });
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Defines Sable identities, lookup indexes, and per-site uniqueness constraints for post data.
     /// </summary>
+    /// <param name="opts">The mutable Sable store options.</param>
+    /// <remarks>
+    /// Post slugs are unique per site and culture. Tag, category, and series slugs are unique per
+    /// site, while taxonomy translations are unique per owner and culture.
+    /// </remarks>
 public void Configure(StoreOptions opts)
     {
         opts.Schema.For<PostDocument>().Identity(x => x.Id);
@@ -140,17 +141,21 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<SeriesTranslation>().UniqueIndex(x => new { x.SeriesId, x.Culture });
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Applies the same store configuration when invoked through the service-aware configuration hook.
     /// </summary>
+    /// <param name="services">The service provider; this implementation does not resolve services.</param>
+    /// <param name="opts">The mutable Sable store options.</param>
 public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps the category, tag, series, post, import, and preview HTTP endpoints.
     /// </summary>
+    /// <param name="builder">The endpoint route builder to extend.</param>
+    /// <returns>A completed task after all routes have been registered.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapCategoriesApi();

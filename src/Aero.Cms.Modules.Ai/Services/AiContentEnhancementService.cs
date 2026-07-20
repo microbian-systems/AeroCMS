@@ -12,8 +12,19 @@ using System.Text.Json;
 namespace Aero.Cms.Modules.Ai.Services;
 
 /// <summary>
-/// Represents a class for AiContentEnhancementService.
+/// Validates CMS field content, invokes the selected chat provider, and parses a structured enhancement.
 /// </summary>
+/// <param name="settingsProvider">Resolves the selected provider's runtime settings and credential.</param>
+/// <param name="chatClientFactory">Creates a provider-specific chat client.</param>
+/// <param name="promptBuilder">Serializes the request into the user message.</param>
+/// <param name="validator">Validates request shape and size before provider access.</param>
+/// <param name="log">Records configuration, parsing, truncation, and invocation failures.</param>
+/// <remarks>
+/// Request content is placed in a user-role prompt and can be sent to an external provider. Prompt text
+/// is not treated as sanitized or trusted. The current implementation performs a single buffered
+/// <c>GetResponseAsync</c> call even when runtime settings request streaming, returns no usage object,
+/// and does not persist usage telemetry.
+/// </remarks>
 public sealed class AiContentEnhancementService(
     IAiSettingsProvider settingsProvider,
     IAiChatClientFactory chatClientFactory,
@@ -37,9 +48,14 @@ public sealed class AiContentEnhancementService(
         keep the text conservative. No cussing. No questionable material responses.
         """;
 
-        /// <summary>
-    /// EnhanceAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// The operation applies a linked timeout clamped to 1–300 seconds. Both caller cancellation and
+    /// timeout cancellation observed during the provider call are returned as an AI timeout failure.
+    /// If settings resolution fails, the complete serialized request is written at debug level; it can
+    /// contain CMS content, metadata, and user instructions. Provider or parse failures do not persist content.
+    /// Provider output is accepted only after structured parsing, but this does not establish factuality or safety.
+    /// </remarks>
 public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default)

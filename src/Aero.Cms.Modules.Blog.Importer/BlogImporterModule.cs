@@ -4,33 +4,24 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Blog.Importer;
 
 /// <summary>
-/// Represents a class for BlogImporterModule.
+/// Describes the blog-import module to the Aero module catalog.
 /// </summary>
+/// <remarks>
+/// The module currently contributes metadata only; it does not register services or endpoints.
+/// </remarks>
 [Module(nameof(BlogImporterModule))]
 public class BlogImporterModule : AeroModuleBase
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+        /// <inheritdoc />
 public override string Name => nameof(BlogImporterModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+        /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+        /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["Content", "Migration"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["blog", "import", "rss", "content"];
 }

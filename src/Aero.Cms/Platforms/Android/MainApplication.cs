@@ -4,13 +4,13 @@ using Android.Runtime;
 namespace Aero.Cms;
 
 /// <summary>
-/// Represents a class for MainApplication.
+/// Bridges Android application startup to the shared MAUI host factory.
 /// </summary>
+/// <param name="handle">The native application handle supplied by Android.</param>
+/// <param name="ownership">The JNI handle ownership mode.</param>
 [Application]
 public class MainApplication(IntPtr handle, JniHandleOwnership ownership) : MauiApplication(handle, ownership)
 {
-        /// <summary>
-    /// CreateMauiApp method.
-    /// </summary>
+    /// <inheritdoc />
 protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

@@ -3,16 +3,19 @@ using Aero.Cms.Abstractions.Http.Clients;
 namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for the global audit feed. Queries the AeroDB event store
-/// (<c>mt_events</c>) across all streams to produce a unified activity
-/// timeline.  Per-document version history is handled separately via
-/// <c>GET /admin/pages/{id}/events</c> (see <see cref="PagesApi"/>).
+/// Maps the administrative endpoint that reads a unified feed from raw events
+/// available through the request document session.
 /// </summary>
 public static class AuditApi
 {
-        /// <summary>
-    /// MapAuditApi method.
+    /// <summary>
+    /// Maps <c>GET /api/admin/audit/</c> and names the endpoint <c>GetAuditFeed</c>.
     /// </summary>
+    /// <param name="app">The route builder that receives the audit endpoint group.</param>
+    /// <remarks>
+    /// This method applies an API tag but does not add authorization metadata. Access control
+    /// is therefore the responsibility of the surrounding route or application pipeline.
+    /// </remarks>
 public static void MapAuditApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/audit")
@@ -79,8 +82,13 @@ public static void MapAuditApi(this IEndpointRouteBuilder app)
 }
 
 /// <summary>
-/// A single item in the global audit activity feed.
+/// A projected raw-event entry returned by the audit feed.
 /// </summary>
+/// <param name="StreamKey">The event stream identifier, or <c>unknown</c> when the source value is absent.</param>
+/// <param name="EventType">The source event type name, or <c>Unknown</c> when it is absent.</param>
+/// <param name="Version">The event version within its stream.</param>
+/// <param name="Timestamp">The event timestamp converted to UTC <see cref="DateTime"/>.</param>
+/// <param name="IsArchived">Whether the source event payload type name ends with <c>Archived</c>.</param>
 public sealed record AuditFeedItem(
     string StreamKey,
     string EventType,
@@ -89,8 +97,10 @@ public sealed record AuditFeedItem(
     bool IsArchived);
 
 /// <summary>
-/// Response wrapper for the global audit feed.
+/// Response returned by the audit-feed endpoint.
 /// </summary>
+/// <param name="TotalReturned">The number of entries in <paramref name="Items"/>; this is not a total count of matching events.</param>
+/// <param name="Items">The timestamp-descending entries returned after filtering and the endpoint's limit.</param>
 public sealed record AuditFeedResult(
     int TotalReturned,
     IReadOnlyList<AuditFeedItem> Items);

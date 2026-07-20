@@ -6,8 +6,12 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Modules.Services;
 
 /// <summary>
-/// Default implementation of IModuleBuilder that stores metadata contributions.
+/// Collects module metadata contributions while adding their concrete services to dependency injection.
 /// </summary>
+/// <remarks>
+/// Permission and content-type names are unique case-insensitively. Contributor types are unique
+/// by exact <see cref="Type"/> identity. Duplicate registrations fail immediately.
+/// </remarks>
 public class AeroModuleBuilder : IAeroModuleBuilder
 {
     private readonly HashSet<string> _permissions = new(StringComparer.OrdinalIgnoreCase);
@@ -36,8 +40,11 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     public IHostEnvironment Environment { get; }
 
     /// <summary>
-    /// Creates a new ModuleBuilder instance.
+    /// Creates a module builder over the host composition objects.
     /// </summary>
+    /// <param name="services">The mutable service collection used for contributor registrations.</param>
+    /// <param name="configuration">The application configuration exposed to modules.</param>
+    /// <param name="environment">The host environment exposed to modules.</param>
     public AeroModuleBuilder(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         Services = services;

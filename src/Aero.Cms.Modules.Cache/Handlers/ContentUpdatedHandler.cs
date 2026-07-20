@@ -6,8 +6,12 @@ using Wolverine.Attributes;
 namespace Aero.Cms.Modules.Cache.Handlers;
 
 /// <summary>
-/// Represents a class for ContentUpdatedHandler.
+/// Wolverine event handler that forwards supported content-change events to cache invalidation.
 /// </summary>
+/// <remarks>
+/// Forwarded calls preserve the dispatcher cancellation token and let invalidation failures propagate. Content-type
+/// view-model events only log and deliberately perform no eviction until a coarse-tag design exists.
+/// </remarks>
 [WolverineHandler]
 public sealed class ContentUpdatedHandler(
     ICacheInvalidationService cacheInvalidationService,
@@ -15,31 +19,31 @@ public sealed class ContentUpdatedHandler(
 {
     // Lean events (existing subscribers — keep for backward compat)
         /// <summary>
-    /// Handle method.
+    /// Forwards a page content change to content invalidation.
     /// </summary>
 public Task Handle(PageContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a blog content change to content invalidation.
     /// </summary>
 public Task Handle(BlogPostContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a documentation-page content change to content invalidation.
     /// </summary>
 public Task Handle(DocsPageContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a navigation change to coarse cache invalidation.
     /// </summary>
 public Task Handle(NavigationMenuChangedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateNavigationAsync(@event, cancellationToken);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a footer change to coarse cache invalidation.
     /// </summary>
 public Task Handle(FooterChangedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateFooterAsync(@event, cancellationToken);
@@ -52,21 +56,21 @@ public Task Handle(SiteStyleProfileChangedEvent @event, CancellationToken cancel
 
     // Rich events — carry PageViewModel for zero-DB consumers
         /// <summary>
-    /// Handle method.
+    /// Forwards a rich page-create event as a current-slug content change.
     /// </summary>
 public Task Handle(PageViewModelCreated @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
             new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a rich page-update event as a current-slug content change.
     /// </summary>
 public Task Handle(PageViewModelUpdated @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
             new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 
         /// <summary>
-    /// Handle method.
+    /// Forwards a rich page-delete event as a current-slug content change.
     /// </summary>
 public Task Handle(PageViewModelDeleted @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
@@ -74,7 +78,7 @@ public Task Handle(PageViewModelDeleted @event, CancellationToken ct)
 
     // Content item events — invalidate public URL cache for the item
         /// <summary>
-    /// Handle method.
+    /// Logs and invalidates the current-slug content-item representation.
     /// </summary>
 public Task Handle(ContentItemViewModelCreated e, CancellationToken ct)
     {
@@ -84,7 +88,7 @@ public Task Handle(ContentItemViewModelCreated e, CancellationToken ct)
     }
 
         /// <summary>
-    /// Handle method.
+    /// Logs and invalidates the current-slug content-item representation.
     /// </summary>
 public Task Handle(ContentItemViewModelUpdated e, CancellationToken ct)
     {
@@ -94,7 +98,7 @@ public Task Handle(ContentItemViewModelUpdated e, CancellationToken ct)
     }
 
         /// <summary>
-    /// Handle method.
+    /// Logs and invalidates the current-slug content-item representation.
     /// </summary>
 public Task Handle(ContentItemViewModelDeleted e, CancellationToken ct)
     {
@@ -105,7 +109,7 @@ public Task Handle(ContentItemViewModelDeleted e, CancellationToken ct)
 
     // Content type events — log only (coarse invalidation needs tag design)
         /// <summary>
-    /// Handle method.
+    /// Logs the content-type creation without evicting cache entries.
     /// </summary>
 public Task Handle(ContentTypeViewModelCreated e, CancellationToken ct)
     {
@@ -115,7 +119,7 @@ public Task Handle(ContentTypeViewModelCreated e, CancellationToken ct)
     }
 
         /// <summary>
-    /// Handle method.
+    /// Logs the content-type update without evicting cache entries.
     /// </summary>
 public Task Handle(ContentTypeViewModelUpdated e, CancellationToken ct)
     {
@@ -125,7 +129,7 @@ public Task Handle(ContentTypeViewModelUpdated e, CancellationToken ct)
     }
 
         /// <summary>
-    /// Handle method.
+    /// Logs the content-type deletion without evicting cache entries.
     /// </summary>
 public Task Handle(ContentTypeViewModelDeleted e, CancellationToken ct)
     {

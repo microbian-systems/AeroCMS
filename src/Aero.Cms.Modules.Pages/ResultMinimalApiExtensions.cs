@@ -8,8 +8,14 @@ namespace Aero.Cms.Modules.Pages;
 public static class ResultMinimalApiExtensions
 {
     /// <summary>
-    /// Converts a Result to the appropriate HTTP response.
+    /// Converts a railway result into its corresponding ASP.NET Core response.
     /// </summary>
+    /// <typeparam name="T">The successful response-body type.</typeparam>
+    /// <param name="result">The result to translate.</param>
+    /// <returns>
+    /// HTTP 200 for success; otherwise an error response selected from the
+    /// <see cref="AeroError"/> case. Unknown failure and result cases map to HTTP 500.
+    /// </returns>
     public static IResult ToMinimalApiResult<T>(this Result<T, AeroError> result) => result switch
     {
         { IsSuccess: true } => Results.Ok(((Result<T, AeroError>.Ok)result).Value),

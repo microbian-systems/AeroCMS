@@ -1,149 +1,87 @@
 namespace Aero.Cms.Core;
 
 /// <summary>
-/// Represents a class for AeroConstants.
+/// Defines shared AeroCMS product and module metadata identifiers.
 /// </summary>
 public static class AeroConstants
 {
-        /// <summary>
-    /// AppName.
-    /// </summary>
+        /// <summary>The product display name.</summary>
 public const string AppName = "AeroCMS";
-        /// <summary>
-    /// Author.
-    /// </summary>
+        /// <summary>The author text used by AeroCMS module metadata.</summary>
 public const string Author = "AeroCMS Team";
-        /// <summary>
-    /// AuthorShortName.
-    /// </summary>
+        /// <summary>The abbreviated author name.</summary>
 public const string AuthorShortName = "AeroCMS";
-        /// <summary>
-    /// Copyright.
-    /// </summary>
+        /// <summary>The product copyright-year text.</summary>
 public const string Copyright = "2020 - 2026";
-        /// <summary>
-    /// ConnString.
-    /// </summary>
+        /// <summary>The conventional AeroCMS connection-string identifier.</summary>
 public const string ConnString = "aero";
-        /// <summary>
-    /// Version.
-    /// </summary>
+        /// <summary>The version string exposed by current AeroCMS modules.</summary>
 public const string Version = "0.0.5.-alpha";
 }
 
 /// <summary>
-/// Represents a class for Schemas.
+/// Defines legacy database schema and document-alias identifiers.
 /// </summary>
+/// <remarks>
+/// These names are retained for legacy adapters and do not configure the current Sable
+/// document model.
+/// </remarks>
 public static class Schemas
 {
-        /// <summary>
-    /// Database.
-    /// </summary>
+        /// <summary>The legacy AeroCMS database schema name.</summary>
 public const string Database = "aero";
-        /// <summary>
-    /// EmbeddedUser.
-    /// </summary>
+        /// <summary>The conventional legacy embedded-database user name.</summary>
 public const string EmbeddedUser = "aero";
-        /// <summary>
-    /// Represents a class for Tables.
-    /// </summary>
+        /// <summary>Defines legacy table and document aliases.</summary>
 public static class Tables
     {
-                /// <summary>
-        /// Aliases.
-        /// </summary>
+                /// <summary>The legacy alias-record identifier.</summary>
 public const string Aliases = "aliases";
-                /// <summary>
-        /// Blocks.
-        /// </summary>
+                /// <summary>The legacy block-record identifier; it is not a current page-composition API.</summary>
 public const string Blocks = "blocks";
-                /// <summary>
-        /// Categories.
-        /// </summary>
+                /// <summary>The legacy category-record identifier.</summary>
 public const string Categories = "categories";
-                /// <summary>
-        /// ContentItems.
-        /// </summary>
+                /// <summary>The legacy content-item record identifier.</summary>
 public const string ContentItems = "content_items";
-                /// <summary>
-        /// ContentItemVersions.
-        /// </summary>
+                /// <summary>The legacy content-item-version record identifier.</summary>
 public const string ContentItemVersions = "content_items_versions";
-                /// <summary>
-        /// ContentTypes.
-        /// </summary>
+                /// <summary>The legacy content-type record identifier.</summary>
 public const string ContentTypes = "content_types";
-                /// <summary>
-        /// Docs.
-        /// </summary>
+                /// <summary>The legacy documentation-record identifier.</summary>
 public const string Docs = "docs";
-                /// <summary>
-        /// Media.
-        /// </summary>
+                /// <summary>The legacy media-record identifier.</summary>
 public const string Media = "media";
-                /// <summary>
-        /// Modules.
-        /// </summary>
+                /// <summary>The legacy module-record identifier.</summary>
 public const string Modules = "modules";
-                /// <summary>
-        /// Pages.
-        /// </summary>
+                /// <summary>The legacy page-record identifier.</summary>
 public const string Pages = "pages";
-                /// <summary>
-        /// Posts.
-        /// </summary>
+                /// <summary>The legacy post-record identifier.</summary>
 public const string Posts = "posts";
-                /// <summary>
-        /// Settings.
-        /// </summary>
+                /// <summary>The legacy setting-record identifier.</summary>
 public const string Settings = "settings";
-                /// <summary>
-        /// Sites.
-        /// </summary>
+                /// <summary>The legacy site-record identifier.</summary>
 public const string Sites = "sites";
-                /// <summary>
-        /// SiteHosts.
-        /// </summary>
+                /// <summary>The legacy site-host record identifier.</summary>
 public const string SiteHosts = "hosts";
-                /// <summary>
-        /// SitePerms.
-        /// </summary>
+                /// <summary>The legacy site-permission record identifier.</summary>
 public const string SitePerms = "site_perms";
-                /// <summary>
-        /// SlugRegistry.
-        /// </summary>
+                /// <summary>The legacy slug-registry record identifier.</summary>
 public const string SlugRegistry = "slugs";
-                /// <summary>
-        /// Tags.
-        /// </summary>
+                /// <summary>The legacy tag-record identifier.</summary>
 public const string Tags = "tags";
-                /// <summary>
-        /// Tenants.
-        /// </summary>
+                /// <summary>The legacy tenant-record identifier.</summary>
 public const string Tenants = "tenants";
-                /// <summary>
-        /// Users.
-        /// </summary>
+                /// <summary>The legacy user-record identifier.</summary>
 public const string Users = "users";
-                /// <summary>
-        /// Baskets.
-        /// </summary>
+                /// <summary>The legacy commerce-basket record identifier.</summary>
 public const string Baskets = "baskets";
-                /// <summary>
-        /// Buyers.
-        /// </summary>
+                /// <summary>The legacy commerce-buyer record identifier.</summary>
 public const string Buyers = "buyers";
-                /// <summary>
-        /// Orders.
-        /// </summary>
+                /// <summary>The legacy commerce-order record identifier.</summary>
 public const string Orders = "orders";
-                /// <summary>
-        /// OrderItems.
-        /// </summary>
+                /// <summary>The legacy commerce-order-item record identifier.</summary>
 public const string OrderItems = "order_items";
-                /// <summary>
-        /// Products.
-        /// </summary>
+                /// <summary>The legacy commerce-product record identifier.</summary>
 public const string Products = "products";
     }
 

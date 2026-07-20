@@ -7,9 +7,13 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Immutable-dictionary-backed alias cache keyed by composite <see cref="SitePathKey"/>.
-/// Singleton. Lookups are O(1) with zero database or allocation overhead.
-/// Site-scoped: same old path on two different sites is stored and retrieved independently.
+/// Process-wide <see cref="IAliasRuleCache"/> implementation backed by an immutable
+/// dictionary. Each successful refresh constructs a complete replacement snapshot
+/// and publishes it atomically; readers therefore observe either the preceding
+/// snapshot or the complete replacement, never a partially populated dictionary.
+/// Failed refreshes are logged and retain the existing snapshot. Duplicate
+/// normalized keys cause snapshot construction to fail, with the existing
+/// snapshot likewise retained.
 /// </summary>
 public sealed class AliasRuleCache : IAliasRuleCache
 {
@@ -19,18 +23,14 @@ public sealed class AliasRuleCache : IAliasRuleCache
     private ImmutableDictionary<SitePathKey, AliasRuleEntry> _rules =
         ImmutableDictionary<SitePathKey, AliasRuleEntry>.Empty;
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="AliasRuleCache"/> class.
-    /// </summary>
+    /// <summary>Initializes the cache with an empty snapshot.</summary>
 public AliasRuleCache(IServiceProvider serviceProvider, ILogger<AliasRuleCache> log)
     {
         _serviceProvider = serviceProvider;
         _log = log;
     }
 
-        /// <summary>
-    /// Find method.
-    /// </summary>
+    /// <inheritdoc />
 public AliasRuleEntry? Find(long siteId, string culture, string oldPath)
     {
         var key = new SitePathKey(
@@ -41,18 +41,14 @@ public AliasRuleEntry? Find(long siteId, string culture, string oldPath)
         return entry;
     }
 
-        /// <summary>
-    /// Invalidate method.
-    /// </summary>
+    /// <inheritdoc />
 public void Invalidate()
     {
         _rules = ImmutableDictionary<SitePathKey, AliasRuleEntry>.Empty;
         _log.LogInformation("Alias rule cache invalidated");
     }
 
-        /// <summary>
-    /// RefreshAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task RefreshAsync(CancellationToken ct = default)
     {
         await _refreshGate.WaitAsync(ct);

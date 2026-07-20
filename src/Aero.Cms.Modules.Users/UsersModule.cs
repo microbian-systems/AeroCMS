@@ -7,44 +7,34 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Users;
 
 /// <summary>
-/// Aero CMS Users module - provides user and profile management functionality.
+/// Registers administrative user, site-assignment, password, avatar, and current-profile endpoints.
 /// </summary>
 [Module(nameof(UsersModule))]
 public sealed class UsersModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name => nameof(UsersModule);
 
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version => AeroConstants.Version;
 
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author => AeroConstants.Author;
 
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
 
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["admin", "users"];
 
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["admin", "users", "profile", "management"];
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps user-management and current-profile endpoint groups during module startup.
     /// </summary>
+    /// <param name="builder">The host endpoint route builder.</param>
+    /// <returns>A completed task after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapUsersApi();

@@ -3,28 +3,33 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Defines an interface for IRuntimeBootstrapInitializer.
+/// Resumes a configured bootstrap workflow after the runtime host starts.
 /// </summary>
 public interface IRuntimeBootstrapInitializer
 {
-        /// <summary>
-    /// InitializeAsync method.
+    /// <summary>
+    /// Completes pending setup work when the persisted state is configured.
     /// </summary>
+    /// <param name="cancellationToken">Cancels pending-request loading, setup completion, or cleanup.</param>
+    /// <exception cref="InvalidOperationException">Setup completion returns one or more failures.</exception>
 Task InitializeAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for RuntimeBootstrapInitializer.
+/// Executes deferred setup completion from the protected handoff payload.
 /// </summary>
+/// <remarks>
+/// Initialization is a no-op outside the configured state. A missing payload is logged and
+/// left recoverable; a failed completion is promoted to an exception and the payload is retained.
+/// Successful completion clears the payload.
+/// </remarks>
 public sealed class RuntimeBootstrapInitializer(
     ISetupInitializationService setupInitializationService,
     IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
     ISetupCompletionService setupCompletionService,
     ILogger<RuntimeBootstrapInitializer> logger) : IRuntimeBootstrapInitializer
 {
-        /// <summary>
-    /// InitializeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         var bootstrap = setupInitializationService.GetBootstrapState();

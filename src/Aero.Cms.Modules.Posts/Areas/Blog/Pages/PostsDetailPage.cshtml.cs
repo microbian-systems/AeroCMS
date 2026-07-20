@@ -14,66 +14,77 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
 /// <summary>
-/// Represents a class for PostsDetailPageModel.
+/// Loads a public culture-aware post page or an authenticated draft preview.
 /// </summary>
+/// <param name="postActor">The actor used for post, taxonomy, and author queries.</param>
+/// <param name="siteContext">The current site boundary.</param>
+/// <remarks>
+/// Public lookups return only published posts. Draft lookups require an authenticated principal,
+/// are constrained to the current site by the actor, and disable response caching.
+/// </remarks>
 [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "BlogPolicy")]
 public class PostsDetailPageModel(
     IAeroPostActor postActor,
     ISiteContext siteContext) : PageModel
 {
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets or sets the route slug for a public post request.
     /// </summary>
 [BindProperty(SupportsGet = true)]
     public string Slug { get; set; } = string.Empty;
 
-        /// <summary>
-    /// Gets or sets the Draft Id.
+    /// <summary>
+    /// Gets or sets the draft identifier supplied by the internal preview route.
     /// </summary>
 [BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-        /// <summary>
-    /// Gets or sets the Post.
+    /// <summary>
+    /// Gets the post selected for rendering after a successful request.
     /// </summary>
 public PostViewModel? Post { get; private set; }
-        /// <summary>
-    /// Gets or sets the Tag Names.
+    /// <summary>
+    /// Gets the current site's mapping of tag identifiers to display names.
     /// </summary>
 public Dictionary<long, string> TagNames { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Post Author.
+    /// <summary>
+    /// Gets the optional author summary for the selected post.
     /// </summary>
 public (string? Name, string? Bio, string? AvatarUrl)? PostAuthor { get; private set; }
-        /// <summary>
-    /// Gets or sets the Requested Culture.
+    /// <summary>
+    /// Gets the request UI culture used for lookup.
     /// </summary>
 public string RequestedCulture { get; private set; } = "en-US";
-        /// <summary>
-    /// Gets or sets the Rendered Culture.
+    /// <summary>
+    /// Gets the culture of the variant that was actually rendered.
     /// </summary>
 public string RenderedCulture { get; private set; } = "en-US";
-        /// <summary>
-    /// Gets or sets the Is Culture Fallback.
+    /// <summary>
+    /// Gets a value indicating whether the rendered variant differs from the requested culture.
     /// </summary>
 public bool IsCultureFallback { get; private set; }
-        /// <summary>
-    /// Gets or sets the Canonical Url.
+    /// <summary>
+    /// Gets the absolute culture-specific URL for the rendered variant.
     /// </summary>
 public string CanonicalUrl { get; private set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alternate Links.
+    /// <summary>
+    /// Gets the absolute alternate URLs for published culture variants.
     /// </summary>
 public IReadOnlyList<AlternatePostLink> AlternateLinks { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Culture Switcher Links.
+    /// <summary>
+    /// Gets the alternate URLs projected for the site culture switcher.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-        /// <summary>
-    /// OnGetAsync method.
+    /// <summary>
+    /// Resolves the requested post and prepares canonical, alternate, taxonomy, and author data.
     /// </summary>
+    /// <param name="cancellationToken">A token used to cancel actor calls.</param>
+    /// <returns>
+    /// The page result, <c>401</c> for an unauthenticated draft request, or <c>404</c> when no
+    /// eligible post can be resolved.
+    /// </returns>
 public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         PostViewModel? post;
@@ -127,6 +138,12 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         return Page();
     }
 
+    /// <summary>
+    /// Builds alternate links from distinct published variants in the post's translation group.
+    /// </summary>
+    /// <param name="post">The rendered post used as a fallback when the actor returns no variants.</param>
+    /// <param name="cancellationToken">A token used to cancel the actor call.</param>
+    /// <returns>Culture links plus an <c>x-default</c> link when the default-culture variant exists.</returns>
     private async Task<IReadOnlyList<AlternatePostLink>> BuildAlternateLinksAsync(PostViewModel post, CancellationToken cancellationToken)
     {
         var variants = await postActor.ListCultureVariantsAsync(post.Id, cancellationToken);
@@ -159,6 +176,11 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         return links;
     }
 
+    /// <summary>
+    /// Converts alternate links into unique culture-switcher entries and marks the active culture.
+    /// </summary>
+    /// <param name="alternateLinks">The SEO alternate links, including any <c>x-default</c> entry.</param>
+    /// <returns>Unique culture links excluding <c>x-default</c>.</returns>
     private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(IReadOnlyList<AlternatePostLink> alternateLinks)
         => alternateLinks
             .Where(link => !string.Equals(link.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase))
@@ -171,9 +193,18 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
             .Select(group => group.First())
             .ToList();
 
+    /// <summary>
+    /// Builds an absolute URL under the request scheme, host, and path base.
+    /// </summary>
+    /// <param name="culture">The culture segment to normalize into the path.</param>
+    /// <param name="slug">The optional path following the culture segment.</param>
+    /// <returns>The absolute culture-specific URL.</returns>
     private string BuildCultureUrl(string culture, string? slug)
         => UriHelper.BuildAbsolute(Request.Scheme, Request.Host, Request.PathBase, AeroCultureRoute.BuildCulturePath(culture, slug));
 
+    /// <summary>
+    /// Disables storage for draft previews or enables a five-minute public cache for published pages.
+    /// </summary>
     private void ApplyResponseCacheHeaders()
     {
         if (DraftId is not null)
@@ -187,8 +218,10 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         Response.Headers.CacheControl = "public,max-age=300";
     }
 
-        /// <summary>
-    /// Represents a record for AlternatePostLink.
+    /// <summary>
+    /// Associates an SEO language code with an absolute post URL.
     /// </summary>
+    /// <param name="Hreflang">The normalized culture code or <c>x-default</c>.</param>
+    /// <param name="Href">The absolute alternate URL.</param>
 public sealed record AlternatePostLink(string Hreflang, string Href);
 }

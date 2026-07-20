@@ -4,8 +4,12 @@ using Aero.Cms.Modules.Footer.Domain;
 namespace Aero.Cms.Modules.Footer.Serialization;
 
 /// <summary>
-/// Represents a class for FooterJsonContext.
+/// Provides source-generated System.Text.Json metadata for footer documents and snapshot types.
 /// </summary>
+/// <remarks>
+/// The generated contract uses camel-case property names, omits null values, and includes the
+/// polymorphic <see cref="IFooterComponent"/> hierarchy declared by the domain model.
+/// </remarks>
 [JsonSerializable(typeof(FooterDocument))]
 [JsonSerializable(typeof(SiteFooterSettingsDocument))]
 [JsonSerializable(typeof(FooterSnapshot))]

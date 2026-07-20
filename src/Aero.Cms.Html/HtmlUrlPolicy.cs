@@ -5,12 +5,15 @@ namespace Aero.Cms.Html;
 /// </summary>
 internal static class HtmlUrlPolicy
 {
+    /// <summary>Accepts relative, fragment, HTTP(S), email, and telephone navigation destinations.</summary>
     public static bool IsSafeNavigationUrl(string value) =>
         IsSafeUrl(value, allowFragment: true, Uri.UriSchemeMailto, "tel");
 
+    /// <summary>Accepts relative and HTTP(S) media destinations but not fragment, email, or telephone schemes.</summary>
     public static bool IsSafeMediaUrl(string value) =>
         IsSafeUrl(value, allowFragment: false);
 
+    /// <summary>Rejects control characters, backslashes, surrounding whitespace, malformed URIs, and non-allowlisted schemes.</summary>
     private static bool IsSafeUrl(string value, bool allowFragment, params string[] additionalSchemes)
     {
         if (string.IsNullOrWhiteSpace(value)

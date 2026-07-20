@@ -8,13 +8,11 @@ namespace Aero.Cms.Modules.Modules.Services;
 public interface IModuleInitializationService
 {
     /// <summary>
-    /// Discovers all available modules and persists their initial state to the database.
-    /// When <paramref name="descriptors"/> is provided, uses them directly instead of
-    /// calling legacy reflection-based discovery.
+    /// Projects an explicit descriptor catalog into built-in module state and persists it.
     /// </summary>
-    /// <param name="descriptors">Source-generated module descriptors. Pass non-null to skip discovery.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <param name="descriptors">The source-generated module descriptors to persist.</param>
+    /// <param name="ct">The token propagated to persistence.</param>
+    /// <returns>A task that completes after the backing store commits the projected states.</returns>
     Task InitializeModulesAsync(IReadOnlyList<ModuleDescriptor> descriptors, CancellationToken ct = default);
 
     /// <summary>
@@ -22,6 +20,8 @@ public interface IModuleInitializationService
     /// Use <see cref="InitializeModulesAsync(IReadOnlyList{ModuleDescriptor}, CancellationToken)"/>
     /// to persist module state from a generated catalog.
     /// </summary>
+    /// <param name="ct">A compatibility token; current implementations may ignore it.</param>
+    /// <returns>A task representing the compatibility operation.</returns>
     [Obsolete("Use InitializeModulesAsync(IReadOnlyList<ModuleDescriptor>, CancellationToken) instead.")]
     Task InitializeModulesAsync(CancellationToken ct = default);
 }

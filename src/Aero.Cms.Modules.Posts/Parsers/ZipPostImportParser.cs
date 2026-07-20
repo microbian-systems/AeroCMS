@@ -6,9 +6,12 @@ using System.Text.Json.Serialization;
 namespace Aero.Cms.Modules.Posts.Parsers;
 
 /// <summary>
-/// Parses ZIP files containing one or more <c>.json</c> blog post files.
-/// Delegates JSON parsing inline (avoids double-buffering through the JSON parser).
+/// Parses the JSON entries contained in a ZIP archive into blog post candidates.
 /// </summary>
+/// <remarks>
+/// Non-JSON entries are ignored. Entries whose normalized archive path contains <c>..</c> are
+/// skipped, and invalid JSON is accumulated per entry so valid siblings can still be returned.
+/// </remarks>
 public sealed class ZipPostImportParser : IPostImportParser
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -17,10 +20,16 @@ public sealed class ZipPostImportParser : IPostImportParser
     };
 
     /// <inheritdoc />
+    /// <remarks>Matching is case-insensitive and recognizes the <c>.zip</c> suffix.</remarks>
     public bool Supports(string fileName) =>
         fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The archive owns and closes the supplied stream. A failure is returned only when the archive
+    /// is invalid or no posts were parsed and at least one entry error was recorded; entry errors are
+    /// otherwise omitted from the successful result.
+    /// </remarks>
     public async Task<Result<List<ImportablePost>, AeroError>> ParseAsync(
         Stream fileStream, string fileName, CancellationToken ct = default)
     {
@@ -92,6 +101,11 @@ public sealed class ZipPostImportParser : IPostImportParser
         }
     }
 
+    /// <summary>
+    /// Converts one archive entry to the parser-neutral import model.
+    /// </summary>
+    /// <param name="entry">The deserialized JSON entry.</param>
+    /// <returns>A candidate whose missing strings and tag list are normalized to empty values.</returns>
     private static ImportablePost Map(ImportEntry entry) => new()
     {
         Title = entry.Title ?? string.Empty,
@@ -102,6 +116,11 @@ public sealed class ZipPostImportParser : IPostImportParser
         Tags = entry.Tags ?? []
     };
 
+    /// <summary>
+    /// Applies the ZIP importer's limited ASCII punctuation replacement to a title.
+    /// </summary>
+    /// <param name="title">The optional source title.</param>
+    /// <returns>A lowercase slug, or <c>untitled</c> when no title is available.</returns>
     private static string GenerateSlug(string? title)
     {
         if (string.IsNullOrWhiteSpace(title)) return "untitled";
@@ -112,6 +131,11 @@ public sealed class ZipPostImportParser : IPostImportParser
             .Replace("--", "-").Trim('-');
     }
 
+    /// <summary>
+    /// Parses either a date-only value or an invariant ISO-compatible timestamp.
+    /// </summary>
+    /// <param name="dateStr">The optional date text.</param>
+    /// <returns>The parsed value with universal time assumed, or <see langword="null"/> when parsing fails.</returns>
     private static DateTimeOffset? TryParseDate(string? dateStr)
     {
         if (string.IsNullOrWhiteSpace(dateStr)) return null;
@@ -129,34 +153,37 @@ public sealed class ZipPostImportParser : IPostImportParser
         return null;
     }
 
+    /// <summary>
+    /// Models the JSON properties understood for each archive entry.
+    /// </summary>
     private sealed record ImportEntry
     {
-                /// <summary>
-        /// Gets or sets the Id.
+        /// <summary>
+        /// Gets or sets the optional source-system identifier; it is not used as the persisted post identifier.
         /// </summary>
 [JsonPropertyName("id")] public int Id { get; set; }
-                /// <summary>
-        /// Gets or sets the Title.
+        /// <summary>
+        /// Gets or sets the source title.
         /// </summary>
 [JsonPropertyName("title")] public string? Title { get; set; }
-                /// <summary>
-        /// Gets or sets the Date.
+        /// <summary>
+        /// Gets or sets the source publication date text.
         /// </summary>
 [JsonPropertyName("date")] public string? Date { get; set; }
-                /// <summary>
-        /// Gets or sets the Slug.
+        /// <summary>
+        /// Gets or sets the optional source slug.
         /// </summary>
 [JsonPropertyName("slug")] public string? Slug { get; set; }
-                /// <summary>
-        /// Gets or sets the Cover Image.
+        /// <summary>
+        /// Gets or sets the optional source cover-image URL.
         /// </summary>
 [JsonPropertyName("coverImage")] public string? CoverImage { get; set; }
-                /// <summary>
-        /// Gets or sets the Content.
+        /// <summary>
+        /// Gets or sets the Markdown body.
         /// </summary>
 [JsonPropertyName("content")] public string? Content { get; set; }
-                /// <summary>
-        /// Gets or sets the Tags.
+        /// <summary>
+        /// Gets or sets the source tag names.
         /// </summary>
 [JsonPropertyName("tags")] public List<string>? Tags { get; set; }
     }

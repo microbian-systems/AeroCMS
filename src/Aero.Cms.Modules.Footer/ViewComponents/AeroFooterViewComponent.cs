@@ -6,8 +6,12 @@ using Microsoft.AspNetCore.Mvc.ViewComponents;
 namespace Aero.Cms.Modules.Footer.ViewComponents;
 
 /// <summary>
-/// Represents a class for AeroFooterViewComponent.
+/// Resolves and renders the published footer for the current site.
 /// </summary>
+/// <remarks>
+/// Resolution uses the request-aborted token. A resolution failure is logged and rendering continues
+/// with the snapshot currently held by the scoped <see cref="FooterContext"/>.
+/// </remarks>
 public sealed class AeroFooterViewComponent(
     ISiteContext siteContext,
     IFooterService footerService,
@@ -15,10 +19,11 @@ public sealed class AeroFooterViewComponent(
     IFooterHtmlRenderer footerRenderer,
     ILogger<AeroFooterViewComponent> logger) : ViewComponent
 {
-        /// <summary>
-    /// InvokeAsync method.
+    /// <summary>
+    /// Resolves the current site's culture-appropriate footer and returns its HTML content.
     /// </summary>
-public async Task<IViewComponentResult> InvokeAsync()
+    /// <returns>A view-component result containing the rendered footer, or empty content when no snapshot is available.</returns>
+    public async Task<IViewComponentResult> InvokeAsync()
     {
         var result = await footerContext.ResolveAsync(siteContext.SiteId, footerService, HttpContext.RequestAborted);
         if (result is Result<bool, AeroError>.Failure failure)

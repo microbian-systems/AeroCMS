@@ -8,6 +8,11 @@ namespace Aero.Cms.Modules.Content.Caching;
 /// </summary>
 internal static class ContentCacheSnapshot
 {
+    /// <summary>
+    /// Deep-copies a content item, including cloned JSON field values.
+    /// </summary>
+    /// <param name="source">The mutable source item.</param>
+    /// <returns>A detached item preserving the source dictionary comparer.</returns>
     public static ContentItem Clone(ContentItem source) =>
         new()
         {
@@ -34,6 +39,9 @@ internal static class ContentCacheSnapshot
             ModifiedBy = source.ModifiedBy
         };
 
+    /// <summary>
+    /// Deep-copies a content-type definition, its field definitions, settings, and schedule record.
+    /// </summary>
     public static ContentTypeDefinition Clone(ContentTypeDefinition source) =>
         new()
         {
@@ -57,6 +65,9 @@ internal static class ContentCacheSnapshot
             ModifiedBy = source.ModifiedBy
         };
 
+    /// <summary>
+    /// Deep-copies one field definition and its JSON settings.
+    /// </summary>
     private static ContentFieldDefinition Clone(ContentFieldDefinition source) =>
         new()
         {

@@ -21,75 +21,158 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Defines an interface for IPageContentService.
+/// Provides site-oriented page queries, draft mutations, culture forks, and deletion.
 /// </summary>
 public interface IPageContentService
 {
-        /// <summary>
-    /// LoadAsync method.
+    /// <summary>
+    /// Loads a page by identifier, using the optional site-keyed cache.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The page, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// FindBySlugAsync method.
+    /// <summary>
+    /// Finds a published page by path using the current UI culture and site-default fallback.
     /// </summary>
+    /// <param name="slug">The slug or hierarchical path, optionally culture-prefixed.</param>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The published page, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// FindBySlugAsync method.
+    /// <summary>
+    /// Finds a published page by path in a requested culture, falling back to the site's default culture.
     /// </summary>
+    /// <param name="slug">The slug or hierarchical path, optionally culture-prefixed.</param>
+    /// <param name="culture">The requested culture; null uses the current UI culture.</param>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The published page, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// LoadHomepageAsync method.
+    /// <summary>
+    /// Loads the published page whose normalized path is the root path.
     /// </summary>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The homepage, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> LoadHomepageAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// LoadBlogListingAsync method.
+    /// <summary>
+    /// Loads the published page whose normalized path is <c>/blog</c>.
     /// </summary>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The blog listing page, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetAllPagesAsync method.
+    /// <summary>
+    /// Lists current-site pages ordered by title with optional title/slug filtering.
     /// </summary>
+    /// <param name="skip">The number of matching records to skip.</param>
+    /// <param name="take">The maximum number of records to return.</param>
+    /// <param name="search">Optional case-insensitive title or slug substring.</param>
+    /// <param name="cancellationToken">The token used for cache and store access.</param>
+    /// <returns>The requested page and total matching count, or a database error.</returns>
 Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// ListCultureVariantsAsync method.
+    /// <summary>
+    /// Lists non-deleted current-site variants in a translation group.
     /// </summary>
+    /// <param name="TranslationGroupId">The translation-group identifier.</param>
+    /// <param name="cancellationToken">The token used for the store query.</param>
+    /// <returns>Variants ordered by culture, or a database error.</returns>
 Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// ForkPageForCultureAsync method.
+    /// <summary>
+    /// Creates a draft culture variant by cloning an existing page's draft.
     /// </summary>
+    /// <param name="sourcePageId">The source page identifier.</param>
+    /// <param name="targetCulture">A culture supported by the current site.</param>
+    /// <param name="targetSlug">The new variant's slug.</param>
+    /// <param name="cancellationToken">The token used for store and validation operations.</param>
+    /// <returns>The saved draft variant, or a not-found, validation, conflict, or database error.</returns>
+    /// <remarks>
+    /// A matching parent-culture variant is used when available. Hierarchy path/order
+    /// failures are ignored, leaving the fork's root defaults.
+    /// </remarks>
 Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(long sourcePageId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// SaveAsync method.
+    /// <summary>
+    /// Validates and saves draft content without publishing it.
     /// </summary>
+    /// <param name="page">The page state and draft content to save.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The persisted page, or a validation, not-found, or database error.</returns>
 Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// CreateAsync method.
+    /// <summary>
+    /// Creates a validated draft page and reserves its full route.
     /// </summary>
+    /// <param name="request">The page creation request.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The created draft page, or a validation/conflict/database error.</returns>
+    /// <remarks>
+    /// When a positive parent is supplied, hierarchy path/order results are applied
+    /// only on success; hierarchy failures do not themselves stop creation.
+    /// </remarks>
 Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// UpdateAsync method.
+    /// <summary>
+    /// Updates page metadata and optional draft content, including descendant routes when needed.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="request">The replacement metadata and optional draft payload.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The updated page, or a not-found, validation, conflict, configuration, or database error.</returns>
 Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Deletes one page and its slug reservation.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>A successful result after deletion, or a not-found/database error.</returns>
 Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Unpublishes one page or deletes it together with descendants.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="deleteDescendants">
+    /// False to unpublish only the selected page; true to delete it, its descendants,
+    /// and their slug reservations.
+    /// </param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>A successful result after persistence, or a not-found/database error.</returns>
 Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteMultipleAsync method.
+    /// <summary>
+    /// Bulk-deletes selected pages and, optionally, their descendants.
     /// </summary>
+    /// <param name="ids">The selected page identifiers.</param>
+    /// <param name="deleteDescendants">Whether to expand selections by materialized-path prefix.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The number of distinct identifiers submitted for deletion, or a database error.</returns>
 Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// DeleteTranslationGroupAsync method.
+    /// <summary>
+    /// Deletes every non-deleted current-site variant in a translation group.
     /// </summary>
+    /// <param name="translationGroupId">The translation-group identifier.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The number of variants submitted for deletion, or a database error.</returns>
 Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for AeroPageContentService.
+/// Implements current-site page operations over a scoped Sable session.
 /// </summary>
+/// <param name="session">The scoped document session.</param>
+/// <param name="bus">Publishes page notifications after successful commits.</param>
+/// <param name="siteContext">The current site scope.</param>
+/// <param name="logger">The page-content logger.</param>
+/// <param name="contentValidator">Validates the draft HTML tree.</param>
+/// <param name="styleCompiler">Validates draft style tokens by compiling them.</param>
+/// <param name="styleProfileResolver">Resolves the site's style policy.</param>
+/// <param name="actor">The audit actor, defaulting to <c>system</c>.</param>
+/// <param name="cache">The optional read cache.</param>
+/// <param name="pageTreeService">The optional hierarchy service required for route changes.</param>
+/// <param name="aliasWriter">The optional alias writer required for previously published route changes.</param>
+/// <remarks>
+/// Write commits precede Wolverine publication and alias committed callbacks; those
+/// side effects are not transactional with persistence here. This service does not
+/// evict its optional read cache after writes. Identifier-based
+/// <see cref="LoadAsync(long, CancellationToken)"/>
+/// relies on the caller/session boundary and does not independently verify that the
+/// loaded document belongs to the current site. Public methods catch
+/// <see cref="Exception"/>, including cancellation exceptions raised inside their
+/// bodies, and normally translate them to database-error results.
+/// </remarks>
 public sealed class AeroPageContentService(
     IDocumentSession session,
     IMessageBus bus,
@@ -106,9 +189,7 @@ public sealed class AeroPageContentService(
     private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
 
-        /// <summary>
-    /// LoadAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -136,21 +217,15 @@ public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, Cancellat
         }
     }
 
-        /// <summary>
-    /// LoadHomepageAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<PageDocument?, AeroError>> LoadHomepageAsync(CancellationToken cancellationToken = default)
         => FindBySlugAsync("/", cancellationToken);
 
-        /// <summary>
-    /// LoadBlogListingAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default)
         => FindBySlugAsync("blog", cancellationToken);
 
-        /// <summary>
-    /// GetAllPagesAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
     {
         try
@@ -188,15 +263,11 @@ public async Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), A
         }
     }
 
-        /// <summary>
-    /// FindBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
         => FindBySlugAsync(slug, culture: null, cancellationToken);
 
-        /// <summary>
-    /// FindBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
@@ -230,9 +301,7 @@ public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug,
         }
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(
         long TranslationGroupId,
         CancellationToken cancellationToken = default)
@@ -255,9 +324,7 @@ public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVar
         }
     }
 
-        /// <summary>
-    /// ForkPageForCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(
         long sourcePageId,
         string targetCulture,
@@ -339,9 +406,7 @@ public async Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(
         }
     }
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -454,9 +519,7 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
         }
     }
 
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -660,9 +723,7 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
         }
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -697,9 +758,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
         }
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default)
     {
         try
@@ -760,9 +819,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDesce
         }
     }
 
-        /// <summary>
-    /// DeleteMultipleAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default)
     {
         if (ids.Count == 0)
@@ -814,9 +871,7 @@ public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long
         }
     }
 
-        /// <summary>
-    /// DeleteTranslationGroupAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
     {
         try
@@ -853,9 +908,7 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
         }
     }
 
-        /// <summary>
-    /// SaveAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default)
     {
         try

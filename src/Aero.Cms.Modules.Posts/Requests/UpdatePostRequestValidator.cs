@@ -1,8 +1,11 @@
 namespace Aero.Cms.Modules.Posts.Requests;
 
+/// <summary>
+/// Validates post updates, including a positive identifier and a route-safe slug.
+/// </summary>
 internal class UpdatePostRequestValidator : AbstractValidator<UpdatePostRequest>
 {
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="UpdatePostRequestValidator"/> class.
     /// </summary>
 public UpdatePostRequestValidator()

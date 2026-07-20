@@ -14,13 +14,21 @@ using Aero.Modular;
 namespace Aero.Cms.Web.Core.Eextensions;
 
 /// <summary>
-/// Represents a class for AeroWebAppExtensions.
+/// Provides host integration for Aero CMS bootstrap, runtime services, module startup, endpoints, and middleware.
 /// </summary>
+/// <remarks>
+/// Registration methods do not automatically initialize modules, map endpoints, or add module middleware. The host
+/// must call the corresponding methods at the intended lifecycle points. This class applies no global authorization
+/// policy to endpoints contributed by modules.
+/// </remarks>
 public static class AeroWebAppExtensions
 {
     /// <summary>
     /// Adds bootstrap-safe Aero CMS services to the web application builder with default arguments.
     /// </summary>
+    /// <typeparam name="T">The configuration marker type used by Aero configuration extensions.</typeparam>
+    /// <param name="builder">The web application builder to configure.</param>
+    /// <returns>The same builder and the reloadable logger created by logging configuration.</returns>
     public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(
         this WebApplicationBuilder builder)
         where T : class => await builder.AddAeroCmsBootstrapAsync<T>([]);
@@ -28,6 +36,11 @@ public static class AeroWebAppExtensions
     /// <summary>
     /// Adds bootstrap-safe Aero CMS services to the web application builder.
     /// </summary>
+    /// <typeparam name="T">The configuration marker type used by Aero configuration extensions.</typeparam>
+    /// <param name="builder">The web application builder to configure.</param>
+    /// <param name="args">Arguments forwarded to this overload; the current implementation does not otherwise consume them.</param>
+    /// <returns>The same builder and the reloadable logger created by logging configuration.</returns>
+    /// <remarks>Configuration and logging failures propagate; this method does not register the CMS data or module runtime.</remarks>
     public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(
         this WebApplicationBuilder builder, string[] args)
         where T : class
@@ -44,8 +57,18 @@ public static class AeroWebAppExtensions
     }
 
         /// <summary>
-    /// AddAeroCmsRuntimeAsync method.
+    /// Adds Aero configuration/logging, generated module registrations, module-system services, and the Aero data layer.
     /// </summary>
+    /// <typeparam name="T">The configuration marker type used by Aero configuration extensions.</typeparam>
+    /// <param name="builder">The web application builder to configure.</param>
+    /// <param name="generatedDescriptors">Source-generated module descriptors passed to module registration.</param>
+    /// <param name="args">Optional arguments normalized to an empty array but otherwise unused by this implementation.</param>
+    /// <param name="configureResolvedInfrastructure">Optional callback invoked after base configuration and before logging/services.</param>
+    /// <returns>The same builder and configured reloadable logger.</returns>
+    /// <remarks>
+    /// This method registers services only; it does not initialize modules, map endpoints, or add middleware.
+    /// Callback, logging, module-registration, and data-layer failures propagate.
+    /// </remarks>
 public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
         this WebApplicationBuilder builder,
         IReadOnlyList<ModuleDescriptor> generatedDescriptors,
@@ -70,8 +93,15 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
     }
 
     /// <summary>
-    /// Applies database migrations and other runtime preparation.
+    /// Evaluates bootstrap state and skips runtime preparation while the application is in Setup state.
     /// </summary>
+    /// <param name="endpoints">The route builder whose service provider supplies configuration and logging.</param>
+    /// <returns>The supplied <paramref name="endpoints"/>.</returns>
+    /// <remarks>
+    /// The current Sable implementation applies no database migration or persistence operation. Setup state is read
+    /// from <c>AeroCms:Bootstrap:State</c>, with legacy completion flags used as a fallback. The created async scope is
+    /// not disposed by this method. Resolution and logging failures propagate; no cancellation token is exposed.
+    /// </remarks>
     public static async Task<IEndpointRouteBuilder> PrepareAeroAppAsync(
         this IEndpointRouteBuilder endpoints)
     {
@@ -106,6 +136,14 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
     /// <summary>
     /// Initializes module runtime services in dependency order.
     /// </summary>
+    /// <param name="endpoints">The route builder whose root provider supplies modules and configuration.</param>
+    /// <returns>The supplied <paramref name="endpoints"/> after all selected module startup tasks complete.</returns>
+    /// <remarks>
+    /// Setup state skips initialization. Otherwise the module graph load order is preferred; without a graph,
+    /// registered modules are ordered by <c>Order</c>. Execution is sequential, has no cancellation token or rollback,
+    /// and stops on the first propagated failure. The created async scope is not disposed by this method, while module
+    /// resolution itself uses the root endpoint service provider.
+    /// </remarks>
     public static async Task<IEndpointRouteBuilder> InitializeAeroAppAsync(
         this IEndpointRouteBuilder endpoints)
     {
@@ -166,6 +204,13 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
     /// <summary>
     /// Maps Aero module endpoints in dependency order.
     /// </summary>
+    /// <param name="endpoints">The route builder passed to each resolved web module.</param>
+    /// <returns>The supplied <paramref name="endpoints"/>.</returns>
+    /// <remarks>
+    /// Graph load order is preferred; fallback modules are ordered by <c>Order</c>. Each module owns its route,
+    /// serialization, authentication, and authorization metadata. Mapping is synchronous and stops on a propagated
+    /// module failure.
+    /// </remarks>
     public static IEndpointRouteBuilder MapAeroCmsEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
@@ -201,6 +246,13 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
     /// Applies middleware contributed by Aero CMS modules in explicit pipeline order.
     /// The host chooses the insertion point; modules own their middleware details.
     /// </summary>
+    /// <param name="app">The application builder to which module middleware is added.</param>
+    /// <returns>The supplied <paramref name="app"/>.</returns>
+    /// <remarks>
+    /// Pipeline modules are ordered first by <see cref="IAeroPipelineModule.PipelineOrder"/> and then module
+    /// <c>Order</c>. The graph controls discovery order when present. Configuration is synchronous and failures
+    /// propagate; this method does not add authentication, exception handling, or routing by itself.
+    /// </remarks>
     public static IApplicationBuilder UseAeroCmsModulePipeline(
         this IApplicationBuilder app)
     {

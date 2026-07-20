@@ -17,43 +17,34 @@ namespace Aero.Cms.Modules.Cache;
 // todo - rename the csproj (+ folder) to CacheBuster to invalidate cache on page updates, and add a separate CacheModule that just provides the caching services and hooks without the invalidation logic. This way users can choose to use the caching without the invalidation if they want, or implement their own invalidation logic.
 
 /// <summary>
-/// Infrastructure module for high-performance output caching using FusionCache.
-/// Owns FusionCache registration, distributed cache setup, and page caching hooks.
+/// Registers FusionCache, Redis-backed distributed cache services, cache invalidation services, and response-caching middleware.
 /// </summary>
+/// <remarks>
+/// FusionCache is configured with a five-minute default entry duration, the registered distributed cache, and a
+/// Redis backplane using the selected cache connection. These registrations alone do not prove cross-node coherence
+/// or transactional invalidation. The page hook types are registered only as concrete scoped services; this module's
+/// <see cref="Configure"/> contains no global hook-pipeline wiring, so page read/store/save hooks are inactive.
+/// </remarks>
 [Module(nameof(CacheModule))]
 public class CacheModule : AeroModuleBase, IAeroPipelineModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>Gets the module's fixed discovery name.</summary>
 public override string Name => nameof(CacheModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <summary>Gets the Aero CMS version reported by this module.</summary>
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <summary>Gets the Aero CMS author metadata reported by this module.</summary>
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <summary>Gets the required Output Cache module dependency.</summary>
 public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <summary>Gets module-discovery categories.</summary>
 public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <summary>Gets module-discovery tags.</summary>
 public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
-        /// <summary>
-    /// Gets or sets the Pipeline Order.
-    /// </summary>
+    /// <summary>Gets the module middleware-pipeline ordering value.</summary>
 public int PipelineOrder => 100;
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Registers cache services and the concrete (but inactive) page-hook types.
     /// </summary>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
@@ -115,7 +106,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     }
 
         /// <summary>
-    /// ConfigurePipeline method.
+    /// Adds response-caching middleware and prevents cache headers on manager and admin paths.
     /// </summary>
 public void ConfigurePipeline(IApplicationBuilder app)
     {
@@ -139,7 +130,7 @@ public void ConfigurePipeline(IApplicationBuilder app)
     }
 
         /// <summary>
-    /// Configure method.
+    /// Performs no page-hook registration in the global hook pipeline.
     /// </summary>
 public override void Configure(IAeroModuleBuilder builder)
     {

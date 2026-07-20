@@ -9,65 +9,74 @@ using Microsoft.AspNetCore.Http;
 namespace Aero.Cms.Modules.Navigation.Rendering;
 
 /// <summary>
-/// Defines an enumeration for NavMenuRenderMode.
+/// Selects responsive navigation markup and CSS classes.
 /// </summary>
 public enum NavMenuRenderMode
 {
+    /// <summary>Renders the desktop presentation.</summary>
     Desktop,
+    /// <summary>Renders the desktop-class presentation at tablet size.</summary>
     Tablet,
+    /// <summary>Renders the stacked mobile presentation.</summary>
     Mobile
 }
 
 /// <summary>
-/// Defines an interface for INavMenuComponentVisitor.
+/// Defines rendering operations for every supported navigation component type.
 /// </summary>
+/// <typeparam name="TResult">The covariant result produced for each component.</typeparam>
 public interface INavMenuComponentVisitor<out TResult>
 {
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits a navigation link.</summary>
+    /// <param name="link">The link component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavLink link);
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits a nested menu.</summary>
+    /// <param name="menu">The menu component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavMenu menu);
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits a search form.</summary>
+    /// <param name="search">The search component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavSearch search);
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits a trusted custom-HTML component.</summary>
+    /// <param name="html">The HTML component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavHtml html);
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits a culture selector.</summary>
+    /// <param name="language">The language component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavLanguageSelect language);
-        /// <summary>
-    /// Visit method.
-    /// </summary>
+    /// <summary>Visits an authentication action.</summary>
+    /// <param name="authButton">The authentication component.</param>
+    /// <returns>The visitor result.</returns>
 TResult Visit(NavAuthButton authButton);
 }
 
 /// <summary>
-/// Defines an interface for INavMenuHtmlRenderer.
+/// Renders supported navigation components as HTML for a responsive presentation.
 /// </summary>
 public interface INavMenuHtmlRenderer
 {
-        /// <summary>
-    /// Render method.
+    /// <summary>
+    /// Renders a component while applying its authentication visibility.
     /// </summary>
+    /// <param name="component">The component to render.</param>
+    /// <param name="mode">The responsive presentation mode.</param>
+    /// <returns>Encoded component markup, raw trusted markup for <see cref="NavHtml"/>, or empty content for unsupported or hidden components.</returns>
 IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode);
 }
 
 /// <summary>
-/// Represents a class for NavMenuHtmlRenderer.
+/// Implements HTML rendering with request-aware authentication and culture-switch links.
 /// </summary>
+/// <remarks>
+/// Labels, URLs, actions, placeholders, and targets are HTML-encoded. <see cref="NavHtml.Html"/>
+/// is intentionally emitted verbatim and must originate from a trusted, sanitized administrative boundary.
+/// </remarks>
 public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor) : INavMenuHtmlRenderer
 {
-        /// <summary>
-    /// Render method.
-    /// </summary>
+    /// <inheritdoc />
 public IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode)
     {
         var visitor = new HtmlVisitor(mode, httpContextAccessor.HttpContext);
@@ -83,13 +92,23 @@ public IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode)
         };
     }
 
+    /// <summary>
+    /// Renders components using the selected responsive mode and optional active HTTP request.
+    /// </summary>
+    /// <param name="mode">The responsive presentation mode.</param>
+    /// <param name="httpContext">The request context used for identity, site cultures, and path base.</param>
     private sealed class HtmlVisitor(NavMenuRenderMode mode, HttpContext? httpContext) : INavMenuComponentVisitor<IHtmlContent>
     {
+        /// <summary>
+        /// Gets whether the stacked mobile classes should be used.
+        /// </summary>
         private bool IsMobile => mode == NavMenuRenderMode.Mobile;
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Renders an encoded anchor and adds <c>noopener noreferrer</c> for new-tab links.
         /// </summary>
+        /// <param name="link">The link component.</param>
+        /// <returns>The anchor or empty content when hidden for the current principal.</returns>
 public IHtmlContent Visit(NavLink link)
         {
             if (!ShouldRender(link.Visibility))
@@ -110,9 +129,11 @@ public IHtmlContent Visit(NavLink link)
                 $"<a href=\"{Encode(link.Href)}\" class=\"{css}\"{target}{rel}>{Encode(link.Label)}</a>");
         }
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Renders a dropdown/group and recursively renders supported child components.
         /// </summary>
+        /// <param name="menu">The nested menu.</param>
+        /// <returns>The group markup or empty content when hidden for the current principal.</returns>
 public IHtmlContent Visit(NavMenu menu)
         {
             if (!ShouldRender(menu.Visibility))
@@ -141,9 +162,11 @@ public IHtmlContent Visit(NavMenu menu)
             return new HtmlString(builder.ToString());
         }
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Renders an encoded GET form whose query input is named <c>q</c>.
         /// </summary>
+        /// <param name="search">The search component.</param>
+        /// <returns>The form markup or empty content when hidden for the current principal.</returns>
 public IHtmlContent Visit(NavSearch search)
         {
             if (!ShouldRender(search.Visibility))
@@ -165,15 +188,23 @@ public IHtmlContent Visit(NavSearch search)
                 $"<form action=\"{Encode(search.SearchAction)}\" method=\"get\" class=\"{formCss}\"><input name=\"q\" class=\"{inputCss}\" placeholder=\"{Encode(search.Placeholder)}\" /><button type=\"submit\" class=\"{buttonCss}\">{Encode(search.ButtonLabel)}</button></form>");
         }
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Emits trusted custom markup without encoding.
         /// </summary>
+        /// <param name="html">The trusted HTML component.</param>
+        /// <returns>The raw markup or empty content when hidden for the current principal.</returns>
 public IHtmlContent Visit(NavHtml html)
             => ShouldRender(html.Visibility) ? new HtmlString(html.Html) : HtmlString.Empty;
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Renders culture-switch links for the active site's supported cultures.
         /// </summary>
+        /// <param name="language">The language selector component.</param>
+        /// <returns>The selector markup or empty content when hidden for the current principal.</returns>
+        /// <remarks>
+        /// Each link preserves the current route after removing an already-supported leading
+        /// culture segment. Without an HTTP context, the ambient UI culture is the only option.
+        /// </remarks>
 public IHtmlContent Visit(NavLanguageSelect language)
         {
             if (!ShouldRender(language.Visibility))
@@ -212,9 +243,11 @@ public IHtmlContent Visit(NavLanguageSelect language)
             return new HtmlString(builder.ToString());
         }
 
-                /// <summary>
-        /// Visit method.
+        /// <summary>
+        /// Renders an encoded authentication-action anchor using primary or secondary classes.
         /// </summary>
+        /// <param name="authButton">The authentication action.</param>
+        /// <returns>The anchor or empty content when hidden for the current principal.</returns>
 public IHtmlContent Visit(NavAuthButton authButton)
         {
             if (!ShouldRender(authButton.Visibility))
@@ -234,6 +267,11 @@ public IHtmlContent Visit(NavAuthButton authButton)
             return new HtmlString($"<a href=\"{Encode(authButton.Href)}\" class=\"{css}\">{Encode(authButton.Label)}</a>");
         }
 
+        /// <summary>
+        /// Renders a nested component to a string without double-encoding its generated markup.
+        /// </summary>
+        /// <param name="component">The child component.</param>
+        /// <returns>The generated markup, or an empty string for unsupported components.</returns>
         private string RenderToString(INavMenuComponent component)
         {
             using var writer = new StringWriter(CultureInfo.InvariantCulture);
@@ -251,9 +289,20 @@ public IHtmlContent Visit(NavAuthButton authButton)
             return writer.ToString();
         }
 
+        /// <summary>
+        /// HTML-encodes untrusted text and attribute values.
+        /// </summary>
+        /// <param name="value">The value to encode.</param>
+        /// <returns>The encoded value.</returns>
         private static string Encode(string value)
             => HtmlEncoder.Default.Encode(value);
 
+        /// <summary>
+        /// Evaluates authentication visibility against the active request principal.
+        /// </summary>
+        /// <param name="visibility">The component visibility rule.</param>
+        /// <returns>Whether the component should be included.</returns>
+        /// <remarks>A missing HTTP context is treated as anonymous.</remarks>
         private bool ShouldRender(NavAuthVisibility visibility)
         {
             var isAuthenticated = httpContext?.User?.Identity?.IsAuthenticated == true;
@@ -265,6 +314,12 @@ public IHtmlContent Visit(NavAuthButton authButton)
             };
         }
 
+        /// <summary>
+        /// Builds native-language labels and culture-prefixed links for the current route.
+        /// </summary>
+        /// <param name="currentCulture">The ambient UI culture used when site metadata is unavailable.</param>
+        /// <param name="httpContext">The request containing the site slice, path, and path base.</param>
+        /// <returns>One option per normalized supported culture.</returns>
         private static IReadOnlyList<(string Label, string Href)> BuildCultureOptions(string currentCulture, HttpContext? httpContext)
         {
             var site = httpContext?.Features.Get<IAeroSiteSlice>();
@@ -283,6 +338,12 @@ public IHtmlContent Visit(NavAuthButton authButton)
                 .ToList();
         }
 
+        /// <summary>
+        /// Canonicalizes and de-duplicates site cultures while ensuring the default is present.
+        /// </summary>
+        /// <param name="cultures">The configured supported cultures.</param>
+        /// <param name="defaultCulture">The culture inserted when absent.</param>
+        /// <returns>The normalized culture list.</returns>
         private static IReadOnlyList<string> NormalizeSupportedCultures(IEnumerable<string>? cultures, string defaultCulture)
         {
             var normalizedDefault = NormalizeCultureOrDefault(defaultCulture);
@@ -299,6 +360,12 @@ public IHtmlContent Visit(NavAuthButton authButton)
             return normalized;
         }
 
+        /// <summary>
+        /// Removes a leading route segment only when it matches a supported culture.
+        /// </summary>
+        /// <param name="path">The current request path.</param>
+        /// <param name="cultures">The normalized supported cultures.</param>
+        /// <returns>The route remainder without leading or trailing slashes.</returns>
         private static string StripLeadingCulture(string? path, IEnumerable<string> cultures)
         {
             var value = (path ?? string.Empty).Trim('/');
@@ -314,6 +381,12 @@ public IHtmlContent Visit(NavAuthButton authButton)
                 : value;
         }
 
+        /// <summary>
+        /// Creates a lower-case culture-prefixed application path.
+        /// </summary>
+        /// <param name="culture">The culture prefix.</param>
+        /// <param name="slug">The optional route remainder.</param>
+        /// <returns>A root-relative culture path.</returns>
         private static string BuildCulturePath(string culture, string? slug)
         {
             var normalizedCulture = NormalizeCultureOrDefault(culture).ToLowerInvariant();
@@ -323,6 +396,12 @@ public IHtmlContent Visit(NavAuthButton authButton)
                 : $"/{normalizedCulture}/{normalizedSlug}";
         }
 
+        /// <summary>
+        /// Canonicalizes a culture name or returns the supplied fallback.
+        /// </summary>
+        /// <param name="culture">The candidate culture.</param>
+        /// <param name="fallback">The value returned for blank or invalid input.</param>
+        /// <returns>The canonical culture name or fallback.</returns>
         private static string NormalizeCultureOrDefault(string? culture, string fallback = "en-US")
         {
             if (string.IsNullOrWhiteSpace(culture))
@@ -340,6 +419,11 @@ public IHtmlContent Visit(NavAuthButton authButton)
             }
         }
 
+        /// <summary>
+        /// Formats a culture using its native display name.
+        /// </summary>
+        /// <param name="culture">The canonical culture name.</param>
+        /// <returns>The native name, or the original value when it is invalid.</returns>
         private static string FormatCulture(string culture)
         {
             try
@@ -353,6 +437,9 @@ public IHtmlContent Visit(NavAuthButton authButton)
             }
         }
 
+        /// <summary>
+        /// Gets the decorative globe icon embedded in the culture selector.
+        /// </summary>
         private const string GlobeSvg = "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\" class=\"h-5 w-5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M2 12h20\"></path><path d=\"M12 2a15.3 15.3 0 0 1 0 20\"></path><path d=\"M12 2a15.3 15.3 0 0 0 0 20\"></path></svg>";
     }
 }

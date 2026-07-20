@@ -7,39 +7,29 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Theming;
 
 /// <summary>
-/// Represents a class for AeroThemeModule.
+/// Registers the administrative theme discovery and placeholder mutation endpoints.
 /// </summary>
 [Module(nameof(AeroThemeModule))]
 public class AeroThemeModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name { get; } = nameof(AeroThemeModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version { get; } = AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author { get; } = AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies { get; } = [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category { get; } = ["theme", "themes", "ui"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags { get; } = ["themes", "theme", "ui"];
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps theme endpoints during module startup.
     /// </summary>
+    /// <param name="builder">The host endpoint route builder.</param>
+    /// <returns>A completed task after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapThemesApi();

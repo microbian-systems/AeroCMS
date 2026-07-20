@@ -6,35 +6,71 @@ using System.Globalization;
 namespace Aero.Cms.Modules.OutputCache.Caching;
 
 /// <summary>
-/// Custom output cache policy for CMS public pages.
-///
-/// Retains the security-sensitive rules from the default output-cache policy:
-/// authenticated requests, non-GET/HEAD methods, non-success responses, and
-/// responses that set cookies are never cached.
+/// Applies Aero CMS eligibility, cache-key variation, diagnostics, and resource tags to
+/// ASP.NET Core output-cache entries.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The policy permits cache lookup and storage only for anonymous <c>GET</c> and <c>HEAD</c>
+/// requests outside <c>/manager</c>, <c>/admin</c>, and <c>/api/v1/admin</c>. A response is
+/// retained only when it has status code 200 and does not contain a <c>Set-Cookie</c> header.
+/// Resource locking remains enabled.
+/// </para>
+/// <para>
+/// Cache keys are partitioned by scheme and host, path base and path, current UI culture,
+/// and, by default, every query parameter. A named policy can replace the query-key set after
+/// this policy runs. Request cookies and arbitrary request headers are not key dimensions.
+/// Consequently, endpoints using this policy must produce output that is safe to share among
+/// anonymous requests with the same configured dimensions; this policy is not a tenant,
+/// cookie, or user-isolation boundary.
+/// </para>
+/// <para>
+/// This type configures the ASP.NET Core response-output cache. It neither reads nor writes
+/// FusionCache entries and does not perform invalidation itself. Callers invalidate entries
+/// through <see cref="IOutputCacheStore.EvictByTagAsync(string, CancellationToken)"/> using
+/// the coarse policy tags or the resource tags added after a cacheable response is produced.
+/// </para>
+/// <para>
+/// Instances contain no mutable instance state. The policy callbacks complete synchronously,
+/// ignore their cancellation token, and mutate only the supplied <see cref="OutputCacheContext"/>.
+/// </para>
+/// </remarks>
 public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 {
-        /// <summary>
-    /// DiagnosticHeaderName.
+    /// <summary>
+    /// The response-header name used to report this policy's cache decision.
     /// </summary>
-public const string DiagnosticHeaderName = "X-Aero-Output-Cache";
+    /// <remarks>
+    /// The policy writes <c>HIT</c> when a cached response is served, <c>MISS</c> after an
+    /// eligible response is produced, and <c>BYPASS</c> when request or response checks reject
+    /// caching. <c>MISS</c> describes this policy's decision and does not guarantee that another
+    /// policy or the output-cache store ultimately retained the response.
+    /// </remarks>
+    public const string DiagnosticHeaderName = "X-Aero-Output-Cache";
 
-        /// <summary>
-    /// Instance.
+    /// <summary>
+    /// Gets a reusable stateless policy instance for registrations that accept an
+    /// <see cref="IOutputCachePolicy"/> instance.
     /// </summary>
-public static readonly CmsOutputCachePolicy Instance = new();
+    /// <remarks>
+    /// <see cref="OutputCacheModule"/> registers the policy by type so ASP.NET Core creates it
+    /// through dependency injection; this field supports direct instance-based registrations.
+    /// </remarks>
+    public static readonly CmsOutputCachePolicy Instance = new();
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="CmsOutputCachePolicy"/> class.
+    /// <summary>
+    /// Initializes a stateless output-cache policy.
     /// </summary>
-public CmsOutputCachePolicy()
+    public CmsOutputCachePolicy()
     {
     }
 
-    /// <summary>
-    /// Determines whether the current request should be eligible for output caching.
-    /// Only GET/HEAD requests without authentication headers are cached.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Enables output caching and locking, evaluates request eligibility, and establishes
+    /// origin, path, query, and UI-culture variation. Ineligible requests receive the
+    /// <c>BYPASS</c> diagnostic value when the response has not started.
+    /// </remarks>
     ValueTask IOutputCachePolicy.CacheRequestAsync(
         OutputCacheContext context,
         CancellationToken cancellationToken)
@@ -68,6 +104,10 @@ public CmsOutputCachePolicy()
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Writes the <c>HIT</c> diagnostic value when the response has not started.
+    /// </remarks>
     ValueTask IOutputCachePolicy.ServeFromCacheAsync(
         OutputCacheContext context,
         CancellationToken cancellationToken)
@@ -76,15 +116,12 @@ public CmsOutputCachePolicy()
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>
-    /// Called after the response is generated. Only caches HTTP 200 responses
-    /// that do not set cookies.
-    ///
-    /// Adds fine-grained per-page cache tags when the page model stored page
-    /// context in <c>HttpContext.Items["AeroCms.PageContext"]</c>. This enables
-    /// single-page eviction via <c>EvictByTagAsync("page-id-{id}")</c> without
-    /// invalidating the entire <c>pages-list</c> tag.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Rejects non-200 responses and responses containing <c>Set-Cookie</c>. For an accepted
+    /// response, adds any resource tags represented by supported <see cref="HttpContext.Items"/>
+    /// values and writes the <c>MISS</c> diagnostic value.
+    /// </remarks>
     ValueTask IOutputCachePolicy.ServeResponseAsync(
         OutputCacheContext context,
         CancellationToken cancellationToken)
@@ -120,17 +157,30 @@ public CmsOutputCachePolicy()
     }
 
     /// <summary>
-    /// Extracts page ID and slug from HttpContext.Items and adds
-    /// <c>page-id-{id}</c>, <c>page-slug-{slug}</c>, and
-    /// <c>site-pages-{siteId}</c> tags to the OutputCache entry. These tags are then usable in
-    /// <c>IOutputCacheStore.EvictByTagAsync</c> for single-page invalidation.
-    ///
-    /// Uses separate HttpContext.Items keys to avoid reflection:
-    ///   "AeroCms.PageId"  → long (stored as boxed long)
-    ///   "AeroCms.PageSlug" → string
-    ///   "AeroCms.SiteId" → long (stored as boxed long)
-    /// Both are set by DynamicPageModel.OnGetAsync after page load.
+    /// Adds output-cache eviction tags from resource metadata stored in
+    /// <see cref="HttpContext.Items"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A positive <c>AeroCms.PageId</c> produces <c>page-id-{id}</c>. A non-empty
+    /// <c>AeroCms.PageSlug</c> produces both <c>page-slug-{slug}</c> and
+    /// <c>page-slug-{culture}-{slug}</c>, using invariant lower-case values. When either page
+    /// value is present and <c>AeroCms.SiteId</c> is a positive <see cref="long"/>,
+    /// <c>site-pages-{siteId}</c> is also added. The ID and unqualified slug tags are not
+    /// site-scoped.
+    /// </para>
+    /// <para>
+    /// When a positive site ID is accompanied by a non-blank <c>AeroCms.ContentTypeAlias</c>,
+    /// the method adds <c>content-public:{siteId}</c> and
+    /// <c>content-type:{siteId}:{typeAlias}</c>. A positive <c>AeroCms.ContentItemId</c> adds
+    /// <c>content-item:{siteId}:{itemId}</c>. Non-blank <c>AeroCms.ContentItemSlug</c> and
+    /// <c>AeroCms.ContentCulture</c> values together add
+    /// <c>content-item-slug:{siteId}:{typeAlias}:{culture}:{slug}</c>.
+    /// </para>
+    /// Missing, blank, non-positive, or differently typed item values are ignored. Tags make
+    /// entries addressable by <see cref="IOutputCacheStore.EvictByTagAsync(string, CancellationToken)"/>;
+    /// adding them does not itself evict any cache entry.
+    /// </remarks>
     private static void AddResourceTags(OutputCacheContext context)
     {
         var items = context.HttpContext.Items;
@@ -183,6 +233,9 @@ public CmsOutputCachePolicy()
         }
     }
 
+    /// <summary>
+    /// Writes a diagnostic value unless the HTTP response has already started.
+    /// </summary>
     private static void SetDiagnosticHeader(OutputCacheContext context, string value)
     {
         var response = context.HttpContext.Response;
@@ -194,6 +247,14 @@ public CmsOutputCachePolicy()
         response.Headers[DiagnosticHeaderName] = value;
     }
 
+    /// <summary>
+    /// Determines whether a request is eligible for cache lookup and storage.
+    /// </summary>
+    /// <remarks>
+    /// Eligibility requires <c>GET</c> or <c>HEAD</c>, a path outside the manager and admin
+    /// prefixes, no <c>Authorization</c> header, and no authenticated principal. Endpoint
+    /// authorization metadata and request cookies are not inspected.
+    /// </remarks>
     private static bool AttemptOutputCaching(OutputCacheContext context)
     {
         var request = context.HttpContext.Request;
@@ -219,6 +280,9 @@ public CmsOutputCachePolicy()
         return true;
     }
 
+    /// <summary>
+    /// Determines whether a path belongs to a manager or admin route prefix.
+    /// </summary>
     private static bool IsManagerOrAdminPath(PathString path)
         => path.StartsWithSegments("/manager", StringComparison.OrdinalIgnoreCase) ||
            path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) ||

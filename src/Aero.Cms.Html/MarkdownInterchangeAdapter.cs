@@ -19,6 +19,9 @@ public sealed class MarkdownInterchangeAdapter : IMarkdownInterchangeAdapter
     private readonly MarkdownTreeExporter _exporter;
     private readonly MarkdownInterchangeLimits _limits;
 
+    /// <summary>Creates an interchange adapter with bounded intermediate representations.</summary>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A supplied interchange limit is not positive.</exception>
     public MarkdownInterchangeAdapter(
         IHtmlFragmentImporter htmlImporter,
         IHtmlContentValidator contentValidator,
@@ -46,6 +49,7 @@ public sealed class MarkdownInterchangeAdapter : IMarkdownInterchangeAdapter
         }
     }
 
+    /// <inheritdoc />
     public Result<HtmlPageContent> Import(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
@@ -78,6 +82,7 @@ public sealed class MarkdownInterchangeAdapter : IMarkdownInterchangeAdapter
         }
     }
 
+    /// <inheritdoc />
     public Result<string> Export(HtmlPageContent content)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -105,6 +110,9 @@ public sealed class MarkdownInterchangeAdapter : IMarkdownInterchangeAdapter
         return exported;
     }
 
+    /// <summary>
+    /// Compares the persisted semantic tree while intentionally ignoring regenerated editor identities.
+    /// </summary>
     private static bool AreEquivalent(HtmlNode left, HtmlNode right)
     {
         if (left.Kind != right.Kind

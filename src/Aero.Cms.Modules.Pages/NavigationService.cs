@@ -7,8 +7,17 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Represents a record for NavigationNode.
+/// Describes a visible page in the flattened, depth-first navigation tree.
 /// </summary>
+/// <param name="Id">The page identifier.</param>
+/// <param name="Title">The navigation title.</param>
+/// <param name="Slug">The page slug.</param>
+/// <param name="Path">The materialized hierarchical path.</param>
+/// <param name="Depth">The zero-based hierarchy depth.</param>
+/// <param name="Order">The page's sibling order.</param>
+/// <param name="IsHidden">Whether the source page is marked hidden.</param>
+/// <param name="ParentId">The parent page identifier, or <see langword="null"/> for a root.</param>
+/// <param name="HasChildren">Whether at least one non-hidden direct child exists.</param>
 public record NavigationNode(
     long Id,
     string Title,
@@ -21,8 +30,12 @@ public record NavigationNode(
     bool HasChildren);
 
 /// <summary>
-/// Represents a record for BreadcrumbItem.
+/// Describes one page in a root-to-current-page breadcrumb.
 /// </summary>
+/// <param name="Id">The page identifier.</param>
+/// <param name="Title">The breadcrumb title.</param>
+/// <param name="Slug">The page slug.</param>
+/// <param name="Path">The materialized hierarchical path.</param>
 public record BreadcrumbItem(
     long Id,
     string Title,
@@ -30,15 +43,18 @@ public record BreadcrumbItem(
     string Path);
 
 /// <summary>
-/// Defines an interface for INavigationService.
+/// Provides site-scoped navigation reads and hidden-state mutations.
 /// </summary>
 public interface INavigationService
 {
     /// <summary>
     /// Gets the full navigation tree for the current site.
     /// Hidden nodes are excluded and their descendants are also hidden (cascading).
-    /// Results are cached via FusionCache for 5 minutes when available.
+    /// When FusionCache is available, the complete result, including an error result,
+    /// is cached under the current site key using the cache's configured defaults.
     /// </summary>
+    /// <param name="ct">The token used when a store query is required.</param>
+    /// <returns>The visible flattened navigation tree or a database error.</returns>
     Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
         CancellationToken ct = default);
 
@@ -46,6 +62,12 @@ public interface INavigationService
     /// Gets breadcrumb trail from root to the given page.
     /// Uses a single query against the materialized path.
     /// </summary>
+    /// <param name="pageId">The current page identifier.</param>
+    /// <param name="ct">The token used for store queries.</param>
+    /// <returns>
+    /// The ordered root-to-page breadcrumb, a not-found error for a page outside the
+    /// current site, or a database error.
+    /// </returns>
     Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
         long pageId, CancellationToken ct = default);
 
@@ -53,6 +75,15 @@ public interface INavigationService
     /// Toggles the hidden state of a page. When hiding a parent, all descendants are also hidden.
     /// Evicts the navigation tree cache on success.
     /// </summary>
+    /// <param name="pageId">The page identifier.</param>
+    /// <param name="isHidden">Whether the page should be hidden.</param>
+    /// <param name="ct">The token used for persistence and any descendant cascade.</param>
+    /// <returns>A successful result after persistence, or a not-found/database error.</returns>
+    /// <remarks>
+    /// The page itself is saved before a descendant cascade begins. A cascade failure
+    /// can therefore be returned after the parent state has already been committed.
+    /// Showing a parent does not unhide descendants.
+    /// </remarks>
     Task<Result<bool, AeroError>> SetHiddenAsync(
         long pageId, bool isHidden, CancellationToken ct = default);
 
@@ -61,13 +92,20 @@ public interface INavigationService
     /// Uses the compiled PagesByPathPrefixQuery for efficient materialized-path prefix matching.
     /// Evicts the navigation tree cache on success.
     /// </summary>
+    /// <param name="parentId">The parent page identifier.</param>
+    /// <param name="ct">The token used for queries and persistence.</param>
+    /// <returns>A successful result after persistence, or a not-found/database error.</returns>
     Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
         long parentId, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Represents a class for NavigationService.
+/// Implements navigation operations over site-scoped Sable page documents.
 /// </summary>
+/// <remarks>
+/// Public operations catch cancellation exceptions raised inside their bodies and
+/// translate them to database-error results.
+/// </remarks>
 public sealed class NavigationService : INavigationService
 {
     private readonly IDocumentSession _session;
@@ -76,9 +114,13 @@ public sealed class NavigationService : INavigationService
     private readonly IFusionCache? _cache;
     private static readonly TimeSpan NavCacheDuration = TimeSpan.FromMinutes(5);
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="NavigationService"/> class.
     /// </summary>
+    /// <param name="session">The scoped Sable document session.</param>
+    /// <param name="siteContext">The current site scope.</param>
+    /// <param name="logger">The navigation logger.</param>
+    /// <param name="cache">The optional navigation cache.</param>
 public NavigationService(
         IDocumentSession session,
         ISiteContext siteContext,
@@ -93,9 +135,7 @@ public NavigationService(
 
     // ── Navigation Tree ───────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetNavigationTreeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
         CancellationToken ct = default)
     {
@@ -202,9 +242,7 @@ public async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigatio
 
     // ── Breadcrumb ────────────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBreadcrumbAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
         long pageId, CancellationToken ct = default)
     {
@@ -265,9 +303,7 @@ public async Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
 
     // ── Hide / Cascade ────────────────────────────────────────────────────
 
-        /// <summary>
-    /// SetHiddenAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> SetHiddenAsync(
         long pageId, bool isHidden, CancellationToken ct = default)
     {
@@ -311,9 +347,7 @@ public async Task<Result<bool, AeroError>> SetHiddenAsync(
     }
 
 
-        /// <summary>
-    /// MarkHiddenDescendantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
         long parentId, CancellationToken ct = default)
     {

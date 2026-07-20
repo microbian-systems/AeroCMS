@@ -4,12 +4,13 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Tenant;
 
 /// <summary>
-/// Represents a class for TenantValidator.
+/// Validates tenant naming, hostname, and notes length constraints.
 /// </summary>
 public class TenantValidator : AbstractValidator<TenantModel>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="TenantValidator"/> class.
+    /// <summary>
+    /// Initializes rules requiring nonblank names and hostnames of at most 256 characters,
+    /// with notes limited to 1,000 characters.
     /// </summary>
 public TenantValidator()
     {

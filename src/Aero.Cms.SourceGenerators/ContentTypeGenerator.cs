@@ -22,6 +22,12 @@ namespace Aero.Cms.SourceGenerators;
 ///   </item>
 /// </list>
 /// </summary>
+/// <remarks>
+/// The generator also injects public <c>ContentTypeAttribute</c> and
+/// <c>ContentFieldAttribute</c> definitions into each consuming compilation. Content-field
+/// annotations are not currently projected into the generated manifest; emitted definitions have
+/// empty field collections.
+/// </remarks>
 [Generator]
 public sealed class ContentTypeGenerator : IIncrementalGenerator
 {
@@ -40,9 +46,16 @@ public sealed class ContentTypeGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-        /// <summary>
-    /// Initialize method.
+    /// <summary>
+    /// Registers attribute injection, local manifest discovery, and cross-assembly JSON-context discovery.
     /// </summary>
+    /// <param name="context">The incremental generator registration context.</param>
+    /// <remarks>
+    /// AERO020 is reported as an error for case-insensitive duplicate aliases in the current
+    /// project's source. The manifest is still emitted after the diagnostic. Cross-assembly
+    /// discovery walks namespace-level types in the current compilation and all references; nested
+    /// types are not traversed.
+    /// </remarks>
 public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Emit marker attributes so they exist at compile time in any project
@@ -143,6 +156,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         });
     }
 
+    /// <summary>
+    /// Reports AERO020 for each case-insensitive alias group containing multiple local candidates.
+    /// </summary>
+    /// <param name="spc">The source-production context used to report diagnostics.</param>
+    /// <param name="types">The current project's attributed content types.</param>
     private static void ReportDuplicateAliases(SourceProductionContext spc, ImmutableArray<ContentTypeCandidate> types)
     {
         foreach (var group in types
@@ -154,6 +172,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         }
     }
 
+    /// <summary>
+    /// Reads constructor metadata from an attributed local content-type class.
+    /// </summary>
+    /// <param name="ctx">The attribute syntax context.</param>
+    /// <returns>The candidate metadata, or <see langword="null"/> when the target or attribute is unusable.</returns>
     private static ContentTypeCandidate? GetContentTypeCandidate(GeneratorAttributeSyntaxContext ctx)
     {
         if (ctx.TargetSymbol is not INamedTypeSymbol type)
@@ -171,6 +194,13 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
             type.Locations.FirstOrDefault());
     }
 
+    /// <summary>
+    /// Recursively scans namespace members for types decorated with the resolved content-type attribute.
+    /// </summary>
+    /// <param name="ns">The namespace whose direct types and child namespaces are inspected.</param>
+    /// <param name="ctAttr">The compilation-specific attribute symbol used for identity comparison.</param>
+    /// <param name="results">The destination list to append to.</param>
+    /// <remarks>Nested types declared inside other types are not inspected.</remarks>
     private static void CollectContentTypes(
         INamespaceSymbol ns,
         INamedTypeSymbol ctAttr,
@@ -200,6 +230,15 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
             CollectContentTypes(nested, ctAttr, results);
     }
 
+    /// <summary>
+    /// Renders local content-type definitions and a case-insensitive alias dictionary.
+    /// </summary>
+    /// <param name="types">The local candidates in incremental pipeline order.</param>
+    /// <returns>C# source for <c>GeneratedContentTypes.g.cs</c>.</returns>
+    /// <remarks>
+    /// Each definition includes only alias and name; its field collection is empty. Generated
+    /// property names derive from the display name and may collide even when aliases are distinct.
+    /// </remarks>
     private static string RenderContentTypesManifest(ImmutableArray<ContentTypeCandidate> types)
     {
         var sb = new StringBuilder();
@@ -243,6 +282,18 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Renders the source-generated JSON serializer context.
+    /// </summary>
+    /// <param name="types">Content types discovered across the compilation and references.</param>
+    /// <param name="hasInfrastructureTypes">
+    /// Whether <c>ContentTypeDefinition</c> was resolved; this flag gates all serializer registrations.
+    /// </param>
+    /// <returns>C# source for <c>GeneratedContentJsonContext.g.cs</c>.</returns>
+    /// <remarks>
+    /// The infrastructure check tests only <c>ContentTypeDefinition</c>, although emitted registrations
+    /// also reference <c>ContentItem</c> and <c>ContentFieldDefinition</c>.
+    /// </remarks>
     private static string RenderContentJsonContext(
         ImmutableArray<DiscoveredContentType> types,
         bool hasInfrastructureTypes)
@@ -294,6 +345,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Converts a content type name to an alphanumeric/underscore property-name prefix.
+    /// </summary>
+    /// <param name="value">The display name to sanitize.</param>
+    /// <returns>The sanitized identifier, or <c>Generated</c> for an empty value.</returns>
     private static string SanitizeIdentifier(string value)
     {
         var sb = new StringBuilder(value.Length);
@@ -302,31 +358,43 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return sb.Length == 0 ? "Generated" : sb.ToString();
     }
 
+    /// <summary>
+    /// Escapes backslashes and quotation marks for a generated C# string literal.
+    /// </summary>
+    /// <param name="value">The attribute value to escape.</param>
+    /// <returns>The escaped literal content, without surrounding quotation marks.</returns>
     private static string Escape(string value)
         => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
+    /// <summary>
+    /// Captures an attributed content type declared in the current project's source.
+    /// </summary>
     private readonly struct ContentTypeCandidate
     {
-                /// <summary>
-        /// FullyQualifiedName.
+        /// <summary>
+        /// Gets the fully qualified model type name.
         /// </summary>
 public readonly string FullyQualifiedName;
-                /// <summary>
-        /// Alias.
+        /// <summary>
+        /// Gets the declared content-type alias.
         /// </summary>
 public readonly string Alias;
-                /// <summary>
-        /// Name.
+        /// <summary>
+        /// Gets the declared display name.
         /// </summary>
 public readonly string Name;
-                /// <summary>
-        /// Location.
+        /// <summary>
+        /// Gets the model's first source location, when available.
         /// </summary>
 public readonly Location? Location;
 
-                /// <summary>
+        /// <summary>
         /// Initializes a new instance of the <see cref="ContentTypeCandidate"/> class.
         /// </summary>
+        /// <param name="fqn">The fully qualified model type name.</param>
+        /// <param name="alias">The declared content-type alias.</param>
+        /// <param name="name">The declared display name.</param>
+        /// <param name="location">The model's first source location.</param>
 public ContentTypeCandidate(string fqn, string alias, string name, Location? location)
         {
             FullyQualifiedName = fqn;
@@ -336,24 +404,30 @@ public ContentTypeCandidate(string fqn, string alias, string name, Location? loc
         }
     }
 
+    /// <summary>
+    /// Captures a namespace-level content type discovered for JSON registration.
+    /// </summary>
     private readonly struct DiscoveredContentType
     {
-                /// <summary>
-        /// FullyQualifiedName.
+        /// <summary>
+        /// Gets the fully qualified model type name.
         /// </summary>
 public readonly string FullyQualifiedName;
-                /// <summary>
-        /// Alias.
+        /// <summary>
+        /// Gets the declared alias retained with discovery metadata.
         /// </summary>
 public readonly string Alias;
-                /// <summary>
-        /// Name.
+        /// <summary>
+        /// Gets the declared display name retained with discovery metadata.
         /// </summary>
 public readonly string Name;
 
-                /// <summary>
+        /// <summary>
         /// Initializes a new instance of the <see cref="DiscoveredContentType"/> class.
         /// </summary>
+        /// <param name="fqn">The fully qualified model type name.</param>
+        /// <param name="alias">The declared content-type alias.</param>
+        /// <param name="name">The declared display name.</param>
 public DiscoveredContentType(string fqn, string alias, string name)
         {
             FullyQualifiedName = fqn;
@@ -362,20 +436,25 @@ public DiscoveredContentType(string fqn, string alias, string name)
         }
     }
 
+    /// <summary>
+    /// Carries cross-assembly discovery output and the infrastructure availability flag.
+    /// </summary>
     private readonly struct CrossAssemblyResult
     {
-                /// <summary>
-        /// Types.
+        /// <summary>
+        /// Gets the discovered namespace-level content types.
         /// </summary>
 public readonly ImmutableArray<DiscoveredContentType> Types;
-                /// <summary>
-        /// HasInfrastructureTypes.
+        /// <summary>
+        /// Gets whether <c>ContentTypeDefinition</c> exists in the compilation.
         /// </summary>
 public readonly bool HasInfrastructureTypes;
 
-                /// <summary>
+        /// <summary>
         /// Initializes a new instance of the <see cref="CrossAssemblyResult"/> class.
         /// </summary>
+        /// <param name="types">The discovered content types.</param>
+        /// <param name="hasInfrastructureTypes">Whether <c>ContentTypeDefinition</c> was resolved.</param>
 public CrossAssemblyResult(
             ImmutableArray<DiscoveredContentType> types,
             bool hasInfrastructureTypes)

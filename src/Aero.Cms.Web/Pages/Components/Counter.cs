@@ -3,17 +3,17 @@ using Hydro;
 namespace Aero.Cms.Web.Pages.Components;
 
 /// <summary>
-/// Represents a class for Counter.
+/// Demonstrates a stateful Hydro counter component.
 /// </summary>
 public partial class Counter : HydroComponent
 {
-        /// <summary>
-    /// Gets or sets the Count.
+    /// <summary>
+    /// Gets or sets the component's current count.
     /// </summary>
 public int Count { get; set; }
 
-        /// <summary>
-    /// Add method.
+    /// <summary>
+    /// Increments <see cref="Count"/> by one.
     /// </summary>
 public void Add()
     {

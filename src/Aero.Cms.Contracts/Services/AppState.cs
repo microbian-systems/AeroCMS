@@ -3,71 +3,71 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Contracts.Services;
 
 /// <summary>
-/// Singleton application state container for the Blazor manager client.
-/// Replaces the ad-hoc AdminStateContainer + ICurrentSiteAccessor + localStorage
-/// orchestration with a single unified state service.
-///
-/// Accessible via:
-///   - DI: @inject AppState AppState
-///   - Cascading parameter: [CascadingParameter] public AppState? AppState { get; set; }
-///
-/// Components that consume AppState MUST subscribe to StateChanged and
-/// call StateHasChanged, and unsubscribe in Dispose().
+/// Holds mutable in-memory state for a Blazor manager service scope.
 /// </summary>
+/// <remarks>
+/// Lifetime is determined by the host registration; server bootstrap registers this type as
+/// scoped. Consumers must not assume a process-wide singleton. Components that need reactive
+/// rendering may subscribe to <see cref="StateChanged"/> and should unsubscribe when disposed.
+/// The type does not synchronize concurrent access.
+/// </remarks>
 public sealed class AppState
 {
     private readonly ILogger<AppState> _logger;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AppState"/> class.
     /// </summary>
-public AppState(ILogger<AppState> logger)
+    /// <param name="logger">The logger used to record state transitions.</param>
+    public AppState(ILogger<AppState> logger)
     {
         _logger = logger;
     }
 
     // ── Site Context ──────────────────────────────────────────────
 
-    /// <summary>Currently selected site ID, or null if none selected.</summary>
+    /// <summary>Gets the currently selected site identifier, or <see langword="null"/> when none is selected.</summary>
     public long? CurrentSiteId { get; private set; }
 
-    /// <summary>Currently selected site name, or null if none selected.</summary>
+    /// <summary>Gets the currently selected site name, or <see langword="null"/> when none is selected.</summary>
     public string? CurrentSiteName { get; private set; }
 
-    /// <summary>Tenant ID for the currently selected site. Never zero once a site is set.</summary>
+    /// <summary>
+    /// Gets the tenant identifier supplied by <see cref="SetSite"/> or restored state; the
+    /// default value is zero.
+    /// </summary>
     public long CurrentTenantId { get; private set; }
 
     // ── User / Auth ───────────────────────────────────────────────
 
-    /// <summary>Authenticated user's ID, or null if not authenticated.</summary>
+    /// <summary>Gets the authenticated user's identifier, or <see langword="null"/> when no user is authenticated.</summary>
     public long? UserId { get; private set; }
 
-    /// <summary>Authenticated user's username.</summary>
+    /// <summary>Gets the authenticated user's username.</summary>
     public string? UserName { get; private set; }
 
-    /// <summary>Authenticated user's email address.</summary>
+    /// <summary>Gets the authenticated user's email address.</summary>
     public string? UserEmail { get; private set; }
 
-    /// <summary>Authenticated user's display name (FirstName + LastName), falls back to UserName.</summary>
+    /// <summary>Gets the display name supplied by <see cref="SetUser"/>, if any.</summary>
     public string? UserNickname { get; private set; }
 
-    /// <summary>Authenticated user's role assignments.</summary>
+    /// <summary>Gets the role values supplied by <see cref="SetUser"/>.</summary>
     public IReadOnlyList<string> Roles { get; private set; } = [];
 
-    /// <summary>True if the authenticated user has the Admin role.</summary>
+    /// <summary>Gets the administrator flag supplied by <see cref="SetUser"/>.</summary>
     public bool IsAdmin { get; private set; }
 
-    /// <summary>True if user authentication has been resolved (whether authenticated or not).</summary>
+    /// <summary>Gets a value indicating whether authentication resolution has completed, regardless of its outcome.</summary>
     public bool IsAuthResolved { get; private set; }
 
-    /// <summary>True when the user is authenticated and the session is valid.</summary>
+    /// <summary>Gets a value indicating whether a positive user identifier is currently available.</summary>
     public bool IsAuthenticated => UserId.HasValue && UserId.Value > 0;
 
     // ── Lifecycle ─────────────────────────────────────────────────
 
     /// <summary>
-    /// True after site context has been resolved (whether or not a site was found).
-    /// The manager shell layout uses this to gate the sidebar.
+    /// Gets the caller-controlled site-context readiness flag.
     /// </summary>
     public bool IsSiteContextReady { get; private set; }
 
@@ -77,11 +77,13 @@ public AppState(ILogger<AppState> logger)
     private Dictionary<string, string> _permissions = new();
 
     /// <summary>
-    /// Loads per-site permissions from claim values obtained from the
-    /// ClaimsPrincipal after auth resolves.
-    /// Claim format: "123|content|CRUD" (siteId|domain|value)
-    /// Called by ManagerShellLayout once per session.
+    /// Replaces the loaded permission map using claim values in the
+    /// <c>siteId|domain|operations</c> format, then raises <see cref="StateChanged"/>.
     /// </summary>
+    /// <param name="permissionClaimValues">
+    /// The claim values to parse. Only values containing exactly three pipe-delimited segments
+    /// are loaded; later entries replace earlier entries with the same site/domain key.
+    /// </param>
     public void LoadPermissions(IReadOnlyList<string> permissionClaimValues)
     {
         _permissions.Clear();
@@ -97,45 +99,63 @@ public AppState(ILogger<AppState> logger)
     }
 
     /// <summary>
-    /// Checks if the current user has the specified operation on the given domain
-    /// for the CURRENTLY SELECTED SITE (CurrentSiteId).
+    /// Determines whether the current user has an operation permission for a domain on the selected site.
     /// </summary>
+    /// <param name="domain">The permission domain to check.</param>
+    /// <param name="operation">The single-character operation to require.</param>
+    /// <returns>
+    /// <see langword="true"/> when a site is selected and either the administrator flag is set
+    /// or the selected site's case-sensitive permission string contains
+    /// <paramref name="operation"/>; otherwise, <see langword="false"/>.
+    /// </returns>
     public bool HasPermission(string domain, char operation)
     {
         if (CurrentSiteId is null) return false;
-        if (IsAdmin) return true; // Admin inherits all perms
+        if (IsAdmin) return true; // A selected site lets administrators bypass the permission map.
 
         var key = $"{CurrentSiteId}:{domain}";
         return _permissions.TryGetValue(key, out var perm) && perm.Contains(operation);
     }
 
-        /// <summary>
-    /// CanRead method.
-    /// </summary>
-public bool CanRead(string domain) => HasPermission(domain, 'R');
-        /// <summary>
-    /// CanWrite method.
-    /// </summary>
-public bool CanWrite(string domain) => HasPermission(domain, 'W') || HasPermission(domain, 'C');
-        /// <summary>
-    /// CanDelete method.
-    /// </summary>
-public bool CanDelete(string domain) => HasPermission(domain, 'D');
+    /// <summary>Determines whether the current user can read within a domain on the selected site.</summary>
+    /// <param name="domain">The permission domain to check.</param>
+    /// <returns><see langword="true"/> when the read operation is permitted; otherwise, <see langword="false"/>.</returns>
+    public bool CanRead(string domain) => HasPermission(domain, 'R');
+
+    /// <summary>Determines whether the current user can write or create within a domain on the selected site.</summary>
+    /// <param name="domain">The permission domain to check.</param>
+    /// <returns><see langword="true"/> when write or create is permitted; otherwise, <see langword="false"/>.</returns>
+    public bool CanWrite(string domain) => HasPermission(domain, 'W') || HasPermission(domain, 'C');
+
+    /// <summary>Determines whether the current user can delete within a domain on the selected site.</summary>
+    /// <param name="domain">The permission domain to check.</param>
+    /// <returns><see langword="true"/> when delete is permitted; otherwise, <see langword="false"/>.</returns>
+    public bool CanDelete(string domain) => HasPermission(domain, 'D');
 
     // ── Notification ──────────────────────────────────────────────
 
     /// <summary>
-    /// Fired whenever state changes. Components subscribe via
-    /// <c>StateChanged += StateHasChanged</c> and unsubscribe in <c>Dispose()</c>.
+    /// Raised synchronously by permission loading, user set/clear, changed site selection, and
+    /// restored-state updates.
     /// </summary>
+    /// <remarks>
+    /// <see cref="SetSiteContextReady"/> does not raise this event. Exceptions thrown by
+    /// subscribers propagate to the mutating method.
+    /// </remarks>
     public event Action? StateChanged;
 
     // ── Setters ───────────────────────────────────────────────────
 
     /// <summary>
-    /// Sets the authenticated user info. Updates in-memory state and fires StateChanged.
-    /// Called by ManagerShellLayout after auth resolves via ServerAuthenticationStateProvider.
+    /// Replaces the supplied user state, marks authentication as resolved, and raises
+    /// <see cref="StateChanged"/>.
     /// </summary>
+    /// <param name="userId">The authenticated user's identifier.</param>
+    /// <param name="userName">The authenticated user's username.</param>
+    /// <param name="userEmail">The authenticated user's email address, if available.</param>
+    /// <param name="userNickname">The authenticated user's display name, if available.</param>
+    /// <param name="roles">The authenticated user's assigned roles.</param>
+    /// <param name="isAdmin">The administrator flag to store.</param>
     public void SetUser(
         long userId,
         string userName,
@@ -160,7 +180,7 @@ public bool CanDelete(string domain) => HasPermission(domain, 'D');
     }
 
     /// <summary>
-    /// Clears the authenticated user. Used on logout or auth failure.
+    /// Clears user and permission state, marks authentication as resolved, and raises <see cref="StateChanged"/>.
     /// </summary>
     public void ClearUser()
     {
@@ -179,9 +199,17 @@ public bool CanDelete(string domain) => HasPermission(domain, 'D');
     }
 
     /// <summary>
-    /// Sets the current site. Updates in-memory state and fires StateChanged.
-    /// Does NOT persist to localStorage or server cookie — callers must handle that.
+    /// Updates the in-memory site context and raises <see cref="StateChanged"/> when the values differ.
+    /// This method does not persist the selection.
     /// </summary>
+    /// <param name="siteId">The selected site's identifier.</param>
+    /// <param name="siteName">The selected site's display name, if available.</param>
+    /// <param name="tenantId">The selected site's tenant identifier. It must not be zero.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="tenantId"/> is zero.</exception>
+    /// <remarks>
+    /// When all three identity values already match, the method returns without changing
+    /// <see cref="IsSiteContextReady"/> or raising <see cref="StateChanged"/>.
+    /// </remarks>
     public void SetSite(long siteId, string? siteName, long tenantId)
     {
         ArgumentOutOfRangeException.ThrowIfZero(tenantId, nameof(tenantId));
@@ -203,18 +231,20 @@ public bool CanDelete(string domain) => HasPermission(domain, 'D');
     }
 
     /// <summary>
-    /// Sets IsSiteContextReady without modifying site identity.
-    /// Used by login and select-site pages to skip verification.
+    /// Marks site-context resolution complete without changing the selected site or raising
+    /// <see cref="StateChanged"/>.
     /// </summary>
     public void SetSiteContextReady() => IsSiteContextReady = true;
 
     // ── Persistence (for prerendering) ────────────────────────────
 
     /// <summary>
-    /// Restores state deserialized from prerendered HTML.
-    /// Called by the root component's OnInitialized via
-    /// PersistentComponentState.TryTakeFromJson.
+    /// Restores site context obtained from prerendered state and raises <see cref="StateChanged"/>.
     /// </summary>
+    /// <param name="siteId">The restored site identifier, if one was selected.</param>
+    /// <param name="siteName">The restored site name, if available.</param>
+    /// <param name="tenantId">The restored tenant identifier.</param>
+    /// <param name="isSiteContextReady">Whether site-context resolution had completed.</param>
     public void SetSiteFromRestoredState(
         long? siteId,
         string? siteName,
@@ -234,10 +264,9 @@ public bool CanDelete(string domain) => HasPermission(domain, 'D');
     }
 
     /// <summary>
-    /// Returns state to be persisted during prerendering.
-    /// Caller (root component) uses PersistentComponentState.PersistAsJson
-    /// in a RegisterOnPersisting callback.
+    /// Returns the site-context snapshot used to persist state during prerendering.
     /// </summary>
+    /// <returns>A tuple containing the current site identity, tenant identifier, and readiness state.</returns>
     public (long? SiteId, string? SiteName, long TenantId, bool IsReady) GetStateForPersistence()
         => (CurrentSiteId, CurrentSiteName, CurrentTenantId, IsSiteContextReady);
 }

@@ -6,14 +6,17 @@ using FluentValidation.Results;
 namespace Aero.Cms.Core.Content.Services;
 
 /// <summary>
-/// Represents a class for UniqueSlugValidator.
+/// Checks whether a site's slug is already assigned to a different content item.
 /// </summary>
+/// <remarks>
+/// The check is site-wide and does not include content type or culture. It is an application-time
+/// lookup and does not guarantee race-free uniqueness. Lookup failures represented as
+/// <see cref="AeroError"/> values are treated as no conflict.
+/// </remarks>
 public sealed class UniqueSlugValidator(IContentService contentService) : IAsyncContentValidator
 {
-        /// <summary>
-    /// ValidateAsync method.
-    /// </summary>
-public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(item.Slug))
             return [];
@@ -27,14 +30,20 @@ public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem it
 }
 
 /// <summary>
-/// Represents a class for ReferenceExistenceValidator.
+/// Verifies that parseable referenced content identifiers exist.
 /// </summary>
+/// <remarks>
+/// Only fields whose type is exactly <c>reference</c> are inspected. The validator honors a
+/// Boolean <c>allowMultiple</c> setting but does not verify the referenced item's site, content
+/// type, or compatibility with any target schema. Non-parseable identifiers are expected to be
+/// rejected by synchronous field validation and do not produce an existence failure here. When
+/// invoked outside <see cref="ContentValidationService"/>, incorrectly shaped JSON may cause
+/// <see cref="InvalidOperationException"/> while enumerating or reading reference values.
+/// </remarks>
 public sealed class ReferenceExistenceValidator(IContentService contentService) : IAsyncContentValidator
 {
-        /// <summary>
-    /// ValidateAsync method.
-    /// </summary>
-public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
     {
         var failures = new List<ValidationFailure>();
 

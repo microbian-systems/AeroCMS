@@ -7,57 +7,74 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Defines an enumeration for ContentSlugOwnerType.
+/// Identifies the kind of content that owns a slug reservation.
 /// </summary>
 public enum ContentSlugOwnerType
 {
+    /// <summary>A CMS page owns the slug.</summary>
     Page = 0,
+    /// <summary>A blog post owns the slug.</summary>
     BlogPost = 1,
+    /// <summary>A custom content integration owns the slug.</summary>
     Custom = 2,
+    /// <summary>A typed content item owns the slug.</summary>
     ContentItem = 3
 }
 
 /// <summary>
-/// Represents a class for ContentSlugDocument.
+/// Stores a site- and culture-scoped slug reservation in Sable.
 /// </summary>
+/// <remarks>
+/// Uniqueness is configured over site, normalized culture, and normalized slug.
+/// Callers must save the containing session to persist reservations.
+/// </remarks>
 public sealed class ContentSlugDocument : SableDocument, IAuditable, ISiteOwned
 {
     private const string RootSlugKey = "__root__";
 
-        /// <summary>
-    /// Gets or sets the Site Id.
+    /// <summary>
+    /// Gets or sets the site that owns the reservation.
     /// </summary>
 public long SiteId { get; set; }
-        /// <summary>
-    /// Gets or sets the Culture.
+    /// <summary>
+    /// Gets or sets the normalized culture name used for uniqueness.
     /// </summary>
 public string Culture { get; set; } = SitesModel.DefaultCultureName;
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets or sets the caller-provided slug retained for display or diagnostics.
     /// </summary>
 public string Slug { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Normalized Slug.
+    /// <summary>
+    /// Gets or sets the slash-separated, lower-case slug used for comparisons.
     /// </summary>
 public string NormalizedSlug { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Owner Id.
+    /// <summary>
+    /// Gets or sets the identifier of the owning content record.
     /// </summary>
 public long OwnerId { get; set; } 
-        /// <summary>
-    /// Gets or sets the Owner Type.
+    /// <summary>
+    /// Gets or sets the kind of content that owns the slug.
     /// </summary>
     public ContentSlugOwnerType OwnerType { get; set; }
 
     // IAuditable
+    /// <inheritdoc />
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    /// <inheritdoc />
     public DateTimeOffset? ModifiedOn { get; set; }
+    /// <inheritdoc />
     public string? CreatedBy { get; set; }
+    /// <inheritdoc />
     public string? ModifiedBy { get; set; }
 
-        /// <summary>
-    /// Normalize method.
+    /// <summary>
+    /// Produces the comparison key for a slug or hierarchical path.
     /// </summary>
+    /// <param name="slug">The slug or slash-separated path to normalize.</param>
+    /// <returns>
+    /// Lower-case, non-empty path segments joined by <c>/</c>, without leading or trailing slashes.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="slug"/> is <see langword="null"/>.</exception>
     public static string Normalize(string slug)
     {
         ArgumentNullException.ThrowIfNull(slug);
@@ -70,9 +87,16 @@ public long OwnerId { get; set; }
     }
 
 
-        /// <summary>
-    /// Create method.
+    /// <summary>
+    /// Creates an unpersisted slug reservation with a new Snowflake identifier.
     /// </summary>
+    /// <param name="slug">The slug or hierarchical path to reserve.</param>
+    /// <param name="ownerId">The owning content identifier.</param>
+    /// <param name="ownerType">The owning content kind.</param>
+    /// <param name="siteId">The site in which the slug must be unique.</param>
+    /// <param name="culture">The culture in which the slug must be unique.</param>
+    /// <returns>A new normalized reservation document.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="slug"/> is <see langword="null"/>.</exception>
 public static ContentSlugDocument Create(
         string slug,
         long ownerId,
@@ -94,9 +118,13 @@ public static ContentSlugDocument Create(
         };
     }
 
-        /// <summary>
-    /// NormalizeCulture method.
+    /// <summary>
+    /// Normalizes a culture name for reservation comparisons.
     /// </summary>
+    /// <param name="culture">The culture name to normalize.</param>
+    /// <returns>
+    /// The canonical <see cref="CultureInfo.Name"/> when valid; otherwise the site default culture.
+    /// </returns>
 public static string NormalizeCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -114,33 +142,46 @@ public static string NormalizeCulture(string? culture)
 }
 
 /// <summary>
-/// Represents a class for SlugConflictException.
+/// Reports an attempt to reserve a slug already owned by different content.
 /// </summary>
+/// <param name="slug">The conflicting slug as supplied by the caller.</param>
+/// <param name="existingOwnerId">The identifier of the current owner.</param>
+/// <param name="attemptedOwnerId">The identifier that attempted the reservation.</param>
 public sealed class SlugConflictException(string slug, string existingOwnerId, string attemptedOwnerId)
     : InvalidOperationException($"Slug '{slug}' is already reserved by '{existingOwnerId}'.")
 {
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets the conflicting slug.
     /// </summary>
 public string Slug { get; } = slug;
-        /// <summary>
-    /// Gets or sets the Existing Owner Id.
+    /// <summary>
+    /// Gets the current owner's identifier.
     /// </summary>
 public string ExistingOwnerId { get; } = existingOwnerId;
-        /// <summary>
-    /// Gets or sets the Attempted Owner Id.
+    /// <summary>
+    /// Gets the identifier that attempted the reservation.
     /// </summary>
 public string AttemptedOwnerId { get; } = attemptedOwnerId;
 }
 
 /// <summary>
-/// Represents a class for ContentSlugReservation.
+/// Stages culture-aware slug reservation changes in a Sable document session.
 /// </summary>
 public static class ContentSlugReservation
 {
-        /// <summary>
-    /// ReserveAsync method.
+    /// <summary>
+    /// Reserves a slug in the default culture.
     /// </summary>
+    /// <param name="session">The session in which reservation writes are staged.</param>
+    /// <param name="ownerId">The owning content identifier.</param>
+    /// <param name="ownerType">The owning content kind.</param>
+    /// <param name="slug">The slug to reserve.</param>
+    /// <param name="siteId">The site scope.</param>
+    /// <param name="previousSlug">The owner's prior slug, if it should be released.</param>
+    /// <param name="cancellationToken">The token used for reservation queries.</param>
+    /// <returns>A task that completes after reservation changes have been staged.</returns>
+    /// <exception cref="SlugConflictException">The normalized slug is reserved by another owner.</exception>
+    /// <remarks>This method does not save the session.</remarks>
 public static async Task ReserveAsync(
         IDocumentSession session,
         long ownerId,
@@ -159,9 +200,23 @@ public static async Task ReserveAsync(
             previousSlug,
             cancellationToken);
 
-        /// <summary>
-    /// ReserveAsync method.
+    /// <summary>
+    /// Reserves a slug within a site and normalized culture.
     /// </summary>
+    /// <param name="session">The session in which reservation writes are staged.</param>
+    /// <param name="ownerId">The owning content identifier.</param>
+    /// <param name="ownerType">The owning content kind.</param>
+    /// <param name="slug">The slug to reserve.</param>
+    /// <param name="siteId">The site scope.</param>
+    /// <param name="culture">The culture scope; invalid values use the site default culture.</param>
+    /// <param name="previousSlug">The owner's prior slug, if it should be released.</param>
+    /// <param name="cancellationToken">The token used for reservation queries.</param>
+    /// <returns>A task that completes after reservation changes have been staged.</returns>
+    /// <exception cref="SlugConflictException">The normalized slug is reserved by another owner.</exception>
+    /// <remarks>
+    /// The previous reservation is deleted only when its normalized value differs
+    /// from the new slug. This method does not save the session.
+    /// </remarks>
 public static async Task ReserveAsync(
         IDocumentSession session,
         long ownerId,

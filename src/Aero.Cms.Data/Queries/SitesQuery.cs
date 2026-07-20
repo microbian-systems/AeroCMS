@@ -5,48 +5,33 @@ using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
 
-/// <summary>
-/// Represents a class for SiteByHostnameQuery.
-/// </summary>
+/// <summary>Selects the first site-host document whose stored host exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no hostname normalization and returns <see langword="null"/> when no host matches.</remarks>
 public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 {
-        /// <summary>
-    /// Gets or sets the hostname.
-    /// </summary>
+    /// <summary>The pre-normalized hostname used by the equality predicate.</summary>
 public string hostname { get; set; } = null!;
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Host == hostname);
     }
 }
 
-/// <summary>
-/// Represents a class for SiteByIdQuery.
-/// </summary>
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class SiteByIdQuery : EntityByIdQuery<SitesModel>;
 
-/// <summary>
-/// Represents a class for SitesByIdsQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class SitesByIdsQuery : EntitiesByIdsQuery<SitesModel>;
 
-/// <summary>
-/// Represents a class for SitesByTenantIdQuery.
-/// </summary>
+/// <summary>Selects sites owned by one tenant, ordered by stored site name.</summary>
 public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-        /// <summary>
-    /// Gets or sets the Tenant Id.
-    /// </summary>
+    /// <summary>The tenant identifier that must match <see cref="SitesModel.TenantId"/>.</summary>
 public required long TenantId { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
@@ -57,19 +42,14 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
 }
 
 
-/// <summary>
-/// Represents a class for SitesByNameQuery.
-/// </summary>
+/// <summary>Selects sites whose stored name exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored site name.</remarks>
 public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The site name used by the equality predicate.</summary>
 public required string Name { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
@@ -79,14 +59,10 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for EnabledSitesQuery.
-/// </summary>
+/// <summary>Selects enabled sites, ordered by stored site name.</summary>
 public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
@@ -96,14 +72,10 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for DisabledSitesQuery.
-/// </summary>
+/// <summary>Selects disabled sites, ordered by stored site name.</summary>
 public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
@@ -113,19 +85,14 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for SitesByDefaultCultureQuery.
-/// </summary>
+/// <summary>Selects sites whose stored default culture exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no culture normalization and orders matches by stored site name.</remarks>
 public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-        /// <summary>
-    /// Gets or sets the Default Culture.
-    /// </summary>
+    /// <summary>The culture value used by the equality predicate.</summary>
 public required string DefaultCulture { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
@@ -135,12 +102,8 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for SitesCreatedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class SitesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<SitesModel>;
 
-/// <summary>
-/// Represents a class for SitesModifiedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class SitesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<SitesModel>;

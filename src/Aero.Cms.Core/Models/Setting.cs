@@ -34,8 +34,12 @@ public class Setting : SableDocument<string>, IAuditable
     public string Type { get; set; } = "string";
 
     // IAuditable
+    /// <summary>Gets or sets the audit creation timestamp.</summary>
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Gets or sets the most recent audit modification timestamp.</summary>
     public DateTimeOffset? ModifiedOn { get; set; }
+    /// <summary>Gets or sets the identity that created this setting, if recorded.</summary>
     public string? CreatedBy { get; set; }
+    /// <summary>Gets or sets the identity that last modified this setting, if recorded.</summary>
     public string? ModifiedBy { get; set; }
 }

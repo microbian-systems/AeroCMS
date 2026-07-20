@@ -5,13 +5,25 @@ using Aero.Cms.Html;
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Represents a class for PageCultureForker.
+/// Creates an independent draft page for another culture from an existing page.
 /// </summary>
 public static class PageCultureForker
 {
-        /// <summary>
-    /// Fork method.
+    /// <summary>
+    /// Copies the source page's descriptive fields and draft HTML into a new,
+    /// root-level draft in the normalized target culture.
     /// </summary>
+    /// <param name="source">The page whose draft content and presentation settings are copied.</param>
+    /// <param name="targetPageId">The identifier to assign to the new page.</param>
+    /// <param name="targetCulture">
+    /// The target culture. Invalid or blank values normalize to the site's default culture.
+    /// </param>
+    /// <param name="targetSlug">The target slug; surrounding whitespace and slashes are removed.</param>
+    /// <returns>
+    /// A new draft page linked to the source translation group. The returned page has no parent or
+    /// published snapshot, and its HTML tree is cloned while retaining node identifiers.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
 public static PageDocument Fork(PageDocument source, long targetPageId, string targetCulture, string targetSlug)
     {
         ArgumentNullException.ThrowIfNull(source);

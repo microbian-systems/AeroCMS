@@ -20,6 +20,18 @@ public static class ContentServiceExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The same service collection for chaining.</returns>
+    /// <remarks>
+    /// Content persistence, query, validation, command, rendering, asynchronous validators,
+    /// and scheduled publishing are scoped. Editors, synchronous validators, snippets, and
+    /// indexers are singleton registrations. The sanitizer, template options, validator, and
+    /// secure renderer use try-add singleton registration and therefore preserve an existing
+    /// registration for the same service type.
+    ///
+    /// Calling this method more than once is not idempotent: registrations made with
+    /// <c>AddScoped</c> or <c>AddSingleton</c>, particularly enumerable extension points, are
+    /// appended again.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is null.</exception>
     public static IServiceCollection AddContentTypeSystem(this IServiceCollection services)
     {
         // Core services

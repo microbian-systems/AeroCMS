@@ -10,13 +10,15 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Setup.Endpoints;
 
 /// <summary>
-/// Represents a class for TranslationImportEndpoint.
+/// Maps the administrative endpoint that imports localization resources.
 /// </summary>
 public static class TranslationImportEndpoint
 {
-        /// <summary>
-    /// MapTranslationImportEndpoint method.
+    /// <summary>
+    /// Maps the translation import endpoint beneath the administrative localization route.
     /// </summary>
+    /// <param name="endpoints">The endpoint route builder to modify.</param>
+    /// <returns>The same route builder for fluent registration.</returns>
 public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/localization")
@@ -28,6 +30,13 @@ public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointR
         return endpoints;
     }
 
+    /// <summary>
+    /// Converts domain failures to HTTP 400 responses and unexpected exceptions to HTTP 500 responses.
+    /// </summary>
+    /// <remarks>
+    /// Successful responses include aggregate import counts and per-entry errors produced by
+    /// the import service. The endpoint itself does not add an authorization policy.
+    /// </remarks>
     private static async Task<IResult> ImportTranslations(
         [FromBody] TranslationImportFileRequest request,
         [FromServices] ITranslationImportService importService,

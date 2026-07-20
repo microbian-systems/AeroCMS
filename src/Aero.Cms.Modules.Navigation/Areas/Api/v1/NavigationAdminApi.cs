@@ -13,13 +13,18 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Navigation.Areas.Api.v1;
 
 /// <summary>
-/// Represents a class for NavigationAdminApi.
+/// Maps administrative navigation-menu editing, publication, translation, defaulting, archive, and history endpoints.
 /// </summary>
+/// <remarks>
+/// This mapper does not call <c>RequireAuthorization</c>. The host must secure the
+/// <c>admin/navigations</c> route group and establish the manager site context.
+/// </remarks>
 public static class NavigationAdminApi
 {
-        /// <summary>
-    /// MapNavigationAdminApi method.
+    /// <summary>
+    /// Maps the versioned administrative navigation endpoint group.
     /// </summary>
+    /// <param name="app">The endpoint route builder receiving the group.</param>
 public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/navigations")
@@ -65,6 +70,13 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             .WithName("GetNavigationMenuEvents");
     }
 
+    /// <summary>
+    /// Lists current-site menus and enriches each item with detail-derived count and version.
+    /// </summary>
+    /// <remarks>
+    /// A detail lookup failure does not fail the page; that menu is returned with zero item count
+    /// and version. The service constrains the initial list to the current manager site.
+    /// </remarks>
     private static async Task<IResult> ListNavigations(
         [FromServices] INavMenuService service,
         [FromQuery] int skip = 0,
@@ -104,6 +116,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         return ToProblem(result);
     }
 
+    /// <summary>
+    /// Returns current-site editor detail for one navigation menu.
+    /// </summary>
     private static async Task<IResult> GetNavigationById(
         long id,
         [FromServices] INavMenuService service,
@@ -115,6 +130,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Returns non-archived culture variants for the selected current-site menu.
+    /// </summary>
     private static async Task<IResult> ListNavigationTranslations(
         long id,
         [FromServices] INavMenuService service,
@@ -126,6 +144,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Validates a create request, starts its event stream, and returns the resulting editor detail.
+    /// </summary>
     private static async Task<IResult> CreateNavigation(
         [FromBody] CreateNavigationRequest request,
         [FromServices] INavMenuService service,
@@ -155,6 +176,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         return ToProblem(result);
     }
 
+    /// <summary>
+    /// Creates a draft culture fork and returns its editor detail.
+    /// </summary>
     private static async Task<IResult> ForkNavigationToCulture(
         long id,
         [FromBody] ForkNavigationCultureRequest request,
@@ -167,6 +191,14 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Translates eligible navigation fields for distinct supported target cultures in parallel.
+    /// </summary>
+    /// <remarks>
+    /// Per-culture translation or save failures are returned inside a successful aggregate response.
+    /// Existing variants are skipped unless overwrite is requested; overwrite saves a new draft but
+    /// does not publish it. Newly forked variants can remain persisted even if the later draft save fails.
+    /// </remarks>
     private static async Task<IResult> TranslateNavigationWithAi(
         long id,
         [FromBody] AiTranslateNavigationRequest request,
@@ -263,6 +295,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             .ToList()));
     }
 
+    /// <summary>
+    /// Preserves the legacy update route by saving without a caller-supplied concurrency version.
+    /// </summary>
     private static async Task<IResult> SaveDraftCompatibility(
         long id,
         [FromBody] UpdateNavigationRequest request,
@@ -279,6 +314,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         return await SaveDraft(id, request, service, validator, expectedVersion: null, expectedRevision: null, cancellationToken);
     }
 
+    /// <summary>
+    /// Validates and saves a draft using the preferred version or legacy revision query token.
+    /// </summary>
     private static async Task<IResult> SaveDraft(
         long id,
         [FromBody] UpdateNavigationRequest request,
@@ -305,6 +343,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Publishes the latest draft using the preferred version or legacy revision query token.
+    /// </summary>
     private static async Task<IResult> Publish(
         long id,
         [FromServices] INavMenuService service,
@@ -318,6 +359,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Sets a published current-site menu as the site default.
+    /// </summary>
     private static async Task<IResult> SetDefault(
         long id,
         [FromServices] INavMenuService service,
@@ -329,6 +373,9 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Archives a current-site menu using the preferred version or legacy revision token.
+    /// </summary>
     private static async Task<IResult> Archive(
         long id,
         [FromServices] INavMenuService service,
@@ -342,6 +389,13 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(result);
     }
 
+    /// <summary>
+    /// Converts a successful mutation's menu identifier into a fresh editor-detail response.
+    /// </summary>
+    /// <param name="id">The mutated menu identifier.</param>
+    /// <param name="service">The navigation service used for the detail read.</param>
+    /// <param name="cancellationToken">The request-abort token.</param>
+    /// <returns>An OK detail response or a mapped problem result.</returns>
     private static async Task<IResult> ToNavigationDetailResult(
         long id,
         INavMenuService service,
@@ -353,6 +407,17 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             : ToProblem(detail);
     }
 
+    /// <summary>
+    /// Returns event metadata for the identifier-derived navigation stream.
+    /// </summary>
+    /// <param name="id">The navigation stream identifier.</param>
+    /// <param name="querySession">The event query session.</param>
+    /// <param name="cancellationToken">The request-abort token.</param>
+    /// <returns>The ordered stream history.</returns>
+    /// <remarks>
+    /// This handler does not load <see cref="NavMenuDocument"/> or compare its site with the
+    /// current manager context. The host or endpoint policy must prevent cross-site identifier access.
+    /// </remarks>
     private static async Task<IResult> GetEvents(
         long id,
         IQuerySession querySession,
@@ -369,6 +434,13 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(new NavigationEventHistory(id, history.Count, history));
     }
 
+    /// <summary>
+    /// Loads and normalizes the site's configured translation targets.
+    /// </summary>
+    /// <param name="query">The site query session.</param>
+    /// <param name="siteId">The source menu's site identifier.</param>
+    /// <param name="cancellationToken">The request-abort token.</param>
+    /// <returns>A case-insensitive set, falling back to the site's default or platform default culture.</returns>
     private static async Task<IReadOnlySet<string>> GetSupportedCulturesAsync(
         IQuerySession query,
         long siteId,
@@ -384,6 +456,15 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Sends one target culture's nonblank fields to the configured AI translation service.
+    /// </summary>
+    /// <param name="source">The source navigation detail.</param>
+    /// <param name="plan">The target culture and optional existing variant.</param>
+    /// <param name="providerId">An optional AI provider profile identifier.</param>
+    /// <param name="translationService">The translation abstraction.</param>
+    /// <param name="cancellationToken">The request-abort token.</param>
+    /// <returns>A success or failure plan without throwing domain failures.</returns>
     private static async Task<AiTranslatedNavigationPlan> TranslateNavigationPlanAsync(
         NavigationDetail source,
         AiTranslateNavigationPlan plan,
@@ -409,6 +490,11 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         };
     }
 
+    /// <summary>
+    /// Creates stable translation keys for the menu name, title, and legacy item labels and alt text.
+    /// </summary>
+    /// <param name="source">The source navigation detail.</param>
+    /// <returns>Only fields whose source values are nonblank.</returns>
     private static List<TranslateDocumentField> BuildTranslatableFields(NavigationDetail source)
     {
         var fields = new List<TranslateDocumentField>();
@@ -424,6 +510,19 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         return fields;
     }
 
+    /// <summary>
+    /// Forks a missing variant or reuses an existing one, then saves translated legacy fields as a draft.
+    /// </summary>
+    /// <param name="sourceId">The source menu used for a new culture fork.</param>
+    /// <param name="plan">The target culture and optional existing variant.</param>
+    /// <param name="response">The translated fields and warnings.</param>
+    /// <param name="service">The navigation service used for fork, save, and detail reads.</param>
+    /// <param name="cancellationToken">The request-abort token.</param>
+    /// <returns>A per-culture result containing saved detail or an error message.</returns>
+    /// <remarks>
+    /// A newly forked stream is committed before the translated draft is saved, so later failure
+    /// does not roll the fork back.
+    /// </remarks>
     private static async Task<AiTranslateNavigationCultureResult> SaveTranslatedNavigationAsync(
         long sourceId,
         AiTranslateNavigationPlan plan,
@@ -474,6 +573,16 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
                 : "Failed to load saved header menu.");
     }
 
+    /// <summary>
+    /// Overlays translated legacy text fields while preserving link destinations and logo metadata.
+    /// </summary>
+    /// <param name="target">The target variant's current editor detail.</param>
+    /// <param name="response">The translation response keyed by source field paths.</param>
+    /// <returns>An update request containing translated name, title, labels, and alt text.</returns>
+    /// <remarks>
+    /// This compatibility mapping uses <see cref="NavigationDetail.Items"/> and therefore does not
+    /// carry row/canvas or non-link component structures into the translated save request.
+    /// </remarks>
     private static UpdateNavigationRequest BuildTranslatedRequest(NavigationDetail target, TranslateDocumentResponse response)
         => new(
             GetTranslated(response, "name", target.Name),
@@ -492,6 +601,11 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
                 .ToList(),
             target.SiteLogoUrl);
 
+    /// <summary>
+    /// Canonicalizes recognized culture names for comparison.
+    /// </summary>
+    /// <param name="culture">The candidate culture.</param>
+    /// <returns>The platform default for blank input, a canonical name when recognized, or trimmed invalid text.</returns>
     private static string NormalizeCultureName(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -509,11 +623,25 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Reads a nonblank translated field or falls back to the existing value.
+    /// </summary>
+    /// <param name="response">The translation response.</param>
+    /// <param name="key">The stable field key.</param>
+    /// <param name="fallback">The current value.</param>
+    /// <returns>The translated value, fallback, or empty string.</returns>
     private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
         => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback ?? string.Empty;
 
+    /// <summary>
+    /// Adds a translation field only when its source text is nonblank.
+    /// </summary>
+    /// <param name="fields">The destination field list.</param>
+    /// <param name="key">The stable response key.</param>
+    /// <param name="hint">The semantic translation hint.</param>
+    /// <param name="value">The source text.</param>
     private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
     {
         if (!string.IsNullOrWhiteSpace(value))
@@ -522,12 +650,29 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Creates a consistent per-culture failed translation result.
+    /// </summary>
+    /// <param name="culture">The target culture.</param>
+    /// <param name="error">The user-facing error.</param>
+    /// <returns>A failed result with no detail or warnings.</returns>
     private static AiTranslateNavigationCultureResult FailedNavigationTranslation(string culture, string error)
         => new(culture, false, null, [], error);
 
+    /// <summary>
+    /// Compares canonical or user-supplied culture names case-insensitively.
+    /// </summary>
+    /// <param name="left">The first culture.</param>
+    /// <param name="right">The second culture.</param>
+    /// <returns>Whether the names are equal ignoring case.</returns>
     private static bool CultureEquals(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Extracts a concise message from every supported railway error variant.
+    /// </summary>
+    /// <param name="error">The domain error.</param>
+    /// <returns>The embedded message or a stable fallback.</returns>
     private static string GetErrorMessage(AeroError error) => error switch
     {
         AeroError.Error e => e.msg,
@@ -549,6 +694,14 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
         _ => error.ToString()
     };
 
+    /// <summary>
+    /// Maps selected railway failures to administrative HTTP responses.
+    /// </summary>
+    /// <typeparam name="T">The success payload type.</typeparam>
+    /// <param name="result">The service result to map.</param>
+    /// <returns>
+    /// A 404, 409, or 400 response for recognized failures; otherwise a generic problem response.
+    /// </returns>
     private static IResult ToProblem<T>(Result<T, AeroError> result)
         => result is Result<T, AeroError>.Failure failure
             ? failure.Error switch
@@ -563,8 +716,13 @@ public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
 }
 
 /// <summary>
-/// Represents a record for NavigationEventItem.
+/// Describes one event in an administrative navigation history response.
 /// </summary>
+/// <param name="Version">The event's stream version.</param>
+/// <param name="EventType">The persisted event type name.</param>
+/// <param name="Timestamp">The event-store timestamp.</param>
+/// <param name="StreamKey">The stream key containing the event.</param>
+/// <param name="IsArchived">Whether the payload is a <see cref="NavMenuArchived"/> event.</param>
 public sealed record NavigationEventItem(
     long Version,
     string EventType,
@@ -573,37 +731,58 @@ public sealed record NavigationEventItem(
     bool IsArchived);
 
 /// <summary>
-/// Represents a record for NavigationEventHistory.
+/// Contains the complete event metadata returned for a navigation stream.
 /// </summary>
+/// <param name="NavMenuId">The requested navigation menu identifier.</param>
+/// <param name="TotalEvents">The number of returned events.</param>
+/// <param name="Events">The event metadata in event-store order.</param>
 public sealed record NavigationEventHistory(
     long NavMenuId,
     int TotalEvents,
     IReadOnlyList<NavigationEventItem> Events);
 
+/// <summary>
+/// Describes one eligible AI translation target and its optional existing culture variant.
+/// </summary>
+/// <param name="Culture">The normalized target culture.</param>
+/// <param name="ExistingVariant">The current variant to overwrite, or <see langword="null"/> to fork.</param>
 internal sealed record AiTranslateNavigationPlan(
     string Culture,
     NavigationDetail? ExistingVariant);
 
+/// <summary>
+/// Captures the translation-service outcome before any translated variant is saved.
+/// </summary>
+/// <param name="Plan">The target plan.</param>
+/// <param name="Succeeded">Whether translation produced a response.</param>
+/// <param name="Response">The translated fields and warnings on success.</param>
+/// <param name="Error">The failure message when translation did not succeed.</param>
 internal sealed record AiTranslatedNavigationPlan(
     AiTranslateNavigationPlan Plan,
     bool Succeeded,
     TranslateDocumentResponse? Response,
     string? Error)
 {
-        /// <summary>
-    /// Gets or sets the Culture.
+    /// <summary>
+    /// Gets the target culture from <see cref="Plan"/>.
     /// </summary>
 public string Culture => Plan.Culture;
 
-        /// <summary>
-    /// Success method.
+    /// <summary>
+    /// Creates a successful translated plan.
     /// </summary>
+    /// <param name="plan">The completed target plan.</param>
+    /// <param name="response">The translation-service response.</param>
+    /// <returns>A successful outcome with no error.</returns>
 public static AiTranslatedNavigationPlan Success(AiTranslateNavigationPlan plan, TranslateDocumentResponse response)
         => new(plan, true, response, null);
 
-        /// <summary>
-    /// Failed method.
+    /// <summary>
+    /// Creates a failed translated plan.
     /// </summary>
+    /// <param name="plan">The failed target plan.</param>
+    /// <param name="error">The failure message.</param>
+    /// <returns>A failed outcome with no translation response.</returns>
 public static AiTranslatedNavigationPlan Failed(AiTranslateNavigationPlan plan, string error)
         => new(plan, false, null, error);
 }

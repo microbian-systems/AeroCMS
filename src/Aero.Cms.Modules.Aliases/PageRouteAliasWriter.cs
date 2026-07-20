@@ -8,7 +8,10 @@ using Microsoft.AspNetCore.Http;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Stages automatic page aliases in the page command's Sable unit of work.
+/// Stages automatic aliases for published page-route changes in the caller's
+/// Sable unit of work. This type never commits the supplied session: callers
+/// must call <see cref="OnCommittedAsync"/> only after their surrounding
+/// transaction has committed successfully.
 /// </summary>
 public sealed class PageRouteAliasWriter(IAliasRuleCache? cache = null) : IPageRouteAliasWriter
 {
@@ -124,7 +127,11 @@ public sealed class PageRouteAliasWriter(IAliasRuleCache? cache = null) : IPageR
             new PageRouteAliasStageResult(created, updated, deleted));
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Invalidates and refreshes the optional cache after a successful caller
+    /// commit. If no cache was supplied, this is a no-op. Cancellation is passed
+    /// to the refresh; it does not roll back the already committed route change.
+    /// </summary>
     public async Task OnCommittedAsync(CancellationToken cancellationToken = default)
     {
         if (cache is null)

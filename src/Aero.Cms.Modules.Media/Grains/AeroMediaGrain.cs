@@ -14,15 +14,23 @@ namespace Aero.Cms.Modules.Media.Grains;
 /// Publishes Wolverine events after mutations.
 /// File I/O (disk writes) remains in the API layer — grain handles persistence only.
 /// </summary>
+/// <remarks>
+/// Identifier-based operations do not independently enforce authorization or site ownership.
+/// Callers must verify those boundaries before invoking the actor. Mutation events are published
+/// after database commits and are not transactionally coordinated with persistence.
+/// </remarks>
 public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 {
     private readonly IDocumentStore _store;
     private readonly IMessageBus _bus;
     private MediaViewModel _state = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AeroMediaGrain"/> class.
     /// </summary>
+    /// <param name="log">The base actor logger.</param>
+    /// <param name="store">Creates lightweight sessions for each operation.</param>
+    /// <param name="bus">Publishes media lifecycle events after commits.</param>
 public AeroMediaGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
@@ -35,15 +43,20 @@ public AeroMediaGrain(
 
     // ── IHaveState<MediaViewModel> ────────────────────────────────────
 
-        /// <summary>
-    /// GetStateAsync method.
+    /// <summary>
+    /// Returns the grain's in-memory state snapshot.
     /// </summary>
+    /// <param name="ct">Unused; no asynchronous work is performed.</param>
+    /// <returns>The currently stored view-model reference.</returns>
 public Task<MediaViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
+    /// <summary>
+    /// Replaces the grain's in-memory state snapshot without persisting it.
     /// </summary>
+    /// <param name="state">The new state reference.</param>
+    /// <param name="ct">Unused; no asynchronous work is performed.</param>
+    /// <returns>A completed task.</returns>
 public Task UpdateStateAsync(MediaViewModel state, CancellationToken ct)
     {
         _state = state;
@@ -52,9 +65,12 @@ public Task UpdateStateAsync(MediaViewModel state, CancellationToken ct)
 
     // ── ICruddable<MediaViewModel, long> ──────────────────────────────
 
-        /// <summary>
-    /// GetByIdAsync method.
+    /// <summary>
+    /// Loads a media document by identifier and maps it to the actor response model.
     /// </summary>
+    /// <param name="id">The document identifier.</param>
+    /// <param name="ct">Cancels session creation or the lookup.</param>
+    /// <returns>A successful mapped response, or a not-found response.</returns>
 public async Task<AeroRequestResponse<MediaViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -64,9 +80,15 @@ public async Task<AeroRequestResponse<MediaViewModel>> GetByIdAsync(long id, Can
             : NotFound($"Media {id} not found");
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
+    /// <summary>
+    /// Loads the documents whose identifiers are contained in the supplied array.
     /// </summary>
+    /// <param name="ids">The identifiers to query.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>
+    /// A response whose data is only the first matching asset, or a default model when none match;
+    /// the current response shape does not carry the complete list.
+    /// </returns>
 public async Task<AeroRequestResponse<MediaViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -78,27 +100,38 @@ public async Task<AeroRequestResponse<MediaViewModel>> GetByIdsAsync(long[] ids,
     }
 
     // ICruddable stubs — use SaveMediaAsync / DeleteMediaAsync instead
-        /// <summary>
-    /// CreateAsync method.
+    /// <summary>
+    /// Rejects the generic create contract in favor of <see cref="SaveMediaAsync"/>.
     /// </summary>
+    /// <returns>A failed response directing the caller to <see cref="SaveMediaAsync"/>.</returns>
 public Task<AeroRequestResponse<MediaViewModel>> CreateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use SaveMediaAsync"));
-        /// <summary>
-    /// UpdateAsync method.
+    /// <summary>
+    /// Rejects the generic update contract in favor of <see cref="SaveMediaAsync"/>.
     /// </summary>
+    /// <returns>A failed response directing the caller to <see cref="SaveMediaAsync"/>.</returns>
 public Task<AeroRequestResponse<MediaViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use SaveMediaAsync"));
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Rejects the generic delete contract in favor of <see cref="DeleteMediaAsync"/>.
     /// </summary>
+    /// <returns>A failed response directing the caller to <see cref="DeleteMediaAsync"/>.</returns>
 public Task<AeroRequestResponse<MediaViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use DeleteMediaAsync"));
 
     // ── ICanFindBySite ────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
+    /// <summary>
+    /// Loads one page of media documents belonging to a site.
     /// </summary>
+    /// <param name="siteId">The site identifier to filter.</param>
+    /// <param name="page">The one-based page number; values below one are not rejected.</param>
+    /// <param name="rows">The requested page size; the method does not impose bounds.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>
+    /// A response whose data is only the first matching asset, or a default model when none match;
+    /// the complete materialized page is not represented by the current response shape.
+    /// </returns>
 public async Task<AeroRequestResponse<MediaViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
@@ -114,12 +147,20 @@ public async Task<AeroRequestResponse<MediaViewModel>> GetBySiteIdAsync(
 
     // ── ICanFindBySlug ────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
+    /// <summary>
+    /// Finds media whose URL contains a slug within the supplied site.
     /// </summary>
+    /// <param name="siteId">The site identifier to filter.</param>
+    /// <param name="slug">The provider-translated URL substring.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>A response containing only the first match, or a default model when none match.</returns>
 public Task<AeroRequestResponse<MediaViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
+    /// <summary>
+    /// Adapts the string-site interface contract to the numeric site identifier used by media documents.
+    /// </summary>
+    /// <returns>A slug lookup response, or a failure when <paramref name="siteId"/> is not a valid <see cref="long"/>.</returns>
     Task<AeroRequestResponse<MediaViewModel>> ICanFindBySlug<MediaViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
     {
         if (long.TryParse(siteId, out var id))
@@ -127,6 +168,10 @@ public Task<AeroRequestResponse<MediaViewModel>> GetBySlugAsync(long siteId, str
         return Task.FromResult(Fail($"Invalid site ID: {siteId}"));
     }
 
+    /// <summary>
+    /// Executes the site-and-URL-substring query used by both slug contract forms.
+    /// </summary>
+    /// <returns>A response containing only the first match, or a default model when none match.</returns>
     private async Task<AeroRequestResponse<MediaViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -139,9 +184,11 @@ public Task<AeroRequestResponse<MediaViewModel>> GetBySlugAsync(long siteId, str
 
     // ── IAeroMediaActor custom methods ────────────────────────────────
 
-        /// <summary>
-    /// GetAllAsync method.
+    /// <summary>
+    /// Loads all media documents without a site filter.
     /// </summary>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>All mapped media models ordered by file name.</returns>
 public async Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -151,9 +198,15 @@ public async Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = defau
         return assets.Select(MapToViewModel).ToList();
     }
 
-        /// <summary>
-    /// GetPagedAsync method.
+    /// <summary>
+    /// Loads a page of media documents without a site filter.
     /// </summary>
+    /// <param name="parentId">The optional parent filter; root-only filtering is not applied when absent.</param>
+    /// <param name="skip">The number of matching documents to skip.</param>
+    /// <param name="take">The maximum number of documents to return.</param>
+    /// <param name="search">An optional case-sensitive file-name substring.</param>
+    /// <param name="ct">Cancels the count or page query.</param>
+    /// <returns>The mapped page and the total number of matching documents.</returns>
 public async Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(
         long? parentId, int skip, int take, string? search, CancellationToken ct = default)
     {
@@ -173,9 +226,18 @@ public async Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(
         return (items.Select(MapToViewModel).ToList(), totalCount);
     }
 
-        /// <summary>
-    /// SaveMediaAsync method.
+    /// <summary>
+    /// Creates a media document when its identifier is absent, or updates selected metadata when present.
     /// </summary>
+    /// <param name="vm">The caller-supplied media state.</param>
+    /// <param name="ct">Cancels database work.</param>
+    /// <returns>The persisted media state in an actor response.</returns>
+    /// <remarks>
+    /// New records receive a Snowflake identifier and trust the supplied <c>SiteId</c>. Updates load
+    /// by identifier without a site check and change only file name, alternate text, description,
+    /// and modification time. The database commit precedes event publication; a bus failure can
+    /// therefore escape after persistence has succeeded.
+    /// </remarks>
 public async Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -217,9 +279,16 @@ public async Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewM
         }
     }
 
-        /// <summary>
-    /// DeleteMediaAsync method.
+    /// <summary>
+    /// Deletes a media document by identifier and publishes its deletion event.
     /// </summary>
+    /// <param name="id">The document identifier.</param>
+    /// <param name="ct">Cancels database work.</param>
+    /// <returns>The deleted media state, or a not-found response.</returns>
+    /// <remarks>
+    /// The lookup is not site-scoped and no physical file is removed. The commit precedes event
+    /// publication, so a bus failure can escape after deletion has succeeded.
+    /// </remarks>
 public async Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -234,21 +303,45 @@ public async Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id,
 
     // ── Helpers ────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Converts a name to a lowercase, space-delimited slug.
+    /// </summary>
+    /// <returns>The generated slug; only spaces and one occurrence of double dashes are normalized.</returns>
     private static string GenerateSlug(string name) =>
         name.ToLowerInvariant().Replace(' ', '-').Replace("--", "-");
 
+    /// <summary>
+    /// Wraps one media model in a successful actor response.
+    /// </summary>
+    /// <returns>A response with an empty error model.</returns>
     private static AeroRequestResponse<MediaViewModel> Ok(MediaViewModel vm)
         => new(vm, new MediaErrorViewModel());
+    /// <summary>
+    /// Adapts a list to the single-value actor response shape.
+    /// </summary>
+    /// <returns>A response containing the first item, or a new default model for an empty list.</returns>
     private static AeroRequestResponse<MediaViewModel> Ok(IReadOnlyList<MediaViewModel> list)
     {
         var primary = list.Count > 0 ? list[0] : new MediaViewModel();
         return new AeroRequestResponse<MediaViewModel>(primary, new MediaErrorViewModel());
     }
+    /// <summary>
+    /// Creates a not-found actor response.
+    /// </summary>
+    /// <returns>A response with a default data model and the supplied error message.</returns>
     private static AeroRequestResponse<MediaViewModel> NotFound(string msg)
         => new(new MediaViewModel(), new MediaErrorViewModel { Message = msg });
+    /// <summary>
+    /// Creates a general failed actor response.
+    /// </summary>
+    /// <returns>A response with a default data model and the supplied error message.</returns>
     private static AeroRequestResponse<MediaViewModel> Fail(string msg)
         => new(new MediaViewModel(), new MediaErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Copies persisted media fields into the actor-facing view model.
+    /// </summary>
+    /// <returns>A detached view model.</returns>
     private static MediaViewModel MapToViewModel(MediaAsset a) => new()
     {
         Id = a.Id, SiteId = a.SiteId, Title = a.FileName, FileName = a.FileName,

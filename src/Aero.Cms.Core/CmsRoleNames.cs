@@ -1,38 +1,27 @@
 namespace Aero.Cms.Core;
 
 /// <summary>
-/// default Aero CMS roles
+/// Defines the standard AeroCMS role-name identifiers.
 /// </summary>
+/// <remarks>
+/// These constants identify roles only. Possessing a name does not itself enforce permissions;
+/// authorization policy and permission services determine effective access.
+/// </remarks>
 public static class CmsRoleNames
 {
-    /// <summary>
-    /// aero application administrator
-    /// </summary>
+    /// <summary>The administrator role name.</summary>
     public const string Admin = nameof(Admin);
-    /// <summary>
-    /// content editor for aero cms
-    /// <remarks>CRUD perms for content and can approve others content</remarks>
-    /// </summary>
+    /// <summary>The editor role name.</summary>
     public const string Editor = nameof(Editor);
-    /// <summary>
-    /// blog authors who can create, edit and delete their own content
-    /// <remarks>contributor's cannot edit other users content (they can view it however</remarks>
-    /// </summary>
+    /// <summary>The contributor role name.</summary>
     public const string Contributor = nameof(Contributor);
-    /// <summary>
-    /// read-only access to the admin area of the aero cms
-    /// <remarks>cannot edit/insert/update content of any kind</remarks>
-    /// </summary>
+    /// <summary>The view-only role name.</summary>
     public const string ViewOnly = nameof(ViewOnly);
 
-        /// <summary>
-    /// ManagerRoleCsv.
-    /// </summary>
+    /// <summary>Gets the standard role names as a comma-separated string.</summary>
 public const string ManagerRoleCsv = Admin + "," + Editor + "," + Contributor + "," + ViewOnly;
 
-        /// <summary>
-    /// Gets or sets the All.
-    /// </summary>
+    /// <summary>Gets all standard role-name identifiers in declaration order.</summary>
 public static IReadOnlyList<string> All { get; } =
     [
         Admin,

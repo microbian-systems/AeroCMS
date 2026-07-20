@@ -5,14 +5,14 @@ using Aero.Models.Entities;
 namespace Aero.Cms.Modules.Security;
 
 /// <summary>
-/// Composite authentication service that delegates to multiple strategies.
+/// Tries registered authentication strategies in dependency-injection enumeration order.
 /// </summary>
 public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly IEnumerable<IAuthenticationStrategy> _strategies;
 
         /// <summary>
-    /// Initializes a new instance of the <see cref="AuthenticationService"/> class.
+    /// Initializes the service with the strategy sequence to evaluate.
     /// </summary>
 public AuthenticationService(IEnumerable<IAuthenticationStrategy> strategies)
     {
@@ -20,8 +20,12 @@ public AuthenticationService(IEnumerable<IAuthenticationStrategy> strategies)
     }
 
         /// <summary>
-    /// AuthenticateAsync method.
+    /// Returns the first user produced by a strategy, or <see langword="null"/> when every strategy declines.
     /// </summary>
+    /// <remarks>
+    /// The cancellation token is forwarded to each strategy. Strategy exceptions and cancellation propagate; this
+    /// service does not create a principal, issue credentials, authorize the user, or isolate by tenant.
+    /// </remarks>
 public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
     {
         // Try each strategy in order

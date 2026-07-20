@@ -1,9 +1,12 @@
 namespace Aero.Cms.Modules.Commerce.Orders.Domain;
 
 /// <summary>
-/// Order aggregate root. Persisted via EF Core for relational integrity.
-/// State transitions managed by <see cref="OrderStateMachine"/>.
+/// Order aggregate root persisted by the commerce module through EF Core.
 /// </summary>
+/// <remarks>
+/// Status changes are validated by <see cref="Aero.Cms.Modules.Commerce.Shared.StateMachine.OrderStateMachine"/>;
+/// persistence and related business operations remain the responsibility of the calling workflow.
+/// </remarks>
 public sealed class OrderEntity : Entity
 {
         /// <summary>
@@ -19,8 +22,9 @@ public OrderStatus Status { get; set; } = OrderStatus.Submitted;
     /// </summary>
 public List<OrderItem> Items { get; set; } = [];
         /// <summary>
-    /// Gets or sets the Total Amount.
-    /// </summary>
+        /// Gets the sum of the current line-item totals.
+/// </summary>
+/// <remarks>This computed value does not add tax, shipping, discounts, currency conversion, or payment fees.</remarks>
 public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
         /// <summary>
     /// Gets or sets the Shipping Address.

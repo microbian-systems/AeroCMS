@@ -11,9 +11,16 @@ namespace Aero.Cms.SourceGenerators;
 [Generator]
 public sealed class EmbeddedAttributesGenerator : IIncrementalGenerator
 {
-        /// <summary>
-    /// Initialize method.
+    /// <summary>
+    /// Registers post-initialization output for Roslyn's embedded marker and Aero's reflection exemption.
     /// </summary>
+    /// <param name="context">The incremental generator registration context.</param>
+    /// <remarks>
+    /// Every consuming compilation receives an internal
+    /// <c>Aero.Cms.Generated.LegacyReflectionDiscoveryAttribute</c> that can target an assembly,
+    /// class, or method and carry an optional justification. The generated source suppresses
+    /// CS1591 and is not a supported public API.
+    /// </remarks>
 public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         context.RegisterPostInitializationOutput(static ctx =>

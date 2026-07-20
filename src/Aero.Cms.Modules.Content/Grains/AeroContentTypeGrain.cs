@@ -14,13 +14,19 @@ namespace Aero.Cms.Modules.Content.Grains;
 /// Orleans grain for content type definition management — wraps existing
 /// <see cref="IContentTypeService"/> via <see cref="IServiceScopeFactory"/>.
 /// </summary>
+/// <remarks>
+/// Site identity is supplied by each caller and is not independently authorized. Successful
+/// mutations publish non-durable notifications after persistence.
+/// </remarks>
 public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
         /// <summary>
-    /// Initializes a new instance of the <see cref="AeroContentTypeGrain"/> class.
+    /// Initializes the grain with its actor logger and service-scope factory.
     /// </summary>
+    /// <param name="log">The logger forwarded to the actor base.</param>
+    /// <param name="scopeFactory">The factory used to isolate scoped services per operation.</param>
 public AeroContentTypeGrain(
         ILogger<AeroActor> log,
         IServiceScopeFactory scopeFactory)
@@ -30,8 +36,9 @@ public AeroContentTypeGrain(
     }
 
         /// <summary>
-    /// GetAllAsync method.
+    /// Lists definitions for a caller-supplied site.
     /// </summary>
+    /// <returns>Mapped definitions, or an empty list for any railway failure.</returns>
 public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -47,8 +54,9 @@ public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, Cancellat
     }
 
         /// <summary>
-    /// GetByAliasAsync method.
+    /// Loads a site-scoped definition by alias.
     /// </summary>
+    /// <returns>The mapped definition, or <see langword="null"/> for any railway failure.</returns>
 public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -63,8 +71,9 @@ public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string ali
     }
 
         /// <summary>
-    /// CreateAsync method.
+    /// Assigns a new Snowflake identifier, saves a definition, and publishes a created notification.
     /// </summary>
+    /// <remarks>Site identity is accepted from <paramref name="vm"/> without authorization.</remarks>
 public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -89,8 +98,9 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(Content
     }
 
         /// <summary>
-    /// UpdateAsync method.
+    /// Saves a definition with its supplied identifier and publishes an updated notification.
     /// </summary>
+    /// <remarks>The grain does not first verify that the identifier, site, or alias already exists.</remarks>
 public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -115,8 +125,9 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(Content
     }
 
         /// <summary>
-    /// DeleteAsync method.
+    /// Deletes a site-scoped definition and publishes its pre-delete representation.
     /// </summary>
+    /// <returns><see langword="true"/> only when lookup and deletion both succeed.</returns>
 public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -140,14 +151,17 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
 
     // ── AeroRequestResponse helpers ────────────────────────────────────
 
+    /// <summary>Creates a response with data and an empty error model.</summary>
     private static AeroRequestResponse<ContentTypeViewModel> Ok(ContentTypeViewModel vm)
         => new(vm, new ContentTypeErrorViewModel());
 
+    /// <summary>Creates an empty-data response carrying a failure message.</summary>
     private static AeroRequestResponse<ContentTypeViewModel> Fail(string msg)
         => new(new ContentTypeViewModel(), new ContentTypeErrorViewModel { Message = msg });
 
     // ── Mapping ───────────────────────────────────────────────────────
 
+    /// <summary>Serializes fields and projects a definition into its actor contract.</summary>
     private static ContentTypeViewModel MapToViewModel(ContentTypeDefinition def) => new()
     {
         Id = def.Id,
@@ -166,6 +180,10 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
         ScheduleConfig = def.ScheduleConfig
     };
 
+    /// <summary>
+    /// Deserializes field definitions and projects a view model into a persistence entity.
+    /// </summary>
+    /// <remarks>A new Snowflake identifier is assigned only when <paramref name="isNew"/> is true.</remarks>
     private static ContentTypeDefinition ToEntity(ContentTypeViewModel vm, bool isNew)
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "[]"

@@ -9,12 +9,18 @@ namespace Aero.Cms.Modules.Content.Caching;
 /// <summary>
 /// Read-through cache decorator for content-type definitions.
 /// </summary>
+/// <param name="inner">The persistence service used on misses and mutations.</param>
+/// <param name="cache">The cache holding detached definition snapshots.</param>
+/// <param name="invalidator">The post-commit invalidator for type and response caches.</param>
+/// <param name="logger">The logger for best-effort cache-write failures.</param>
+/// <remarks>Cache read failures propagate; population and invalidation failures are suppressed.</remarks>
 internal sealed class CachedContentTypeService(
     AeroContentTypeService inner,
     IFusionCache cache,
     ContentCacheInvalidator invalidator,
     ILogger<CachedContentTypeService> logger) : IContentTypeService
 {
+    /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(
         long siteId,
         string alias,
@@ -37,6 +43,7 @@ internal sealed class CachedContentTypeService(
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<Result<IReadOnlyList<ContentTypeDefinition>, AeroError>> GetAllAsync(
         long siteId,
         CancellationToken ct = default)
@@ -64,6 +71,8 @@ internal sealed class CachedContentTypeService(
         return result;
     }
 
+    /// <inheritdoc />
+    /// <remarks>A successful persistence result remains successful when cache maintenance fails.</remarks>
     public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(
         ContentTypeDefinition definition,
         CancellationToken ct = default)
@@ -78,6 +87,7 @@ internal sealed class CachedContentTypeService(
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<Result<bool, AeroError>> DeleteAsync(
         long siteId,
         string alias,
@@ -92,6 +102,9 @@ internal sealed class CachedContentTypeService(
         return result;
     }
 
+    /// <summary>
+    /// Stores a detached definition under its site-qualified identifier and alias keys.
+    /// </summary>
     private Task SetAsync(ContentTypeDefinition definition, CancellationToken ct) =>
         BestEffortAsync(async () =>
         {
@@ -113,6 +126,9 @@ internal sealed class CachedContentTypeService(
                 token: ct);
         });
 
+    /// <summary>
+    /// Executes a cache update and logs any exception without rethrowing it.
+    /// </summary>
     private async Task BestEffortAsync(Func<Task> action)
     {
         try
@@ -125,5 +141,8 @@ internal sealed class CachedContentTypeService(
         }
     }
 
+    /// <summary>
+    /// Wraps a mutable list so list snapshots are cached and cloned as one value.
+    /// </summary>
     private sealed record ContentTypeListCacheEntry(List<ContentTypeDefinition> Items);
 }

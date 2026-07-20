@@ -13,6 +13,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
 {
     private const string CssNewLine = "\n";
 
+    /// <inheritdoc />
     public Result<CompiledPageStyles> Compile(HtmlPageContent content, IStyleProfile profile)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -54,6 +55,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         });
     }
 
+    /// <summary>Traverses the tree and de-duplicates rules by their deterministic generated class name.</summary>
     private static void CompileNode(
         HtmlNode node,
         IStyleProfile profile,
@@ -86,6 +88,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         }
     }
 
+    /// <summary>Validates one semantic style and produces canonical normal and responsive declarations.</summary>
     private static CompiledStyle? CompileStyle(HtmlStyle style, IStyleProfile profile, ICollection<string> errors)
     {
         if (style.GridColumns is < 1 or > 12)
@@ -144,6 +147,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         return new CompiledStyle(declarationText, $"{declarationText}|{responsive}", responsive);
     }
 
+    /// <summary>Scopes declarations to one generated class and appends the profile-specific responsive rule when needed.</summary>
     private static string BuildRule(string className, CompiledStyle style, IStyleProfile profile)
     {
         var rule = $".{className} {{ {style.Declarations} }}";
@@ -152,11 +156,13 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
             : $"{rule}{CssNewLine}@media (max-width: {Format(profile.SmallScreenBreakpointRem)}rem) {{ .{className} {{ {style.ResponsiveDeclarations} }} }}";
     }
 
+    /// <summary>Appends a declaration only when its previously validated value is present.</summary>
     private static void Add(ICollection<string> declarations, string property, string? value)
     {
         if (value is not null) declarations.Add($"{property}: {value};");
     }
 
+    /// <summary>Expands logical spacing into explicit direction-neutral CSS declarations.</summary>
     private static void AddSpacing(ICollection<string> declarations, string prefix, CssLogicalSpacing? spacing, bool allowNegative, ICollection<string> errors)
     {
         if (spacing is null) return;
@@ -166,6 +172,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         AddLength(declarations, $"{prefix}-inline-start", spacing.InlineStart, allowNegative, errors);
     }
 
+    /// <summary>Validates a constrained length before emitting its invariant numeric form and allowlisted unit.</summary>
     private static void AddLength(ICollection<string> declarations, string property, CssLength? length, bool allowNegative, ICollection<string> errors)
     {
         if (length is null) return;
@@ -184,6 +191,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         Add(declarations, property, $"{Format(length.Value)}{Unit(length.Unit)}");
     }
 
+    /// <summary>Compiles safe colors, media URLs, overlays, and background behavior for one surface.</summary>
     private static void AddSurface(
         ICollection<string> declarations,
         CssSurfaceStyle? surface,
@@ -243,6 +251,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         }
     }
 
+    /// <summary>Compiles bounded typography intent while enforcing mutually exclusive color and gradient modes.</summary>
     private static void AddTypography(
         ICollection<string> declarations,
         CssTypographyStyle? typography,
@@ -298,6 +307,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         Add(declarations, "color", "transparent");
     }
 
+    /// <summary>Resolves a literal or profile token to one canonical hexadecimal color.</summary>
     private static string? ResolveColor(CssColor? color, IStyleProfile profile, string description, ICollection<string> errors)
     {
         if (color is null) return null;
@@ -327,6 +337,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         return normalized;
     }
 
+    /// <summary>Combines a resolved color's source alpha with the requested overlay opacity.</summary>
     private static string? ResolveOverlayColor(CssColor color, decimal opacity, IStyleProfile profile, ICollection<string> errors)
     {
         var resolved = ResolveColor(color, profile, "overlay color", errors);
@@ -340,6 +351,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         return $"rgba({red}, {green}, {blue}, {Format(sourceAlpha * opacity)})";
     }
 
+    /// <summary>Normalizes hash-prefixed hexadecimal colors to lower-case six- or eight-digit form.</summary>
     private static bool TryNormalizeHex(string value, out string normalized)
     {
         normalized = string.Empty;
@@ -359,6 +371,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         return true;
     }
 
+    /// <summary>Maps an allowlisted background fit or records an unsupported enum value.</summary>
     private static string? BackgroundFit(CssBackgroundFit? value, ICollection<string> errors) => value switch
     {
         null => null,
@@ -367,6 +380,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         _ => AddUnsupported<CssBackgroundFit>("background fit", errors)
     };
 
+    /// <summary>Maps an allowlisted background anchor or records an unsupported enum value.</summary>
     private static string? BackgroundPosition(CssBackgroundPosition? value, ICollection<string> errors) => value switch
     {
         null => null,
@@ -376,6 +390,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         _ => AddUnsupported<CssBackgroundPosition>("background position", errors)
     };
 
+    /// <summary>Maps an allowlisted background repetition mode or records an unsupported enum value.</summary>
     private static string? BackgroundRepeat(CssBackgroundRepeat? value, ICollection<string> errors) => value switch
     {
         null => null,
@@ -386,6 +401,7 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         _ => AddUnsupported<CssBackgroundRepeat>("background repeat", errors)
     };
 
+    /// <summary>Maps logical text alignment or records an unsupported enum value.</summary>
     private static string? TextAlignment(CssTextAlignment? value, ICollection<string> errors) => value switch
     {
         null => null,
@@ -396,34 +412,43 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         _ => AddUnsupported<CssTextAlignment>("text alignment", errors)
     };
 
+    /// <summary>Records a validation error for an enum value outside the compiler's supported contract.</summary>
     private static string? AddUnsupported<T>(string description, ICollection<string> errors)
     {
         errors.Add($"The {description} value is not supported.");
         return null;
     }
 
+    /// <summary>Escapes slash and quote characters before a validated URL enters a quoted CSS string.</summary>
     private static string EscapeCssString(string value) =>
         value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
 
+    /// <summary>Maps the supported display enum to canonical CSS syntax.</summary>
     private static string? Display(CssDisplay? value) => value?.ToString() switch
     {
         "InlineBlock" => "inline-block", "InlineFlex" => "inline-flex", "InlineGrid" => "inline-grid",
         { } text => text.ToLowerInvariant(), _ => null
     };
 
+    /// <summary>Maps the supported flex direction to canonical CSS syntax.</summary>
     private static string? FlexDirection(CssFlexDirection? value) => value switch
     {
         CssFlexDirection.Row => "row", CssFlexDirection.RowReverse => "row-reverse",
         CssFlexDirection.Column => "column", CssFlexDirection.ColumnReverse => "column-reverse", _ => null
     };
 
+    /// <summary>Maps cross-axis alignment to canonical CSS syntax.</summary>
     private static string? Alignment(CssAlignment? value) => value?.ToString().ToLowerInvariant();
+
+    /// <summary>Maps main-axis distribution to canonical CSS syntax.</summary>
     private static string? Justification(CssJustification? value) => value switch
     {
         CssJustification.SpaceBetween => "space-between", CssJustification.SpaceAround => "space-around",
         CssJustification.SpaceEvenly => "space-evenly", { } other => other.ToString().ToLowerInvariant(), _ => null
     };
 
+    /// <summary>Maps every supported constrained length unit to its CSS suffix.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="unit"/> is outside the supported enum range.</exception>
     private static string Unit(CssLengthUnit unit) => unit switch
     {
         CssLengthUnit.Pixel => "px", CssLengthUnit.Rem => "rem", CssLengthUnit.Em => "em",
@@ -431,8 +456,12 @@ public sealed class NativeCssStyleCompiler : IStyleCompiler
         _ => throw new ArgumentOutOfRangeException(nameof(unit), unit, null)
     };
 
+    /// <summary>Formats CSS numeric values deterministically with at most four decimal places.</summary>
     private static string Format(decimal value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+    /// <summary>Computes a deterministic lowercase SHA-256 digest for class and content identity.</summary>
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
+    /// <summary>Holds one validated declaration set and its canonical fingerprint input.</summary>
     private readonly record struct CompiledStyle(string Declarations, string Canonical, string? ResponsiveDeclarations);
 }

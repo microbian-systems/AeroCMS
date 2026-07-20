@@ -12,8 +12,14 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Represents a class for AeroSeriesGrain.
+/// Implements series actor operations over short-lived Sable sessions.
 /// </summary>
+/// <param name="log">The actor logger.</param>
+/// <param name="store">The store used to open a session for each operation.</param>
+/// <remarks>
+/// The in-memory state methods are activation-local and independent of persisted series documents.
+/// Unlike category and tag mutations, series mutations do not publish integration events.
+/// </remarks>
 public sealed class AeroSeriesGrain(
     ILogger<AeroSeriesGrain> log,
     IDocumentStore store)
@@ -21,23 +27,31 @@ public sealed class AeroSeriesGrain(
 {
     private SeriesViewModel _state = new();
 
-        /// <summary>
-    /// GetStateAsync method.
+    /// <summary>
+    /// Returns the current activation-local state without reading persistence.
     /// </summary>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>The current state reference.</returns>
 public Task<SeriesViewModel> GetStateAsync(CancellationToken ct) => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
+    /// <summary>
+    /// Replaces the activation-local state without persisting it.
     /// </summary>
+    /// <param name="state">The state reference to retain.</param>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>A completed task.</returns>
 public Task UpdateStateAsync(SeriesViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
     }
 
-        /// <summary>
-    /// GetByIdAsync method.
+    /// <summary>
+    /// Loads a series by identifier and overlays the current UI-culture translation when available.
     /// </summary>
+    /// <param name="id">The persisted series identifier.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The mapped series, or an error response when no document exists.</returns>
 public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -51,9 +65,13 @@ public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdAsync(long id, Ca
             : Ok(PostTaxonomyTranslationMapper.MapSeries(series, translation));
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
+    /// <summary>
+    /// Loads base series documents whose identifiers are in the supplied array.
     /// </summary>
+    /// <param name="ids">The series identifiers to query.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The first mapped match, or an empty view model when none match.</returns>
+    /// <remarks>This method does not apply culture translations.</remarks>
 public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -65,9 +83,13 @@ public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdsAsync(long[] ids
         return Ok(series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList());
     }
 
-        /// <summary>
-    /// CreateAsync method.
+    /// <summary>
+    /// Creates and commits a series for a recognized create request.
     /// </summary>
+    /// <param name="request">A series create request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for the database commit.</param>
+    /// <returns>The created series or a request-type failure response.</returns>
+    /// <remarks>The generated identifier makes repeated calls create distinct documents.</remarks>
 public async Task<AeroRequestResponse<SeriesViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorCreateSeriesRequest create)
@@ -89,9 +111,12 @@ public async Task<AeroRequestResponse<SeriesViewModel>> CreateAsync(IRequest req
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-        /// <summary>
-    /// UpdateAsync method.
+    /// <summary>
+    /// Replaces the mutable fields of an existing series and commits the document.
     /// </summary>
+    /// <param name="request">A series update request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for persistence.</param>
+    /// <returns>The updated series, a not-found response, or a request-type failure response.</returns>
 public async Task<AeroRequestResponse<SeriesViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorUpdateSeriesRequest update)
@@ -113,9 +138,13 @@ public async Task<AeroRequestResponse<SeriesViewModel>> UpdateAsync(IRequest req
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Deletes an existing series.
     /// </summary>
+    /// <param name="request">A series delete request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for persistence.</param>
+    /// <returns>The deleted series, a not-found response, or a request-type failure response.</returns>
+    /// <remarks>This actor does not check whether posts still reference the series.</remarks>
 public async Task<AeroRequestResponse<SeriesViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorDeleteSeriesRequest delete)
@@ -132,9 +161,14 @@ public async Task<AeroRequestResponse<SeriesViewModel>> DeleteAsync(IRequest req
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
+    /// <summary>
+    /// Returns the first base series from a name-ordered page for one site.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="page">The one-based page number used to calculate the query offset.</param>
+    /// <param name="rows">The maximum number of rows queried.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The first mapped series in the page, or an empty view model when the page is empty.</returns>
 public async Task<AeroRequestResponse<SeriesViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -148,9 +182,14 @@ public async Task<AeroRequestResponse<SeriesViewModel>> GetBySiteIdAsync(long si
         return Ok(series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList());
     }
 
-        /// <summary>
-    /// GetBySlugAsync method.
+    /// <summary>
+    /// Finds a base series by exact slug within one site.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="slug">The exact base slug.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The mapped base series or a not-found response.</returns>
+    /// <remarks>This lookup does not inspect translated slugs or overlay translated fields.</remarks>
 public async Task<AeroRequestResponse<SeriesViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -163,14 +202,19 @@ public async Task<AeroRequestResponse<SeriesViewModel>> GetBySlugAsync(long site
             : Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
+    /// <summary>
+    /// Adapts the string site-key contract to the numeric site identifier used by persistence.
+    /// </summary>
     Task<AeroRequestResponse<SeriesViewModel>> ICanFindBySlug<SeriesViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
         => long.TryParse(siteId, out var id)
             ? GetBySlugAsync(id, slug, ct)
             : Task.FromResult(Fail($"Invalid site ID: {siteId}"));
 
-        /// <summary>
-    /// GetAllAsync method.
+    /// <summary>
+    /// Returns every base series across all sites ordered by name.
     /// </summary>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>All mapped series; callers that require tenant isolation must filter by <c>SiteId</c>.</returns>
 public async Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -181,9 +225,13 @@ public async Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = defa
         return series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList();
     }
 
-        /// <summary>
-    /// EnsureGeneralAsync method.
+    /// <summary>
+    /// Gets or creates the site's default <c>general</c> series.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="ct">A token used for the lookup and optional commit.</param>
+    /// <returns>The existing or newly persisted General series.</returns>
+    /// <remarks>The lookup followed by insert is not expressed as a single database upsert.</remarks>
 public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
@@ -208,24 +256,42 @@ public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationT
         return PostTaxonomyTranslationMapper.MapSeries(general);
     }
 
+    /// <summary>
+    /// Produces the grain's simple lowercase, space-to-hyphen fallback slug.
+    /// </summary>
     private static string GenerateSlug(string name) =>
         name.ToLowerInvariant().Replace(' ', '-').Replace("--", "-");
 
+    /// <summary>
+    /// Creates a successful response around one series.
+    /// </summary>
     private static AeroRequestResponse<SeriesViewModel> Ok(SeriesViewModel vm)
         => new(vm, new SeriesErrorViewModel());
 
+    /// <summary>
+    /// Adapts a list to the single-data response contract by selecting its first item.
+    /// </summary>
     private static AeroRequestResponse<SeriesViewModel> Ok(IReadOnlyList<SeriesViewModel> list)
     {
         var primary = list.Count > 0 ? list[0] : new SeriesViewModel();
         return new AeroRequestResponse<SeriesViewModel>(primary, new SeriesErrorViewModel());
     }
 
+    /// <summary>
+    /// Creates an error response with an empty series payload.
+    /// </summary>
     private static AeroRequestResponse<SeriesViewModel> NotFound(string msg)
         => new(new SeriesViewModel(), new SeriesErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Creates a request failure response with an empty series payload.
+    /// </summary>
     private static AeroRequestResponse<SeriesViewModel> Fail(string msg)
         => new(new SeriesViewModel(), new SeriesErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Loads the requested series translation unless the culture is the CMS default.
+    /// </summary>
     private static Task<SeriesTranslation?> LoadTranslationAsync(IDocumentSession session, long seriesId, string culture, CancellationToken ct)
     {
         if (string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
@@ -236,6 +302,9 @@ public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationT
             .FirstOrDefaultAsync(ct);
     }
 
+    /// <summary>
+    /// Returns the canonical current UI culture name, falling back to the configured CMS default name.
+    /// </summary>
     private static string GetCurrentCulture()
     {
         try

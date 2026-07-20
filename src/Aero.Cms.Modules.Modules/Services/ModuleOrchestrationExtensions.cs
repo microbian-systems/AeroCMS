@@ -16,6 +16,8 @@ public static class ModuleOrchestrationExtensions
     /// Registers core module system services (graph, state merger, options).
     /// Reflection-based discovery is no longer required — use generated descriptors.
     /// </summary>
+    /// <param name="services">The service collection to augment.</param>
+    /// <returns>The same service collection for chaining.</returns>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
         // Register graph service
@@ -34,6 +36,13 @@ public static class ModuleOrchestrationExtensions
     /// <summary>
     /// Synchronous wrapper for adding Aero modules with generated catalog.
     /// </summary>
+    /// <param name="services">The service collection that receives module registrations.</param>
+    /// <param name="config">Application configuration passed to each module.</param>
+    /// <param name="env">The host environment passed to each module.</param>
+    /// <param name="generatedDescriptors">The required source-generated module catalog.</param>
+    /// <returns>The same service collection after module configuration.</returns>
+    /// <exception cref="ModuleSystemStartupException">Thrown when the catalog is empty or invalid.</exception>
+    /// <remarks>Blocks the calling thread while the asynchronous registration pipeline completes.</remarks>
     public static IServiceCollection AddAeroModules(
         this IServiceCollection services,
         IConfiguration config,
@@ -44,6 +53,11 @@ public static class ModuleOrchestrationExtensions
     /// <summary>
     /// Alias for <see cref="AddAeroModules"/>.
     /// </summary>
+    /// <param name="services">The service collection that receives module registrations.</param>
+    /// <param name="config">Application configuration passed to each module.</param>
+    /// <param name="env">The host environment passed to each module.</param>
+    /// <param name="generatedDescriptors">The required source-generated module catalog.</param>
+    /// <returns>The same service collection after module configuration.</returns>
     public static IServiceCollection AddAeroCmsModules(
         this IServiceCollection services,
         IConfiguration config,
@@ -64,6 +78,13 @@ public static class ModuleOrchestrationExtensions
     /// <exception cref="ModuleSystemStartupException">
     /// Thrown when <paramref name="generatedDescriptors"/> is null or empty.
     /// </exception>
+    /// <returns>The same service collection after registrations and module hooks complete.</returns>
+    /// <remarks>
+    /// The method builds temporary service providers during composition. Module instances resolved
+    /// from the temporary provider execute <c>Configure</c> before <c>ConfigureServices</c>; those
+    /// instances are not the singleton instances later built by the host. Module hook, dependency
+    /// graph, and service-construction exceptions propagate.
+    /// </remarks>
     public static async Task<IServiceCollection> AddAeroModulesAsync(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -172,6 +193,13 @@ public static class ModuleOrchestrationExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers a module under specialized contracts indicated by descriptor flags or assignability.
+    /// </summary>
+    /// <remarks>
+    /// Assignability checks provide a fallback for descriptors whose generated marker flags are absent.
+    /// Registrations are enumerable singletons and reuse the module's concrete implementation type.
+    /// </remarks>
     private static void RegisterSpecializedInterfaces(IServiceCollection services, ModuleDescriptor descriptor)
     {
         // Use marker flags from ModuleDescriptor first (source-generated / metadata-driven)

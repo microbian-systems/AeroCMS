@@ -11,21 +11,18 @@ using Microsoft.Net.Http.Headers;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Custom <see cref="IRule"/> that evaluates URL aliases scoped to the current site.
-///
-/// Resolves the current site from <see cref="IAeroSiteSlice"/> set by
-/// <see cref="SiteResolutionMiddleware"/>. Only aliases belonging to the current
-/// site are checked — two sites can have the same old path resolving to different
-/// new paths.
-///
-/// Primary path: reads from the in-memory <see cref="IAliasRuleCache"/> (zero DB I/O).
-/// Cache-miss fallback: queries AeroDB directly, scoped to current site.
-///
-/// Warmup: <see cref="AliasRuleCacheWarmupService"/> loads the cache from the DB on startup.
-/// Invalidation: cache is invalidated on create/update/delete via <see cref="IAliasRuleCache.Invalidate"/>.
-///
-/// Registered as a singleton and added to <see cref="RewriteOptions"/>
-/// via the <see cref="AliasStartupFilter"/>.
+/// Rewrite rule that turns a matching site-scoped alias into a terminal redirect.
+/// It requires an <see cref="IAeroSiteSlice"/> feature with a positive site ID;
+/// without one it passes the request through unchanged. Hosts must place site
+/// resolution before this rule for alias resolution to work, but this type does
+/// not itself guarantee that middleware ordering.
+/// <para>
+/// The rule resolves the request culture from the site's supported cultures,
+/// removes a recognized culture prefix for lookup, and normalizes the remaining
+/// path. It first reads <see cref="IAliasRuleCache"/> and, on a miss, synchronously
+/// queries a scoped document session. A matching prefixed request keeps that
+/// culture prefix in its <c>Location</c>; the query string is also preserved.
+/// </para>
 /// </summary>
 public sealed class AliasRewriteRule : IRule
 {
@@ -33,9 +30,7 @@ public sealed class AliasRewriteRule : IRule
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AliasRewriteRule> _log;
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="AliasRewriteRule"/> class.
-    /// </summary>
+    /// <summary>Initializes the singleton rewrite rule and its fallback dependencies.</summary>
 public AliasRewriteRule(IAliasRuleCache cache, IServiceProvider serviceProvider, ILogger<AliasRewriteRule> log)
     {
         _cache = cache;
@@ -43,8 +38,11 @@ public AliasRewriteRule(IAliasRuleCache cache, IServiceProvider serviceProvider,
         _log = log;
     }
 
-        /// <summary>
-    /// ApplyRule method.
+    /// <summary>
+    /// Applies a redirect for a resolved alias, otherwise leaves the rewrite
+    /// context unchanged. The cache-miss persistence query is synchronous because
+    /// <see cref="IRule"/> is synchronous; unavailable document-session services
+    /// and unmatched aliases pass through rather than producing a response.
     /// </summary>
 public void ApplyRule(RewriteContext context)
     {

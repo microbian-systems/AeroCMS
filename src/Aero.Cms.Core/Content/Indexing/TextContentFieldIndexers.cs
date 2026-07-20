@@ -5,7 +5,7 @@ using Aero.Cms.Abstractions.Content;
 namespace Aero.Cms.Core.Content.Indexing;
 
 /// <summary>
-/// Extracts plain text from a text field for search indexing.
+/// Emits a text field's JSON string value as one search token.
 /// </summary>
 public sealed class TextFieldIndexer : IContentFieldIndexer
 {
@@ -13,6 +13,7 @@ public sealed class TextFieldIndexer : IContentFieldIndexer
     public string FieldType => "text";
 
     /// <inheritdoc />
+    /// <remarks>Non-string JSON values emit no tokens. A JSON empty string emits one empty token.</remarks>
     public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
     {
         if (value.ValueKind == JsonValueKind.String)
@@ -21,11 +22,16 @@ public sealed class TextFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Extracts plain text from a richtext field for search indexing, stripping HTML tags.
+/// Emits a rich-text JSON string after removing substrings that resemble HTML tags.
 /// </summary>
+/// <remarks>
+/// Tag removal uses the regular expression <c>&lt;[^&gt;]*&gt;</c>. It is token extraction,
+/// not HTML parsing or sanitization, and does not decode HTML entities.
+/// </remarks>
 public sealed class RichTextFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
+    /// <remarks>Non-string JSON values emit no tokens; string values emit exactly one token.</remarks>
     public string FieldType => "richtext";
 
     /// <inheritdoc />
@@ -40,8 +46,9 @@ public sealed class RichTextFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Extracts the raw ID value from a reference field for cross-reference indexing.
+/// Emits a scalar reference field's JSON string value as one search token.
 /// </summary>
+/// <remarks>Reference arrays and other non-string JSON values emit no tokens.</remarks>
 public sealed class ReferenceFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
@@ -56,11 +63,12 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Extracts a numeric value as text for search indexing.
+/// Emits a decimal JSON number formatted using the current culture.
 /// </summary>
 public sealed class NumberFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
+    /// <remarks>Numbers not representable as <see cref="decimal"/> and non-number values emit no tokens.</remarks>
     public string FieldType => "number";
 
     /// <inheritdoc />
@@ -72,11 +80,12 @@ public sealed class NumberFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Extracts the boolean value as text for search indexing.
+/// Emits the lowercase invariant token <c>true</c> or <c>false</c> for a JSON Boolean.
 /// </summary>
 public sealed class BooleanFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
+    /// <remarks>Non-Boolean JSON values emit no tokens.</remarks>
     public string FieldType => "boolean";
 
     /// <inheritdoc />

@@ -5,17 +5,27 @@ using Microsoft.AspNetCore.Mvc;
 namespace Aero.Cms.Modules.Navigation.ViewComponents;
 
 /// <summary>
-/// Represents a class for AeroNavBarViewComponent.
+/// Resolves the request's published navigation snapshot and renders the navigation view.
 /// </summary>
+/// <remarks>
+/// Resolution failures are logged and the view still runs with the scoped
+/// <see cref="NavMenuContext"/>, allowing the view to render an empty state.
+/// </remarks>
 public sealed class AeroNavBarViewComponent(
     ISiteContext siteContext,
     INavMenuService navMenuService,
     NavMenuContext navMenuContext,
     ILogger<AeroNavBarViewComponent> logger) : ViewComponent
 {
-        /// <summary>
-    /// InvokeAsync method.
+    /// <summary>
+    /// Resolves a page override or the current site's default culture-aware navigation menu.
     /// </summary>
+    /// <param name="pageOverrideId">An optional menu identifier supplied by trusted page configuration.</param>
+    /// <returns>The default component view with the resolved <see cref="NavMenuContext"/> as its model.</returns>
+    /// <remarks>
+    /// The resolver does not independently verify that the override belongs to the current site;
+    /// callers must not bind this identifier directly from untrusted request input.
+    /// </remarks>
 public async Task<IViewComponentResult> InvokeAsync(long? pageOverrideId = null)
     {
         var result = await navMenuContext.ResolveAsync(

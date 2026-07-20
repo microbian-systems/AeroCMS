@@ -5,32 +5,38 @@ using Aero.Cms.Modules.Setup.Configuration;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Defines an interface for IBootstrapCompletionWriter.
+/// Persists lifecycle transitions for the bootstrap process.
 /// </summary>
 public interface IBootstrapCompletionWriter
 {
-        /// <summary>
-    /// MarkCompleteAsync method.
+    /// <summary>
+    /// Marks bootstrap and seeding as complete and changes the persisted state to running.
     /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
 Task MarkCompleteAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// MarkConfiguredAsync method.
+    /// <summary>
+    /// Records that configuration is available but runtime seeding has not completed.
     /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
 Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// MarkFailedAsync method.
+    /// <summary>
+    /// Records a failed bootstrap attempt while retaining the fact that bootstrap configuration exists.
     /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
 Task MarkFailedAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for BootstrapCompletionWriter.
+/// Updates the bootstrap section of the environment-specific web application settings file.
 /// </summary>
+/// <remarks>
+/// Existing settings outside <c>AeroCms:Bootstrap</c> are preserved. Missing files and
+/// missing object sections are created. Malformed JSON and file-system failures propagate
+/// to the caller.
+/// </remarks>
 public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appSettingsWriter) : IBootstrapCompletionWriter
 {
-        /// <summary>
-    /// MarkCompleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
@@ -61,9 +67,7 @@ public async Task MarkCompleteAsync(CancellationToken cancellationToken = defaul
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-        /// <summary>
-    /// MarkConfiguredAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
@@ -95,9 +99,7 @@ public async Task MarkConfiguredAsync(CancellationToken cancellationToken = defa
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-        /// <summary>
-    /// MarkFailedAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";

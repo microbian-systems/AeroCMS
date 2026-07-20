@@ -11,13 +11,19 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Aliases.Areas.Api.v1;
 
 /// <summary>
-/// Thin admin API for URL alias/redirect management.
-/// Handles input validation and delegates all logic to <see cref="IAeroAliasActor"/> (Orleans grain).
+/// Maps the administrative HTTP API for listing, creating, and deleting aliases.
+/// Endpoint handlers validate create and delete requests and delegate persistence
+/// to <see cref="IAeroAliasActor"/>. This mapping adds no authorization policy,
+/// so a host must protect the <c>/api/v1/admin/aliases</c> route group through
+/// surrounding configuration if administrative access is required.
 /// </summary>
 public static class AliasesAdminApi
 {
-        /// <summary>
-    /// MapAliasesApi method.
+    /// <summary>
+    /// Maps <c>GET</c>, <c>POST</c>, and <c>DELETE</c> endpoints under
+    /// <c>/api/v1/admin/aliases</c>. Listing returns an OK response (optionally
+    /// site-filtered); create and delete return validation-problem responses for
+    /// invalid requests and otherwise return the actor's result in an OK response.
     /// </summary>
 public static void MapAliasesApi(this IEndpointRouteBuilder app)
     {

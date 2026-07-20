@@ -4,8 +4,12 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Ai.Validation;
 
 /// <summary>
-/// Represents a class for EnhanceContentRequestValidator.
+/// Validates content-enhancement requests before they are sent to an AI provider.
 /// </summary>
+/// <remarks>
+/// The validator constrains known content kinds and target fields and limits the size of prompt
+/// context. It does not sanitize content or establish whether the requested edit is safe or factual.
+/// </remarks>
 public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceContentRequest>
 {
     private static readonly HashSet<string> ContentKinds = new(StringComparer.OrdinalIgnoreCase)
@@ -25,8 +29,13 @@ public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceCo
     };
 
         /// <summary>
-    /// Initializes a new instance of the <see cref="EnhanceContentRequestValidator"/> class.
+    /// Initializes validation rules for supported fields and request-size limits.
     /// </summary>
+    /// <remarks>
+    /// Content kinds are limited to <c>post</c>, <c>page</c>, and <c>doc</c>; target fields are
+    /// limited to body, title, summary, SEO title, and SEO description. Provider identifiers are
+    /// length-checked but are resolved separately by the settings provider.
+    /// </remarks>
 public EnhanceContentRequestValidator()
     {
         // todo - get ai provider settings/options from the database config

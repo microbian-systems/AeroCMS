@@ -24,13 +24,23 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Defines an interface for IServerTargetSetupExecutor.
+/// Executes initial setup against a caller-selected remote AeroDB server.
 /// </summary>
 public interface IServerTargetSetupExecutor
 {
-        /// <summary>
-    /// ExecuteAsync method.
+    /// <summary>
+    /// Configures a temporary server-backed document store, seeds installation data, and records bootstrap completion.
     /// </summary>
+    /// <param name="serverConnectionString">The remote AeroDB endpoint used by the temporary store.</param>
+    /// <param name="request">The initial administrator, tenant, site, and content selections.</param>
+    /// <param name="descriptors">Optional module descriptors to initialize; an empty collection is used when omitted.</param>
+    /// <param name="cancellationToken">
+    /// Is forwarded to seeding and completion persistence. The current migration stage is a
+    /// no-op, and creation of the lightweight document session does not receive this token.
+    /// </param>
+    /// <returns>The aggregate seed result. A failed seed result is returned without writing the completion marker.</returns>
+    /// <exception cref="ArgumentException"><paramref name="serverConnectionString"/> is blank.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
 Task<SeedDatabaseResult> ExecuteAsync(
         string serverConnectionString,
         SeedDatabaseRequest request,
@@ -39,16 +49,19 @@ Task<SeedDatabaseResult> ExecuteAsync(
 }
 
 /// <summary>
-/// Represents a class for ServerTargetSetupExecutor.
+/// Builds the service graph needed to seed a remote server without replacing the application's root container.
 /// </summary>
+/// <remarks>
+/// The supplied connection string is used for the temporary document store and only a
+/// short prefix is logged. Database credentials are passed to store options and must not
+/// be logged. Successful seeding is followed by a file-based running-state write.
+/// </remarks>
 public sealed class ServerTargetSetupExecutor(
     IServiceProvider rootServiceProvider,
     ILogger<ServerTargetSetupExecutor> logger,
     IBootstrapCompletionWriter bootstrapCompletionWriter) : IServerTargetSetupExecutor
 {
-        /// <summary>
-    /// ExecuteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SeedDatabaseResult> ExecuteAsync(
         string serverConnectionString,
         SeedDatabaseRequest request,
@@ -166,6 +179,9 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         return result;
     }
 
+    /// <summary>
+    /// Preserves the former migration stage as a no-op because Sable owns persistence setup.
+    /// </summary>
     private Task MigrateAsync(string connectionString, CancellationToken cancellationToken)
     {
         // EF Core Npgsql migrations removed.
@@ -173,6 +189,9 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Creates an identity user store over the temporary document store.
+    /// </summary>
     private static IUserStore<AeroUser> CreateUserStore(IDocumentStore store, IServiceProvider services)
     {
         return new AeroDBUserStore<AeroUser, AeroRole, long>(
@@ -180,6 +199,9 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             (ILogger<AeroDBUserStore<AeroUser, AeroRole, long>>)services.GetRequiredService(typeof(ILogger<AeroDBUserStore<AeroUser, AeroRole, long>>)));
     }
 
+    /// <summary>
+    /// Creates the user manager required for setup without registering it in the root container.
+    /// </summary>
     private static UserManager<AeroUser> CreateUserManager(IUserStore<AeroUser> userStore, IServiceProvider services)
     {
         var options = Options.Create(new IdentityOptions());
@@ -192,6 +214,9 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         return new UserManager<AeroUser>(userStore, options, passwordHasher, userValidators, passwordValidators, keyNormalizer, errors, services, logger);
     }
 
+    /// <summary>
+    /// Creates the role manager required for setup over the temporary document store.
+    /// </summary>
     private static RoleManager<AeroRole> CreateRoleManager(IDocumentStore store)
     {
         var roleStore = new AeroDBRoleStore<AeroRole, long>(

@@ -9,12 +9,22 @@ namespace Aero.Cms.Modules.Content.Caching;
 /// <summary>
 /// Read-through cache decorator for content items.
 /// </summary>
+/// <param name="inner">The persistence service used on cache misses and for every mutation.</param>
+/// <param name="cache">The FusionCache instance holding detached item snapshots.</param>
+/// <param name="invalidator">The post-commit invalidator for stale identities and rendered responses.</param>
+/// <param name="logger">The logger for best-effort cache-write failures.</param>
+/// <remarks>
+/// Identifier keys are not site-qualified and rely on globally unique item identifiers. Cache
+/// read failures propagate; cache population and post-commit invalidation failures are logged and
+/// suppressed.
+/// </remarks>
 internal sealed class CachedContentService(
     AeroContentService inner,
     IFusionCache cache,
     ContentCacheInvalidator invalidator,
     ILogger<CachedContentService> logger) : IContentService
 {
+    /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> LoadAsync(
         long id,
         CancellationToken ct = default)
@@ -35,6 +45,7 @@ internal sealed class CachedContentService(
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> GetBySlugAsync(
         long siteId,
         string slug,
@@ -56,6 +67,7 @@ internal sealed class CachedContentService(
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(
         long siteId,
         string contentTypeAlias,
@@ -84,6 +96,12 @@ internal sealed class CachedContentService(
         return result;
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// For updates, the previous identity is loaded before persistence so renamed slugs, cultures,
+    /// or types can be invalidated. A successful commit is returned even when invalidation or cache
+    /// repopulation fails.
+    /// </remarks>
     public async Task<Result<ContentItem, AeroError>> SaveAsync(
         ContentItem item,
         CancellationToken ct = default)
@@ -108,6 +126,7 @@ internal sealed class CachedContentService(
         return result;
     }
 
+    /// <inheritdoc />
     public async Task<bool> ExistsAsync(long id, CancellationToken ct = default)
     {
         var cached = await cache.TryGetAsync<ContentItem>(
@@ -116,6 +135,8 @@ internal sealed class CachedContentService(
         return cached.HasValue || await inner.ExistsAsync(id, ct);
     }
 
+    /// <inheritdoc />
+    /// <remarks>A successful delete is not converted to failure by cache invalidation errors.</remarks>
     public async Task<Result<bool, AeroError>> DeleteAsync(
         long id,
         CancellationToken ct = default)
@@ -136,6 +157,9 @@ internal sealed class CachedContentService(
         return result;
     }
 
+    /// <summary>
+    /// Stores one detached snapshot under identifier, untyped slug, and typed culture-slug keys.
+    /// </summary>
     private Task SetAsync(ContentItem item, CancellationToken ct) =>
         BestEffortAsync(async () =>
         {
@@ -173,6 +197,9 @@ internal sealed class CachedContentService(
                 token: ct);
         });
 
+    /// <summary>
+    /// Executes a cache update and logs any exception without rethrowing it.
+    /// </summary>
     private async Task BestEffortAsync(Func<Task> action)
     {
         try
@@ -185,6 +212,9 @@ internal sealed class CachedContentService(
         }
     }
 
+    /// <summary>
+    /// Captures the fields needed to invalidate every cache identity for an item.
+    /// </summary>
     private static ContentItemCacheIdentity ToIdentity(ContentItem item) =>
         new(item.SiteId, item.Id, item.ContentTypeAlias, item.Culture, item.Slug);
 }

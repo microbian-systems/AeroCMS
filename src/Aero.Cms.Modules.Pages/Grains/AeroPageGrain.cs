@@ -22,15 +22,24 @@ namespace Aero.Cms.Modules.Pages.Grains;
 /// manually constructs <see cref="AeroPageContentService"/> with a <see cref="FixedSiteContext"/>,
 /// and delegates each operation to the service.
 /// </summary>
+/// <remarks>
+/// Several identifier-only actor contracts do not carry a site identifier. Those
+/// methods load the page directly to discover its site and therefore assume callers
+/// are authorized before crossing the actor boundary. The in-memory state exposed by
+/// <c>IHaveState</c> is not persisted by this grain.
+/// </remarks>
 public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 {
     private readonly IDocumentStore _store;
     private readonly IServiceProvider _services;
     private PageViewModel _state = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AeroPageGrain"/> class.
     /// </summary>
+    /// <param name="log">The base actor logger.</param>
+    /// <param name="store">The Sable store used to open a session per operation.</param>
+    /// <param name="services">Resolves operation-scoped page dependencies.</param>
 public AeroPageGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
@@ -75,15 +84,11 @@ public AeroPageGrain(
 
     // ── IHaveState<PageViewModel> ────────────────────────────────────
 
-        /// <summary>
-    /// GetStateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<PageViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
     {
         _state = state;
@@ -93,8 +98,12 @@ public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
     // ── ICruddable<PageViewModel, long> ──────────────────────────────
 
     /// <summary>
-    /// Direct AeroDB load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
+    /// Loads a page directly by identifier because <see cref="ICruddable{T,TKey}"/>
+    /// does not provide a site scope.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="ct">The token used for the direct store load.</param>
+    /// <returns>The page response, or a not-found response.</returns>
     public async Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.QuerySessionAsync();
@@ -106,8 +115,15 @@ public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
     }
 
     /// <summary>
-    /// Direct AeroDB query — no siteId available via interface.
+    /// Queries pages directly by identifier because the CRUD contract does not
+    /// provide a site scope.
     /// </summary>
+    /// <param name="ids">The page identifiers.</param>
+    /// <param name="ct">The token used for the store query.</param>
+    /// <returns>
+    /// A successful response containing the first returned page, or an empty page
+    /// model when no records match. Query ordering is not specified.
+    /// </returns>
     public async Task<AeroRequestResponse<PageViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.QuerySessionAsync();
@@ -119,9 +135,7 @@ public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
         return Ok(primary);
     }
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreatePageRequest create)
@@ -138,9 +152,7 @@ public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest reque
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdatePageRequest update)
@@ -166,9 +178,7 @@ public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest reque
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeletePageRequest delete)
@@ -197,9 +207,11 @@ public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest reque
 
     // ── ICanFindBySite<PageViewModel, long> ──────────────────────────
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Although the contract is singular, this implementation performs a paged query
+    /// and returns only the first item from that page.
+    /// </remarks>
 public async Task<AeroRequestResponse<PageViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
@@ -218,15 +230,11 @@ public async Task<AeroRequestResponse<PageViewModel>> GetBySiteIdAsync(
 
     // ── ICanFindBySlug ──────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, culture: null, ct);
 
-        /// <summary>
-    /// GetBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, culture, ct);
 
@@ -287,9 +295,8 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
         };
     }
 
-    /// <summary>
-    /// Delegates to <see cref="AeroPageContentService"/> for site-scoped paged query.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Service failures are represented as an empty page and a zero count.</remarks>
     public async Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(
         long siteId, int skip, int take, string? search, CancellationToken ct)
     {
@@ -302,9 +309,7 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
         return ([], 0);
     }
 
-        /// <summary>
-    /// PublishAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
     {
         await using var scope = _services.CreateAsyncScope();
@@ -322,15 +327,17 @@ public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, Canc
             : NotFound($"Page {id} not found");
     }
 
-        /// <summary>
-    /// UnpublishAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// This direct actor path sets the document to draft and clears
+    /// <c>PublishedOn</c>, but does not publish notifications or clear the stored
+    /// published snapshot.
+    /// </remarks>
 public async Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct)
         => await TogglePublishStateAsync(id, ContentPublicationState.Draft, ct);
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Lookup or service failures are represented as an empty list.</remarks>
 public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
@@ -350,9 +357,7 @@ public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, Cancell
             : [];
     }
 
-        /// <summary>
-    /// ForkPageForCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
         long id,
         string culture,
@@ -402,9 +407,11 @@ public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
         return Ok(page.ToViewModel());
     }
 
-        /// <summary>
-    /// DeleteMultipleAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// The first identifier determines the site scope for the entire batch. A missing
+    /// first page or any service failure is represented as a zero count.
+    /// </remarks>
 public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct)
     {
         if (ids.Length == 0)
@@ -442,13 +449,9 @@ public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, C
 
     private sealed class FixedSiteContext(long siteId) : ISiteContext
     {
-                /// <summary>
-        /// Gets or sets the Site Id.
-        /// </summary>
+        /// <summary>Gets the operation's fixed site identifier.</summary>
 public long SiteId { get; } = siteId;
-                /// <summary>
-        /// Gets or sets the Tenant Id.
-        /// </summary>
+        /// <summary>Gets the site identifier reused as the tenant identifier.</summary>
 public long TenantId { get; } = siteId;
     }
 }

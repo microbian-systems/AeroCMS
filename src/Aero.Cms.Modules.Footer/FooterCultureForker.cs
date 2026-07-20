@@ -5,21 +5,42 @@ using Aero.Cms.Modules.Footer.Events;
 namespace Aero.Cms.Modules.Footer;
 
 /// <summary>
-/// Represents a record for FooterCultureFork.
+/// Contains the creation and initial-draft events needed to start a translated footer stream.
 /// </summary>
+/// <param name="Created">The event that establishes the translated footer identity and culture.</param>
+/// <param name="DraftSaved">The event that stores the cloned editor snapshot.</param>
 public sealed record FooterCultureFork(
     FooterCreated Created,
     FooterDraftSaved DraftSaved);
 
 /// <summary>
-/// Represents a class for FooterCultureForker.
+/// Creates detached event payloads for a culture variant of an existing footer.
 /// </summary>
 public static class FooterCultureForker
 {
-        /// <summary>
-    /// Fork method.
+    /// <summary>
+    /// Clones the supplied snapshot and creates the initial events for a culture variant.
     /// </summary>
-public static FooterCultureFork Fork(
+    /// <param name="source">The source footer whose site, key, metadata, and translation group are retained.</param>
+    /// <param name="sourceSnapshot">The editor snapshot to clone.</param>
+    /// <param name="targetFooterId">
+    /// The identifier reserved for the target footer. The current event payloads do not embed this value;
+    /// the caller selects the target stream when persisting them.
+    /// </param>
+    /// <param name="targetCulture">
+    /// The requested culture. Invalid or blank values fall back to <c>en-US</c>.
+    /// </param>
+    /// <param name="userId">The optional actor recorded on both generated events.</param>
+    /// <param name="timestamp">The event timestamp, or UTC now when omitted.</param>
+    /// <returns>Two unpersisted events for creating and saving the target draft.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="source"/> or <paramref name="sourceSnapshot"/> is <see langword="null"/>.
+    /// </exception>
+    /// <remarks>
+    /// Known component records and their lists are copied. An unknown <see cref="IFooterComponent"/>
+    /// implementation is retained by reference. This method does not validate or persist the cloned snapshot.
+    /// </remarks>
+    public static FooterCultureFork Fork(
         FooterDocument source,
         FooterSnapshot sourceSnapshot,
         long targetFooterId,

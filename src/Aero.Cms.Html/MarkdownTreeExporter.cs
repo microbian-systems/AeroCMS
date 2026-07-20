@@ -8,10 +8,15 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Lossless, fail-closed visitor for the Markdown-representable subset of an HTML tree.
 /// </summary>
+/// <param name="contentValidator">The authoritative validator applied before visiting the tree.</param>
+/// <param name="limits">Resource limits for generated Markdown.</param>
 internal sealed class MarkdownTreeExporter(
     IHtmlContentValidator contentValidator,
     MarkdownInterchangeLimits limits)
 {
+    /// <summary>
+    /// Validates and renders the losslessly representable subset without returning partial Markdown.
+    /// </summary>
     public Result<string> Export(HtmlPageContent content)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -40,6 +45,7 @@ internal sealed class MarkdownTreeExporter(
         }
     }
 
+    /// <summary>Renders sibling block nodes separated by canonical blank lines.</summary>
     private static string RenderBlocks(IEnumerable<HtmlNode> nodes)
     {
         var blocks = nodes.Select(node =>
@@ -56,6 +62,7 @@ internal sealed class MarkdownTreeExporter(
         return string.Join("\n\n", blocks);
     }
 
+    /// <summary>Dispatches one block element and rejects unsupported or presentation-bearing nodes.</summary>
     private static string RenderBlock(HtmlNode node)
     {
         EnsureElement(node);
@@ -79,18 +86,21 @@ internal sealed class MarkdownTreeExporter(
         };
     }
 
+    /// <summary>Renders an ATX heading after enforcing its attribute-free inline-only shape.</summary>
     private static string RenderHeading(HtmlNode node, int level)
     {
         EnsureAttributes(node);
         return $"{new string('#', level)} {RenderInlineChildren(node)}";
     }
 
+    /// <summary>Renders a paragraph from losslessly representable inline children.</summary>
     private static string RenderParagraph(HtmlNode node)
     {
         EnsureAttributes(node);
         return RenderInlineChildren(node);
     }
 
+    /// <summary>Prefixes every rendered child line so multi-line quotations preserve their block structure.</summary>
     private static string RenderBlockquote(HtmlNode node)
     {
         EnsureAttributes(node);
@@ -100,6 +110,7 @@ internal sealed class MarkdownTreeExporter(
             body.Split('\n').Select(line => line.Length == 0 ? ">" : $"> {line}"));
     }
 
+    /// <summary>Renders an attribute-free, childless thematic break.</summary>
     private static string RenderRule(HtmlNode node)
     {
         EnsureAttributes(node);
@@ -111,6 +122,7 @@ internal sealed class MarkdownTreeExporter(
         return "---";
     }
 
+    /// <summary>Renders a homogeneous list while preserving nesting and canonical indentation.</summary>
     private static string RenderList(HtmlNode node, bool ordered)
     {
         EnsureAttributes(node, ordered ? ["start"] : []);
@@ -150,6 +162,7 @@ internal sealed class MarkdownTreeExporter(
         return string.Join("\n", lines);
     }
 
+    /// <summary>Renders one list item whose mixed inline and nested-list content remains unambiguous.</summary>
     private static string RenderListItem(HtmlNode item)
     {
         var chunks = new List<string>();
@@ -189,6 +202,7 @@ internal sealed class MarkdownTreeExporter(
         return chunks.Count == 0 ? string.Empty : string.Join("\n\n", chunks);
     }
 
+    /// <summary>Selects a fence longer than any source run and validates the optional language token.</summary>
     private static string RenderCodeBlock(HtmlNode node)
     {
         EnsureAttributes(node);
@@ -227,11 +241,14 @@ internal sealed class MarkdownTreeExporter(
         return $"{fence}{language}\n{text.TrimEnd('\r', '\n')}\n{fence}";
     }
 
+    /// <summary>Renders all children through the inline-only visitor.</summary>
     private static string RenderInlineChildren(HtmlNode node) => RenderInlineNodes(node.Children);
 
+    /// <summary>Concatenates inline nodes without adding layout whitespace.</summary>
     private static string RenderInlineNodes(IEnumerable<HtmlNode> nodes) =>
         string.Concat(nodes.Select(RenderInline));
 
+    /// <summary>Dispatches one text or phrasing node and rejects block-only or unsupported elements.</summary>
     private static string RenderInline(HtmlNode node)
     {
         if (node.Kind is HtmlNodeKind.Text)
@@ -255,12 +272,14 @@ internal sealed class MarkdownTreeExporter(
         };
     }
 
+    /// <summary>Wraps non-empty inline content in a Markdown delimiter pair.</summary>
     private static string WrapInline(HtmlNode node, string opening, string closing)
     {
         EnsureAttributes(node);
         return opening + RenderInlineChildren(node) + closing;
     }
 
+    /// <summary>Selects a delimiter longer than any backtick run and preserves boundary whitespace.</summary>
     private static string RenderInlineCode(HtmlNode node)
     {
         EnsureAttributes(node);
@@ -278,6 +297,7 @@ internal sealed class MarkdownTreeExporter(
             : $"{delimiter}{text}{delimiter}";
     }
 
+    /// <summary>Renders a validated destination and optional title without allowing unsafe Markdown delimiters.</summary>
     private static string RenderLink(HtmlNode node)
     {
         EnsureAttributes(node, ["href", "title"]);
@@ -287,6 +307,7 @@ internal sealed class MarkdownTreeExporter(
         return $"[{RenderInlineChildren(node)}](<{href}>{title})";
     }
 
+    /// <summary>Renders a childless image with required alternative text and a safe destination.</summary>
     private static string RenderImage(HtmlNode node)
     {
         EnsureAttributes(node, ["src", "alt", "title"]);
@@ -302,6 +323,7 @@ internal sealed class MarkdownTreeExporter(
         return $"![{EscapeText(alt ?? string.Empty)}](<{source}>{title})";
     }
 
+    /// <summary>Renders an attribute-free, childless hard line break.</summary>
     private static string RenderBreak(HtmlNode node)
     {
         EnsureAttributes(node);
@@ -313,6 +335,7 @@ internal sealed class MarkdownTreeExporter(
         return "  \n";
     }
 
+    /// <summary>Renders a quoted title only when it can be escaped without changing round-trip semantics.</summary>
     private static string OptionalTitle(HtmlNode node)
     {
         if (!TryGetAttribute(node, "title", out var title))
@@ -328,6 +351,7 @@ internal sealed class MarkdownTreeExporter(
         return $" \"{title.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
     }
 
+    /// <summary>Rejects fragment or text nodes where an element-specific renderer was selected.</summary>
     private static void EnsureElement(HtmlNode node)
     {
         if (node.Kind is not HtmlNodeKind.Element || string.IsNullOrWhiteSpace(node.TagName))
@@ -336,6 +360,7 @@ internal sealed class MarkdownTreeExporter(
         }
     }
 
+    /// <summary>Rejects style intent and theme classes because Markdown cannot preserve them losslessly.</summary>
     private static void EnsureNoPresentation(HtmlNode node)
     {
         if (node.Style is not null || node.ThemeClasses.Count > 0)
@@ -345,6 +370,7 @@ internal sealed class MarkdownTreeExporter(
         }
     }
 
+    /// <summary>Rejects every attribute not explicitly representable by the selected Markdown construct.</summary>
     private static void EnsureAttributes(HtmlNode node, IReadOnlyCollection<string>? allowed = null)
     {
         allowed ??= Array.Empty<string>();
@@ -357,11 +383,17 @@ internal sealed class MarkdownTreeExporter(
         }
     }
 
+    /// <summary>Gets a required non-empty attribute or fails the export atomically.</summary>
     private static string RequiredAttribute(HtmlNode node, string name) =>
         TryGetAttribute(node, name, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : throw new MarkdownExportException($"<{node.TagName}> requires a {name} attribute for Markdown export.");
 
+    /// <summary>
+    /// Returns the first case-insensitive attribute match without detecting duplicate case
+    /// variants. The completed export is still accepted only after semantic round-trip
+    /// verification.
+    /// </summary>
     private static bool TryGetAttribute(HtmlNode node, string name, out string? value)
     {
         foreach (var attribute in node.Attributes)
@@ -377,11 +409,13 @@ internal sealed class MarkdownTreeExporter(
         return false;
     }
 
+    /// <summary>Determines whether a node belongs to the exporter's supported inline subset.</summary>
     private static bool IsInlineNode(HtmlNode node) =>
         node.Kind is HtmlNodeKind.Text
         || node.Kind is HtmlNodeKind.Element
         && node.TagName is "strong" or "em" or "del" or "code" or "a" or "img" or "br";
 
+    /// <summary>Escapes Markdown punctuation while preserving literal text content.</summary>
     private static string EscapeText(string value)
     {
         var writer = new StringBuilder(value.Length);
@@ -417,6 +451,7 @@ internal sealed class MarkdownTreeExporter(
         return writer.ToString();
     }
 
+    /// <summary>Rejects destination characters whose Markdown parsing could change URL meaning.</summary>
     private static void EnsureSafeMarkdownDestination(string value, string kind)
     {
         if (value.Contains('<') || value.Contains('>') || value.Contains('\r') || value.Contains('\n'))
@@ -426,11 +461,13 @@ internal sealed class MarkdownTreeExporter(
         }
     }
 
+    /// <summary>Validates the bounded language-token grammar used after a fenced-code delimiter.</summary>
     private static bool IsLanguageName(string value) =>
         value.Length > 0
         && value.All(character => char.IsAsciiLetterOrDigit(character)
             || character is '-' or '_' or '+' or '.');
 
+    /// <summary>Finds the longest delimiter run so generated fences can safely exceed it.</summary>
     private static int LongestRun(string value, char character)
     {
         var longest = 0;
@@ -444,8 +481,10 @@ internal sealed class MarkdownTreeExporter(
         return longest;
     }
 
+    /// <summary>Creates the consistent failure used for HTML outside the lossless Markdown subset.</summary>
     private static MarkdownExportException UnsupportedElement(HtmlNode node) =>
         new($"<{node.TagName}> cannot be represented losslessly in Markdown.");
 
+    /// <summary>Represents an expected fail-closed export rejection.</summary>
     private sealed class MarkdownExportException(string message) : Exception(message);
 }

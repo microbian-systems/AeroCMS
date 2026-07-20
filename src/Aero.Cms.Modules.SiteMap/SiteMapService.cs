@@ -17,8 +17,13 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.SiteMap;
 
 /// <summary>
-/// Represents a class for SiteMapService.
+/// Builds XML sitemaps from published pages, posts, and documentation for the current site.
 /// </summary>
+/// <remarks>
+/// Site identity comes from <see cref="ISiteContext"/>, while the scheme, host, default culture,
+/// and supported cultures come from the active HTTP request. Production output is cached by site
+/// and culture and tagged for broad sitemap invalidation.
+/// </remarks>
 public sealed class SiteMapService : ISiteMapService
 {
     private readonly IFusionCache _cache;
@@ -29,7 +34,7 @@ public sealed class SiteMapService : ISiteMapService
     private readonly IHostEnvironment _environment;
 
         /// <summary>
-    /// Initializes a new instance of the <see cref="SiteMapService"/> class.
+    /// Initializes the sitemap builder and its content, request-context, and cache dependencies.
     /// </summary>
 public SiteMapService(
         IFusionCache cache,
@@ -47,15 +52,16 @@ public SiteMapService(
         _environment = environment;
     }
 
-        /// <summary>
-    /// BuildSitemapAsync method.
-    /// </summary>
+        /// <inheritdoc />
 public async Task<Result<string, AeroError>> BuildSitemapAsync(CancellationToken ct)
         => await BuildSitemapAsync(GetDefaultCulture(), ct);
 
-        /// <summary>
-    /// BuildSitemapAsync method.
-    /// </summary>
+        /// <inheritdoc />
+/// <remarks>
+/// Invalid culture names are normalized to the default before the supported-culture check.
+/// Query failures are returned as railway failures; if at least one content source succeeds,
+/// failures from other sources are suppressed and a partial sitemap is returned.
+/// </remarks>
 public async Task<Result<string, AeroError>> BuildSitemapAsync(string? culture, CancellationToken ct)
     {
         var siteId = _siteContext.SiteId;
@@ -86,9 +92,11 @@ public async Task<Result<string, AeroError>> BuildSitemapAsync(string? culture, 
         return Fail<string, AeroError>(((Result<List<SitemapEntry>, AeroError>.Failure)entriesResult).Error);
     }
 
-        /// <summary>
-    /// BuildSitemapIndexAsync method.
-    /// </summary>
+        /// <inheritdoc />
+/// <remarks>
+/// The generated absolute URLs trust the active request scheme and host. Production hosts must
+/// configure forwarded-header and allowed-host handling before exposing this output.
+/// </remarks>
 public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(CancellationToken ct)
     {
         var baseUrl = GetBaseUrl();
@@ -117,6 +125,13 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return Ok<string, AeroError>(xml);
     }
 
+    /// <summary>
+    /// Queries all supported content sources concurrently and combines their successful entries.
+    /// </summary>
+    /// <returns>
+    /// Entries sorted by descending priority, or a failure only when every source yields no entries
+    /// and at least one source failed.
+    /// </returns>
     private async Task<Result<List<SitemapEntry>, AeroError>> GatherEntriesAsync(string culture, CancellationToken ct)
     {
         var baseUrl = GetBaseUrl();
@@ -143,6 +158,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return Ok<List<SitemapEntry>, AeroError>(entries);
     }
 
+    /// <summary>
+    /// Adds a source result to the combined entry or error collection.
+    /// </summary>
     private static void ProcessResult(Result<List<SitemapEntry>, AeroError> result, List<SitemapEntry> entries, List<string> errors)
     {
         if (result is Result<List<SitemapEntry>, AeroError>.Ok ok)
@@ -151,6 +169,10 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
             errors.Add(fail.Error.ToString());
     }
 
+    /// <summary>
+    /// Queries visible published pages for the current site and requested culture.
+    /// </summary>
+    /// <returns>Page entries, or an error containing the caught query exception message.</returns>
     private async Task<Result<List<SitemapEntry>, AeroError>> GetPageEntriesAsync(string baseUrl, string culture, CancellationToken ct)
     {
         try
@@ -195,6 +217,10 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         }
     }
 
+    /// <summary>
+    /// Queries published blog posts for the current site and requested culture.
+    /// </summary>
+    /// <returns>Post entries, or an error containing the caught query exception message.</returns>
     private async Task<Result<List<SitemapEntry>, AeroError>> GetPostEntriesAsync(string baseUrl, string culture, CancellationToken ct)
     {
         try
@@ -234,6 +260,10 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         }
     }
 
+    /// <summary>
+    /// Converts published, publicly visible documentation pages into sitemap entries.
+    /// </summary>
+    /// <returns>The entries, or the unchanged railway failure returned by the documentation service.</returns>
     private async Task<Result<List<SitemapEntry>, AeroError>> GetDocEntriesAsync(string baseUrl, string culture, CancellationToken ct)
     {
         var result = await _docsService.GetPublishedAsync(culture, ct);
@@ -267,6 +297,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return Fail<List<SitemapEntry>, AeroError>(((Result<IReadOnlyList<DocsPage>, AeroError>.Failure)result).Error);
     }
 
+    /// <summary>
+    /// Queries published documentation translations for the current site and groups their alternate links.
+    /// </summary>
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildDocVariantLookupAsync(
         string baseUrl,
         IReadOnlyList<long> TranslationGroupIds,
@@ -293,6 +326,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildDocAlternates(baseUrl, group));
     }
 
+    /// <summary>
+    /// Queries visible published page translations for the current site and groups their alternate links.
+    /// </summary>
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildPageVariantLookupAsync(
         string baseUrl,
         IReadOnlyList<long> TranslationGroupIds,
@@ -321,6 +357,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildPageAlternates(baseUrl, group));
     }
 
+    /// <summary>
+    /// Queries published post translations for the current site and groups their alternate links.
+    /// </summary>
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildPostVariantLookupAsync(
         string baseUrl,
         IReadOnlyList<long> TranslationGroupIds,
@@ -347,6 +386,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildPostAlternates(baseUrl, group));
     }
 
+    /// <summary>
+    /// Selects the first page per case-insensitive culture and creates alternate URLs.
+    /// </summary>
     private static List<SitemapAlternateLink> BuildPageAlternates(string baseUrl, IEnumerable<PageDocument> variants)
         => variants
             .GroupBy(p => p.Culture, StringComparer.OrdinalIgnoreCase)
@@ -356,6 +398,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 BuildCultureLoc(baseUrl, p.Culture, p.Slug, p.Kind is PageKind.Homepage)))
             .ToList();
 
+    /// <summary>
+    /// Selects the first post per case-insensitive culture and creates blog alternate URLs.
+    /// </summary>
     private static List<SitemapAlternateLink> BuildPostAlternates(string baseUrl, IEnumerable<PostDocument> variants)
         => variants
             .GroupBy(p => p.Culture, StringComparer.OrdinalIgnoreCase)
@@ -365,6 +410,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 BuildBlogPostLoc(baseUrl, p.Culture, p.Slug)))
             .ToList();
 
+    /// <summary>
+    /// Selects the first documentation page per case-insensitive culture and creates alternate URLs.
+    /// </summary>
     private static List<SitemapAlternateLink> BuildDocAlternates(string baseUrl, IEnumerable<DocsPage> variants)
         => variants
             .GroupBy(doc => doc.Culture, StringComparer.OrdinalIgnoreCase)
@@ -374,12 +422,19 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
                 BuildCultureLoc(baseUrl, doc.Culture, doc.Slug, false)))
             .ToList();
 
+    /// <summary>
+    /// Builds an origin from the active request's scheme and host.
+    /// </summary>
+    /// <returns>The origin without a trailing slash, or <see langword="null"/> outside a request.</returns>
     private string? GetBaseUrl()
     {
         var request = _httpContextAccessor.HttpContext?.Request;
         return request is null ? null : $"{request.Scheme}://{request.Host}";
     }
 
+    /// <summary>
+    /// Normalizes the site slice's supported cultures and ensures the default is present first.
+    /// </summary>
     private IReadOnlyList<string> GetSupportedCultures()
     {
         var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
@@ -399,12 +454,18 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return normalized;
     }
 
+    /// <summary>
+    /// Resolves the normalized site default culture, falling back to the application default.
+    /// </summary>
     private string GetDefaultCulture()
     {
         var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
         return NormalizeCultureOrDefault(slice?.DefaultCulture, SitesModel.DefaultCultureName);
     }
 
+    /// <summary>
+    /// Canonicalizes a culture name or returns the supplied fallback for blank or invalid input.
+    /// </summary>
     private static string NormalizeCultureOrDefault(string? culture, string fallback)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -420,6 +481,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         }
     }
 
+    /// <summary>
+    /// Combines an origin and unescaped slug, using the origin root for a homepage or blank slug.
+    /// </summary>
     private static string BuildLoc(string baseUrl, string slug, bool isHomepage)
     {
         if (isHomepage) return baseUrl + "/";
@@ -427,6 +491,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return string.IsNullOrEmpty(cleanSlug) ? baseUrl + "/" : $"{baseUrl}/{cleanSlug}";
     }
 
+    /// <summary>
+    /// Builds a lower-case culture-prefixed URL from an unescaped slug.
+    /// </summary>
     private static string BuildCultureLoc(string baseUrl, string culture, string slug, bool isHomepage)
     {
         var normalizedCulture = culture.ToLowerInvariant();
@@ -437,12 +504,19 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
             : $"{baseUrl}/{normalizedCulture}/{cleanSlug}";
     }
 
+    /// <summary>
+    /// Builds a lower-case culture-prefixed blog URL from an unescaped slug.
+    /// </summary>
     private static string BuildBlogPostLoc(string baseUrl, string culture, string slug)
     {
         var cleanSlug = slug.Trim('/');
         return $"{baseUrl}/{culture.ToLowerInvariant()}/blog/{cleanSlug}";
     }
 
+    /// <summary>
+    /// Serializes entries as a sitemap URL set with XHTML alternate links.
+    /// </summary>
+    /// <remarks>Values are escaped by LINQ to XML and the XML declaration is prepended explicitly.</remarks>
     private static string RenderSitemap(List<SitemapEntry> entries)
     {
         XNamespace xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
@@ -473,6 +547,9 @@ public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(Cancellation
         return doc.Declaration + "\n" + doc.ToString(SaveOptions.OmitDuplicateNamespaces);
     }
 
+    /// <summary>
+    /// Serializes culture sitemap URLs as a sitemap index.
+    /// </summary>
     private static string RenderSitemapIndex(IEnumerable<string> sitemapUrls)
     {
         XNamespace xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";

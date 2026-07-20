@@ -3,21 +3,32 @@ using System.Text.RegularExpressions;
 namespace Aero.Cms.Modules.Posts.Parsers;
 
 /// <summary>
-/// Parses plain Markdown (.md) files into a single blog post.
-/// Title is extracted from the first <c># Heading</c> line;
-/// slug is generated from the title; the remainder is the markdown body.
+/// Parses a Markdown file into one blog post candidate.
 /// </summary>
+/// <remarks>
+/// The first level-one heading becomes the title and is removed from the body. When no such
+/// heading exists, the file name without its extension becomes the title.
+/// </remarks>
 public sealed partial class MarkdownPostImportParser : IPostImportParser
 {
+    /// <summary>
+    /// Provides the compiled expression used to locate the first level-one Markdown heading.
+    /// </summary>
+    /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(@"^#\s+(.+)$", RegexOptions.Multiline)]
     private static partial Regex HeadingRegex();
 
     /// <inheritdoc />
+    /// <remarks>Matching is case-insensitive and recognizes <c>.md</c> and <c>.markdown</c>.</remarks>
     public bool Supports(string fileName) =>
         fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
         fileName.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Reading is synchronous despite the task-shaped contract. Empty files and read failures are
+    /// returned as failure results; the supplied cancellation token is not observed by this implementation.
+    /// </remarks>
     public Task<Result<List<ImportablePost>, AeroError>> ParseAsync(
         Stream fileStream, string fileName, CancellationToken ct = default)
     {
@@ -72,6 +83,11 @@ public sealed partial class MarkdownPostImportParser : IPostImportParser
         }
     }
 
+    /// <summary>
+    /// Applies the Markdown importer's limited ASCII punctuation replacement to a title.
+    /// </summary>
+    /// <param name="title">The extracted title.</param>
+    /// <returns>A lowercase slug, or <c>untitled</c> when the title is blank.</returns>
     private static string Slugify(string title)
     {
         if (string.IsNullOrWhiteSpace(title)) return "untitled";

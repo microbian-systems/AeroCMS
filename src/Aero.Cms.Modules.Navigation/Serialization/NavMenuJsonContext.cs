@@ -4,8 +4,12 @@ using Aero.Cms.Modules.Navigation.Domain;
 namespace Aero.Cms.Modules.Navigation.Serialization;
 
 /// <summary>
-/// Represents a class for NavMenuJsonContext.
+/// Provides source-generated System.Text.Json metadata for navigation documents and polymorphic components.
 /// </summary>
+/// <remarks>
+/// Payloads use camel-case property names, omit null values, and encode component types through
+/// the discriminator configured on <see cref="INavMenuComponent"/>.
+/// </remarks>
 [JsonSerializable(typeof(NavMenuDocument))]
 [JsonSerializable(typeof(SiteNavigationSettingsDocument))]
 [JsonSerializable(typeof(NavMenuSnapshot))]

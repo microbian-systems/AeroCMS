@@ -6,15 +6,33 @@ using Microsoft.AspNetCore.Localization;
 namespace Aero.Cms.Web.Bootstrap.Localization;
 
 /// <summary>
-/// Represents a class for AeroRequestCultureProvider.
+/// Selects a request culture from the URL prefix and the resolved site's culture configuration.
 /// </summary>
+/// <remarks>
+/// This provider does not inspect culture cookies, query strings, or request headers. Returning
+/// <see langword="null"/> allows later providers in the localization chain to evaluate those sources.
+/// Selected culture values and request items are localization metadata; this provider does not authenticate
+/// the request or establish site or tenant authorization.
+/// </remarks>
 public sealed class AeroRequestCultureProvider : RequestCultureProvider
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
 
-        /// <summary>
-    /// DetermineProviderCultureResult method.
+    /// <summary>
+    /// Determines the request culture from a supported path prefix or an available site slice.
     /// </summary>
+    /// <param name="httpContext">The current HTTP request context.</param>
+    /// <returns>
+    /// A completed task containing the selected culture for both formatting and UI when the URL has a
+    /// recognized culture prefix or a site slice is available; otherwise, a task containing
+    /// <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// Site cultures take precedence over the localization options. When a culture is selected, it is
+    /// stored in <see cref="HttpContext.Items"/> under <see cref="AeroCultureRoute.CultureItemKey"/>;
+    /// a recognized URL prefix is also stored under <see cref="AeroCultureRoute.CulturePrefixItemKey"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="httpContext"/> is <see langword="null"/>.</exception>
 public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
     {
         ArgumentNullException.ThrowIfNull(httpContext);

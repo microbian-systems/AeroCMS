@@ -20,6 +20,8 @@ public sealed class RequestCancellationIsolationMiddleware
     /// <summary>
     /// Creates the request cancellation boundary.
     /// </summary>
+    /// <param name="next">The next request delegate.</param>
+    /// <param name="logger">Optional diagnostic logger; a null logger is used when omitted.</param>
     public RequestCancellationIsolationMiddleware(
         RequestDelegate next,
         ILogger<RequestCancellationIsolationMiddleware>? logger = null)
@@ -31,6 +33,15 @@ public sealed class RequestCancellationIsolationMiddleware
     /// <summary>
     /// Executes the request with a linked, request-scoped cancellation token.
     /// </summary>
+    /// <param name="context">The request context whose <see cref="HttpContext.RequestAborted"/> token is temporarily replaced.</param>
+    /// <returns>A task representing downstream request execution.</returns>
+    /// <remarks>
+    /// Server cancellation cancels the isolated token. Exceptions thrown by cancellation callbacks are logged and
+    /// suppressed; downstream request exceptions propagate. The original server token is restored in a
+    /// <see langword="finally"/> block. Logged request paths and exception messages may contain operational data;
+    /// this middleware performs no redaction.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

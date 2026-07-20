@@ -4,15 +4,14 @@ using Aero.Core.Http;
 namespace Aero.Cms.Web.Infrastructure;
 
 /// <summary>
-/// Default implementation of ISiteContext using IHttpContextAccessor.
-///
-/// Resolution order (first match wins):
-/// 1. <c>AeroCms.SiteId</c> cookie for manager/admin requests — set by explicit
-///    user selection in the manager.
-/// 2. <see cref="IAeroSiteSlice"/> from <see cref="HttpContext.Features"/> — set by
-///    <see cref="SiteResolutionMiddleware"/> for public front-end routes.
-/// 3. Returns 0 if neither is available.
+/// Resolves the current tenant and site from the active HTTP request.
 /// </summary>
+/// <remarks>
+/// For manager and admin API paths, <see cref="SiteId"/> first trusts the parseable
+/// <c>AeroCms.SiteId</c> selection cookie. Public paths use the site-resolution feature instead,
+/// preventing a manager cookie from changing host-based public routing. This accessor supplies
+/// context, not authorization; callers must still enforce access to the selected site.
+/// </remarks>
 public sealed class DefaultSiteContext : ISiteContext
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
@@ -20,17 +19,19 @@ public sealed class DefaultSiteContext : ISiteContext
 
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="DefaultSiteContext"/> class.
     /// </summary>
+    /// <param name="httpContextAccessor">Provides access to the current request context.</param>
 public DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
     {
         _httpContextAccessor = httpContextAccessor;
     }
 
-        /// <summary>
-    /// Gets or sets the Site Id.
+    /// <summary>
+    /// Gets the selected manager site or host-resolved public site identifier.
     /// </summary>
+    /// <value>Zero when no applicable cookie or resolved site feature exists.</value>
 public long SiteId
     {
         get
@@ -58,9 +59,13 @@ public long SiteId
         }
     }
 
-        /// <summary>
-    /// Gets or sets the Tenant Id.
+    /// <summary>
+    /// Gets the tenant identifier from the host-resolved site feature.
     /// </summary>
+    /// <value>
+    /// The resolved tenant identifier, or zero when no site feature exists. Manager cookie
+    /// selection does not supply a tenant identifier.
+    /// </value>
 public long TenantId
     {
         get
@@ -74,6 +79,11 @@ public long TenantId
         }
     }
 
+    /// <summary>
+    /// Determines whether the current path belongs to the manager or admin API surface.
+    /// </summary>
+    /// <param name="httpContext">The request context, if one is active.</param>
+    /// <returns><see langword="true"/> for <c>/manager</c> or <c>/api/v1/admin</c> path segments.</returns>
     private static bool IsManagerRequest(HttpContext? httpContext)
     {
         if (httpContext is null)

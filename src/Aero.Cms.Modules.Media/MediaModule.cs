@@ -14,39 +14,28 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Media;
 
 /// <summary>
-/// Represents a class for MediaModule.
+/// Registers media persistence, services, actor access, and administrative endpoints.
 /// </summary>
 [Module(nameof(MediaModule))]
 public class MediaModule : AeroWebModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name => nameof(MediaModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["content", "media"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures the <see cref="MediaAsset"/> document identity and query indexes.
     /// </summary>
+    /// <param name="options">The AeroDB store options being assembled.</param>
 public void Configure(StoreOptions options)
     {
         options.Schema.For<MediaAsset>()
@@ -59,17 +48,22 @@ public void Configure(StoreOptions options)
             .Index(x => x.MimeType);
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures media persistence using the service-provider-aware AeroDB hook.
     /// </summary>
+    /// <param name="services">The built service provider; not used by this module.</param>
+    /// <param name="options">The AeroDB store options being assembled.</param>
 public void Configure(IServiceProvider services, StoreOptions options)
     {
         Configure(options);
     }
 
-        /// <summary>
-    /// ConfigureServices method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Repository, service, and Pexels registrations are added only when no earlier registration
+    /// exists. The media actor is resolved as singleton grain key <c>0</c> with key extension
+    /// <c>aero</c>; individual operations carry their own media and site identifiers.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
@@ -83,9 +77,11 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroMediaActor>(0, "aero"));
     }
 
-        /// <summary>
-    /// RunAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Maps both media and general-file admin groups. Those mapping methods do not add an
+    /// authorization policy themselves, so the host must protect the admin route boundary.
+    /// </remarks>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapMediaApi();

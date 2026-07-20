@@ -15,14 +15,15 @@ using HttpUpdateTagRequest = Aero.Cms.Abstractions.Http.Clients.UpdateTagRequest
 namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 
 /// <summary>
-/// Thin admin API for tag management.
-/// Handles input validation and delegates all logic to <see cref="IAeroTagActor"/> (Orleans grain).
+/// Maps the tag administration HTTP surface onto the tag actor and Sable count queries.
 /// </summary>
+/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
 public static class TagsApi
 {
-        /// <summary>
-    /// MapTagsApi method.
+    /// <summary>
+    /// Maps tag list, detail, create, update, and delete endpoints.
     /// </summary>
+    /// <param name="app">The route builder to extend.</param>
 public static void MapTagsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/tags")
@@ -44,6 +45,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
             .WithName("DeleteTag");
     }
 
+    /// <summary>
+    /// Lists actor tags filtered to the current site and attaches per-tag post counts.
+    /// </summary>
     private static async Task<IResult> GetAllTags(
         [FromServices] IAeroTagActor tagActor,
         [FromServices] IQuerySession query,
@@ -59,6 +63,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
             .ToList());
     }
 
+    /// <summary>
+    /// Returns tag detail only when the loaded actor model belongs to the current site.
+    /// </summary>
     private static async Task<IResult> GetTagById(
         long id,
         [FromServices] IAeroTagActor tagActor,
@@ -77,6 +84,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, count));
     }
 
+    /// <summary>
+    /// Validates a site-stamped actor request, persists it through the actor, and returns its current post count.
+    /// </summary>
     private static async Task<IResult> CreateTag(
         [FromBody] HttpCreateTagRequest request,
         [FromServices] IValidator<ActorCreateTagRequest> validator,
@@ -111,6 +121,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, count));
     }
 
+    /// <summary>
+    /// Validates an update and verifies current-site ownership before invoking the actor mutation.
+    /// </summary>
     private static async Task<IResult> UpdateTag(
         long id,
         [FromBody] HttpUpdateTagRequest request,
@@ -145,6 +158,13 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, count));
     }
 
+    /// <summary>
+    /// Rejects current-site tags referenced by posts, then delegates deletion by identifier.
+    /// </summary>
+    /// <remarks>
+    /// The preflight count is site-scoped, but this handler does not independently load the tag to
+    /// verify ownership before the actor's identifier-only delete.
+    /// </remarks>
     private static async Task<IResult> DeleteTag(
         long id,
         [FromServices] IAeroTagActor tagActor,
@@ -170,6 +190,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
             : TypedResults.BadRequest(result.error);
     }
 
+    /// <summary>
+    /// Counts in-memory tag membership after loading all posts for one site.
+    /// </summary>
     private static async Task<Dictionary<long, int>> GetContentCountsAsync(
         IQuerySession query,
         IEnumerable<long> tagIds,
@@ -187,6 +210,9 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
         return ids.ToDictionary(id => id, id => posts.Count(post => post.TagIds.Contains(id)));
     }
 
+    /// <summary>
+    /// Adapts the batched tag counter to one identifier.
+    /// </summary>
     private static Task<int> CountTagContentAsync(
         IQuerySession query,
         long siteId,
@@ -195,9 +221,15 @@ public static void MapTagsApi(this IEndpointRouteBuilder app)
         => GetContentCountsAsync(query, [tagId], siteId, cancellationToken)
             .ContinueWith(task => task.Result.GetValueOrDefault(tagId), cancellationToken);
 
+    /// <summary>
+    /// Projects an actor model into the tag list contract.
+    /// </summary>
     private static TagSummary ToSummary(TagViewModel vm, int count)
         => new(vm.Id, vm.Name ?? string.Empty, vm.Slug ?? string.Empty, count);
 
+    /// <summary>
+    /// Projects an actor model into the tag detail contract.
+    /// </summary>
     private static TagDetail ToDetail(TagViewModel vm, int count)
         => new(vm.Id, vm.Name ?? string.Empty, vm.Slug ?? string.Empty, vm.Description, count, vm.CreatedOn.DateTime);
 }

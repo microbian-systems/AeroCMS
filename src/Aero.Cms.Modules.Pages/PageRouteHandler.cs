@@ -9,13 +9,23 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
 /// <summary>
-/// Represents a class for PageRouteHandler.
+/// Maps headless page-document endpoints for homepage and catch-all slug lookups.
 /// </summary>
+/// <remarks>
+/// These routes return page documents. Public HTML rendering is provided separately
+/// by the Pages Razor Page.
+/// </remarks>
 public static class PageRouteHandler
 {
     /// <summary>
-    /// Maps the public page routes for the CMS pages.
+    /// Maps <c>/</c> and <c>/{*slug}</c> GET endpoints.
     /// </summary>
+    /// <param name="app">The endpoint route builder to extend.</param>
+    /// <remarks>
+    /// The catch-all handler removes a leading culture segment before performing the
+    /// site-scoped slug lookup. Service failures and missing pages are both returned
+    /// as HTTP 404 responses by these handlers.
+    /// </remarks>
     public static void MapPageRoutes(this IEndpointRouteBuilder app)
     {
         // Homepage route at /

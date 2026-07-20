@@ -9,75 +9,139 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Service for managing sites and their host/domain assignments in the CMS.
+/// Manages site documents and their globally unique host assignments.
 /// </summary>
+/// <remarks>
+/// This contract does not perform caller authorization or tenant scoping. Callers must validate
+/// those boundaries before supplying identifiers or models.
+/// </remarks>
 public interface ISiteService
 {
     /// <summary>
-    /// Creates a new site.
+    /// Validates and inserts a site document.
     /// </summary>
+    /// <param name="site">The site to validate and persist; it must already have positive site and tenant identifiers.</param>
+    /// <param name="ct">The token used by persistence; the validator is invoked without this token.</param>
+    /// <returns>The inserted site, or a validation or persistence failure.</returns>
     Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default);
     
     /// <summary>
-    /// Updates an existing site.
+    /// Validates and replaces an existing site document.
     /// </summary>
+    /// <param name="site">The complete site state to validate and persist.</param>
+    /// <param name="ct">The token used by persistence; the validator is invoked without this token.</param>
+    /// <returns>The updated site, or a validation or persistence failure.</returns>
     Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site, CancellationToken ct = default);
     
     /// <summary>
-    /// Deletes a site by ID.
+    /// Deletes a site and schedules its host records for deletion.
     /// </summary>
+    /// <param name="id">The persistent site identifier.</param>
+    /// <param name="ct">The token used by host lookup and repository deletion.</param>
+    /// <returns>
+    /// A successful <see langword="true"/> value when the repository call completes, or a failure
+    /// when an exception escapes persistence.
+    /// </returns>
+    /// <remarks>
+    /// The service does not delete related user assignments or content, and it does not verify
+    /// tenant ownership. With the default scoped repository registration, host cleanup and site
+    /// deletion share the document session and commit together. The implementation ignores a
+    /// <see langword="false"/> value returned by the repository's deletion operation.
+    /// </remarks>
     Task<Result<bool, AeroError>> DeleteSiteAsync(long id, CancellationToken ct = default);
     
     /// <summary>
-    /// Gets a site by ID.
+    /// Loads a site by its persistent identifier.
     /// </summary>
+    /// <param name="id">The site identifier to load.</param>
+    /// <param name="ct">The token used by the repository lookup.</param>
+    /// <returns>The site when present; otherwise an empty option.</returns>
     Task<Option<SitesModel>> GetSiteByIdAsync(long id, CancellationToken ct = default);
     
     /// <summary>
-    /// Gets all sites with pagination.
+    /// Returns a repository-defined page of sites.
     /// </summary>
+    /// <param name="page">The one-based page number passed to the repository.</param>
+    /// <param name="num">The requested page size.</param>
+    /// <param name="ct">The token used by the repository query.</param>
+    /// <returns>The returned site sequence, or a failure containing the query error.</returns>
     Task<Result<IEnumerable<SitesModel>, AeroError>> GetAllSitesAsync(int page = 1, int num = 10, CancellationToken ct = default);
     
     /// <summary>
-    /// Gets a site by hostname.
+    /// Resolves a normalized host name to its parent site.
     /// </summary>
+    /// <param name="hostname">The host name to normalize and resolve.</param>
+    /// <param name="ct">The token used by the repository query.</param>
+    /// <returns>The parent site when assigned; otherwise an empty option.</returns>
     Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default);
 
     // --- Host/Domain management ---
 
     /// <summary>
-    /// Adds a host/domain to a site. The host value is normalized before storage.
+    /// Adds a normalized, globally unique host assignment to a site.
     /// </summary>
+    /// <param name="siteId">The site identifier stored on the host record.</param>
+    /// <param name="host">The host value to normalize.</param>
+    /// <param name="isPrimary">Whether the assignment should be marked primary.</param>
+    /// <param name="ct">The token used through lookup and commit.</param>
+    /// <returns>
+    /// The existing or newly stored assignment, or a validation, ownership-conflict, or persistence failure.
+    /// </returns>
+    /// <remarks>
+    /// Re-adding a host to the same site is idempotent except that it may promote the existing
+    /// record to primary. The method does not demote any other primary host or verify that
+    /// <paramref name="siteId"/> exists.
+    /// </remarks>
     Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default);
 
     /// <summary>
-    /// Removes a host/domain entry by its ID.
+    /// Deletes a host assignment by its document identifier.
     /// </summary>
+    /// <param name="hostId">The host assignment identifier.</param>
+    /// <param name="ct">The token used through the commit.</param>
+    /// <returns>A successful flag, or a persistence failure.</returns>
+    /// <remarks>No site-ownership or existence check is performed before deletion.</remarks>
     Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets all hosts/domains assigned to a site.
+    /// Returns a site's hosts with primary entries first and then by host name.
     /// </summary>
+    /// <param name="siteId">The site identifier used to filter host records.</param>
+    /// <param name="ct">The token used by the query.</param>
+    /// <returns>The ordered host assignments, or a query failure.</returns>
     Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default);
 
     /// <summary>
-    /// Replaces all hosts for a site with a new set. Atomically deletes old hosts and inserts new ones.
-    /// Each entry is a tuple of (host, isPrimary).
+    /// Replaces all host assignments for a site in one document-session commit.
     /// </summary>
+    /// <param name="siteId">The site whose current assignments are replaced.</param>
+    /// <param name="hosts">Candidate host values and their primary flags.</param>
+    /// <param name="ct">The token used through query and commit.</param>
+    /// <returns>The non-empty normalized assignments that were persisted, or a persistence failure.</returns>
+    /// <remarks>
+    /// Empty normalized values are discarded. The method does not deduplicate candidates, enforce
+    /// a single primary entry, verify the site exists, or preflight conflicts with hosts owned by
+    /// other sites; datastore constraints may reject the final commit.
+    /// </remarks>
     Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Implementation of site management service using Railway Oriented Programming patterns.
+/// Persists sites through <see cref="ISiteRepository"/> and host assignments through a document session.
 /// </summary>
+/// <param name="repo">The repository used for site-document operations.</param>
+/// <param name="session">The document session used for host operations.</param>
+/// <param name="log">The structured operations logger.</param>
+/// <remarks>
+/// Expected validation and persistence errors are represented as <see cref="AeroError"/> values.
+/// This implementation catches all exceptions, including cancellation, and converts them to failures.
+/// </remarks>
 public class SiteService(
     ISiteRepository repo,
     IDocumentSession session,
     ILogger<SiteService> log) : ISiteService
 {
-        /// <summary>
-    /// CreateSiteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
@@ -104,9 +168,7 @@ public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site
         }
     }
 
-        /// <summary>
-    /// UpdateSiteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
@@ -132,9 +194,7 @@ public async Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site
         }
     }
 
-        /// <summary>
-    /// DeleteSiteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> DeleteSiteAsync(long id, CancellationToken ct = default)
     {
         try
@@ -156,18 +216,14 @@ public async Task<Result<bool, AeroError>> DeleteSiteAsync(long id, Cancellation
         }
     }
 
-        /// <summary>
-    /// GetSiteByIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Option<SitesModel>> GetSiteByIdAsync(long id, CancellationToken ct = default)
     {
         var site = await repo.FindByIdAsync(id, ct);
         return site;
     }
 
-        /// <summary>
-    /// GetAllSitesAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IEnumerable<SitesModel>, AeroError>> GetAllSitesAsync(int page = 1, int num = 10, CancellationToken ct = default)
     {
         try
@@ -182,9 +238,7 @@ public async Task<Result<IEnumerable<SitesModel>, AeroError>> GetAllSitesAsync(i
         }
     }
 
-        /// <summary>
-    /// GetSiteByHostnameAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default)
     {
         var normalized = HostNormalizer.Normalize(hostname);
@@ -194,9 +248,7 @@ public async Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, Ca
 
     // --- Host/Domain management ---
 
-        /// <summary>
-    /// AddHostAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default)
     {
         try
@@ -249,9 +301,7 @@ public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string 
         }
     }
 
-        /// <summary>
-    /// RemoveHostAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default)
     {
         try
@@ -268,9 +318,7 @@ public async Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, Cancella
         }
     }
 
-        /// <summary>
-    /// GetHostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default)
     {
         try
@@ -290,9 +338,7 @@ public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long
         }
     }
 
-        /// <summary>
-    /// ReplaceHostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default)
     {
         try

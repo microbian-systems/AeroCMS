@@ -4,14 +4,33 @@ using Scriban.Runtime;
 namespace Aero.Cms.Core.Content.Templating;
 
 /// <summary>
-/// Represents a class for JsonToScribanMapper.
+/// Projects JSON and render metadata into the named Scriban global scopes.
 /// </summary>
 public static class JsonToScribanMapper
 {
-        /// <summary>
-    /// CreateGlobals method.
+    /// <summary>
+    /// Creates the <c>fields</c>, <c>item</c>, <c>content_type</c>, and <c>site</c>
+    /// scopes and adds explicitly trusted imports.
     /// </summary>
-public static ScriptObject CreateGlobals(
+    /// <param name="model">The projected render model.</param>
+    /// <param name="maxDepth">The maximum JSON nesting depth to convert.</param>
+    /// <param name="imports">
+    /// Additional application-supplied scopes. Import names must be nonblank and must not
+    /// conflict with a built-in scope.
+    /// </param>
+    /// <returns>A globals object whose top-level scope bindings are read-only.</returns>
+    /// <remarks>
+    /// Imported <see cref="ScriptObject"/> instances are deep-cloned before exposure. They
+    /// remain a trust boundary because any functions or values placed in them originate with
+    /// the caller. JSON integers are projected as <see cref="long"/>, other representable
+    /// numbers as <see cref="decimal"/>, and remaining numbers as <see cref="double"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="model"/> or an import value is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxDepth"/> is negative.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// An import name is blank or reserved, or JSON input exceeds <paramref name="maxDepth"/>.
+    /// </exception>
+    public static ScriptObject CreateGlobals(
     ScribanContentRenderModel model,
     int maxDepth,
     IReadOnlyDictionary<string, ScriptObject>? imports = null)

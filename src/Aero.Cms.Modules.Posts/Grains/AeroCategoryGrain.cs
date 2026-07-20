@@ -11,18 +11,25 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Orleans grain for category management — wraps AeroDB persistence behind
-/// <see cref="IAeroCategoryActor"/>. Publishes Wolverine events after mutations.
+/// Implements category actor operations over short-lived Sable sessions.
 /// </summary>
+/// <remarks>
+/// The in-memory state methods are activation-local and independent of persisted category documents.
+/// Mutations commit before publishing their Wolverine event, so persistence and notification are not
+/// atomic; a publish failure can be observed after the database change has succeeded.
+/// </remarks>
 public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 {
     private readonly IDocumentStore _store;
     private readonly IMessageBus _bus;
     private CategoryViewModel _state = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AeroCategoryGrain"/> class.
     /// </summary>
+    /// <param name="log">The actor logger.</param>
+    /// <param name="store">The store used to open a session for each operation.</param>
+    /// <param name="bus">The bus that receives post-commit category events.</param>
 public AeroCategoryGrain(
         ILogger<AeroCategoryGrain> log,
         IDocumentStore store,
@@ -35,15 +42,20 @@ public AeroCategoryGrain(
 
     // ── IHaveState<CategoryViewModel> ──────────────────────────────────
 
-        /// <summary>
-    /// GetStateAsync method.
+    /// <summary>
+    /// Returns the current activation-local state without reading persistence.
     /// </summary>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>The current state reference.</returns>
 public Task<CategoryViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
+    /// <summary>
+    /// Replaces the activation-local state without persisting or publishing it.
     /// </summary>
+    /// <param name="state">The state reference to retain.</param>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>A completed task.</returns>
 public Task UpdateStateAsync(CategoryViewModel state, CancellationToken ct)
     {
         _state = state;
@@ -52,9 +64,12 @@ public Task UpdateStateAsync(CategoryViewModel state, CancellationToken ct)
 
     // ── ICruddable<CategoryViewModel, long> ────────────────────────────
 
-        /// <summary>
-    /// GetByIdAsync method.
+    /// <summary>
+    /// Loads a category by identifier and overlays the current UI-culture translation when available.
     /// </summary>
+    /// <param name="id">The persisted category identifier.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The mapped category, or an error response when no document exists.</returns>
 public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -68,9 +83,15 @@ public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdAsync(long id, 
             : NotFound($"Category {id} not found");
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
+    /// <summary>
+    /// Loads categories whose identifiers are in the supplied array.
     /// </summary>
+    /// <param name="ids">The category identifiers to query.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>
+    /// A response whose data is the first mapped match, or an empty view model when none match.
+    /// Additional matches are not represented by <see cref="AeroRequestResponse{T}"/>.
+    /// </returns>
 public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -83,9 +104,13 @@ public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdsAsync(long[] i
         return Ok(results);
     }
 
-        /// <summary>
-    /// CreateAsync method.
+    /// <summary>
+    /// Creates and commits a category for a recognized create request, then publishes a created event.
     /// </summary>
+    /// <param name="request">A <see cref="CreateCategoryRequest"/>; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for the database commit.</param>
+    /// <returns>The created category or a request-type failure response.</returns>
+    /// <remarks>The generated identifier makes repeated calls create distinct documents.</remarks>
 public async Task<AeroRequestResponse<CategoryViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateCategoryRequest create)
@@ -110,9 +135,12 @@ public async Task<AeroRequestResponse<CategoryViewModel>> CreateAsync(IRequest r
         return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
-        /// <summary>
-    /// UpdateAsync method.
+    /// <summary>
+    /// Replaces the mutable fields of an existing category and publishes an updated event after commit.
     /// </summary>
+    /// <param name="request">An <see cref="UpdateCategoryRequest"/>; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for persistence.</param>
+    /// <returns>The updated category, a not-found response, or a request-type failure response.</returns>
 public async Task<AeroRequestResponse<CategoryViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateCategoryRequest update)
@@ -137,9 +165,13 @@ public async Task<AeroRequestResponse<CategoryViewModel>> UpdateAsync(IRequest r
         return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Deletes an existing category and publishes a deleted event after commit.
     /// </summary>
+    /// <param name="request">A <see cref="DeleteCategoryRequest"/>; other request types produce a failure response.</param>
+    /// <param name="ct">A token used for persistence.</param>
+    /// <returns>The deleted category, a not-found response, or a request-type failure response.</returns>
+    /// <remarks>This actor does not check whether posts still reference the category.</remarks>
 public async Task<AeroRequestResponse<CategoryViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteCategoryRequest delete)
@@ -161,9 +193,14 @@ public async Task<AeroRequestResponse<CategoryViewModel>> DeleteAsync(IRequest r
 
     // ── ICanFindBySite<CategoryViewModel, long> ────────────────────────
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
+    /// <summary>
+    /// Returns the first category from a name-ordered page for one site.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="page">The one-based page number used to calculate the query offset.</param>
+    /// <param name="rows">The maximum number of rows queried.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The first mapped category in the page, or an empty view model when the page is empty.</returns>
 public async Task<AeroRequestResponse<CategoryViewModel>> GetBySiteIdAsync(
         long siteId,
         int page = 1,
@@ -185,12 +222,23 @@ public async Task<AeroRequestResponse<CategoryViewModel>> GetBySiteIdAsync(
 
     // ── ICanFindBySlug ────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
+    /// <summary>
+    /// Finds the first category for a site by its base or current-culture translated slug.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="slug">The exact slug to match.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>The first match, or an empty successful response when no category matches.</returns>
 public Task<AeroRequestResponse<CategoryViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
+    /// <summary>
+    /// Adapts the string site-key contract to the numeric site identifier used by persistence.
+    /// </summary>
+    /// <param name="siteId">The numeric site identifier encoded as text.</param>
+    /// <param name="slug">The exact slug to match.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>A lookup response, or a failure response when the site key is not a valid <see cref="long"/>.</returns>
     Task<AeroRequestResponse<CategoryViewModel>> ICanFindBySlug<CategoryViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
     {
         if (long.TryParse(siteId, out var id))
@@ -198,6 +246,9 @@ public Task<AeroRequestResponse<CategoryViewModel>> GetBySlugAsync(long siteId, 
         return Task.FromResult(Fail($"Invalid site ID: {siteId}"));
     }
 
+    /// <summary>
+    /// Queries base and translated slug candidates, constrains their categories to a site, and maps the current culture.
+    /// </summary>
     private async Task<AeroRequestResponse<CategoryViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -218,9 +269,11 @@ public Task<AeroRequestResponse<CategoryViewModel>> GetBySlugAsync(long siteId, 
 
     // ── IAeroCategoryActor.GetAllAsync ─────────────────────────────────
 
-        /// <summary>
-    /// GetAllAsync method.
+    /// <summary>
+    /// Returns every category across all sites, ordered by base name and overlaid for the current UI culture.
     /// </summary>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>All mapped categories; callers that require tenant isolation must filter by <c>SiteId</c>.</returns>
 public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -234,24 +287,42 @@ public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = de
 
     // ── Helpers ────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Produces the grain's simple lowercase, space-to-hyphen fallback slug.
+    /// </summary>
     private static string GenerateSlug(string name) =>
         name.ToLowerInvariant().Replace(' ', '-').Replace("--", "-");
 
+    /// <summary>
+    /// Creates a successful response around one category.
+    /// </summary>
     private static AeroRequestResponse<CategoryViewModel> Ok(CategoryViewModel vm)
         => new(vm, new CategoryErrorViewModel());
 
+    /// <summary>
+    /// Adapts a list to the single-data response contract by selecting its first item.
+    /// </summary>
     private static AeroRequestResponse<CategoryViewModel> Ok(IReadOnlyList<CategoryViewModel> list)
     {
         var primary = list.Count > 0 ? list[0] : new CategoryViewModel();
         return new AeroRequestResponse<CategoryViewModel>(primary, new CategoryErrorViewModel());
     }
 
+    /// <summary>
+    /// Creates an error response with an empty category payload.
+    /// </summary>
     private static AeroRequestResponse<CategoryViewModel> NotFound(string msg)
         => new(new CategoryViewModel(), new CategoryErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Creates a request failure response with an empty category payload.
+    /// </summary>
     private static AeroRequestResponse<CategoryViewModel> Fail(string msg)
         => new(new CategoryViewModel(), new CategoryErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Loads at most one translation per category for a non-default culture.
+    /// </summary>
     private static async Task<IReadOnlyDictionary<long, CategoryTranslation>> LoadTranslationsAsync(
         IDocumentSession session,
         IEnumerable<long> categoryIds,
@@ -271,6 +342,9 @@ public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = de
             .ToDictionary(x => x.Key, x => x.First());
     }
 
+    /// <summary>
+    /// Returns the canonical current UI culture name, falling back to the configured CMS default name.
+    /// </summary>
     private static string GetCurrentCulture()
     {
         try

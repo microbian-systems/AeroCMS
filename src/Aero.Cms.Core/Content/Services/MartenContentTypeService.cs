@@ -7,17 +7,15 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Content.Services;
 
 /// <summary>
-/// Represents a class for AeroContentTypeService.
+/// Implements <see cref="IContentTypeService"/> with a Sable document session.
 /// </summary>
 public sealed class AeroContentTypeService(
     IDocumentSession session,
     IEnumerable<IFieldTemplateSnippet> snippets,
     ScribanTemplateValidator templateValidator) : IContentTypeService
 {
-        /// <summary>
-    /// GetByAliasAsync method.
-    /// </summary>
-public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
     {
         var doc = await session.Query<ContentTypeDocument>()
             .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Alias == alias, ct);
@@ -27,19 +25,15 @@ public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(long
         return Prelude.Ok<ContentTypeDefinition, AeroError>(Map(doc));
     }
 
-        /// <summary>
-    /// GetAllAsync method.
-    /// </summary>
-public async Task<Result<IReadOnlyList<ContentTypeDefinition>, AeroError>> GetAllAsync(long siteId, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<Result<IReadOnlyList<ContentTypeDefinition>, AeroError>> GetAllAsync(long siteId, CancellationToken ct = default)
     {
         var docs = await session.Query<ContentTypeDocument>().Where(x => x.SiteId == siteId).ToListAsync(ct);
         return Prelude.Ok<IReadOnlyList<ContentTypeDefinition>, AeroError>(docs.Select(Map).ToList());
     }
 
-        /// <summary>
-    /// SaveAsync method.
-    /// </summary>
-public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTypeDefinition definition, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTypeDefinition definition, CancellationToken ct = default)
     {
         var existing = await session.Query<ContentTypeDocument>()
             .FirstOrDefaultAsync(x => x.SiteId == definition.SiteId && x.Alias == definition.Alias, ct);
@@ -76,10 +70,8 @@ public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTyp
         return Prelude.Ok<ContentTypeDefinition, AeroError>(definition);
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
-public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
         var doc = await session.Query<ContentTypeDocument>()
             .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Alias == alias, ct);

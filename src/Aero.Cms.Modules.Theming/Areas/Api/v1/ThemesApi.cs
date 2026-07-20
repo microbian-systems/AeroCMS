@@ -6,13 +6,19 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Theming.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for theme management.
+/// Maps administrative theme discovery and currently unimplemented mutation operations.
 /// </summary>
+/// <remarks>
+/// The route mapper does not attach authorization. The host must secure the administrative group.
+/// Active-theme state is currently hard-coded rather than persisted. Unexpected exception
+/// messages are copied into problem responses after logging.
+/// </remarks>
 public static class ThemesApi
 {
     /// <summary>
-    /// Maps the Themes Admin API endpoints.
+    /// Maps the administrative themes endpoint group.
     /// </summary>
+    /// <param name="app">The endpoint route builder receiving the group.</param>
     public static void MapThemesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/themes")
@@ -37,6 +43,9 @@ public static class ThemesApi
             .WithName("DeleteTheme");
     }
 
+    /// <summary>
+    /// Enumerates registered theme modules and marks only the module named <c>Default</c> as active.
+    /// </summary>
     private static async Task<IResult> GetAllThemes(
         [FromServices] IServiceProvider sp,
         [FromServices] ILoggerFactory loggerFactory,
@@ -66,6 +75,9 @@ public static class ThemesApi
         }
     }
 
+    /// <summary>
+    /// Finds a registered theme by case-sensitive name and projects transient detail metadata.
+    /// </summary>
     private static async Task<IResult> GetThemeById(
         string id,
         [FromServices] IServiceProvider sp,
@@ -105,6 +117,10 @@ public static class ThemesApi
         }
     }
 
+    /// <summary>
+    /// Returns the registered <c>Default</c> theme or falls back to the first discovered module.
+    /// </summary>
+    /// <remarks>The returned detail is marked active even when the fallback is not named <c>Default</c>.</remarks>
     private static async Task<IResult> GetCurrentTheme(
         [FromServices] IServiceProvider sp,
         [FromServices] ILoggerFactory loggerFactory,
@@ -143,6 +159,9 @@ public static class ThemesApi
         }
     }
 
+    /// <summary>
+    /// Verifies that a theme exists and returns it as active without persisting any selection.
+    /// </summary>
     private static async Task<IResult> ActivateTheme(
         string id,
         [FromServices] IServiceProvider sp,
@@ -182,6 +201,9 @@ public static class ThemesApi
         }
     }
 
+    /// <summary>
+    /// Returns a problem response because dynamic theme upload is not implemented.
+    /// </summary>
     private static async Task<IResult> UploadTheme(
         [FromBody] UploadThemeRequest request,
         [FromServices] ILoggerFactory loggerFactory,
@@ -200,6 +222,9 @@ public static class ThemesApi
         }
     }
 
+    /// <summary>
+    /// Returns a problem response because theme deletion is not implemented.
+    /// </summary>
     private static async Task<IResult> DeleteTheme(
         string id,
         [FromServices] ILoggerFactory loggerFactory,

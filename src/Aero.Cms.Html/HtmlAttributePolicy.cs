@@ -6,6 +6,7 @@ namespace Aero.Cms.Html;
 /// </summary>
 public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
 {
+    /// <inheritdoc />
     public HtmlAttributePolicyDecision CanRender(
         HtmlElementDefinition element,
         string attributeName,
@@ -48,6 +49,7 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         return HtmlAttributePolicyDecision.Deny($"The {attributeName} attribute is not supported on <{element.Tag}>.");
     }
 
+    /// <summary>Recognizes the narrow global attribute set supported on every catalog element.</summary>
     private static bool IsGlobalAttribute(string attributeName) =>
         attributeName.Equals("id", StringComparison.OrdinalIgnoreCase)
         || attributeName.Equals("class", StringComparison.OrdinalIgnoreCase)
@@ -56,6 +58,7 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         || attributeName.StartsWith("aria-", StringComparison.OrdinalIgnoreCase)
         || attributeName.StartsWith("data-", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Recognizes attributes whose values must cross the shared URL-policy boundary.</summary>
     private static bool IsUrlAttribute(string attributeName) =>
         attributeName.Equals("href", StringComparison.OrdinalIgnoreCase)
         || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
@@ -63,12 +66,14 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         || attributeName.Equals("action", StringComparison.OrdinalIgnoreCase)
         || attributeName.Equals("cite", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Applies the stricter media scheme set to media-bearing attributes.</summary>
     private static bool IsSafeUrl(string attributeName, string value) =>
         attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
             || attributeName.Equals("poster", StringComparison.OrdinalIgnoreCase)
             ? HtmlUrlPolicy.IsSafeMediaUrl(value)
             : HtmlUrlPolicy.IsSafeNavigationUrl(value);
 
+    /// <summary>Validates each comma-delimited source-set candidate and optional descriptor independently.</summary>
     private static bool IsSafeSourceSet(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -93,6 +98,7 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         return true;
     }
 
+    /// <summary>Accepts positive invariant width or pixel-density descriptors.</summary>
     private static bool IsSourceSetDescriptor(string descriptor)
     {
         if (descriptor.EndsWith('w'))
@@ -112,6 +118,7 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
             out var density) && density > 0;
     }
 
+    /// <summary>Enforces finite allowlists and numeric ranges for attributes with constrained vocabularies.</summary>
     private static bool IsAllowedValue(string tagName, string attributeName, string value)
     {
         if (tagName.Equals("ol", StringComparison.OrdinalIgnoreCase)
@@ -202,12 +209,14 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         return true;
     }
 
+    /// <summary>Parses an invariant decimal without accepting locale-dependent representations.</summary>
     private static bool TryParseDecimal(string value, out decimal number) => decimal.TryParse(
         value,
         System.Globalization.NumberStyles.Number,
         System.Globalization.CultureInfo.InvariantCulture,
         out number);
 
+    /// <summary>Rejects malformed names before case-insensitive allowlist comparisons occur.</summary>
     private static bool IsValidAttributeName(string value)
     {
         foreach (var character in value)

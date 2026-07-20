@@ -7,25 +7,39 @@ using Microsoft.AspNetCore.Html;
 namespace Aero.Cms.Modules.Footer.Rendering;
 
 /// <summary>
-/// Defines an interface for IFooterHtmlRenderer.
+/// Converts a footer snapshot into HTML content suitable for an ASP.NET Core response.
 /// </summary>
 public interface IFooterHtmlRenderer
 {
-        /// <summary>
-    /// Render method.
+    /// <summary>
+    /// Renders a complete footer or returns empty content when no snapshot is available.
     /// </summary>
-IHtmlContent Render(FooterSnapshot? snapshot);
+    /// <param name="snapshot">The snapshot to render, or <see langword="null"/> to render nothing.</param>
+    /// <returns>Encoded footer markup, or <see cref="HtmlString.Empty"/> for a null snapshot.</returns>
+    /// <remarks>
+    /// Implementations are not required to validate snapshots. Callers must enforce any URL or
+    /// business constraints before rendering.
+    /// </remarks>
+    IHtmlContent Render(FooterSnapshot? snapshot);
 }
 
 /// <summary>
-/// Represents a class for FooterHtmlRenderer.
+/// Renders footer snapshots as stateless Tailwind-oriented HTML.
 /// </summary>
+/// <remarks>
+/// Dynamic text and attribute values are HTML encoded. Encoding is not URL-scheme validation,
+/// sanitization, or authorization of form actions and external destinations.
+/// </remarks>
 public sealed class FooterHtmlRenderer : IFooterHtmlRenderer
 {
-        /// <summary>
-    /// Render method.
-    /// </summary>
-public IHtmlContent Render(FooterSnapshot? snapshot)
+    /// <inheritdoc />
+    /// <remarks>
+    /// The method does not call <see cref="FooterSnapshot.Validate"/>. Canvas layouts order rows,
+    /// columns, and blocks and clamp grid spans to one through twelve. Flat layouts render brand
+    /// content, text blocks, and link groups; social links are also included in the bottom region.
+    /// Component <see cref="IFooterComponent.Placement"/> values are not used to move content.
+    /// </remarks>
+    public IHtmlContent Render(FooterSnapshot? snapshot)
     {
         if (snapshot is null)
         {

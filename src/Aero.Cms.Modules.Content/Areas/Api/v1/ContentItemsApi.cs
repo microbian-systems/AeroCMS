@@ -15,11 +15,17 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// Thin admin API for content item management — delegates to
 /// <see cref="IAeroContentItemActor"/> (Orleans grain).
 /// </summary>
+/// <remarks>
+/// Every route requires authorization and derives its site boundary from <see cref="ISiteContext"/>.
+/// Identifier-based operations load first and reject items whose site or type alias does not match
+/// the current route.
+/// </remarks>
 public static class ContentItemsApi
 {
         /// <summary>
-    /// MapContentItemsApi method.
+    /// Maps authenticated content-item CRUD, publication, and translation endpoints.
     /// </summary>
+    /// <param name="app">The endpoint route builder that receives the administrative routes.</param>
 public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
@@ -37,6 +43,14 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture).WithName("ForkContentItemToCulture");
     }
 
+    /// <summary>
+    /// Lists a page of current-site items for a content type, optionally using field search.
+    /// </summary>
+    /// <returns>HTTP 200 with a page, HTTP 400 without a current site, or HTTP 500 on caught errors.</returns>
+    /// <remarks>
+    /// Search failures silently fall back to the actor's type listing. Skip and take are not
+    /// validated here; search results are paged in memory.
+    /// </remarks>
     private static async Task<IResult> ListContentItems(
         [FromQuery] string contentType,
         [FromServices] IAeroContentItemActor contentActor,
@@ -82,6 +96,11 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Loads one content item and enforces the current site and route alias.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 400 without a site, or HTTP 404 for errors and boundary mismatches.</returns>
+    /// <remarks>Actor and cancellation exceptions propagate because this handler has no catch block.</remarks>
     private static async Task<IResult> GetContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -99,6 +118,14 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(MapToDetail(result.data));
     }
 
+    /// <summary>
+    /// Creates a draft content item for the current site and route alias.
+    /// </summary>
+    /// <returns>HTTP 201 on success, HTTP 400 for actor failures, or HTTP 500 on caught exceptions.</returns>
+    /// <remarks>
+    /// JSON fields are cloned before serialization. A blank culture uses the current UI culture;
+    /// invalid culture names are caught and returned through a problem response.
+    /// </remarks>
     private static async Task<IResult> CreateContentItem(
         string alias,
         [FromBody] CreateContentItemRequest request,
@@ -142,6 +169,14 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Replaces editable fields of an existing draft after site and alias validation.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 404 for a boundary mismatch, HTTP 400 for actor failure, or HTTP 500.</returns>
+    /// <remarks>
+    /// The submitted field dictionary replaces the stored field bag. Culture is retained only when
+    /// the request culture is blank; all other editable values are overwritten.
+    /// </remarks>
     private static async Task<IResult> UpdateContentItem(
         string alias, long id,
         [FromBody] CreateContentItemRequest request,
@@ -190,12 +225,20 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Returns a canonical culture name, using the current UI culture for blank input.
+    /// </summary>
+    /// <exception cref="CultureNotFoundException">Thrown when a nonblank culture is invalid.</exception>
     private static string ResolveRequestCulture(string? culture) =>
         CultureInfo.GetCultureInfo(
             string.IsNullOrWhiteSpace(culture)
                 ? CultureInfo.CurrentUICulture.Name
                 : culture).Name;
 
+    /// <summary>
+    /// Deletes an item only after validating its current-site and alias ownership.
+    /// </summary>
+    /// <returns>HTTP 204, HTTP 404 for a boundary mismatch, HTTP 400 for deletion errors, or HTTP 400 on exceptions.</returns>
     private static async Task<IResult> DeleteContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -226,6 +269,10 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Publishes an item after validating its current-site and alias ownership.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 404 for lookup or actor errors, or HTTP 500 on exceptions.</returns>
     private static async Task<IResult> PublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -256,6 +303,10 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Returns a published item to draft after validating its current-site and alias ownership.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 404 for lookup or actor errors, or HTTP 500 on exceptions.</returns>
     private static async Task<IResult> UnpublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
@@ -286,6 +337,13 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Lists culture variants in the source item's translation group.
+    /// </summary>
+    /// <returns>
+    /// HTTP 200 with query results, or with only the source when the variant query fails; HTTP 404
+    /// for a boundary mismatch; or HTTP 500 on caught exceptions.
+    /// </returns>
     private static async Task<IResult> ListContentItemTranslations(
         string alias,
         long id,
@@ -319,6 +377,15 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Creates a draft translation by copying the source title and serialized fields.
+    /// </summary>
+    /// <returns>HTTP 201 on success, HTTP 400 for invalid or duplicate targets, HTTP 404, or HTTP 500.</returns>
+    /// <remarks>
+    /// Culture input is trimmed but not canonicalized. If variant discovery fails, duplicate-culture
+    /// detection is skipped. The fork receives a new Snowflake identifier and does not copy scheduling
+    /// or publication timestamps.
+    /// </remarks>
     private static async Task<IResult> ForkContentItemToCulture(
         string alias,
         long id,
@@ -395,6 +462,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Deserializes a view model's field JSON and projects the detailed HTTP contract.
+    /// </summary>
     private static ContentItemDetail MapToDetail(ContentItemViewModel vm)
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "{}"
@@ -410,6 +480,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             vm.Culture, vm.TranslationGroupId, vm.SourceItemId);
     }
 
+    /// <summary>
+    /// Projects a view model summary and exposes the first field as raw JSON text.
+    /// </summary>
     private static ContentItemSummary MapToSummary(ContentItemViewModel item)
     {
         string? firstFieldValue = null;
@@ -430,6 +503,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.Culture, item.TranslationGroupId, item.SourceItemId);
     }
 
+    /// <summary>
+    /// Projects a persisted item summary and exposes the first field as raw JSON text.
+    /// </summary>
     private static ContentItemSummary MapToSummary(ContentItem item)
     {
         var firstField = item.Fields.Values.FirstOrDefault();
@@ -444,6 +520,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.Culture, item.TranslationGroupId, item.SourceItemId);
     }
 
+    /// <summary>
+    /// Projects a persisted content item into the detailed HTTP contract.
+    /// </summary>
     private static ContentItemDetail MapToDetail(ContentItem item)
         => new(
             item.Id,
@@ -460,9 +539,15 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.TranslationGroupId,
             item.SourceItemId);
 
+    /// <summary>
+    /// Trims culture input without validating or canonicalizing it.
+    /// </summary>
     private static string NormalizeCulture(string? culture)
         => culture?.Trim() ?? string.Empty;
 
+    /// <summary>
+    /// Accepts an actor response only when it succeeded and matches both site and type alias.
+    /// </summary>
     private static bool IsCurrentSiteItem(
         AeroRequestResponse<ContentItemViewModel> result,
         long siteId,
@@ -471,6 +556,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
            result.data.SiteId == siteId &&
            string.Equals(result.data.ContentTypeAlias, alias, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Creates the standard HTTP 400 response for an absent current-site selection.
+    /// </summary>
     private static IResult MissingSite()
         => TypedResults.BadRequest(new ProblemDetails
         {

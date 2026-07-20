@@ -3,13 +3,16 @@ using Microsoft.Extensions.Configuration;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Represents a class for AppSettingsBootstrapStateProvider.
+/// Reads the setup bootstrap state from the active application configuration.
 /// </summary>
+/// <remarks>
+/// When an explicit state is absent, the provider derives a backward-compatible state
+/// from the completion flags and the presence of a database mode. This type only reads
+/// configuration; it does not persist or validate it.
+/// </remarks>
 public sealed class AppSettingsBootstrapStateProvider(IConfiguration configuration) : IBootstrapStateProvider
 {
-        /// <summary>
-    /// GetState method.
-    /// </summary>
+    /// <inheritdoc />
 public BootstrapState GetState()
     {
         var section = configuration.GetSection("AeroCms:Bootstrap");

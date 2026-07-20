@@ -4,12 +4,13 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Navigation.Validators;
 
 /// <summary>
-/// Represents a class for CreateNavigationRequestValidator.
+/// Validates initial navigation names, logos, and legacy top-level links.
 /// </summary>
 public sealed class CreateNavigationRequestValidator : AbstractValidator<CreateNavigationRequest>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="CreateNavigationRequestValidator"/> class.
+    /// <summary>
+    /// Initializes rules requiring a name of at most 100 characters, a logo URL of at most
+    /// 2,048 characters, and no more than 100 individually valid links.
     /// </summary>
 public CreateNavigationRequestValidator()
     {
@@ -31,13 +32,19 @@ public CreateNavigationRequestValidator()
 }
 
 /// <summary>
-/// Represents a class for UpdateNavigationRequestValidator.
+/// Validates navigation draft metadata and its legacy top-level link collection.
 /// </summary>
 public sealed class UpdateNavigationRequestValidator : AbstractValidator<UpdateNavigationRequest>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateNavigationRequestValidator"/> class.
+    /// <summary>
+    /// Initializes rules requiring a name of at most 100 characters, a logo URL of at most
+    /// 2,048 characters, and no more than 100 individually valid legacy links.
     /// </summary>
+    /// <remarks>
+    /// Mapped component payloads are validated later by
+    /// <see cref="Aero.Cms.Modules.Navigation.Domain.NavMenuSnapshot"/>. Row, column, and block
+    /// structure bypasses these collection rules; spans are clamped during mapping rather than rejected.
+    /// </remarks>
 public UpdateNavigationRequestValidator()
     {
         RuleFor(x => x.Name)
@@ -58,12 +65,13 @@ public UpdateNavigationRequestValidator()
 }
 
 /// <summary>
-/// Represents a class for CreateNavigationItemRequestValidator.
+/// Validates a create-request link's label, order, destination, and target keyword.
 /// </summary>
 public sealed class CreateNavigationItemRequestValidator : AbstractValidator<CreateNavigationItemRequest>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="CreateNavigationItemRequestValidator"/> class.
+    /// <summary>
+    /// Initializes rules for a nonblank 120-character label, nonnegative order, and a
+    /// safe internal or absolute HTTP(S) external destination.
     /// </summary>
 public CreateNavigationItemRequestValidator()
     {
@@ -89,12 +97,13 @@ public CreateNavigationItemRequestValidator()
 }
 
 /// <summary>
-/// Represents a class for UpdateNavigationItemRequestValidator.
+/// Validates an update-request link's label, order, destination, and target keyword.
 /// </summary>
 public sealed class UpdateNavigationItemRequestValidator : AbstractValidator<UpdateNavigationItemRequest>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateNavigationItemRequestValidator"/> class.
+    /// <summary>
+    /// Initializes rules for a nonblank 120-character label, nonnegative order, and a
+    /// safe internal or absolute HTTP(S) external destination.
     /// </summary>
 public UpdateNavigationItemRequestValidator()
     {
@@ -119,26 +128,42 @@ public UpdateNavigationItemRequestValidator()
     }
 }
 
+/// <summary>
+/// Centralizes URL and browsing-target rules shared by create and update validators.
+/// </summary>
 internal static class NavigationUrlRules
 {
-        /// <summary>
-    /// IsValid method.
+    /// <summary>
+    /// Validates the destination encoded by a create-item request.
     /// </summary>
+    /// <param name="request">The create-item request.</param>
+    /// <returns>Whether its URL/page combination matches its external flag.</returns>
 public static bool IsValid(CreateNavigationItemRequest request)
         => IsValid(request.Url, request.PageId, request.IsExternal);
 
-        /// <summary>
-    /// IsValid method.
+    /// <summary>
+    /// Validates the destination encoded by an update-item request.
     /// </summary>
+    /// <param name="request">The update-item request.</param>
+    /// <returns>Whether its URL/page combination matches its external flag.</returns>
 public static bool IsValid(UpdateNavigationItemRequest request)
         => IsValid(request.Url, request.PageId, request.IsExternal);
 
-        /// <summary>
-    /// IsValidTarget method.
+    /// <summary>
+    /// Determines whether a link target is blank or a supported browsing-context keyword.
     /// </summary>
+    /// <param name="target">The candidate target.</param>
+    /// <returns>Whether the target is accepted.</returns>
 public static bool IsValidTarget(string? target)
         => string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top";
 
+    /// <summary>
+    /// Applies external HTTP(S) and internal root-relative/page destination rules.
+    /// </summary>
+    /// <param name="url">The candidate URL.</param>
+    /// <param name="pageId">The optional internal page identifier.</param>
+    /// <param name="isExternal">Whether the URL must be absolute HTTP(S).</param>
+    /// <returns>Whether the destination is valid.</returns>
     private static bool IsValid(string? url, long? pageId, bool isExternal)
     {
         if (isExternal)

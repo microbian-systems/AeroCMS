@@ -33,15 +33,16 @@ public sealed class Aero002WolverineHandlerRequired : DiagnosticAnalyzer
                      "with [WolverineHandler]. Source generation uses ForAttributeWithMetadataName for " +
                      "performance — it does not scan for IWolverineHandler through AllInterfaces.");
 
-        /// <summary>
-    /// Gets or sets the Supported Diagnostics.
+    /// <summary>
+    /// Gets the AERO002 descriptor produced by this analyzer.
     /// </summary>
 public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [MissingWolverineHandlerAttribute];
 
-        /// <summary>
-    /// Initialize method.
+    /// <summary>
+    /// Enables concurrent analysis and registers class-declaration inspection while excluding generated code.
     /// </summary>
+    /// <param name="context">The analyzer registration context.</param>
 public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -50,6 +51,15 @@ public override void Initialize(AnalysisContext context)
         context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
     }
 
+    /// <summary>
+    /// Reports AERO002 for an unannotated class whose written base list exposes Wolverine's marker interface.
+    /// </summary>
+    /// <param name="context">The class-declaration analysis context.</param>
+    /// <remarks>
+    /// Each written base type is checked directly and through that type's inherited interfaces. Interfaces
+    /// inherited only through a base class can therefore be detected through that base type's interface set,
+    /// but classes with no base list are skipped. Attribute matching uses the fully qualified metadata name.
+    /// </remarks>
     private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
     {
         var classDecl = (ClassDeclarationSyntax)context.Node;

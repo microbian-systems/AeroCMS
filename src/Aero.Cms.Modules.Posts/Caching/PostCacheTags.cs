@@ -1,47 +1,57 @@
 namespace Aero.Cms.Modules.Posts.Caching;
 
 /// <summary>
-/// Provides cache tag constants for Blog module output caching.
+/// Builds stable cache tags used to invalidate post-related cache entries.
 /// </summary>
 public static class PostCacheTags
 {
     /// <summary>
-    /// Tag for the blog index page (list of all posts).
+    /// Gets the tag shared by cached blog index entries.
     /// </summary>
     public const string BlogIndex = "blog-index";
 
     /// <summary>
-    /// Generates a cache tag for a specific blog post by its ID.
+    /// Builds the cache tag for a post identifier.
     /// </summary>
+    /// <param name="id">The persisted post identifier.</param>
+    /// <returns>The identifier-specific cache tag.</returns>
     public static string PostPostById(long id) => $"blog-post-id-{id}";
 
     /// <summary>
-    /// Generates a cache tag for a specific blog post by its slug.
+    /// Builds the cache tag for a post slug.
     /// </summary>
+    /// <param name="slug">The slug to normalize to invariant lowercase.</param>
+    /// <returns>The slug-specific cache tag.</returns>
     public static string PostBySlug(string slug) => $"blog-post-slug-{slug.ToLowerInvariant()}";
 
     /// <summary>
-    /// Generates a cache tag for blog posts filtered by tag.
+    /// Builds the cache tag for posts assigned to a tag.
     /// </summary>
+    /// <param name="tagId">The tag identifier.</param>
+    /// <returns>The tag-filtered cache tag.</returns>
     public static string PostsByTag(long tagId) => $"blog-posts-tag-{tagId}";
 
     /// <summary>
-    /// Generates a cache tag for blog posts filtered by category.
+    /// Builds the cache tag for posts assigned to a category.
     /// </summary>
+    /// <param name="categoryId">The category identifier.</param>
+    /// <returns>The category-filtered cache tag.</returns>
     public static string PostsByCategory(long categoryId) => $"blog-posts-category-{categoryId}";
 
     /// <summary>
-    /// Generates a cache tag for blog posts by a specific author.
+    /// Builds the cache tag for posts assigned to an author.
     /// </summary>
+    /// <param name="authorId">The author identifier.</param>
+    /// <returns>The author-filtered cache tag.</returns>
     public static string PostsByAuthor(long authorId) => $"blog-posts-author-{authorId}";
 
     /// <summary>
-    /// Tag for the list of all blog tags.
+    /// Gets the tag shared by cached tag lists.
     /// </summary>
     public const string TagsList = "blog-tags-list";
 
     /// <summary>
-    /// Tag for the list of all blog categories.
+    /// Gets the tag shared by cached category lists.
     /// </summary>
     public const string CategoriesList = "blog-categories-list";
 }

@@ -8,6 +8,11 @@ public static class ExceptionDiagnostics
     /// <summary>
     /// Returns the deepest exception from each branch of an exception tree.
     /// </summary>
+    /// <param name="exception">The exception tree to traverse.</param>
+    /// <returns>
+    /// Leaf exceptions in traversal order. Aggregate exceptions are flattened before their branches are traversed.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="exception"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<Exception> GetRootCauses(Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);

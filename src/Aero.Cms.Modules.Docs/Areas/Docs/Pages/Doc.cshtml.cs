@@ -14,8 +14,14 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
 /// <summary>
-/// Represents a class for DocModel.
+/// Loads and prepares a culture-aware public documentation page.
 /// </summary>
+/// <remarks>
+/// Only published content is selected. If the requested culture has no page for the slug,
+/// the content service can return the site's default-culture page. Supporting navigation failures
+/// are tolerated, while a content lookup failure is rendered as not found. Responses participate
+/// in both response caching and the named <c>DocsPolicy</c> output-cache policy.
+/// </remarks>
 [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "DocsPolicy")]
 public class DocModel : PageModel
@@ -23,69 +29,87 @@ public class DocModel : PageModel
     private readonly IDocsService _docsService;
     private readonly IDocsTreeService _docsTreeService;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="DocModel"/> class.
     /// </summary>
+    /// <param name="docsService">The current-site content service.</param>
+    /// <param name="docsTreeService">The hierarchy and heading projection service.</param>
 public DocModel(IDocsService docsService, IDocsTreeService docsTreeService)
     {
         _docsService = docsService;
         _docsTreeService = docsTreeService;
     }
 
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets or sets the catch-all path relative to the localized <c>/docs</c> prefix.
     /// </summary>
 [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
-        /// <summary>
-    /// Gets or sets the Markdown Page.
+    /// <summary>
+    /// Gets the published page selected for rendering.
     /// </summary>
 public DocsPage? MarkdownPage { get; private set; }
-        /// <summary>
-    /// Gets or sets the Child Pages.
+
+    /// <summary>
+    /// Gets the selected page's published direct children for overview cards.
     /// </summary>
 public IReadOnlyList<DocsPage> ChildPages { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Sidebar Tree.
+
+    /// <summary>
+    /// Gets the rendered culture's published sidebar hierarchy.
     /// </summary>
 public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the On This Page.
+
+    /// <summary>
+    /// Gets H2 and H3 entries extracted from the selected page.
     /// </summary>
 public List<HeadingItem> OnThisPage { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Breadcrumbs.
+
+    /// <summary>
+    /// Gets the published breadcrumb chain excluding the virtual docs root.
     /// </summary>
 public IReadOnlyList<DocsPage> Breadcrumbs { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Requested Culture.
+
+    /// <summary>
+    /// Gets the normalized UI culture requested by the localized route.
     /// </summary>
 public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
-        /// <summary>
-    /// Gets or sets the Rendered Culture.
+
+    /// <summary>
+    /// Gets the stored culture of the page actually rendered.
     /// </summary>
 public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
-        /// <summary>
-    /// Gets or sets the Is Culture Fallback.
+
+    /// <summary>
+    /// Gets whether the rendered page came from a culture other than <see cref="RequestedCulture"/>.
     /// </summary>
 public bool IsCultureFallback { get; private set; }
-        /// <summary>
-    /// Gets or sets the Canonical Url.
+
+    /// <summary>
+    /// Gets the absolute localized URL for the rendered page.
     /// </summary>
 public string CanonicalUrl { get; private set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alternate Links.
+
+    /// <summary>
+    /// Gets published translation links, including <c>x-default</c> when a default variant exists.
     /// </summary>
 public IReadOnlyList<AlternateDocLink> AlternateLinks { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Culture Switcher Links.
+
+    /// <summary>
+    /// Gets de-duplicated culture switcher entries derived from published alternate links.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-        /// <summary>
-    /// OnGetAsync method.
+    /// <summary>
+    /// Resolves the localized document and prepares navigation, SEO links, and cache metadata.
     /// </summary>
+    /// <param name="cancellationToken">The token used by content and hierarchy operations.</param>
+    /// <returns>The Razor page, or a not-found result when no published page can be resolved.</returns>
+    /// <remarks>
+    /// The route path is always prefixed with <c>docs/</c> before lookup. Hierarchy and translation
+    /// failures do not fail the page; their corresponding collections fall back to empty or current-page data.
+    /// </remarks>
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -152,6 +176,9 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         return Page();
     }
 
+    /// <summary>
+    /// Builds localized links from published members of the page's translation group.
+    /// </summary>
     private async Task<IReadOnlyList<AlternateDocLink>> BuildAlternateLinksAsync(DocsPage page, CancellationToken cancellationToken)
     {
         var variantsResult = await _docsService.ListCultureVariantsAsync(page.Id, cancellationToken);
@@ -185,6 +212,9 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         return links;
     }
 
+    /// <summary>
+    /// Converts alternate links into one switcher entry per culture and omits <c>x-default</c>.
+    /// </summary>
     private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(IReadOnlyList<AlternateDocLink> alternateLinks)
         => alternateLinks
             .Where(link => !string.Equals(link.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase))
@@ -197,6 +227,9 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             .Select(group => group.First())
             .ToList();
 
+    /// <summary>
+    /// Builds an absolute URL from the current request origin and a localized CMS path.
+    /// </summary>
     private string BuildCultureUrl(string culture, string? slug)
         => UriHelper.BuildAbsolute(
             Request.Scheme,
@@ -204,8 +237,10 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             Request.PathBase,
             AeroCultureRoute.BuildCulturePath(culture, slug));
 
-        /// <summary>
-    /// Represents a record for AlternateDocLink.
+    /// <summary>
+    /// Describes an HTML alternate-language relation for a documentation page.
     /// </summary>
+    /// <param name="Hreflang">The lower-case culture tag or <c>x-default</c>.</param>
+    /// <param name="Href">The absolute localized page URL.</param>
 public sealed record AlternateDocLink(string Hreflang, string Href);
 }

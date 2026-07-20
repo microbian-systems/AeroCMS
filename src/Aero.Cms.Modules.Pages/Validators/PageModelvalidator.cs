@@ -4,13 +4,19 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Pages.Validators;
 
 /// <summary>
-/// Represents a class for PageDocumentValidator.
+/// Validates page identifiers, slugs, materialized paths, hierarchy values, and
+/// publication-state enum values.
 /// </summary>
 public class PageDocumentValidator : AbstractValidator<PageDocument>
 {
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="PageDocumentValidator"/> class.
     /// </summary>
+    /// <remarks>
+    /// Homepage slugs are exempt from the ordinary lower-case segment pattern. Parent
+    /// validation rejects only non-positive identifiers and direct self-parenting; it
+    /// does not query the store for parent existence or detect longer cycles.
+    /// </remarks>
 public PageDocumentValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);

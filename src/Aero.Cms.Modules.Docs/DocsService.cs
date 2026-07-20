@@ -13,11 +13,15 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Docs;
 
 /// <summary>
-/// Content service for docs — mirrors <see cref="Aero.Cms.Modules.Pages.AeroPageContentService"/>.
-/// Constructed per operation by <see cref="Grains.AeroDocsGrain"/> with
-/// an explicit <see cref="IDocumentSession"/> and <see cref="ISiteContext"/>.
-/// Also usable as a scoped service for Razor pages within the HTTP request scope.
+/// Implements site-scoped documentation reads, writes, translations, and publication transitions.
 /// </summary>
+/// <remarks>
+/// Reads can use an optional FusionCache instance and all cache keys include the current site.
+/// Mutations commit the document session before publishing Wolverine notifications, so notification
+/// failures can be returned after the persisted state has changed. This service does not perform
+/// user authorization; callers must establish a trustworthy <see cref="ISiteContext"/> and actor.
+/// Most methods catch cancellation together with other exceptions and return a database failure.
+/// </remarks>
 public sealed class DocsContentService : IDocsService
 {
     private readonly IDocumentSession _session;
@@ -28,9 +32,15 @@ public sealed class DocsContentService : IDocsService
     private readonly IFusionCache? _cache;
     private const string DocsCacheTag = "docs-index";
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="DocsContentService"/> class.
     /// </summary>
+    /// <param name="session">The operation-scoped document session.</param>
+    /// <param name="bus">The message bus used after successful mutations.</param>
+    /// <param name="siteContext">The site boundary applied to service operations.</param>
+    /// <param name="logger">The diagnostic logger.</param>
+    /// <param name="actor">The audit actor, or <see langword="null"/> to use <c>system</c>.</param>
+    /// <param name="cache">The optional site-keyed read cache.</param>
 public DocsContentService(
         IDocumentSession session,
         IMessageBus bus,
@@ -49,9 +59,7 @@ public DocsContentService(
 
     // ── CRUD ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetAllAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
@@ -78,15 +86,11 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(Cancel
 
     // ─────────── Published (compiled queries) ───────────────────────────
 
-        /// <summary>
-    /// GetPublishedAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(CancellationToken ct = default)
         => GetPublishedAsync(null, ct);
 
-        /// <summary>
-    /// GetPublishedAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(string? culture, CancellationToken ct = default)
     {
         try
@@ -115,9 +119,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(
         }
     }
 
-        /// <summary>
-    /// GetPagedAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroError>> GetPagedAsync(int skip, int take, CancellationToken ct = default)
     {
         try
@@ -146,9 +148,7 @@ public async Task<Result<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroE
 
     // ── Slug lookup ─────────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, CancellationToken ct = default)
     {
         try
@@ -173,15 +173,11 @@ public async Task<Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, Canc
         }
     }
 
-        /// <summary>
-    /// GetPublishedBySlugAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
         => GetPublishedBySlugAsync(slug, null, ct);
 
-        /// <summary>
-    /// GetPublishedBySlugAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, string? culture, CancellationToken ct = default)
     {
         try
@@ -212,9 +208,7 @@ public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string s
         }
     }
 
-        /// <summary>
-    /// GetByIdAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
@@ -238,10 +232,7 @@ public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, Cancellati
         }
     }
 
-    /// <summary>
-    /// Save (create or update) a docs page. Handles slug reservation, timestamp
-    /// stamping, and Wolverine event publishing for cache eviction.
-    /// </summary>
+    /// <inheritdoc />
     public async Task<Result<DocsPage, AeroError>> SaveAsync(DocsPage page, CancellationToken ct = default)
     {
         try
@@ -277,9 +268,7 @@ public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, Cancellati
         }
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
@@ -307,9 +296,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
 
     // ── Batch load ─────────────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetByIdsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetByIdsAsync(long[] ids, CancellationToken ct = default)
     {
         try
@@ -326,9 +313,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetByIdsAsync(long
         }
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
     {
         try
@@ -352,9 +337,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> ListCultureVariant
         }
     }
 
-        /// <summary>
-    /// ForkToCultureAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, string targetCulture, string slug, CancellationToken ct = default)
     {
         try
@@ -416,9 +399,7 @@ public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, strin
 
     // ── Request-based CRUD (thin mapping, delegates to SaveAsync) ──────────
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage, AeroError>> CreateAsync(CreateDocRequest request, CancellationToken ct = default)
     {
         try
@@ -449,9 +430,7 @@ public async Task<Result<DocsPage, AeroError>> CreateAsync(CreateDocRequest requ
         }
     }
 
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage, AeroError>> UpdateAsync(long id, UpdateDocRequest request, CancellationToken ct = default)
     {
         try
@@ -479,15 +458,11 @@ public async Task<Result<DocsPage, AeroError>> UpdateAsync(long id, UpdateDocReq
 
     // ── Tree ──────────────────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetChildrenAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
         => GetChildrenAsync(parentId, null, ct);
 
-        /// <summary>
-    /// GetChildrenAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, string? culture, CancellationToken ct = default)
     {
         try
@@ -515,9 +490,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         }
     }
 
-    /// <summary>
-    /// Gets top-level spaces — children of the virtual root doc (Slug == "docs", ParentId == null).
-    /// </summary>
+    /// <inheritdoc />
     public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetTopLevelCategoriesAsync(CancellationToken ct = default)
     {
         try
@@ -551,9 +524,17 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
     // ── Publish workflow ───────────────────────────────────────────────────
 
     /// <summary>
-    /// Publishes a docs page — sets <see cref="ContentPublicationState.Published"/>
-    /// and bumps <see cref="DocsPage.PublishedVersion"/>.
+    /// Publishes a page in the current site and increments its published version.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="ct">The token used through persistence.</param>
+    /// <returns>
+    /// The persisted page, or a not-found, database, or post-commit event-publication failure.
+    /// </returns>
+    /// <remarks>
+    /// The publication timestamp is replaced with the current UTC time. Unlike most service
+    /// methods, exceptions raised before delegation to <see cref="SaveAsync"/> are not translated.
+    /// </remarks>
     public async Task<Result<DocsPage, AeroError>> PublishAsync(long id, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<DocsPage>(id, ct);
@@ -568,8 +549,17 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
     }
 
     /// <summary>
-    /// Unpublishes a docs page — sets <see cref="ContentPublicationState.Draft"/>.
+    /// Returns a page in the current site to draft state.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="ct">The token used through persistence.</param>
+    /// <returns>
+    /// The persisted page, or a not-found, database, or post-commit event-publication failure.
+    /// </returns>
+    /// <remarks>
+    /// The publication timestamp is cleared but the published version is retained. Unlike most
+    /// service methods, exceptions raised before delegation to <see cref="SaveAsync"/> are not translated.
+    /// </remarks>
     public async Task<Result<DocsPage, AeroError>> UnpublishAsync(long id, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<DocsPage>(id, ct);
@@ -584,11 +574,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
 
     // ── ViewModel Save ──────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Save from a <see cref="DocViewModel"/> — loads the existing entity
-    /// (if found) and applies ViewModel fields before delegating to
-    /// <see cref="SaveAsync"/>.
-    /// </summary>
+    /// <inheritdoc />
     public async Task<Result<DocsPage, AeroError>> SaveFromViewModelAsync(DocViewModel vm, CancellationToken ct = default)
     {
         try
@@ -626,6 +612,13 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
 
     // ── Validation ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Applies the create path's current minimal title and slug checks.
+    /// </summary>
+    /// <remarks>
+    /// The cancellation token is currently unused apart from an already-completed task; a
+    /// dedicated page validator remains deferred by the preserved TODO.
+    /// </remarks>
     private async Task<Result<bool, AeroError>> ValidateAsync(DocsPage page, CancellationToken ct = default)
     {
         await Task.CompletedTask; // TODO: replace with DocsPageValidator when implemented
@@ -641,6 +634,9 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
 
     // ── Mapping ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Copies persisted and audit fields into the event-facing view model.
+    /// </summary>
     private static DocViewModel MapToViewModel(DocsPage page) => new()
     {
         Id = page.Id,
@@ -668,9 +664,15 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
 
     // ── Cache helpers ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Prefixes a cache suffix with the current site identifier.
+    /// </summary>
     private string BuildCacheKey(string suffix)
         => $"cms:docs:{_siteContext.SiteId}:{suffix}";
 
+    /// <summary>
+    /// Finds an exact published site/culture/slug tuple without fallback.
+    /// </summary>
     private async Task<DocsPage?> FindPublishedBySlugAndCultureAsync(string slug, string culture, CancellationToken ct)
         => await _session.Query<DocsPage>()
             .FirstOrDefaultAsync(x =>
@@ -680,12 +682,22 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
                 && x.PublicationState == ContentPublicationState.Published,
                 ct);
 
+    /// <summary>
+    /// Loads the current site's default culture, normalizing absent values to <c>en-US</c>.
+    /// </summary>
     private async Task<string> GetSiteDefaultCultureAsync(CancellationToken ct)
     {
         var site = await _session.LoadAsync<SitesModel>(_siteContext.SiteId, ct);
         return NormalizeCulture(site?.DefaultCulture);
     }
 
+    /// <summary>
+    /// Chooses the target-culture variant of a source parent when one exists.
+    /// </summary>
+    /// <remarks>
+    /// A missing parent or translated parent leaves the original parent identifier in place.
+    /// The initial parent load is identifier-only; the subsequent translation lookup is site-scoped.
+    /// </remarks>
     private async Task<long?> ResolveTranslatedParentIdAsync(long? sourceParentId, string culture, CancellationToken ct)
     {
         if (sourceParentId is not { } parentId)
@@ -706,6 +718,10 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         return translatedParent?.Id ?? sourceParentId;
     }
 
+    /// <summary>
+    /// Canonicalizes a .NET culture name and substitutes <c>en-US</c> for blank input.
+    /// </summary>
+    /// <exception cref="CultureNotFoundException">The supplied non-blank culture name is invalid.</exception>
     private static string NormalizeCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -714,9 +730,15 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         return CultureInfo.GetCultureInfo(culture.Trim()).Name;
     }
 
+    /// <summary>
+    /// Normalizes an explicit culture or the process's current UI culture.
+    /// </summary>
     private static string GetCurrentCulture(string? culture = null)
         => NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
+    /// <summary>
+    /// Reads an optional FusionCache entry, treating a disabled or absent entry as a miss.
+    /// </summary>
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken ct) where T : class
     {
         if (_cache is null) return null;
@@ -724,14 +746,27 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         return cached.HasValue ? cached.Value : null;
     }
 
+    /// <summary>
+    /// Stores an optional FusionCache entry under the module-wide invalidation tag.
+    /// </summary>
     private Task SetCacheAsync<T>(string key, T value, CancellationToken ct) where T : class
         => _cache is null
             ? Task.CompletedTask
             : _cache.SetAsync(key, value, tags: [DocsCacheTag], token: ct).AsTask();
 
+    /// <summary>
+    /// Trims, de-slashes, and lowercases a cache-key component, using an underscore for blank input.
+    /// </summary>
     private static string NormalizeCachePart(string? value)
         => string.IsNullOrWhiteSpace(value) ? "_" : value.Trim().Trim('/').ToLowerInvariant();
 
+    /// <summary>
+    /// Wraps cached collections so an empty result remains distinguishable from a cache miss.
+    /// </summary>
     private sealed record DocsPageCollectionCacheEntry(List<DocsPage> Items);
+
+    /// <summary>
+    /// Wraps a cached page and its unpaged total count.
+    /// </summary>
     private sealed record DocsPagePagedCacheEntry(List<DocsPage> Items, long TotalCount);
 }

@@ -7,7 +7,7 @@ namespace Aero.Cms.SourceGenerators;
 
 /// <summary>
 /// Host-project incremental source generator.
-/// Runs in every project but only emits output when the required types are available.
+/// Runs in every project but emits output only for the exact <c>Aero.Cms.Web</c> assembly name.
 /// Reads assembly-level attributes from referenced assemblies:
 /// <list type="bullet">
 ///   <item><c>ModuleManifestProviderAttribute</c> — discovers module manifest providers</item>
@@ -28,6 +28,16 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// Builds host catalog metadata from direct referenced-assembly attributes and emits host partials.
+    /// </summary>
+    /// <param name="context">The incremental generator registration context.</param>
+    /// <remarks>
+    /// Module providers are discovered only when <c>Aero.Modular</c> is directly referenced. Wolverine
+    /// output additionally requires a direct <c>Wolverine</c> or <c>WolverineFx</c> reference. The host
+    /// receives AERO050 as an error when Aero.Modular is present but no provider attribute is found.
+    /// Handler registrations may be empty without a diagnostic.
+    /// </remarks>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Pipeline: read assembly attributes + check if host compilation has required types
@@ -134,6 +144,11 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         });
     }
 
+    /// <summary>
+    /// Renders the host partial that instantiates each referenced module manifest provider.
+    /// </summary>
+    /// <param name="moduleProviders">Fully qualified provider type names in reference-discovery order.</param>
+    /// <returns>C# source implementing <c>GeneratedAeroModuleCatalog.PopulateProviders</c>.</returns>
     private static string RenderModuleCatalogSource(ImmutableArray<string> moduleProviders)
     {
         var source = new StringBuilder();
@@ -165,6 +180,11 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         return source.ToString();
     }
 
+    /// <summary>
+    /// Renders the host partial that invokes each referenced Wolverine registration catalog.
+    /// </summary>
+    /// <param name="handlerRegistrations">Fully qualified registration type names in discovery order.</param>
+    /// <returns>C# source implementing <c>GeneratedWolverineHandlerCatalog.RegisterGenerated</c>.</returns>
     private static string RenderHandlerCatalogSource(ImmutableArray<string> handlerRegistrations)
     {
         var source = new StringBuilder();
@@ -195,6 +215,14 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         return source.ToString();
     }
 
+    /// <summary>
+    /// Captures reference-derived catalog inputs for one compilation.
+    /// </summary>
+    /// <param name="assemblyName">The current compilation assembly name.</param>
+    /// <param name="moduleProviders">The distinct discovered module provider type names.</param>
+    /// <param name="handlerRegistrations">The distinct discovered Wolverine registration type names.</param>
+    /// <param name="hasAeroModular">Whether the compilation directly references Aero.Modular.</param>
+    /// <param name="hasWolverine">Whether the compilation directly references Wolverine.</param>
     private readonly struct HostCatalogInfo(
         string assemblyName,
         ImmutableArray<string> moduleProviders,
@@ -202,10 +230,25 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         bool hasAeroModular,
         bool hasWolverine)
     {
+        /// <summary>
+        /// Gets the current compilation assembly name.
+        /// </summary>
         public string AssemblyName { get; } = assemblyName;
+        /// <summary>
+        /// Gets the discovered module-provider type names.
+        /// </summary>
         public ImmutableArray<string> ModuleProviders { get; } = moduleProviders;
+        /// <summary>
+        /// Gets the discovered Wolverine registration type names.
+        /// </summary>
         public ImmutableArray<string> HandlerRegistrations { get; } = handlerRegistrations;
+        /// <summary>
+        /// Gets whether Aero.Modular is directly referenced.
+        /// </summary>
         public bool HasAeroModular { get; } = hasAeroModular;
+        /// <summary>
+        /// Gets whether Wolverine or WolverineFx is directly referenced.
+        /// </summary>
         public bool HasWolverine { get; } = hasWolverine;
     }
 }

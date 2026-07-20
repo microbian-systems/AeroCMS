@@ -6,29 +6,20 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
-/// <summary>
-/// Represents a class for TagByIdQuery.
-/// </summary>
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class TagByIdQuery : EntityByIdQuery<TagModel>;
 
-/// <summary>
-/// Represents a class for TagsByIdsQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class TagsByIdsQuery : EntitiesByIdsQuery<TagModel>;
 
-/// <summary>
-/// Represents a class for TagsByNameQuery.
-/// </summary>
+/// <summary>Selects tags whose stored name exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class TagsByNameQuery : ICompiledQuery<TagModel, IList<TagModel>>
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The name value used by the equality predicate.</summary>
 public required string Name { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
@@ -38,19 +29,14 @@ public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs(
     }
 }
 
-/// <summary>
-/// Represents a class for TagsByNameContainsQuery.
-/// </summary>
+/// <summary>Selects tags whose non-null stored name contains a supplied substring.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class TagsByNameContainsQuery : ICompiledQuery<TagModel, IList<TagModel>>
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The substring passed to <see cref="string.Contains(string)"/>.</summary>
 public required string Name { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
@@ -60,19 +46,14 @@ public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs(
     }
 }
 
-/// <summary>
-/// Represents a class for TagsByDescriptionQuery.
-/// </summary>
+/// <summary>Selects tags whose stored description exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class TagsByDescriptionQuery : ICompiledQuery<TagModel, IList<TagModel>>
 {
-        /// <summary>
-    /// Gets or sets the Description.
-    /// </summary>
+    /// <summary>The description value used by the equality predicate.</summary>
 public required string Description { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
@@ -82,12 +63,8 @@ public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs(
     }
 }
 
-/// <summary>
-/// Represents a class for TagsCreatedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class TagsCreatedInRangeQuery : EntitiesCreatedInRangeQuery<TagModel>;
 
-/// <summary>
-/// Represents a class for TagsModifiedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class TagsModifiedInRangeQuery : EntitiesModifiedInRangeQuery<TagModel>;

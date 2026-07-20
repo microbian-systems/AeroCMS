@@ -10,49 +10,63 @@ namespace Aero.Cms.Modules.Tenant;
 // For now, we'll just have a simple tenant management service that can be used to create and manage tenants.
 
 /// <summary>
-/// Defines an interface for ITenantService.
+/// Defines application-level tenant lifecycle operations.
 /// </summary>
 public interface ITenantService
 {
-        /// <summary>
-    /// CreateTenantAsync method.
+    /// <summary>
+    /// Validates and persists a tenant.
     /// </summary>
+    /// <param name="tenant">The tenant to validate and store.</param>
+    /// <param name="ct">The token used for persistence.</param>
+    /// <returns>The stored tenant, or a validation/persistence error.</returns>
 Task<Result<TenantModel, AeroError>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default);
-        /// <summary>
-    /// DeleteTenantAsync method.
+    /// <summary>
+    /// Deletes a tenant by identifier.
     /// </summary>
+    /// <param name="id">The tenant identifier.</param>
+    /// <param name="ct">The token used for persistence.</param>
+    /// <returns>A task that completes after the repository operation.</returns>
 Task DeleteTenantAsync(long id, CancellationToken ct = default);
-        /// <summary>
-    /// GetAllTenantsAsync method.
+    /// <summary>
+    /// Lists a page of tenants.
     /// </summary>
+    /// <param name="page">The one-based page number.</param>
+    /// <param name="num">The requested page size.</param>
+    /// <param name="ct">The token used for the query.</param>
+    /// <returns>The returned tenant page.</returns>
 Task<IEnumerable<TenantModel>> GetAllTenantsAsync(int page = 1, int num = 10, CancellationToken ct = default);
-        /// <summary>
-    /// GetTenantByIdAsync method.
+    /// <summary>
+    /// Finds a tenant by identifier.
     /// </summary>
+    /// <param name="id">The tenant identifier.</param>
+    /// <param name="ct">The token used for the lookup.</param>
+    /// <returns>A populated option when found; otherwise an empty option.</returns>
 Task<Option<TenantModel>> GetTenantByIdAsync(long id, CancellationToken ct = default);
-        /// <summary>
-    /// UpdateTenantAsync method.
+    /// <summary>
+    /// Stores a replacement tenant document without applying create-time validation.
     /// </summary>
+    /// <param name="tenant">The replacement tenant document.</param>
+    /// <param name="ct">The token used for persistence.</param>
+    /// <returns>The same tenant after commit.</returns>
 Task<TenantModel> UpdateTenantAsync(TenantModel tenant, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Represents a class for TenantService.
+/// Coordinates tenant validation, repository persistence, and service-level logging.
 /// </summary>
+/// <param name="repo">The tenant repository.</param>
+/// <param name="log">The service logger.</param>
 public class TenantService(ITenantRepository repo, ILogger<TenantService> log) : ITenantService
 {
 
-        /// <summary>
-    /// GetAllTenantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IEnumerable<TenantModel>> GetAllTenantsAsync(int page = 1, int num = 10, CancellationToken ct = default)
     {
         var res = await repo.GetAllAsync(page, num, ct);
         return res;
     }
-        /// <summary>
-    /// GetTenantByIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Option<TenantModel>> GetTenantByIdAsync(long id, CancellationToken ct = default)
     {
         var tenant = await repo.FindByIdAsync(id, ct);
@@ -61,9 +75,11 @@ public async Task<Option<TenantModel>> GetTenantByIdAsync(long id, CancellationT
 
     }
 
-        /// <summary>
-    /// CreateTenantAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Validation and persistence exceptions, including cancellation raised inside the
+    /// <c>try</c> block, are logged and converted to <see cref="AeroError.Error"/>.
+    /// </remarks>
 public async Task<Result<TenantModel, AeroError>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default)
     {
         var validator = new TenantValidator();
@@ -89,17 +105,14 @@ public async Task<Result<TenantModel, AeroError>> CreateTenantAsync(TenantModel 
         }
     }
 
-        /// <summary>
-    /// UpdateTenantAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<TenantModel> UpdateTenantAsync(TenantModel tenant, CancellationToken ct = default)
     {
         return await repo.UpdateAsync(tenant, ct);
     }
 
-        /// <summary>
-    /// DeleteTenantAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>The repository's Boolean deletion result is discarded.</remarks>
 public async Task DeleteTenantAsync(long id, CancellationToken ct = default)
     {
         await repo.DeleteAsync(id, ct);

@@ -44,11 +44,59 @@ namespace Aero.Cms.Web.Bootstrap;
 /// <summary>
 /// Package-first integration entry points for hosting Aero CMS in ASP.NET Core.
 /// </summary>
+/// <remarks>
+/// <see cref="AddAeroCmsAsync{TProgram}(WebApplicationBuilder, Action{AeroCmsOptions})"/>
+/// configures the host builder. <see cref="RunAeroCmsAsync{TRootComponent}(WebApplication, BootstrapState, Serilog.ILogger, Action{RazorComponentsEndpointConventionBuilder})"/>
+/// builds the request pipeline, maps endpoints, and owns the application start, initialization,
+/// lifetime wait, and stop sequence.
+/// </remarks>
 public static class AeroCmsExtensions
 {
-        /// <summary>
-    /// AddAeroCmsAsync method.
+    /// <summary>
+    /// Adds Aero CMS services and host integrations to an ASP.NET Core application builder.
     /// </summary>
+    /// <typeparam name="TProgram">The host application's entry-point type used to identify the runtime application.</typeparam>
+    /// <param name="builder">The builder to configure.</param>
+    /// <param name="configure">
+    /// A callback that supplies the generated module catalog and optionally customizes host integrations.
+    /// </param>
+    /// <returns>
+    /// A task whose result contains the same configured <paramref name="builder"/> and the logger created
+    /// by runtime registration.
+    /// </returns>
+    /// <remarks>
+    /// This method registers services, resolves and publishes the database and cache connection settings,
+    /// and invokes the supplied Wolverine, Orleans, cookie, and authorization configuration callbacks.
+    /// It does not build or start the application, map endpoints, wait for infrastructure, or initialize
+    /// runtime services; those operations are performed by <see cref="RunAeroCmsAsync{TRootComponent}"/>.
+    /// Hydro services are registered only when <see cref="AeroCmsOptions.EnableHydro"/> is enabled.
+    /// <para>
+    /// Authentication defaults to <c>Identity.Application</c>
+    /// (<see cref="IdentityConstants.ApplicationScheme"/>) for the general, authenticate, challenge,
+    /// and sign-in schemes. Its cookie defaults to <c>.AeroCms.Auth</c>,
+    /// <see cref="CookieOptions.HttpOnly"/> enabled, <see cref="CookieSecurePolicy.Always"/>,
+    /// <see cref="SameSiteMode.Lax"/>, seven-day sliding expiration, and <c>/manager/login</c> for
+    /// both login and access-denied redirects. <see cref="AeroCmsOptions.ConfigureApplicationCookie"/>
+    /// runs after these defaults and can replace them.
+    /// </para>
+    /// <para>
+    /// No policy scheme or forwarding rule automatically selects a bearer scheme; endpoints that require
+    /// bearer authentication must select it explicitly through their authentication or authorization
+    /// configuration.
+    /// </para>
+    /// <para>
+    /// This integration does not configure a Data Protection application name, key storage, or key-ring
+    /// sharing. Those remain owned by the host and framework defaults. A host that requires authentication
+    /// cookies to be decrypted across processes or instances must provide compatible Data Protection
+    /// configuration separately.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// The configuration callback does not provide <see cref="AeroCmsOptions.ModuleDescriptors"/>.
+    /// </exception>
 public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsAsync<TProgram>(
         this WebApplicationBuilder builder,
         Action<AeroCmsOptions> configure)
@@ -179,9 +227,41 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         configuration["ConnectionStrings:cache"] = resolvedInfrastructure.CacheConnectionString;
     }
 
-        /// <summary>
-    /// RunAeroCmsAsync method.
+    /// <summary>
+    /// Configures and runs the Aero CMS request pipeline for an already built application.
     /// </summary>
+    /// <typeparam name="TRootComponent">The root Razor component mapped by the application.</typeparam>
+    /// <param name="app">The application whose middleware, endpoints, and lifetime are managed.</param>
+    /// <param name="bootstrapState">
+    /// The early bootstrap state that controls infrastructure waiting and configured-mode initialization.
+    /// </param>
+    /// <param name="log">The logger used for startup, failure, and shutdown diagnostics.</param>
+    /// <param name="configureComponents">
+    /// An optional callback invoked after the root component endpoint is mapped and its default render modes
+    /// and additional assemblies have been added.
+    /// </param>
+    /// <returns>A task that completes after the application receives a shutdown signal and is stopped.</returns>
+    /// <remarks>
+    /// Middleware and endpoints are configured before the host is started. After start, the method waits
+    /// for required infrastructure, prepares the runtime, optionally invokes
+    /// <see cref="IRuntimeBootstrapInitializer"/> in configured mode, initializes runtime services, and
+    /// then waits for shutdown. Hydro, when enabled, is appended after all endpoint mappings.
+    /// Configured-mode failures during readiness, preparation, initialization, or lifetime waiting trigger
+    /// a best-effort transition to the failed bootstrap state. Startup and runtime failures are logged and
+    /// rethrown; stop failures are logged as non-fatal.
+    /// <para>
+    /// The method maps <c>GET /culture/set</c>. That endpoint writes the framework request-culture cookie
+    /// with a one-year expiration, <see cref="CookieOptions.HttpOnly"/> and
+    /// <see cref="CookieOptions.Secure"/> enabled, and <see cref="SameSiteMode.Lax"/>, then redirects
+    /// directly to the supplied <c>returnUrl</c>. The mapping adds no local authentication,
+    /// authorization, rate-limiting, or antiforgery metadata and does not validate that
+    /// <c>returnUrl</c> is local. As implemented, its state-changing GET and unrestricted redirect are
+    /// cross-site request and open-redirect concerns that the host must account for if the endpoint is exposed.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="app"/> or <paramref name="log"/> is <see langword="null"/>.
+    /// </exception>
 public static async Task RunAeroCmsAsync<TRootComponent>(
         this WebApplication app,
         BootstrapState bootstrapState,
@@ -403,9 +483,20 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         }
     }
 
-        /// <summary>
-    /// ConfigureAeroCmsBootstrapLogging method.
+    /// <summary>
+    /// Replaces the global Serilog logger with the file-and-console logger used during bootstrap.
     /// </summary>
+    /// <param name="webProjectPath">
+    /// The web project directory beneath which daily rolling log files are written to the
+    /// <c>logs</c> directory.
+    /// </param>
+    /// <remarks>
+    /// This method changes the process-wide <see cref="Log.Logger"/> value. The file sink is shared,
+    /// writes synchronously, and flushes to disk at a 15-second interval.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="webProjectPath"/> is <see langword="null"/>.
+    /// </exception>
 public static void ConfigureAeroCmsBootstrapLogging(string webProjectPath)
     {
         Log.Logger = new LoggerConfiguration()

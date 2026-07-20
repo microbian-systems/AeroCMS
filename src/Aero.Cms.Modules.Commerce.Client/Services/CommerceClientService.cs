@@ -3,14 +3,20 @@ using System.Net.Http.Json;
 namespace Aero.Cms.Modules.Commerce.Client.Services;
 
 /// <summary>
-/// Represents a class for CommerceClientService.
+/// HTTP and JSON implementation of <see cref="ICommerceClientService"/>.
 /// </summary>
+/// <param name="http">The configured client used for all relative Commerce API routes.</param>
+/// <remarks>
+/// Successful create, update, and basket mutation responses are required with <c>EnsureSuccessStatusCode</c>;
+/// failures therefore throw <see cref="HttpRequestException"/>. Read methods use JSON helpers directly, and
+/// delete-product returns <see langword="false"/> for non-success responses instead of throwing explicitly.
+/// </remarks>
 public sealed class CommerceClientService(HttpClient http) : ICommerceClientService
 {
     // ─── Catalog ──────────────────────────────────────────────
 
         /// <summary>
-    /// GetProductsAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(
         string? search = null, string? category = null,
@@ -25,19 +31,19 @@ public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(
     }
 
         /// <summary>
-    /// GetProductByIdAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<ProductDto?> GetProductByIdAsync(long id)
         => await http.GetFromJsonAsync<ProductDto>($"/api/commerce/catalog/products/{id}");
 
         /// <summary>
-    /// GetProductBySlugAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<ProductDto?> GetProductBySlugAsync(string slug)
         => await http.GetFromJsonAsync<ProductDto>($"/api/commerce/catalog/products/by-slug/{slug}");
 
         /// <summary>
-    /// CreateProductAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<ProductDto?> CreateProductAsync(CreateProductRequest request)
     {
@@ -47,7 +53,7 @@ public async Task<ProductDto?> CreateProductAsync(CreateProductRequest request)
     }
 
         /// <summary>
-    /// UpdateProductAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<ProductDto?> UpdateProductAsync(long id, UpdateProductRequest request)
     {
@@ -57,7 +63,7 @@ public async Task<ProductDto?> UpdateProductAsync(long id, UpdateProductRequest 
     }
 
         /// <summary>
-    /// DeleteProductAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<bool> DeleteProductAsync(long id)
     {
@@ -68,13 +74,13 @@ public async Task<bool> DeleteProductAsync(long id)
     // ─── Basket ────────────────────────────────────────────────
 
         /// <summary>
-    /// GetBasketAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<BasketDto?> GetBasketAsync(string customerId)
         => await http.GetFromJsonAsync<BasketDto>($"/api/commerce/basket?customerId={Uri.EscapeDataString(customerId)}");
 
         /// <summary>
-    /// AddItemToBasketAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<BasketDto?> AddItemToBasketAsync(string customerId, AddBasketItemRequest request)
     {
@@ -84,7 +90,7 @@ public async Task<BasketDto?> AddItemToBasketAsync(string customerId, AddBasketI
     }
 
         /// <summary>
-    /// RemoveItemFromBasketAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<BasketDto?> RemoveItemFromBasketAsync(string customerId, long productId)
     {
@@ -94,7 +100,7 @@ public async Task<BasketDto?> RemoveItemFromBasketAsync(string customerId, long 
     }
 
         /// <summary>
-    /// ClearBasketAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<BasketDto?> ClearBasketAsync(string customerId)
     {
@@ -106,7 +112,7 @@ public async Task<BasketDto?> ClearBasketAsync(string customerId)
     // ─── Orders ───────────────────────────────────────────────
 
         /// <summary>
-    /// GetOrdersAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(int skip = 0, int take = 20)
     {
@@ -115,7 +121,7 @@ public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(int skip = 0, int take
     }
 
         /// <summary>
-    /// GetOrderByIdAsync method.
+    /// <inheritdoc />
     /// </summary>
 public async Task<OrderDto?> GetOrderByIdAsync(long id)
         => await http.GetFromJsonAsync<OrderDto>($"/api/commerce/orders/{id}");

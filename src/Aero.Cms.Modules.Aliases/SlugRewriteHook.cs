@@ -4,12 +4,14 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Represents a class for SlugRewriteHook.
+/// Registered page-save hook reserved for automatic slug-alias behavior. The
+/// current implementation only logs execution and creates no alias or redirect.
 /// </summary>
 public class SlugRewriteHook(ILogger<SlugRewriteHook> logger) : IPageSaveHook
 {
         /// <summary>
-    /// Gets or sets the Order.
+    /// Gets the hook ordering value. The current value is not a guarantee of
+    /// persistence or redirect behavior because the hook is intentionally a no-op.
     /// </summary>
 public int Order => -50; // Run early to capture original state if needed, or late? 
     // Usually late to ensure we only act on success? No, hooks run sequentially.
@@ -17,7 +19,8 @@ public int Order => -50; // Run early to capture original state if needed, or la
     // or before to prepare the redirect.
 
         /// <summary>
-    /// ExecuteAsync method.
+    /// Logs the page-save operation and completes without inspecting, staging,
+    /// committing, or publishing any alias changes.
     /// </summary>
 public async Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct)
     {

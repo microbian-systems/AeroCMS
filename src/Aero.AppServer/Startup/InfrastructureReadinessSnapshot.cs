@@ -1,40 +1,24 @@
 namespace Aero.AppServer.Startup;
 
 /// <summary>
-/// Represents a class for InfrastructureReadinessSnapshot.
+/// Stores the current process's bootstrap and infrastructure readiness state.
 /// </summary>
 public sealed class InfrastructureReadinessSnapshot : IInfrastructureReadinessSnapshot
 {
-        /// <summary>
-    /// Gets or sets the Setup Complete.
-    /// </summary>
+    /// <inheritdoc />
 public bool SetupComplete { get; set; }
-        /// <summary>
-    /// Gets or sets the Seed Complete.
-    /// </summary>
+    /// <inheritdoc />
 public bool SeedComplete { get; set; }
-        /// <summary>
-    /// Gets or sets the Has Bootstrap Config.
-    /// </summary>
+    /// <inheritdoc />
 public bool HasBootstrapConfig { get; set; }
-        /// <summary>
-    /// Gets or sets the Database Mode.
-    /// </summary>
+    /// <inheritdoc />
 public string? DatabaseMode { get; set; }
-        /// <summary>
-    /// Gets or sets the Cache Mode.
-    /// </summary>
+    /// <inheritdoc />
 public string? CacheMode { get; set; }
-        /// <summary>
-    /// Gets or sets the Secret Provider.
-    /// </summary>
+    /// <inheritdoc />
 public string? SecretProvider { get; set; }
-        /// <summary>
-        /// Gets or sets the AeroDb Ready.
-        /// </summary>
+    /// <inheritdoc />
         public bool AeroDbReady { get; set; }
-        /// <summary>
-    /// Gets or sets the Garnet Ready.
-    /// </summary>
+    /// <inheritdoc />
 public bool GarnetReady { get; set; }
 }

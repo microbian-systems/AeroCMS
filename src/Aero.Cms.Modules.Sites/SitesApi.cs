@@ -22,13 +22,19 @@ using Wolverine;
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Admin API for site management.
+/// Maps manager endpoints for site selection, site administration, and client-error reporting.
 /// </summary>
+/// <remarks>
+/// These mappings do not attach authorization requirements. The host must secure the admin route
+/// prefix and ensure each caller may read or mutate the addressed tenant and site.
+/// </remarks>
 public static class SitesApi
 {
     /// <summary>
-    /// Maps the Sites Admin API endpoints.
+    /// Maps the sites and client-error endpoint groups.
     /// </summary>
+    /// <param name="app">The route builder receiving the admin endpoints.</param>
+    /// <remarks>Calling this method more than once registers duplicate route patterns.</remarks>
     public static void MapSitesApi(this IEndpointRouteBuilder app)
     {
         var sitesPath = $"/{HttpConstants.ApiPrefix}admin/sites";
@@ -58,6 +64,13 @@ public static class SitesApi
     //  Handler Methods
     // ──────────────────────────────────────────────
 
+    /// <summary>
+    /// Resolves the manager's selected-site cookie to a current site view.
+    /// </summary>
+    /// <param name="httpContext">The request containing the <c>AeroCms.SiteId</c> cookie.</param>
+    /// <param name="siteLookup">The unscoped site lookup service.</param>
+    /// <returns>An HTTP 200 response containing the matching site or a null body.</returns>
+    /// <remarks>The cookie value is not checked against the current user's assignments.</remarks>
     private static async Task<IResult> GetCurrentSite(
         HttpContext httpContext,
         [FromServices] ISiteLookupService siteLookup)
@@ -71,6 +84,19 @@ public static class SitesApi
         return Results.Ok(site);
     }
 
+    /// <summary>
+    /// Validates a site identifier, writes the manager selection cookie, and publishes an audit event.
+    /// </summary>
+    /// <param name="request">The requested site selection.</param>
+    /// <param name="httpContext">The current request and response context.</param>
+    /// <param name="siteLookup">The unscoped lookup used to verify that the site exists.</param>
+    /// <param name="bus">The message bus used for conditional audit publication.</param>
+    /// <returns>Bad request, not found, or an empty HTTP 200 response.</returns>
+    /// <remarks>
+    /// Disabled sites and sites outside the user's assignments are not rejected. The audit event is
+    /// published only when the principal's name-identifier claim parses as a long, and publication
+    /// occurs after the cookie has been appended to the response.
+    /// </remarks>
     private static async Task<IResult> SetCurrentSite(
         [FromBody] SetCurrentSiteRequest request,
         HttpContext httpContext,
@@ -104,6 +130,11 @@ public static class SitesApi
         return Results.Ok();
     }
 
+    /// <summary>
+    /// Expires the manager's selected-site cookie.
+    /// </summary>
+    /// <param name="httpContext">The response on which the deletion cookie is written.</param>
+    /// <returns>An empty HTTP 200 response.</returns>
     private static IResult ClearCurrentSite(HttpContext httpContext)
     {
         httpContext.Response.Cookies.Delete("AeroCms.SiteId", new CookieOptions
@@ -115,6 +146,11 @@ public static class SitesApi
         return Results.Ok();
     }
 
+    /// <summary>
+    /// Returns every site view, including disabled sites.
+    /// </summary>
+    /// <param name="siteLookup">The unscoped site lookup service.</param>
+    /// <returns>An HTTP 200 response containing all site views.</returns>
     private static async Task<IResult> ListSites(
         [FromServices] ISiteLookupService siteLookup)
     {
@@ -122,6 +158,17 @@ public static class SitesApi
         return Results.Ok(sites);
     }
 
+    /// <summary>
+    /// Returns the first repository page entry or creates a fallback default site.
+    /// </summary>
+    /// <param name="siteService">The service used for site and host persistence.</param>
+    /// <param name="session">The injected document session; this handler does not use it.</param>
+    /// <returns>The existing or created site, or an HTTP 500 problem response.</returns>
+    /// <remarks>
+    /// The method does not specifically filter for an enabled site despite its fallback intent.
+    /// Default-site persistence commits before the localhost host is added, and the host-add result
+    /// is ignored; a successful response can therefore contain a site without that host.
+    /// </remarks>
     private static async Task<IResult> GetDefaultSite(
         [FromServices] ISiteService siteService,
         [FromServices] IDocumentSession session)
@@ -153,6 +200,13 @@ public static class SitesApi
         return Results.Problem("Failed to create default site");
     }
 
+    /// <summary>
+    /// Loads a site and enriches it with all assigned host records.
+    /// </summary>
+    /// <param name="id">The site identifier.</param>
+    /// <param name="siteService">The service used for site lookup.</param>
+    /// <param name="querySession">The session used to load host records.</param>
+    /// <returns>An HTTP 200 site view or HTTP 404 when the site is absent.</returns>
     private static async Task<IResult> GetSiteById(
         long id,
         [FromServices] ISiteService siteService,
@@ -187,6 +241,21 @@ public static class SitesApi
         return Results.Ok(vm);
     }
 
+    /// <summary>
+    /// Creates a site, replaces its host assignments, and seeds published home and not-found pages.
+    /// </summary>
+    /// <param name="request">The site metadata, cultures, and host values to create.</param>
+    /// <param name="siteService">The service used to persist the site and hosts.</param>
+    /// <param name="session">The document session used to seed pages.</param>
+    /// <param name="httpContext">The request supplying tenant-selection and audit-user claims.</param>
+    /// <returns>A validation problem, persistence problem, or HTTP 201 response containing the site.</returns>
+    /// <remarks>
+    /// If the selected-site cookie resolves, its tenant identifier is inherited; otherwise a new
+    /// tenant identifier is generated without creating a tenant document. Site, host, homepage, and
+    /// not-found-page work is not one transaction: the site is committed first, the host replacement
+    /// result is ignored, and each seed page is saved separately. A later failure can therefore leave
+    /// a partially initialized site.
+    /// </remarks>
     private static async Task<IResult> CreateSite(
         [FromBody] CreateSiteRequest request,
         [FromServices] ISiteService siteService,
@@ -251,6 +320,19 @@ public static class SitesApi
         return Results.Created($"/api/v1/admin/sites/{createdSite.Id}", createdSite);
     }
 
+    /// <summary>
+    /// Updates mutable site metadata and optionally replaces host assignments.
+    /// </summary>
+    /// <param name="id">The route identifier, which must equal the request identifier.</param>
+    /// <param name="request">The replacement metadata and optional hosts.</param>
+    /// <param name="siteService">The service used for lookup and persistence.</param>
+    /// <returns>Bad request, not found, persistence problem, or an HTTP 200 site document.</returns>
+    /// <remarks>
+    /// The site update commits before host replacement. Replacement occurs only when at least one
+    /// primary or secondary host candidate is collected, so an empty request cannot clear existing
+    /// hosts. Its result is ignored when attempted, so the returned site does not guarantee that
+    /// host changes succeeded.
+    /// </remarks>
     private static async Task<IResult> UpdateSite(
         long id,
         [FromBody] UpdateSiteRequest request,
@@ -294,6 +376,16 @@ public static class SitesApi
         return Results.Ok(site);
     }
 
+    /// <summary>
+    /// Applies an optimistic-revision style-profile update and maps domain failures to HTTP results.
+    /// </summary>
+    /// <param name="id">The site identifier.</param>
+    /// <param name="request">The expected revision and proposed settings.</param>
+    /// <param name="styleProfileService">The style-profile mutation service.</param>
+    /// <param name="cancellationToken">The request-aborted token.</param>
+    /// <returns>
+    /// HTTP 200, 404, 409, or 400 for recognized results; otherwise an HTTP 500 problem response.
+    /// </returns>
     private static async Task<IResult> UpdateSiteStyleProfile(
         long id,
         [FromBody] UpdateSiteStyleProfileRequest request,
@@ -316,6 +408,13 @@ public static class SitesApi
         };
     }
 
+    /// <summary>
+    /// Deletes a site and maps the railway result to an HTTP response.
+    /// </summary>
+    /// <param name="id">The site identifier to delete.</param>
+    /// <param name="siteService">The site mutation service.</param>
+    /// <returns>HTTP 204 on success or an HTTP 500 problem response on failure.</returns>
+    /// <remarks>Related assignments and content are not removed by this endpoint.</remarks>
     private static async Task<IResult> DeleteSite(
         long id,
         [FromServices] ISiteService siteService)
@@ -329,6 +428,14 @@ public static class SitesApi
         };
     }
 
+    /// <summary>
+    /// Logs and republishes a manager-supplied client error.
+    /// </summary>
+    /// <param name="entry">The client-supplied diagnostic payload.</param>
+    /// <param name="bus">The message bus receiving the error event.</param>
+    /// <param name="loggerFactory">The factory used to create the reporting logger.</param>
+    /// <returns>An empty HTTP 200 response, or HTTP 500 when logging or publication throws.</returns>
+    /// <remarks>The payload is accepted as supplied and may contain user agent, URL, and stack-trace data.</remarks>
     private static async Task<IResult> ReportClientError(
         [FromBody] ClientErrorEntry entry,
         [FromServices] IMessageBus bus,
@@ -362,6 +469,14 @@ public static class SitesApi
     //  Seed Helpers
     // ──────────────────────────────────────────────
 
+    /// <summary>
+    /// Creates and commits a published homepage shell for a newly created site.
+    /// </summary>
+    /// <param name="session">The document session used for the page commit.</param>
+    /// <param name="site">The owning site and source of title and culture defaults.</param>
+    /// <param name="createdBy">The audit identity stored on the page.</param>
+    /// <returns>A task that completes after the independent page commit.</returns>
+    /// <remarks>The page receives no draft or published HTML content in this helper.</remarks>
     private static async Task CreateDefaultHomepageAsync(IDocumentSession session, SitesModel site, string createdBy)
     {
         var now = DateTimeOffset.UtcNow;
@@ -387,6 +502,13 @@ public static class SitesApi
         await session.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Creates and commits a published not-found page with matching draft and published HTML trees.
+    /// </summary>
+    /// <param name="session">The document session used for the page commit.</param>
+    /// <param name="site">The owning site and source of culture defaults.</param>
+    /// <param name="createdBy">The audit identity stored on the page.</param>
+    /// <returns>A task that completes after the independent page commit.</returns>
     private static async Task CreateOopsPageAsync(IDocumentSession session, SitesModel site, string createdBy)
     {
         var now = DateTimeOffset.UtcNow;
@@ -427,6 +549,15 @@ public static class SitesApi
         await session.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Canonicalizes culture names, removes invalid and duplicate entries, and includes the default.
+    /// </summary>
+    /// <param name="defaultCulture">The preferred default culture, or a value that may be invalid.</param>
+    /// <param name="supportedCultures">Candidate supported cultures.</param>
+    /// <returns>
+    /// A canonical default and case-insensitively distinct supported list containing that default.
+    /// Invalid defaults fall back to the model's default culture.
+    /// </returns>
     private static (string DefaultCulture, List<string> SupportedCultures) NormalizeCultureSettings(
         string? defaultCulture,
         IEnumerable<string>? supportedCultures)
@@ -447,6 +578,11 @@ public static class SitesApi
         return (normalizedDefault, cultures.Count == 0 ? [SitesModel.DefaultCultureName] : cultures);
     }
 
+    /// <summary>
+    /// Resolves a trimmed culture name to the platform's canonical spelling.
+    /// </summary>
+    /// <param name="culture">The candidate culture name.</param>
+    /// <returns>The canonical culture name, or <see langword="null"/> for blank or unknown values.</returns>
     private static string? NormalizeCultureNameOrNull(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -462,6 +598,13 @@ public static class SitesApi
         }
     }
 
+    /// <summary>
+    /// Selects the first available display identity for seeded-content audit fields.
+    /// </summary>
+    /// <param name="user">The current principal.</param>
+    /// <returns>
+    /// Identity name, email claim, name-identifier claim, or <c>system</c>, in that order.
+    /// </returns>
     private static string ResolveAuditUser(ClaimsPrincipal user)
     {
         return user.Identity?.Name

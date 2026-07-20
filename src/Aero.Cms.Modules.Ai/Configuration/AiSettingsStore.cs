@@ -12,8 +12,17 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Ai.Configuration;
 
 /// <summary>
-/// Represents a class for AiSettingsStore.
+/// Stores AI configuration in Sable setting documents and resolves provider profiles for runtime use.
 /// </summary>
+/// <param name="session">The document session used to load and persist <see cref="Setting"/> documents.</param>
+/// <param name="configuration">Host configuration used to seed defaults and resolve fallback API keys.</param>
+/// <param name="secretProtector">The reversible protector used before API keys are persisted.</param>
+/// <param name="logger">The logger for settings failures.</param>
+/// <remarks>
+/// Operations on one store instance are serialized with a semaphore because reads can create defaults
+/// and writes reuse the same document session. The manager-safe configuration exposes only
+/// <c>HasApiKey</c>; runtime settings can contain the recovered plaintext credential.
+/// </remarks>
 public sealed class AiSettingsStore(
     IDocumentSession session,
     IConfiguration configuration,
@@ -27,9 +36,7 @@ public sealed class AiSettingsStore(
         WriteIndented = false
     };
 
-        /// <summary>
-    /// GetConfigurationAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAsync(
         CancellationToken cancellationToken = default)
     {
@@ -44,6 +51,15 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAs
         }
     }
 
+    /// <summary>
+    /// Loads configuration while the caller holds <see cref="_gate"/>.
+    /// </summary>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>A manager-safe configuration result.</returns>
+    /// <remarks>
+    /// Missing defaults are persisted before reading. Any exception raised after entry, including
+    /// cancellation from a document operation, is logged and converted to a configuration failure.
+    /// </remarks>
     private async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationCoreAsync(
         CancellationToken cancellationToken)
     {
@@ -74,9 +90,7 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAs
         }
     }
 
-        /// <summary>
-    /// SaveConfigurationAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationAsync(
         SaveAiSettingsRequest request,
         CancellationToken cancellationToken = default)
@@ -92,6 +106,20 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationA
         }
     }
 
+    /// <summary>
+    /// Validates, protects, and persists a complete settings update while the caller holds <see cref="_gate"/>.
+    /// </summary>
+    /// <param name="request">The settings update to persist.</param>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>The manager-safe saved configuration, or a validation or configuration failure.</returns>
+    /// <remarks>
+    /// Existing protected keys are retained unless a replacement is supplied or clearing is requested.
+    /// Temperature, output-token, and timeout values are clamped. The submitted provider-id index is
+    /// written first; the subsequent configuration load reintroduces omitted built-in profiles while
+    /// omitted custom profiles remain outside the index. Setting documents for omitted profiles are not
+    /// explicitly deleted.
+    /// Any exception raised after entry is logged and converted to a configuration failure.
+    /// </remarks>
     private async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationCoreAsync(
         SaveAiSettingsRequest request,
         CancellationToken cancellationToken)
@@ -168,9 +196,7 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationA
         }
     }
 
-        /// <summary>
-    /// GetProviderOptionsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -185,6 +211,13 @@ public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProvide
         }
     }
 
+    /// <summary>
+    /// Builds the provider picker from the manager-safe configuration while the caller holds <see cref="_gate"/>.
+    /// </summary>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>
+    /// Enabled providers that support content enhancement and have a model plus an endpoint or API key.
+    /// </returns>
     private async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsCoreAsync(
         CancellationToken cancellationToken)
     {
@@ -208,9 +241,7 @@ public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProvide
         return options;
     }
 
-        /// <summary>
-    /// GetRuntimeSettingsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         string? providerId = null,
         CancellationToken cancellationToken = default)
@@ -226,6 +257,18 @@ public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         }
     }
 
+    /// <summary>
+    /// Resolves and validates invocation settings while the caller holds <see cref="_gate"/>.
+    /// </summary>
+    /// <param name="providerId">The requested profile identifier, or an empty value for the configured default.</param>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>Runtime settings containing any recovered credential, or a configuration-oriented failure.</returns>
+    /// <remarks>
+    /// A protected profile key takes precedence over host configuration. If no protected key exists,
+    /// configuration is checked by provider kind, then profile identifier, then <c>Ai:DefaultApiKey</c>.
+    /// Any exception raised after entry, including unprotect failures and cancellation during document
+    /// access, is logged and converted to a configuration failure.
+    /// </remarks>
     private async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsCoreAsync(
         string? providerId,
         CancellationToken cancellationToken)
@@ -301,9 +344,7 @@ public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         }
     }
 
-        /// <summary>
-    /// EnsureDefaultsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -317,6 +358,15 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         }
     }
 
+    /// <summary>
+    /// Adds missing built-in profiles and global settings while the caller holds <see cref="_gate"/>.
+    /// </summary>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>A task that completes after the session saves pending changes.</returns>
+    /// <remarks>
+    /// Existing profile documents are preserved. Configuration-sourced API keys are copied only when
+    /// a profile is first created and are protected before serialization.
+    /// </remarks>
     private async Task EnsureDefaultsCoreAsync(CancellationToken cancellationToken)
     {
         var defaultProfiles = DefaultAiProviderProfiles.Create(configuration);
@@ -364,6 +414,16 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         await session.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Loads profiles referenced by the provider-id index and orders them for display.
+    /// </summary>
+    /// <param name="cancellationToken">A token that cancels document operations.</param>
+    /// <returns>The loaded profiles ordered by provider kind and display name.</returns>
+    /// <remarks>
+    /// Missing documents fall back to matching built-in profiles. Deserialization returning
+    /// <see langword="null"/> silently omits that profile; malformed JSON propagates to the caller.
+    /// The content-enhancement capability is recomputed rather than trusted from stored JSON.
+    /// </remarks>
     private async Task<List<AiProviderProfile>> LoadProfilesAsync(CancellationToken cancellationToken)
     {
         var defaultProfiles = DefaultAiProviderProfiles.Create(configuration);
@@ -400,6 +460,12 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
             .ToList();
     }
 
+    /// <summary>
+    /// Projects a stored provider profile to the manager-safe settings contract.
+    /// </summary>
+    /// <param name="profile">The stored provider profile.</param>
+    /// <param name="defaultProviderId">The configured default profile identifier.</param>
+    /// <returns>A settings view that exposes key presence but not the protected or plaintext key.</returns>
     private static AiProviderSettings ToSettings(AiProviderProfile profile, string defaultProviderId)
         => new(
             profile.Id,
@@ -417,18 +483,43 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
             profile.SaveUsageTelemetry,
             profile.SupportsContentEnhancement);
 
+    /// <summary>
+    /// Determines whether a manager-safe provider has the minimum model and connectivity settings.
+    /// </summary>
+    /// <param name="provider">The provider settings to inspect.</param>
+    /// <returns>
+    /// <see langword="true"/> when a model is present and either an endpoint or API key is present;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
     private static bool IsConfigured(AiProviderSettings provider)
         => !string.IsNullOrWhiteSpace(provider.Model)
             && (!string.IsNullOrWhiteSpace(provider.Endpoint) || provider.HasApiKey);
 
+    /// <summary>
+    /// Determines whether this module currently exposes content operations for a provider kind.
+    /// </summary>
+    /// <param name="provider">The provider kind to inspect.</param>
+    /// <returns><see langword="false"/> only for the reserved future-provider kind.</returns>
     private static bool SupportsContentEnhancement(AiProviderKind provider)
         => provider is not AiProviderKind.Future;
 
+    /// <summary>
+    /// Serializes and stages a provider profile in the current document session.
+    /// </summary>
+    /// <param name="profile">The profile to stage.</param>
+    /// <remarks>The method does not commit the session; the calling operation controls persistence.</remarks>
     private void StoreProfile(AiProviderProfile profile)
     {
         StoreSetting(ProfileKey(profile.Id), JsonSerializer.Serialize(profile, JsonOptions), "json");
     }
 
+    /// <summary>
+    /// Stages a setting document with the AI category and a fresh modification timestamp.
+    /// </summary>
+    /// <param name="key">The document key.</param>
+    /// <param name="value">The serialized setting value.</param>
+    /// <param name="type">The descriptive value type stored with the setting.</param>
+    /// <remarks>The method does not commit the session; the calling operation controls persistence.</remarks>
     private void StoreSetting(string key, string value, string type)
     {
         var setting = new Setting
@@ -443,18 +534,41 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         session.Store(setting);
     }
 
+    /// <summary>
+    /// Loads and normalizes a string setting.
+    /// </summary>
+    /// <param name="key">The setting key to load.</param>
+    /// <param name="fallback">The value used when the setting is missing or white space.</param>
+    /// <param name="cancellationToken">A token that cancels document access.</param>
+    /// <returns>The trimmed stored value, or <paramref name="fallback"/>.</returns>
     private async Task<string?> GetStringSettingAsync(string key, string? fallback, CancellationToken cancellationToken)
     {
         var setting = await session.LoadAsync<Setting>(key, cancellationToken);
         return string.IsNullOrWhiteSpace(setting?.Value) ? fallback : setting.Value.Trim();
     }
 
+    /// <summary>
+    /// Loads a Boolean setting with a fallback for missing or unparseable values.
+    /// </summary>
+    /// <param name="key">The setting key to load.</param>
+    /// <param name="fallback">The value returned when parsing does not succeed.</param>
+    /// <param name="cancellationToken">A token that cancels document access.</param>
+    /// <returns>The parsed value, or <paramref name="fallback"/>.</returns>
     private async Task<bool> GetBoolSettingAsync(string key, bool fallback, CancellationToken cancellationToken)
     {
         var value = await GetStringSettingAsync(key, null, cancellationToken);
         return bool.TryParse(value, out var parsed) ? parsed : fallback;
     }
 
+    /// <summary>
+    /// Resolves an API key from host configuration for a provider profile.
+    /// </summary>
+    /// <param name="profile">The provider profile used to construct lookup paths.</param>
+    /// <returns>
+    /// The first configured value found by provider kind, profile identifier, or the default-key path;
+    /// otherwise, <see langword="null"/>.
+    /// </returns>
+    /// <remarks>The returned plaintext value is sensitive and is not normalized or logged here.</remarks>
     private string? GetConfiguredApiKey(AiProviderProfile profile)
     {
         var providerName = profile.Provider.ToString();
@@ -463,9 +577,21 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
             ?? configuration["Ai:DefaultApiKey"];
     }
 
+    /// <summary>
+    /// Parses a Boolean host-configuration value.
+    /// </summary>
+    /// <param name="key">The configuration path.</param>
+    /// <param name="fallback">The value returned when the path is missing or unparseable.</param>
+    /// <returns>The parsed value, or <paramref name="fallback"/>.</returns>
     private bool GetBoolConfiguration(string key, bool fallback)
         => bool.TryParse(configuration[key], out var value) ? value : fallback;
 
+    /// <summary>
+    /// Parses, trims, and case-insensitively de-duplicates the provider-id index.
+    /// </summary>
+    /// <param name="raw">The persisted JSON array, if present.</param>
+    /// <param name="defaults">Profiles whose identifiers supply the fallback index.</param>
+    /// <returns>The parsed identifiers, or the built-in identifiers when input is empty, malformed, or deserializes to null.</returns>
     private static List<string> ParseProviderIds(string? raw, IReadOnlyList<AiProviderProfile> defaults)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -487,9 +613,19 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         }
     }
 
+    /// <summary>
+    /// Constructs the setting-document key for a provider profile.
+    /// </summary>
+    /// <param name="providerId">The profile identifier.</param>
+    /// <returns>The provider prefix followed by <paramref name="providerId"/>.</returns>
     private static string ProfileKey(string providerId)
         => $"{AiSettingKeys.ProviderPrefix}{providerId}";
 
+    /// <summary>
+    /// Converts empty input to <see langword="null"/> and trims non-empty input.
+    /// </summary>
+    /// <param name="value">The value to normalize.</param>
+    /// <returns>A trimmed value, or <see langword="null"/> for null, empty, or white-space input.</returns>
     private static string? Normalize(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

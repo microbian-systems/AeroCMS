@@ -12,8 +12,18 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Ai.Services;
 
 /// <summary>
-/// Represents a class for AiContentTranslationService.
+/// Validates CMS fields, invokes the selected chat provider, and maps structured translations back to input keys.
 /// </summary>
+/// <param name="settingsProvider">Resolves the selected provider's runtime settings and credential.</param>
+/// <param name="chatClientFactory">Creates a provider-specific chat client.</param>
+/// <param name="promptBuilder">Serializes cultures and fields into the user message.</param>
+/// <param name="validator">Validates request shape and size before provider access.</param>
+/// <param name="log">Records configuration, parsing, truncation, and invocation failures.</param>
+/// <remarks>
+/// Source fields are placed in a user-role prompt and can be sent to an external provider. Source text is
+/// not treated as sanitized or trusted. The current implementation performs a single buffered
+/// <c>GetResponseAsync</c> call even when runtime settings request streaming and does not persist usage telemetry.
+/// </remarks>
 public sealed class AiContentTranslationService(
     IAiSettingsProvider settingsProvider,
     IAiChatClientFactory chatClientFactory,
@@ -32,9 +42,22 @@ public sealed class AiContentTranslationService(
         Return only structured JSON matching the requested schema.
         """;
 
-        /// <summary>
-    /// TranslateAsync method.
+    /// <summary>
+    /// Validates and submits document fields to an AI provider for translation.
     /// </summary>
+    /// <param name="request">The source and target cultures, fields, and optional provider selection.</param>
+    /// <param name="cancellationToken">A token that requests cancellation of validation, settings lookup, and provider access.</param>
+    /// <returns>
+    /// A successful response keyed by the original field identifiers, or a failure describing validation,
+    /// configuration, provider-client creation, timeout, empty output, truncation, parsing, or invocation failure.
+    /// </returns>
+    /// <remarks>
+    /// The operation applies a linked timeout clamped to 1–300 seconds. Both caller cancellation and
+    /// timeout cancellation observed during the provider call are returned as an AI timeout failure.
+    /// If settings resolution fails, the complete serialized request is written at debug level; it can
+    /// contain every source field. Missing output fields retain their source text and add a warning.
+    /// Returned values remain provider-generated and are not independently verified by this service.
+    /// </remarks>
 public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
         TranslateDocumentRequest request,
         CancellationToken cancellationToken = default)

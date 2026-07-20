@@ -17,13 +17,15 @@ using UpdatePostRequest = Aero.Cms.Modules.Posts.Requests.UpdatePostRequest;
 namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 
 /// <summary>
-/// Represents a class for PostsApi.
+/// Maps post administration, publication, import, translation, and preview endpoints.
 /// </summary>
+/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
 public static class PostsApi
 {
     /// <summary>
-    /// Maps the Blog API endpoints.
+    /// Maps the blog administration and preview endpoints.
     /// </summary>
+    /// <param name="app">The route builder to extend.</param>
     public static void MapBlogApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/blogs")
@@ -87,6 +89,9 @@ public static class PostsApi
             .WithTags("Admin - Preview");
     }
 
+    /// <summary>
+    /// Lists a current-site page and projects actor models to summary contracts.
+    /// </summary>
     private static async Task<IResult> ListPosts(
         [FromServices] IAeroPostActor postsActor,
         [FromServices] ISiteContext siteContext,
@@ -121,6 +126,9 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Loads all current-site variants, groups them in memory, and pages translation-group summaries.
+    /// </summary>
     private static async Task<IResult> ListPostTranslationGroups(
         [FromServices] IQuerySession query,
         [FromServices] ISiteContext siteContext,
@@ -162,6 +170,10 @@ public static class PostsApi
         return TypedResults.Ok(new PagedResult<BlogTranslationGroupSummary>(items, groups.Count, skip, take));
     }
 
+    /// <summary>
+    /// Loads a post by identifier and projects it to the HTTP detail contract.
+    /// </summary>
+    /// <remarks>The actor lookup is not supplied with the current site identifier.</remarks>
     private static async Task<IResult> GetPostById(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -173,6 +185,10 @@ public static class PostsApi
             : TypedResults.Ok(MapToBlogDetail(result.data));
     }
 
+    /// <summary>
+    /// Lists the culture variants associated with a source identifier.
+    /// </summary>
+    /// <remarks>The actor derives the site from the persisted source rather than from the request context.</remarks>
     private static async Task<IResult> ListPostTranslations(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -182,6 +198,10 @@ public static class PostsApi
         return TypedResults.Ok(variants.Select(MapToBlogDetail).ToList());
     }
 
+    /// <summary>
+    /// Persists a draft culture fork through the post actor.
+    /// </summary>
+    /// <remarks>The actor derives the site from the persisted source rather than from the request context.</remarks>
     private static async Task<IResult> ForkPostToCulture(
         long id,
         [FromBody] ForkBlogCultureRequest request,
@@ -194,6 +214,13 @@ public static class PostsApi
             : TypedResults.Ok(MapToBlogDetail(result.data));
     }
 
+    /// <summary>
+    /// Translates selected fields concurrently, then saves successful culture plans sequentially as drafts.
+    /// </summary>
+    /// <remarks>
+    /// Duplicate and unsupported cultures are reported per target. Saves are not wrapped in a
+    /// cross-culture transaction, so earlier targets remain persisted if a later target fails.
+    /// </remarks>
     private static async Task<IResult> TranslatePostWithAi(
         long id,
         [FromBody] AiTranslateBlogRequest request,
@@ -291,6 +318,9 @@ public static class PostsApi
             .ToList()));
     }
 
+    /// <summary>
+    /// Finds a published current-site post by slug.
+    /// </summary>
     private static async Task<IResult> GetPostBySlug(
         string slug,
         [FromServices] IAeroPostActor postsActor,
@@ -306,6 +336,13 @@ public static class PostsApi
 
     // todo - the auditservice here is not fully integrated since the port to Orleans - figure out how to integrate properly
 
+    /// <summary>
+    /// Saves a new current-site post and records an audit event after persistence.
+    /// </summary>
+    /// <remarks>
+    /// The preliminary actor slug lookup only finds published posts; the authoritative slug
+    /// reservation occurs during save. Audit logging follows persistence and is not atomic with it.
+    /// </remarks>
     private static async Task<IResult> CreatePost(
         [FromBody] CreatePostRequest request,
         [FromServices] IAeroPostActor postsActor,
@@ -362,6 +399,13 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Applies editable fields, saves the post under the current site, and records an audit event.
+    /// </summary>
+    /// <remarks>
+    /// The initial identifier lookup is not site-scoped. Persistence and audit logging are separate
+    /// operations, and a logging failure can be returned after the post has been saved.
+    /// </remarks>
     private static async Task<IResult> UpdatePost(
         long id,
         [FromBody] UpdatePostRequest request,
@@ -427,6 +471,9 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Deletes a current-site post and records an audit event after persistence.
+    /// </summary>
     private static async Task<IResult> DeletePost(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -466,6 +513,9 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Deletes the current site's documents and reservations for a translation group.
+    /// </summary>
     private static async Task<IResult> DeletePostTranslationGroup(
         long translationGroupId,
         [FromServices] IPostContentService postService,
@@ -485,6 +535,9 @@ public static class PostsApi
         };
     }
 
+    /// <summary>
+    /// Publishes each variant in a translation group.
+    /// </summary>
     private static Task<IResult> PublishPostTranslationGroup(
         long translationGroupId,
         [FromServices] IPostContentService postService,
@@ -497,6 +550,9 @@ public static class PostsApi
             cancellationToken);
     }
 
+    /// <summary>
+    /// Returns each variant in a translation group to draft state.
+    /// </summary>
     private static Task<IResult> UnpublishPostTranslationGroup(
         long translationGroupId,
         [FromServices] IPostContentService postService,
@@ -509,6 +565,9 @@ public static class PostsApi
             cancellationToken);
     }
 
+    /// <summary>
+    /// Publishes one current-site post and logs an update audit event.
+    /// </summary>
     private static async Task<IResult> PublishPost(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -536,6 +595,9 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Returns one current-site post to draft state and logs an update audit event.
+    /// </summary>
     private static async Task<IResult> UnpublishPost(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -563,6 +625,10 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Saves variants sequentially with a common publication state.
+    /// </summary>
+    /// <remarks>There is no group transaction or rollback; processing stops on the first failed save.</remarks>
     private static async Task<IResult> SetPostTranslationGroupPublicationStateAsync(
         long translationGroupId,
         ContentPublicationState state,
@@ -626,6 +692,9 @@ public static class PostsApi
         return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
 
+    /// <summary>
+    /// Invokes the import pipeline and translates its railway result to an HTTP response.
+    /// </summary>
     private static async Task<IResult> ImportPosts(
         [FromBody] ImportFileRequest request,
         [FromServices] IPostImportService importService,
@@ -659,6 +728,10 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Parses the current principal's name-identifier claim as a numeric audit identifier.
+    /// </summary>
+    /// <returns>The parsed identifier, or zero when the claim is absent or invalid.</returns>
     private static long GetUserId(IHttpContextAccessor httpContextAccessor)
     {
         var userIdClaim = httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
@@ -671,6 +744,9 @@ public static class PostsApi
 
     // ── Preview handlers (moved from Headless PreviewApi) ──────────────
 
+    /// <summary>
+    /// Returns an identifier-based post preview without a publication-state or site filter.
+    /// </summary>
     private static async Task<IResult> PreviewBlogPost(
         long id,
         IAeroPostActor postsActor,
@@ -693,6 +769,10 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Converts supplied Markdown to an HTML preview fragment.
+    /// </summary>
+    /// <remarks>The Markdig output is returned without an HTML sanitization pass.</remarks>
     private static IResult PreviewBlogPostFragment(
         [FromBody] PreviewBlogPostFragmentRequest request,
         ILoggerFactory loggerFactory,
@@ -745,6 +825,9 @@ public static class PostsApi
         );
     }
 
+    /// <summary>
+    /// Maps a persistence document to the HTTP detail contract.
+    /// </summary>
     private static BlogDetail MapToBlogDetail(PostDocument document)
         => new(
             document.Id,
@@ -767,6 +850,9 @@ public static class PostsApi
             document.TranslationGroupId,
             document.SeriesId);
 
+    /// <summary>
+    /// Normalizes a site's supported cultures, falling back to its default culture.
+    /// </summary>
     private static IReadOnlySet<string> GetSupportedCultures(SitesModel? site)
     {
         var cultures = site?.SupportedCultures.Count > 0
@@ -778,6 +864,9 @@ public static class PostsApi
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Sends one target-culture field set to the configured AI translation service.
+    /// </summary>
     private static async Task<AiTranslatedPostPlan> TranslatePostPlanAsync(
         PostDocument source,
         AiTranslatePostPlan plan,
@@ -803,6 +892,9 @@ public static class PostsApi
         };
     }
 
+    /// <summary>
+    /// Builds the nonblank title, slug, metadata, and Markdown fields sent to the translator.
+    /// </summary>
     private static List<TranslateDocumentField> BuildTranslatableFields(PostDocument source)
     {
         var fields = new List<TranslateDocumentField>
@@ -826,6 +918,9 @@ public static class PostsApi
         return fields;
     }
 
+    /// <summary>
+    /// Creates or reuses a target variant, applies translated fields, and persists it as a draft.
+    /// </summary>
     private static async Task<AiTranslateBlogCultureResult> SaveTranslatedPostAsync(
         long sourcePostId,
         AiTranslatePostPlan plan,
@@ -870,6 +965,9 @@ public static class PostsApi
         };
     }
 
+    /// <summary>
+    /// Applies translated non-slug fields, retaining each target value when a translation is absent.
+    /// </summary>
     private static void ApplyTranslatedFields(PostDocument target, TranslateDocumentResponse response)
     {
         target.Title = GetTranslated(response, "title", target.Title);
@@ -880,6 +978,9 @@ public static class PostsApi
         target.MarkdownContent = GetTranslated(response, "markdown", target.MarkdownContent);
     }
 
+    /// <summary>
+    /// Gets and normalizes the translated slug, or returns the planned fallback.
+    /// </summary>
     private static string GetTranslatedSlug(TranslateDocumentResponse response, string fallback)
     {
         var translated = GetTranslated(response, "slug", fallback);
@@ -888,11 +989,17 @@ public static class PostsApi
             : ContentSlugDocument.Normalize(translated);
     }
 
+    /// <summary>
+    /// Gets a nonblank translated field or its non-null fallback.
+    /// </summary>
     private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
         => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback ?? string.Empty;
 
+    /// <summary>
+    /// Adds a translation field only when its source value is nonblank.
+    /// </summary>
     private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
     {
         if (!string.IsNullOrWhiteSpace(value))
@@ -901,9 +1008,15 @@ public static class PostsApi
         }
     }
 
+    /// <summary>
+    /// Creates a failed per-culture translation result.
+    /// </summary>
     private static AiTranslateBlogCultureResult FailedTranslation(string culture, string error)
         => new(culture, false, null, [], error);
 
+    /// <summary>
+    /// Appends a lowercase culture suffix to a normalized source slug.
+    /// </summary>
     private static string BuildDefaultLocalizedSlug(string slug, string culture)
     {
         var suffix = culture.ToLowerInvariant();
@@ -913,6 +1026,9 @@ public static class PostsApi
             : $"{normalized}-{suffix}";
     }
 
+    /// <summary>
+    /// Extracts a human-readable message from an <see cref="AeroError"/>.
+    /// </summary>
     private static string GetErrorMessage(AeroError error) => error switch
     {
         AeroError.Error e => e.msg,
@@ -934,6 +1050,9 @@ public static class PostsApi
         _ => error.ToString()
     };
 
+    /// <summary>
+    /// Selects a display variant and projects a translation group with default-culture flags.
+    /// </summary>
     private static BlogTranslationGroupSummary MapToTranslationGroupSummary(
         long translationGroupId,
         IReadOnlyList<PostDocument> variants,
@@ -971,33 +1090,42 @@ public static class PostsApi
                 .ToList());
     }
 
+    /// <summary>
+    /// Compares normalized culture names without case sensitivity.
+    /// </summary>
     private static bool CultureEquals(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Captures one validated translation target and an optional existing variant.
+    /// </summary>
     private sealed record AiTranslatePostPlan(
         string Culture,
         string Slug,
         PostDocument? ExistingVariant);
 
+    /// <summary>
+    /// Captures the translation-service outcome before persistence.
+    /// </summary>
     private sealed record AiTranslatedPostPlan(
         AiTranslatePostPlan Plan,
         bool Succeeded,
         TranslateDocumentResponse? Response,
         string? Error)
     {
-                /// <summary>
-        /// Gets or sets the Culture.
+        /// <summary>
+        /// Gets the target culture.
         /// </summary>
 public string Culture => Plan.Culture;
 
-                /// <summary>
-        /// Success method.
+        /// <summary>
+        /// Creates a successful translated plan.
         /// </summary>
 public static AiTranslatedPostPlan Success(AiTranslatePostPlan plan, TranslateDocumentResponse response)
             => new(plan, true, response, null);
 
-                /// <summary>
-        /// Failed method.
+        /// <summary>
+        /// Creates a failed translated plan.
         /// </summary>
 public static AiTranslatedPostPlan Failed(AiTranslatePostPlan plan, string error)
             => new(plan, false, null, error);

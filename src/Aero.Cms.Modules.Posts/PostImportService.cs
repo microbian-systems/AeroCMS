@@ -7,23 +7,28 @@ using Aero.Services.Images;
 namespace Aero.Cms.Modules.Posts;
 
 /// <summary>
-/// Orchestrates the blog post import pipeline: file parsing, tag resolution,
-/// Pexels image search, slug dedup, and batch persistence.
+/// Defines the blog import pipeline from an encoded upload to persisted post documents.
 /// </summary>
 public interface IPostImportService
 {
     /// <summary>
-    /// Imports blog posts from an uploaded file (Base64-encoded).
+    /// Imports blog posts from a Base64-encoded upload.
     /// </summary>
-    /// <param name="request">The import request with file content and options.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Result with counts of imported, skipped, and errored posts.</returns>
+    /// <param name="request">The encoded file, site selection, duplicate policy, and publication options.</param>
+    /// <param name="ct">A token used to cancel parsing, image lookup, and persistence.</param>
+    /// <returns>A success with imported, skipped, and per-post error details, or a pipeline failure.</returns>
+    /// <remarks>
+    /// Posts and the General series use the positive site identifier supplied in
+    /// <paramref name="request"/>, while tag resolution and duplicate-slug discovery use the
+    /// injected current-site context. Callers must authorize the import and ensure those site
+    /// identifiers agree. Cancellation is returned as an <see cref="AeroError"/> failure.
+    /// </remarks>
     Task<Result<ImportBlogResult, AeroError>> ImportAsync(
         ImportFileRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Represents a class for PostsImportService.
+/// Parses imported files, resolves taxonomy and images, handles duplicate slugs, and commits a batch.
 /// </summary>
 public sealed class PostsImportService : IPostImportService
 {
@@ -43,9 +48,14 @@ public sealed class PostsImportService : IPostImportService
     private readonly ISiteContext _siteContext;
     private readonly ILogger<PostsImportService> _log;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="PostsImportService"/> class.
     /// </summary>
+    /// <param name="parsers">The parser strategies searched in enumeration order.</param>
+    /// <param name="session">The session used to queue and commit taxonomy, post, and slug changes.</param>
+    /// <param name="pexels">An optional image search service.</param>
+    /// <param name="siteContext">The server-side site fallback and taxonomy query boundary.</param>
+    /// <param name="log">The diagnostic logger.</param>
 public PostsImportService(
         IEnumerable<IPostImportParser> parsers,
         IDocumentSession session,
@@ -61,6 +71,15 @@ public PostsImportService(
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Image resolution runs for every parsed candidate before duplicate skipping and is throttled
+    /// to three concurrent Pexels calls. New taxonomy documents, the General series, posts, and slug
+    /// reservations are queued on one session and saved once when at least one post is imported.
+    /// Posts and the General series use <see cref="ImportFileRequest.SiteId"/>, but tag and
+    /// duplicate-slug queries use the injected current-site context; callers must keep those
+    /// scopes aligned. Per-post processing exceptions are reported without aborting remaining
+    /// candidates.
+    /// </remarks>
     public async Task<Result<ImportBlogResult, AeroError>> ImportAsync(
         ImportFileRequest request, CancellationToken ct = default)
     {
@@ -293,6 +312,9 @@ public PostsImportService(
 
     // ─── Helpers ─────────────────────────────────────────────
 
+    /// <summary>
+    /// Maps one import candidate to a new post document without storing it.
+    /// </summary>
     private static PostDocument CreateNewPost(
         ImportablePost post, long postId, DateTimeOffset now,
         string? imageUrl, Dictionary<string, long> tagMap,
@@ -325,6 +347,10 @@ public PostsImportService(
         };
     }
 
+    /// <summary>
+    /// Resolves normalized tag names for the current site and queues missing tag documents.
+    /// </summary>
+    /// <remarks>New tags are not committed by this method.</remarks>
     private async Task<Dictionary<string, long>> ResolveTagsAsync(
         List<ImportablePost> posts, CancellationToken ct)
     {
@@ -375,6 +401,10 @@ public PostsImportService(
         return tagMap;
     }
 
+    /// <summary>
+    /// Resolves the site's <c>general</c> series or queues a new one on the current session.
+    /// </summary>
+    /// <remarks>The new series is not committed by this method.</remarks>
     private async Task<long> EnsureGeneralSeriesIdAsync(long siteId, CancellationToken ct)
     {
         var general = await _session.Query<Series>()
@@ -396,6 +426,9 @@ public PostsImportService(
         return general.Id;
     }
 
+    /// <summary>
+    /// Loads current-site blog-post reservations matching the candidate slugs.
+    /// </summary>
     private async Task<IReadOnlyList<ContentSlugDocument>> GetExistingSlugsAsync(
         List<ImportablePost> posts, CancellationToken ct)
     {
@@ -416,6 +449,10 @@ public PostsImportService(
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// Selects an imported cover image, a throttled Pexels result, or the local placeholder.
+    /// </summary>
+    /// <remarks>The <paramref name="isOverwrite"/> value does not alter the current selection logic.</remarks>
     private async Task<string?> ResolveImageAsync(
         ImportablePost post, bool isOverwrite,
         SemaphoreSlim semaphore, CancellationToken ct)
@@ -442,6 +479,10 @@ public PostsImportService(
         return PlaceholderImage;
     }
 
+    /// <summary>
+    /// Searches Pexels up to three times with linear one-second backoff between retryable failures.
+    /// </summary>
+    /// <returns>The first preferred landscape URL, or the placeholder when unavailable.</returns>
     private async Task<string?> SearchPexelsWithRetryAsync(ImportablePost post, CancellationToken ct)
     {
         // Pexels requires a non-empty query

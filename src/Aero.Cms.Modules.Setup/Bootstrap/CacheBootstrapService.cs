@@ -8,16 +8,19 @@ using Aero.Secrets.Models;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Represents a class for CacheBootstrapService.
+/// Persists cache bootstrap configuration while routing sensitive values through the selected secret provider.
 /// </summary>
+/// <remarks>
+/// Repeated calls replace the cache-related bootstrap keys and remove stale connection
+/// values before writing the new selection. Server mode requires a non-empty connection
+/// string; local mode removes the conventional <c>ConnectionStrings:cache</c> value.
+/// </remarks>
 public sealed class CacheBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : ICacheBootstrapService
 {
-        /// <summary>
-    /// PersistAsync method.
-    /// </summary>
+    /// <inheritdoc />
     public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -71,6 +74,9 @@ public sealed class CacheBootstrapService(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Stores a cache connection string with the selected secret provider.
+    /// </summary>
     private StoredSecretReference StoreConnectionString(string connectionString, string name, CacheBootstrapModel model)
     {
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
@@ -88,6 +94,9 @@ public sealed class CacheBootstrapService(
         return secretManager.Store(connectionString, name, SecretProviderType.Local);
     }
 
+    /// <summary>
+    /// Protects Infisical bootstrap credentials locally so the external provider can be contacted after restart.
+    /// </summary>
     private void PersistInfisicalAuth(JsonObject bootstrap, CacheBootstrapModel model)
     {
         var infisicalSettings = infisicalSettingsProvider.GetSettings();
@@ -109,6 +118,9 @@ public sealed class CacheBootstrapService(
         }
     }
 
+    /// <summary>
+    /// Traverses an object path, creating missing JSON objects without replacing sibling settings.
+    /// </summary>
     private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)
     {
         JsonNode current = root;
@@ -122,6 +134,9 @@ public sealed class CacheBootstrapService(
         return (JsonObject)current;
     }
 
+    /// <summary>
+    /// Reads the environment settings object or creates an empty root when the file is absent.
+    /// </summary>
     private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

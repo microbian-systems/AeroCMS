@@ -7,8 +7,7 @@ using Markdig.Syntax;
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Models;
 
 /// <summary>
-/// Extracts H2 and H3 headings from Markdown content using
-/// Markdig's AST with auto-identifier pipeline for "On This Page" navigation.
+/// Extracts second- and third-level headings and Markdig-generated identifiers from Markdown.
 /// </summary>
 public static class HeadingExtractor
 {
@@ -16,9 +15,18 @@ public static class HeadingExtractor
         .UseAutoIdentifiers()
         .Build();
 
-        /// <summary>
-    /// Extract method.
+    /// <summary>
+    /// Parses Markdown into entries suitable for an on-page table of contents.
     /// </summary>
+    /// <param name="markdown">The Markdown source, which may be <see langword="null"/> or blank.</param>
+    /// <returns>
+    /// H2 and H3 entries in source order. Blank input and headings without generated identifiers
+    /// produce no corresponding entries.
+    /// </returns>
+    /// <remarks>
+    /// Anchor identifiers are produced by Markdig's auto-identifier extension. Display text is
+    /// taken from the heading's first inline child.
+    /// </remarks>
 public static List<HeadingItem> Extract(string? markdown)
     {
         var headings = new List<HeadingItem>();

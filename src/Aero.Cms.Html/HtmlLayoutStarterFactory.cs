@@ -6,8 +6,10 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Creates first-release layout starters from catalog-supported ordinary HTML nodes.
 /// </summary>
+/// <param name="catalog">The authoritative catalog used to create every emitted element.</param>
 public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtmlLayoutStarterFactory
 {
+    /// <inheritdoc />
     public Result<HtmlNode> Create(HtmlLayoutStarterKind kind)
     {
         HtmlNode? layout = kind switch
@@ -27,6 +29,7 @@ public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtml
             : new Result<HtmlNode>.Ok(layout);
     }
 
+    /// <summary>Builds a responsive grid with the requested number of empty catalog-backed child containers.</summary>
     private HtmlNode CreateGrid(int columns, int childCount, string childTag)
     {
         var section = catalog.CreateElement("section");
@@ -48,6 +51,7 @@ public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtml
         return section;
     }
 
+    /// <summary>Builds an asymmetric two-region starter intended for copy and media.</summary>
     private HtmlNode CreateSplit()
     {
         var section = catalog.CreateElement("section");
@@ -65,6 +69,7 @@ public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtml
         return section;
     }
 
+    /// <summary>Builds a heading followed by a responsive two-column content region.</summary>
     private HtmlNode CreateHeadingTwoColumns()
     {
         var section = catalog.CreateElement("section");

@@ -10,13 +10,19 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Modules.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for module management.
+/// Maps administrative endpoints over the modules currently registered in dependency injection.
 /// </summary>
+/// <remarks>
+/// The route group does not add an authorization requirement. Hosts must apply an authorization
+/// convention or middleware policy before exposing module state. Enable and disable operations
+/// mutate only the in-memory module instance and are not persisted.
+/// </remarks>
 public static class ModulesApi
 {
     /// <summary>
     /// Maps the Modules Admin API endpoints.
     /// </summary>
+    /// <param name="app">The endpoint route builder that receives the module routes.</param>
     public static void MapModulesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/modules")
@@ -41,6 +47,11 @@ public static class ModulesApi
             .WithName("UninstallModule");
     }
 
+    /// <summary>
+    /// Lists registered modules as installed module summaries.
+    /// </summary>
+    /// <returns>HTTP 200 with summaries, or HTTP 500 exposing the caught exception message.</returns>
+    /// <remarks>The cancellation token is accepted by binding but is not observed.</remarks>
     private static async Task<IResult> GetAllModules(
         [FromServices] IServiceProvider sp,
         [FromServices] ILoggerFactory loggerFactory,
@@ -69,6 +80,11 @@ public static class ModulesApi
         }
     }
 
+    /// <summary>
+    /// Finds a registered module by an ordinal case-sensitive name comparison.
+    /// </summary>
+    /// <returns>HTTP 200 with current runtime state, HTTP 404 when absent, or HTTP 500 on exceptions.</returns>
+    /// <remarks>The reported installation time is the current UTC time, not a persisted timestamp.</remarks>
     private static async Task<IResult> GetModuleById(
         string id,
         [FromServices] IServiceProvider sp,
@@ -105,6 +121,11 @@ public static class ModulesApi
         }
     }
 
+    /// <summary>
+    /// Enables a registered module instance for the lifetime of the current service graph.
+    /// </summary>
+    /// <returns>HTTP 200 after mutation, HTTP 404 when absent, or HTTP 500 on exceptions.</returns>
+    /// <remarks>This operation does not persist state and does not re-run module startup behavior.</remarks>
     private static async Task<IResult> EnableModule(
         string id,
         [FromServices] IServiceProvider sp,
@@ -144,6 +165,11 @@ public static class ModulesApi
         }
     }
 
+    /// <summary>
+    /// Disables a registered module instance for the lifetime of the current service graph.
+    /// </summary>
+    /// <returns>HTTP 200 after mutation, HTTP 404 when absent, or HTTP 500 on exceptions.</returns>
+    /// <remarks>This operation does not persist state or remove services and endpoints already registered.</remarks>
     private static async Task<IResult> DisableModule(
         string id,
         [FromServices] IServiceProvider sp,
@@ -183,6 +209,11 @@ public static class ModulesApi
         }
     }
 
+    /// <summary>
+    /// Reports that runtime module installation is not implemented.
+    /// </summary>
+    /// <returns>An HTTP 500 problem result.</returns>
+    /// <remarks>The request body and cancellation token are currently unused.</remarks>
     private static async Task<IResult> InstallModule(
         [FromBody] InstallModuleRequest request,
         [FromServices] ILoggerFactory loggerFactory,
@@ -200,6 +231,11 @@ public static class ModulesApi
         }
     }
 
+    /// <summary>
+    /// Reports that runtime module uninstallation is not implemented.
+    /// </summary>
+    /// <returns>An HTTP 500 problem result.</returns>
+    /// <remarks>The module identifier and cancellation token do not affect the response.</remarks>
     private static async Task<IResult> UninstallModule(
         string id,
         [FromServices] ILoggerFactory loggerFactory,

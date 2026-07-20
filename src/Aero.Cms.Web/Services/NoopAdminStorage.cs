@@ -9,12 +9,10 @@ namespace Aero.Cms.Web.Services;
 /// </summary>
 internal sealed class NoopAdminStorage : IAdminStorage
 {
-        /// <summary>
-    /// GetItem method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Always returns the default value because prerendering has no browser storage.</remarks>
 public T? GetItem<T>(string key) => default;
-        /// <summary>
-    /// SetItem method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Discards the value because prerendering has no browser storage.</remarks>
 public void SetItem<T>(string key, T value) { }
 }

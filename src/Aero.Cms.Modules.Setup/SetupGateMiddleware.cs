@@ -4,15 +4,18 @@ using Microsoft.AspNetCore.Http;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Represents a class for SetupGateMiddleware.
+/// Prevents access to the normal application until bootstrap configuration is available.
 /// </summary>
+/// <remarks>
+/// Allowlisted paths and requests made after setup is considered complete continue through
+/// the pipeline. Other GET and HEAD requests receive a temporary redirect to <c>/setup</c>;
+/// non-idempotent methods receive 404 so request bodies are not replayed against the setup route.
+/// </remarks>
 public sealed class SetupGateMiddleware(
     ISetupInitializationService setupInitializationService,
     SetupPathAllowlist allowlist) : IMiddleware
 {
-        /// <summary>
-    /// InvokeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         if (allowlist.IsAllowed(context.Request.Path) || await setupInitializationService.IsSetupCompleteAsync(context.RequestAborted))
@@ -33,13 +36,15 @@ public async Task InvokeAsync(HttpContext context, RequestDelegate next)
 }
 
 /// <summary>
-/// Represents a class for SetupApplicationBuilderExtensions.
+/// Adds the CMS setup access gate to an ASP.NET Core pipeline.
 /// </summary>
 public static class SetupApplicationBuilderExtensions
 {
-        /// <summary>
-    /// UseCmsSetupGate method.
+    /// <summary>
+    /// Registers <see cref="SetupGateMiddleware"/> at the current pipeline position.
     /// </summary>
+    /// <param name="app">The application builder to modify.</param>
+    /// <returns>The application builder for continued pipeline configuration.</returns>
 public static IApplicationBuilder UseCmsSetupGate(this IApplicationBuilder app)
         => app.UseMiddleware<SetupGateMiddleware>();
 }

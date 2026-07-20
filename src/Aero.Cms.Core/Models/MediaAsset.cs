@@ -10,47 +10,47 @@ namespace Aero.Cms.Core.Models;
 public class MediaAsset : SableDocument, IAuditable, ISiteOwned
 {
     /// <summary>
-    /// Gets or sets the Site Id.
+    /// Gets or sets the identifier of the site that owns this asset.
     /// </summary>
     public long SiteId { get; set; }
     /// <summary>
-    /// Gets or sets the File Name.
+    /// Gets or sets the file name presented to CMS users.
     /// </summary>
     public string FileName { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets the Url.
+    /// Gets or sets the URL from which the asset can be retrieved.
     /// </summary>
     public string Url { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets the Mime Type.
+    /// Gets or sets the asset's MIME type.
     /// </summary>
     public string MimeType { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets the File Size.
+    /// Gets or sets the asset size in bytes.
     /// </summary>
     public long FileSize { get; set; }
     /// <summary>
-    /// Gets or sets the Width.
+    /// Gets or sets the media width when applicable.
     /// </summary>
     public int Width { get; set; }
     /// <summary>
-    /// Gets or sets the Height.
+    /// Gets or sets the media height when applicable.
     /// </summary>
     public int Height { get; set; }
     /// <summary>
-    /// Gets or sets the Alt Text.
+    /// Gets or sets the optional alternative text for the asset.
     /// </summary>
     public string? AltText { get; set; }
     /// <summary>
-    /// Gets or sets the Description.
+    /// Gets or sets an optional description of the asset.
     /// </summary>
     public string? Description { get; set; }
     /// <summary>
-    /// Gets or sets the Is Folder.
+    /// Gets or sets whether this asset represents a folder rather than a file.
     /// </summary>
     public bool IsFolder { get; set; }
     /// <summary>
-    /// Gets or sets the Parent Id.
+    /// Gets or sets the parent folder identifier, if this asset is nested.
     /// </summary>
     public long? ParentId { get; set; }
 
@@ -61,9 +61,13 @@ public class MediaAsset : SableDocument, IAuditable, ISiteOwned
     public MediaAttribution? Attribution { get; set; }
 
     // IAuditable
+    /// <summary>Gets or sets the audit creation timestamp.</summary>
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Gets or sets the most recent audit modification timestamp.</summary>
     public DateTimeOffset? ModifiedOn { get; set; }
+    /// <summary>Gets or sets the identity that created this asset, if recorded.</summary>
     public string? CreatedBy { get; set; }
+    /// <summary>Gets or sets the identity that last modified this asset, if recorded.</summary>
     public string? ModifiedBy { get; set; }
 }
 
@@ -91,10 +95,12 @@ public sealed class MediaAttribution
 
 
 /// <summary>
-/// Defines an enumeration for MediaType.
+/// Identifies the kind of third-party media described by <see cref="MediaAttribution"/>.
 /// </summary>
 public enum MediaType
 {
+    /// <summary>An image asset.</summary>
     Image,
+    /// <summary>A video asset.</summary>
     Video
 }

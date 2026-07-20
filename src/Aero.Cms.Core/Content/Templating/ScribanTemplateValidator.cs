@@ -14,26 +14,39 @@ public sealed partial class ScribanTemplateValidator
 {
     private readonly SecureScribanTemplateOptions options;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="ScribanTemplateValidator"/> class.
     /// </summary>
-public ScribanTemplateValidator()
+    /// <remarks>Uses a new instance of the default guardrails.</remarks>
+    public ScribanTemplateValidator()
         : this(new SecureScribanTemplateOptions())
     {
     }
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="ScribanTemplateValidator"/> class.
     /// </summary>
-public ScribanTemplateValidator(SecureScribanTemplateOptions options)
+    /// <param name="options">The template validation limits.</param>
+    public ScribanTemplateValidator(SecureScribanTemplateOptions options)
     {
         this.options = options;
     }
 
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Validates template text, Scriban syntax, and prohibited function calls.
     /// </summary>
-public Result<NoneType, AeroError> Validate(string template, JsonDocument? schema = null)
+    /// <param name="template">The template text to validate.</param>
+    /// <param name="schema">
+    /// Reserved for schema-aware template validation; the current implementation does not
+    /// inspect this parameter.
+    /// </param>
+    /// <returns>A successful result when validation passes; otherwise all detected errors.</returns>
+    /// <remarks>
+    /// Validation enforces the UTF-8 byte limit, rejects script markup, JavaScript URLs,
+    /// inline event-handler attributes, includes, and dynamic evaluation, and reports Scriban
+    /// parse errors. It is not a substitute for output sanitization.
+    /// </remarks>
+    public Result<NoneType, AeroError> Validate(string template, JsonDocument? schema = null)
     {
         var errors = ValidateTemplateText(template);
         if (errors.Count > 0)
@@ -57,9 +70,21 @@ public Result<NoneType, AeroError> Validate(string template, JsonDocument? schem
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
     }
 
-        /// <summary>
-    /// ValidateData method.
+    /// <summary>
+    /// Performs shallow top-level validation of template data against a generated schema.
     /// </summary>
+    /// <param name="data">The JSON value supplied as the template's field data.</param>
+    /// <param name="schema">The caller-owned schema to inspect, or <see langword="null"/> to skip validation.</param>
+    /// <returns>A successful result when the shallow checks pass; otherwise aggregated validation errors.</returns>
+    /// <remarks>
+    /// The method checks that data is an object, required top-level names exist, supplied
+    /// names occur in <c>properties</c>, and top-level JSON kinds match each property's
+    /// <c>type</c>. It does not recursively validate nested values or enforce other JSON Schema
+    /// keywords. JSON null is accepted for every recognized type, and <c>integer</c> checks only
+    /// for a JSON number rather than mathematical integrality. The method expects the generated
+    /// schema shape; malformed <c>required</c>, <c>properties</c>, or property <c>type</c>
+    /// members may cause JSON access exceptions instead of validation results.
+    /// </remarks>
     public Result<NoneType, AeroError> ValidateData(JsonElement data, JsonDocument? schema)
     {
         if (schema is null)
@@ -141,18 +166,9 @@ public Result<NoneType, AeroError> Validate(string template, JsonDocument? schem
 
     private sealed class ScribanSecurityVisitor : ScriptVisitor
     {
-                /// <summary>
-        /// Gets or sets the Errors.
-        /// </summary>
-public List<string> Errors { get; } = [];
+        public List<string> Errors { get; } = [];
 
-                /// <summary>
-        /// Visit method.
-        /// </summary>
-                /// <summary>
-        /// Visit method.
-        /// </summary>
-public override void Visit(ScriptFunctionCall node)
+        public override void Visit(ScriptFunctionCall node)
         {
             var functionName = GetFunctionName(node.Target);
             if (IsDisallowedFunction(functionName, out var error))
@@ -163,10 +179,7 @@ public override void Visit(ScriptFunctionCall node)
             base.Visit(node);
         }
 
-                /// <summary>
-        /// Visit method.
-        /// </summary>
-public override void Visit(ScriptPipeCall node)
+        public override void Visit(ScriptPipeCall node)
         {
             var functionName = GetFunctionName(node.To);
             if (IsDisallowedFunction(functionName, out var error))

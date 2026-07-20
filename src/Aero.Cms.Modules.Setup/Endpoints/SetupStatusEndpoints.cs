@@ -9,13 +9,20 @@ using Microsoft.AspNetCore.Hosting;
 namespace Aero.Cms.Modules.Setup.Endpoints;
 
 /// <summary>
-/// Represents a class for SetupStatusEndpoints.
+/// Maps the bootstrap and local-infrastructure readiness endpoint used by the setup experience.
 /// </summary>
 public static class SetupStatusEndpoints
 {
-        /// <summary>
-    /// MapSetupStatusEndpoints method.
+    /// <summary>
+    /// Maps <c>GET /setup/status</c> and returns the supplied route builder.
     /// </summary>
+    /// <param name="endpoints">The endpoint route builder to modify.</param>
+    /// <returns>The same route builder for fluent registration.</returns>
+    /// <remarks>
+    /// The response exposes bootstrap modes, completion flags, and readiness booleans but
+    /// does not include connection strings or credentials. Missing readiness infrastructure
+    /// is reported as not ready.
+    /// </remarks>
 public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/setup/status", async (IServiceProvider sp, CancellationToken cancellationToken) =>
@@ -53,13 +60,11 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
 }
 
 /// <summary>
-/// Represents a class for SetupStatusStartupFilter.
+/// Inserts routing and setup-status endpoint mapping into the application startup pipeline.
 /// </summary>
 public sealed class SetupStatusStartupFilter : IStartupFilter
 {
-        /// <summary>
-    /// Configure method.
-    /// </summary>
+    /// <inheritdoc />
 public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         => app =>
         {

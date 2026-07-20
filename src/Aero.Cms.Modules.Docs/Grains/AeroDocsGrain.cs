@@ -12,20 +12,27 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Docs.Grains;
 
 /// <summary>
-/// Orleans grain for docs management — opens sessions from <see cref="IDocumentStore"/>,
-/// manually constructs <see cref="DocsContentService"/> with a <see cref="FixedSiteContext"/>,
-/// and delegates each operation to the service.
-/// Mirrors <see cref="Aero.Cms.Modules.Pages.Grains.AeroPageGrain"/>.
+/// Adapts the documentation actor contracts to operation-scoped document sessions and services.
 /// </summary>
+/// <remarks>
+/// The grain keeps only an in-memory <see cref="DocViewModel"/> state value; page data is persisted
+/// through <see cref="IDocumentStore"/>. Several identifier-based operations resolve a page's site
+/// directly from storage and perform no independent authorization check. Callers must authorize
+/// identifiers before crossing the actor boundary. Service failures are sometimes collapsed to an
+/// empty list by list-returning actor methods.
+/// </remarks>
 public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 {
     private readonly IDocumentStore _store;
     private readonly IServiceProvider _services;
     private DocViewModel _state = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AeroDocsGrain"/> class.
     /// </summary>
+    /// <param name="log">The actor logger passed to the base actor.</param>
+    /// <param name="store">The store used to open operation-scoped sessions.</param>
+    /// <param name="services">The provider used to resolve bus, logger, and optional cache dependencies.</param>
 public AeroDocsGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
@@ -38,6 +45,9 @@ public AeroDocsGrain(
 
     // ── Helper: manual construction of DocsContentService ───────────────
 
+    /// <summary>
+    /// Creates a content service fixed to the supplied site and the <c>system</c> audit actor.
+    /// </summary>
     private DocsContentService CreateDocsService(IDocumentSession session, long siteId)
     {
         var bus = _services.GetRequiredService<IMessageBus>();
@@ -52,6 +62,9 @@ public AeroDocsGrain(
             cache);
     }
 
+    /// <summary>
+    /// Creates a hierarchy service that shares the operation's document session.
+    /// </summary>
     private DocsTreeService CreateDocsTreeService(IDocumentSession session)
     {
         var bus = _services.GetRequiredService<IMessageBus>();
@@ -61,15 +74,11 @@ public AeroDocsGrain(
 
     // ── IHaveState<DocViewModel> ────────────────────────────────────────
 
-        /// <summary>
-    /// GetStateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task<DocViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
     {
         _state = state;
@@ -79,9 +88,15 @@ public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
     // ── ICruddable<DocViewModel, long> ──────────────────────────────────
 
     /// <summary>
-    /// Direct AeroDB load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
-    /// Same pattern as <see cref="Aero.Cms.Modules.Pages.Grains.AeroPageGrain"/>.
+    /// Loads a page by identifier and returns its view model.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <param name="ct">The token used for the query session.</param>
+    /// <returns>The page response, or a not-found response.</returns>
+    /// <remarks>
+    /// This actor contract provides no site identifier, so the load is not site-scoped and no
+    /// authorization check is performed by the grain.
+    /// </remarks>
     public async Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.QuerySessionAsync();
@@ -92,9 +107,13 @@ public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
             : NotFound($"Doc {id} not found");
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
+    /// <summary>
+    /// Loads a set of identifiers and returns only the first matching view model.
     /// </summary>
+    /// <param name="ids">The identifiers to query without a site filter.</param>
+    /// <param name="ct">The token used for the lightweight session.</param>
+    /// <returns>The first match, an empty model when no records match, or an error response.</returns>
+    /// <remarks>Callers must authorize every identifier before invoking this cross-site query.</remarks>
 public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -113,9 +132,7 @@ public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, C
         return Ok(new DocViewModel());
     }
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateDocRequest create)
@@ -132,9 +149,7 @@ public async Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest reques
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateDocRequest update)
@@ -160,9 +175,7 @@ public async Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest reques
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteDocRequest delete)
@@ -191,9 +204,11 @@ public async Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest reques
 
     // ── ICanFindBySite<DocViewModel, long> ──────────────────────────────
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
-    /// </summary>
+/// <inheritdoc />
+/// <remarks>
+/// Paging is applied in memory after loading all site pages, and only the first model from the
+/// selected page is returned. An empty page produces an empty model.
+/// </remarks>
 public async Task<AeroRequestResponse<DocViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
@@ -215,12 +230,11 @@ public async Task<AeroRequestResponse<DocViewModel>> GetBySiteIdAsync(
 
     // ── ICanFindBySlug ──────────────────────────────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
-    /// </summary>
+/// <inheritdoc />
 public Task<AeroRequestResponse<DocViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
+    /// <inheritdoc />
     Task<AeroRequestResponse<DocViewModel>> ICanFindBySlug<DocViewModel, string>.GetBySlugAsync(
         string siteId, string slug, CancellationToken ct)
     {
@@ -229,6 +243,9 @@ public Task<AeroRequestResponse<DocViewModel>> GetBySlugAsync(long siteId, strin
         return Task.FromResult(Fail($"Invalid site ID: {siteId}"));
     }
 
+    /// <summary>
+    /// Performs the site-scoped slug lookup shared by the two actor contract shapes.
+    /// </summary>
     private async Task<AeroRequestResponse<DocViewModel>> GetBySlugCoreAsync(
         long siteId, string slug, CancellationToken ct)
     {
@@ -247,9 +264,8 @@ public Task<AeroRequestResponse<DocViewModel>> GetBySlugAsync(long siteId, strin
 
     // ── IAeroDocsActor doc-specific methods ───────────────────────────────
 
-        /// <summary>
-    /// GetAllBySiteAsync method.
-    /// </summary>
+/// <inheritdoc />
+/// <remarks>Service failures are represented as an empty list.</remarks>
 public async Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -261,9 +277,11 @@ public async Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, Cancellatio
         return [];
     }
 
-        /// <summary>
-    /// GetChildrenAsync method.
-    /// </summary>
+/// <inheritdoc />
+/// <remarks>
+/// The lookup is site-scoped and uses the actor execution context's current UI culture rather than
+/// an explicit culture parameter. Publication state is not filtered, and failures become an empty list.
+/// </remarks>
 public async Task<List<DocViewModel>> GetChildrenAsync(long parentId, long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -275,9 +293,8 @@ public async Task<List<DocViewModel>> GetChildrenAsync(long parentId, long siteI
         return [];
     }
 
-        /// <summary>
-    /// GetTopLevelCategoriesAsync method.
-    /// </summary>
+/// <inheritdoc />
+/// <remarks>The lookup is not culture- or publication-scoped; failures become an empty list.</remarks>
 public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -289,9 +306,7 @@ public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, Ca
         return [];
     }
 
-        /// <summary>
-    /// SaveAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -305,9 +320,11 @@ public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, 
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+/// <inheritdoc />
+/// <remarks>
+/// The source identifier is loaded without an expected-site constraint. A missing record or
+/// service failure is represented as an empty list.
+/// </remarks>
 public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
@@ -323,9 +340,7 @@ public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, Cancella
         return [];
     }
 
-        /// <summary>
-    /// ForkDocForCultureAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
@@ -343,9 +358,7 @@ public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// PublishAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
@@ -363,9 +376,7 @@ public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, Cance
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// UnpublishAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
@@ -383,9 +394,7 @@ public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, Can
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// CreateChildSectionAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(
         long siteId,
         long spaceId,
@@ -405,9 +414,7 @@ public async Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// MoveSectionAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> MoveSectionAsync(
         long siteId,
         long spaceId,
@@ -428,9 +435,7 @@ public async Task<AeroRequestResponse<DocViewModel>> MoveSectionAsync(
         return Fail("Unexpected result");
     }
 
-        /// <summary>
-    /// ReorderSectionsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
         long siteId,
         long spaceId,
@@ -449,6 +454,10 @@ public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
         return Fail("Unexpected result");
     }
 
+    /// <summary>
+    /// Loads only the site identifier associated with a page identifier.
+    /// </summary>
+    /// <remarks>The identifier lookup is not authorized or constrained by an expected site.</remarks>
     private async Task<long?> ResolveSiteIdAsync(long id, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
@@ -458,25 +467,39 @@ public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
 
     // ── AeroRequestResponse helpers ──────────────────────────────────────
 
+    /// <summary>
+    /// Creates a successful actor response with an empty error model.
+    /// </summary>
     private static AeroRequestResponse<DocViewModel> Ok(DocViewModel vm)
         => new(vm, new DocErrorViewModel());
 
+    /// <summary>
+    /// Creates an error response with an empty data model.
+    /// </summary>
     private static AeroRequestResponse<DocViewModel> NotFound(string msg)
         => new(new DocViewModel(), new DocErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Creates an operation-failure response with an empty data model.
+    /// </summary>
     private static AeroRequestResponse<DocViewModel> Fail(string msg)
         => new(new DocViewModel(), new DocErrorViewModel { Message = msg });
 
     // ── FixedSiteContext ─────────────────────────────────────────────────
 
+    /// <summary>
+    /// Supplies an explicit site boundary to manually constructed content services.
+    /// </summary>
+    /// <remarks>The current implementation uses the site identifier as the tenant identifier.</remarks>
     private sealed class FixedSiteContext(long siteId) : ISiteContext
     {
-                /// <summary>
-        /// Gets or sets the Site Id.
+        /// <summary>
+        /// Gets the fixed site identifier.
         /// </summary>
 public long SiteId { get; } = siteId;
-                /// <summary>
-        /// Gets or sets the Tenant Id.
+
+        /// <summary>
+        /// Gets the tenant identifier, which is equal to <see cref="SiteId"/>.
         /// </summary>
 public long TenantId { get; } = siteId;
     }

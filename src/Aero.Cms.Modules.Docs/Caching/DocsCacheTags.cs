@@ -1,22 +1,27 @@
 namespace Aero.Cms.Modules.Docs.Caching;
 
 /// <summary>
-/// Provides cache tag constants for Docs module output caching.
+/// Produces the output-cache tags associated with documentation index and page responses.
 /// </summary>
 public static class DocsCacheTags
 {
     /// <summary>
-    /// Tag for the docs index page.
+    /// Gets the tag shared by documentation index responses.
     /// </summary>
     public const string DocsIndex = "docs-index";
 
     /// <summary>
-    /// Generates a cache tag for a specific doc page by its ID.
+    /// Produces the tag for a page identifier.
     /// </summary>
+    /// <param name="id">The page identifier.</param>
+    /// <returns>A tag in the form <c>doc-id-{id}</c>.</returns>
     public static string DocById(long id) => $"doc-id-{id}";
 
     /// <summary>
-    /// Generates a cache tag for a specific doc page by its slug.
+    /// Produces the case-insensitive tag for a page slug.
     /// </summary>
+    /// <param name="slug">The non-<see langword="null"/> slug to normalize.</param>
+    /// <returns>A tag whose slug component is converted with invariant casing.</returns>
+    /// <exception cref="NullReferenceException"><paramref name="slug"/> is <see langword="null"/>.</exception>
     public static string DocBySlug(string slug) => $"doc-slug-{slug.ToLowerInvariant()}";
 }

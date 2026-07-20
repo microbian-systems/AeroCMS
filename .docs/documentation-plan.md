@@ -6,9 +6,18 @@ Proposed. This plan covers AeroCMS only. The `Aero/`, `AeroDB/`, `NeoUI/`,
 `ui/`, `hyperui/`, and `tiptap-dotnet/` repositories or submodules retain
 their own documentation systems and are out of scope.
 
-The nested projects under `src/Aero.Cms.Db.Marten/Legacy/` are also out of
-scope. They are historical reference material and must not be presented as
-part of the current AeroCMS architecture or API reference.
+The current-source XML documentation inventory and comment pass was completed
+on 2026-07-19. A full `src/Aero.Cms.slnx` build completed successfully with XML
+documentation generation enabled and no documentation warnings originating
+from the in-scope AeroCMS projects. Starlight, DocFX publishing, and CI work
+remain separate phases of this plan.
+
+The nested projects under `src/Aero.Cms.Db.Marten/Legacy/` and all
+`src/Aero.Cms.Marten.*` projects are also out of scope. They are historical or
+removal-bound reference material, are intentionally not part of the compilable
+current product, and must not be presented as part of the current AeroCMS
+architecture or API reference. Documentation work must not re-enable their
+compile items or otherwise revive them.
 
 ## Goals
 
@@ -37,6 +46,13 @@ Use `.docs/` for material that explains work in progress or internal decisions:
 
 Examples include the Living Standard PageEditor plan, commerce reliability
 TODOs, Sable migration notes, and agent workflow documents.
+
+Deferred source comments removed during documentation cleanup are preserved in:
+
+- [Analytics markup rendering follow-up](analytics-rendering-follow-up.md);
+- [WebOptimizer bundling follow-up](weboptimizer-bundling-follow-up.md);
+- [AppHost HTTPS endpoint note](apphost-https-endpoint-note.md); and
+- [Custom TCP transport follow-up](tcp-transport-follow-up.md).
 
 ### Published AeroCMS documentation: `docs/`
 
@@ -173,6 +189,7 @@ The remaining work is to document the current public surface.
 Include current AeroCMS projects under `src/`, excluding:
 
 - `src/Aero.Cms.Db.Marten/Legacy/**`;
+- `src/Aero.Cms.Marten.*/**`;
 - generated source output;
 - test projects from the published API site;
 - external submodules and repositories.
@@ -202,8 +219,8 @@ Include current AeroCMS projects under `src/`, excluding:
 6. Application services and host integration
 7. Internal current projects
 
-Legacy Marten projects, tests, and generated code remain outside the published
-API reference scope.
+Legacy and removal-bound `Aero.Cms.Marten.*` projects, tests, and generated code
+remain outside the published API reference scope.
 
 ## CI Documentation Workflow
 

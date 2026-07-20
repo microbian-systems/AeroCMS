@@ -15,13 +15,15 @@ using HttpUpdateSeriesRequest = Aero.Cms.Abstractions.Http.Clients.UpdateSeriesR
 namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 
 /// <summary>
-/// Thin admin API for post series management.
+/// Maps the series administration HTTP surface onto the series actor and Sable translation queries.
 /// </summary>
+/// <remarks>Authorization metadata is not added by this mapper and must be supplied by the host pipeline.</remarks>
 public static class SeriesApi
 {
-        /// <summary>
-    /// MapSeriesApi method.
+    /// <summary>
+    /// Maps series CRUD, default-series, and translation endpoints.
     /// </summary>
+    /// <param name="app">The route builder to extend.</param>
 public static void MapSeriesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/series")
@@ -52,6 +54,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             .WithName("DeleteSeries");
     }
 
+    /// <summary>
+    /// Lists actor series filtered to the current site and attaches post counts.
+    /// </summary>
     private static async Task<IResult> GetAllSeries(
         [FromServices] IAeroSeriesActor seriesActor,
         [FromServices] IQuerySession query,
@@ -70,6 +75,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             .ToList());
     }
 
+    /// <summary>
+    /// Returns series detail only when the actor model belongs to the current site.
+    /// </summary>
     private static async Task<IResult> GetSeriesById(
         long id,
         [FromServices] IAeroSeriesActor seriesActor,
@@ -86,6 +94,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, count));
     }
 
+    /// <summary>
+    /// Validates and creates a current-site series through the actor.
+    /// </summary>
     private static async Task<IResult> CreateSeries(
         [FromBody] HttpCreateSeriesRequest request,
         [FromServices] IValidator<ActorCreateSeriesRequest> validator,
@@ -111,6 +122,10 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, await CountSeriesContentAsync(query, siteContext.SiteId, result.data.Id, cancellationToken)));
     }
 
+    /// <summary>
+    /// Builds one translation summary for every configured site culture.
+    /// </summary>
+    /// <remarks>The default culture is represented by the base series rather than a translation document.</remarks>
     private static async Task<IResult> ListSeriesTranslations(
         long id,
         [FromServices] IAeroSeriesActor seriesActor,
@@ -156,6 +171,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(items);
     }
 
+    /// <summary>
+    /// Gets or creates the current site's General series and returns its post count.
+    /// </summary>
     private static async Task<IResult> EnsureGeneralSeries(
         [FromServices] IAeroSeriesActor seriesActor,
         [FromServices] IQuerySession query,
@@ -166,6 +184,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(series, await CountSeriesContentAsync(query, siteContext.SiteId, series.Id, cancellationToken)));
     }
 
+    /// <summary>
+    /// Validates an update and verifies current-site ownership before invoking the actor.
+    /// </summary>
     private static async Task<IResult> UpdateSeries(
         long id,
         [FromBody] HttpUpdateSeriesRequest request,
@@ -196,6 +217,13 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(ToDetail(result.data, await CountSeriesContentAsync(query, siteContext.SiteId, id, cancellationToken)));
     }
 
+    /// <summary>
+    /// Creates or replaces a non-default-culture translation for a current-site series.
+    /// </summary>
+    /// <remarks>
+    /// The culture is normalized and the default culture is rejected, but this handler does not
+    /// verify that the culture appears in the site's supported-culture list.
+    /// </remarks>
     private static async Task<IResult> UpsertSeriesTranslation(
         long id,
         string culture,
@@ -250,6 +278,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             false));
     }
 
+    /// <summary>
+    /// Verifies site ownership and rejects a series referenced by current-site posts before deletion.
+    /// </summary>
     private static async Task<IResult> DeleteSeries(
         long id,
         [FromServices] IAeroSeriesActor seriesActor,
@@ -276,6 +307,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             : TypedResults.BadRequest(result.error);
     }
 
+    /// <summary>
+    /// Counts post membership for a set of series identifiers within one site.
+    /// </summary>
     private static async Task<Dictionary<long, int>> GetContentCountsAsync(
         IQuerySession query,
         IEnumerable<long> seriesIds,
@@ -295,6 +329,9 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             .ToDictionary(x => x.Key, x => x.Count());
     }
 
+    /// <summary>
+    /// Counts posts assigned to one series within one site.
+    /// </summary>
     private static Task<int> CountSeriesContentAsync(
         IQuerySession query,
         long siteId,
@@ -303,9 +340,15 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
         => query.Query<PostDocument>()
             .Where(x => x.SiteId == siteId && x.SeriesId == seriesId).CountAsync(cancellationToken);
 
+    /// <summary>
+    /// Projects an actor model into the series list contract.
+    /// </summary>
     private static SeriesSummary ToSummary(SeriesViewModel vm, int count)
         => new(vm.Id, vm.Name ?? string.Empty, vm.Slug ?? string.Empty, vm.Description, count);
 
+    /// <summary>
+    /// Projects an actor model into the series detail contract.
+    /// </summary>
     private static SeriesDetail ToDetail(SeriesViewModel vm, int count)
         => new(vm.Id, vm.Name ?? string.Empty, vm.Slug ?? string.Empty, vm.Description, count, vm.CreatedOn.DateTime);
 }

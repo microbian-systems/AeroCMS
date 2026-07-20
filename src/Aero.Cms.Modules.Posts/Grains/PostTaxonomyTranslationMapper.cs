@@ -3,11 +3,17 @@ using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Posts.Grains;
 
+/// <summary>
+/// Projects persisted taxonomy documents into actor view models with optional culture overlays.
+/// </summary>
 internal static class PostTaxonomyTranslationMapper
 {
-        /// <summary>
-    /// MapCategory method.
+    /// <summary>
+    /// Maps a category, preferring a nonblank translated name and slug and a non-null description.
     /// </summary>
+    /// <param name="category">The base category document.</param>
+    /// <param name="translation">The optional translation for the requested culture.</param>
+    /// <returns>A view model retaining the base identity, ownership, hierarchy, and audit fields.</returns>
 public static CategoryViewModel MapCategory(Models.Category category, CategoryTranslation? translation = null) => new()
     {
         Id = category.Id,
@@ -22,9 +28,12 @@ public static CategoryViewModel MapCategory(Models.Category category, CategoryTr
         ModifiedBy = category.ModifiedBy
     };
 
-        /// <summary>
-    /// MapTag method.
+    /// <summary>
+    /// Maps a tag, overlaying its display name and description while retaining the base slug.
     /// </summary>
+    /// <param name="tag">The base tag document.</param>
+    /// <param name="translation">The optional translation for the requested culture.</param>
+    /// <returns>A view model retaining the base identity, ownership, slug, and audit fields.</returns>
 public static TagViewModel MapTag(Models.Tag tag, TagTranslation? translation = null) => new()
     {
         Id = tag.Id,
@@ -38,9 +47,12 @@ public static TagViewModel MapTag(Models.Tag tag, TagTranslation? translation = 
         ModifiedBy = tag.ModifiedBy
     };
 
-        /// <summary>
-    /// MapSeries method.
+    /// <summary>
+    /// Maps a series, preferring a nonblank translated name and slug and a non-null description.
     /// </summary>
+    /// <param name="series">The base series document.</param>
+    /// <param name="translation">The optional translation for the requested culture.</param>
+    /// <returns>A view model retaining the base identity, ownership, and audit fields.</returns>
 public static SeriesViewModel MapSeries(Models.Series series, SeriesTranslation? translation = null) => new()
     {
         Id = series.Id,

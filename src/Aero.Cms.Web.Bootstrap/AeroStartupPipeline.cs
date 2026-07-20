@@ -11,32 +11,41 @@ using System.Text.Json;
 namespace Aero.Cms.Web.Bootstrap;
 
 /// <summary>
-/// Handles the AeroCMS two-stage startup pattern:
-/// 1. Setup App — Runs with minimal DI when bootstrap state is "Setup"
-/// 2. Main App  — Runs with full DI after setup completes
-///
-/// The setup wizard runs before database/cache infrastructure is initialized,
-/// and enables automatic transition via IHostApplicationLifetime.StopApplication().
+/// Coordinates the early configuration, setup-host handoff, and infrastructure-readiness phases of
+/// Aero CMS startup.
 /// </summary>
+/// <remarks>
+/// The setup application runs before the main host is constructed. Main-host pipeline construction and
+/// runtime initialization are performed separately by
+/// <see cref="AeroCmsExtensions.RunAeroCmsAsync{TRootComponent}"/>.
+/// </remarks>
 public static class AeroStartupPipeline
 {
     /// <summary>
-    /// Result of the early bootstrap phases. Callers use this to decide
-    /// whether to proceed to the main application phase.
+    /// Contains configuration and bootstrap state reloaded after any setup-host handoff.
     /// </summary>
+    /// <param name="Config">The early configuration snapshot.</param>
+    /// <param name="State">The bootstrap state read from <paramref name="Config"/>.</param>
+    /// <param name="WebProjectPath">The base path used to load application settings.</param>
     public readonly record struct EarlyStartupResult(
         IConfiguration Config,
         BootstrapState State,
         string WebProjectPath);
 
     /// <summary>
-    /// Runs Phases 1 &amp; 2 of the startup pipeline:
-    /// Phase 1 — Build early configuration and check bootstrap state.
-    /// Phase 2 — Run the Setup App if bootstrap state is "Setup".
-    ///
-    /// Returns null if setup fails irrecoverably. Returns a valid result
-    /// when the application should proceed to the Main App phase (Phases 3+).
+    /// Builds early configuration and, when setup mode is active, runs the setup application before
+    /// reloading configuration and bootstrap state.
     /// </summary>
+    /// <param name="args">Command-line arguments applied with the highest configuration priority.</param>
+    /// <returns>
+    /// A task whose result contains the configuration, bootstrap state, and web project path for main-host
+    /// startup, or <see langword="null"/> when any early-startup operation fails.
+    /// </returns>
+    /// <remarks>
+    /// In setup mode, this method waits until the setup host is told to stop, stops that host, and then
+    /// retries the configuration reload up to ten times with 200-millisecond delays while setup mode
+    /// remains active. Exceptions are logged as fatal and converted to a <see langword="null"/> result.
+    /// </remarks>
     public static async Task<EarlyStartupResult?> RunEarlyPhasesAsync(string[] args)
     {
         var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
@@ -74,9 +83,16 @@ public static class AeroStartupPipeline
     }
 
     /// <summary>
-    /// Builds an early <see cref="IConfiguration"/> before the full DI container is available,
-    /// used to read bootstrap state from appsettings.
+    /// Builds the configuration snapshot used before the main dependency-injection container is available.
     /// </summary>
+    /// <param name="args">Command-line arguments applied with the highest configuration priority.</param>
+    /// <param name="webProjectPath">The base path from which JSON settings files are loaded.</param>
+    /// <returns>A non-reloading configuration snapshot.</returns>
+    /// <remarks>
+    /// Sources are added in increasing priority: optional <c>appsettings.json</c>, optional
+    /// environment-specific settings, environment variables, and command-line arguments. If
+    /// <c>ASPNETCORE_ENVIRONMENT</c> is unset, the environment name defaults to <c>Development</c>.
+    /// </remarks>
     public static IConfiguration BuildEarlyConfiguration(string[] args, string webProjectPath)
     {
         var configBuilder = new ConfigurationBuilder();
@@ -94,8 +110,10 @@ public static class AeroStartupPipeline
     }
 
     /// <summary>
-    /// Reads the <see cref="BootstrapState"/> from configuration.
+    /// Reads the current <see cref="BootstrapState"/> from a configuration snapshot.
     /// </summary>
+    /// <param name="config">The configuration consumed by the bootstrap-state provider.</param>
+    /// <returns>The state returned by <see cref="AppSettingsBootstrapStateProvider"/>.</returns>
     public static BootstrapState GetBootstrapState(IConfiguration config)
     {
         var provider = new AppSettingsBootstrapStateProvider(config);
@@ -175,9 +193,23 @@ public static class AeroStartupPipeline
     }
 
     /// <summary>
-    /// Waits for required infrastructure (database, cache) to be ready before
-    /// proceeding with runtime initialization in the main application phase.
+    /// Waits for the configured database and cache infrastructure before runtime initialization.
     /// </summary>
+    /// <param name="app">The started application whose services contain the resolved settings and coordinator.</param>
+    /// <param name="bootstrapState">The state that determines whether readiness is required.</param>
+    /// <param name="log">The logger used to record the selected infrastructure modes.</param>
+    /// <returns>A task that completes when the startup coordinator reports the infrastructure ready.</returns>
+    /// <remarks>
+    /// Setup and other non-configured, non-running states return without resolving infrastructure
+    /// services. Configured and running states use a two-minute cancellation timeout. Resolution,
+    /// readiness, and timeout failures propagate to the caller.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The resolved infrastructure settings or runtime startup coordinator is not registered.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Infrastructure readiness does not complete before the two-minute timeout.
+    /// </exception>
     public static async Task WaitForRequiredInfrastructureAsync(WebApplication app, BootstrapState bootstrapState, Serilog.ILogger log)
     {
         if (!bootstrapState.IsConfiguredMode && !bootstrapState.IsRunningMode)
@@ -199,9 +231,15 @@ public static class AeroStartupPipeline
     }
 
     /// <summary>
-    /// Attempts to mark the bootstrap state as Failed when an unrecoverable
-    /// error occurs during the main application startup in Configured mode.
+    /// Best-effort marks the persisted bootstrap state as failed.
     /// </summary>
+    /// <param name="app">The application used to create the asynchronous service scope.</param>
+    /// <param name="log">The logger that receives persistence or service-resolution failures.</param>
+    /// <returns>A task that completes after the write attempt, if a completion writer is registered.</returns>
+    /// <remarks>
+    /// The method does nothing when <see cref="IBootstrapCompletionWriter"/> is not registered. Exceptions
+    /// raised while creating the scope, resolving the writer, or persisting the state are caught and logged.
+    /// </remarks>
     public static async Task TryMarkBootstrapFailedAsync(WebApplication app, Serilog.ILogger log)
     {
         try

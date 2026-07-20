@@ -6,8 +6,13 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.Cache.Services;
 
 /// <summary>
-/// Represents a class for FusionCacheInvalidationService.
+/// Evicts selected FusionCache keys/tags and ASP.NET output-cache tags for CMS change events.
 /// </summary>
+/// <remarks>
+/// Eviction calls are awaited in order and exceptions, including cancellation, propagate to the caller; the service
+/// does not retry or swallow them. It has no transaction with content persistence or event delivery. FusionCache's
+/// distributed cache and backplane behavior are configured elsewhere and are not a coherence guarantee made here.
+/// </remarks>
 public sealed class FusionCacheInvalidationService(
     IFusionCache cache,
     IOutputCacheStore outputCacheStore,
@@ -35,8 +40,13 @@ public sealed class FusionCacheInvalidationService(
     ];
 
         /// <summary>
-    /// InvalidateContentAsync method.
+    /// Removes direct FusionCache keys for a content ID and current/prior slugs, then applies known content-type tags.
     /// </summary>
+    /// <remarks>
+    /// Direct keys are removed for every content type. Only <c>page</c>, <c>blog</c>, and <c>docs</c> receive coarse
+    /// FusionCache and output-cache tag eviction. For those types, matching per-page slug tags and the output-cache
+    /// page-ID tag are also evicted; unknown types return after direct-key eviction.
+    /// </remarks>
 public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
     {
         // ── Slug-based cache key eviction (always) ──────────────────────
@@ -88,7 +98,7 @@ public async Task InvalidateContentAsync(ContentUpdatedEvent @event, Cancellatio
     }
 
         /// <summary>
-    /// InvalidateNavigationAsync method.
+    /// Evicts the page, blog, and docs coarse tags from both cache layers.
     /// </summary>
 public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationToken cancellationToken = default)
     {
@@ -106,7 +116,7 @@ public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, C
     }
 
         /// <summary>
-    /// InvalidateFooterAsync method.
+    /// Evicts the page, blog, and docs coarse tags from both cache layers.
     /// </summary>
 public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default)
     {
@@ -169,9 +179,7 @@ public async Task InvalidateSiteStyleProfileAsync(
 
     private sealed record CacheTagSet(string OutputCacheTag)
     {
-                /// <summary>
-        /// Gets or sets the Fusion Cache Tag.
-        /// </summary>
-public string FusionCacheTag => OutputCacheTag;
+        /// <summary>Gets the FusionCache tag, which intentionally matches the output-cache tag.</summary>
+        public string FusionCacheTag => OutputCacheTag;
     }
 }

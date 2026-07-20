@@ -11,44 +11,44 @@ using WorkOS;
 namespace Aero.Cms.Modules.WorkOS;
 
 /// <summary>
-/// Represents a class for WorkOsModule.
+/// Integrates the WorkOS SDK client with the Aero module service collection.
 /// </summary>
+/// <remarks>
+/// Configuration reads the WorkOS API key from <c>WorkOs:ApiKey</c>. A missing key or
+/// client-construction failure is logged rather than preventing host startup.
+/// </remarks>
 [Module(nameof(WorkOsModule))]
 public class WorkOsModule : AeroModuleBase
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+        /// <inheritdoc />
 public override string Name => nameof(WorkOsModule);
 
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+        /// <inheritdoc />
 public override string Version => AeroConstants.Version;
 
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+        /// <inheritdoc />
 public override string Author => AeroConstants.Author;
 
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
 
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Category => [];
 
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Tags => [];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Creates and registers a singleton WorkOS client from module configuration.
     /// </summary>
+    /// <param name="services">The collection that receives the client when construction succeeds.</param>
+    /// <param name="config">Configuration containing the optional <c>WorkOs:ApiKey</c> value.</param>
+    /// <param name="env">The host environment; not used by this module.</param>
+    /// <remarks>
+    /// This method allocates the SDK's <see cref="HttpClient"/> directly. It catches and logs
+    /// client-construction failures, so a failed registration is observable only through logging
+    /// and later service resolution.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var apiKey = config?.GetValue<string>("WorkOs:ApiKey");
@@ -78,13 +78,23 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
 
 /// <summary>
-/// Represents a class for WorkOsService.
+/// Provides experimental WorkOS directory-user operations.
 /// </summary>
+/// <param name="client">The SDK client used to issue raw WorkOS requests.</param>
 public sealed class WorkOsService(WorkOSClient client)
 {
         /// <summary>
-    /// AddUser method.
+    /// Sends a raw directory-user request and then reports that user creation is not implemented.
     /// </summary>
+    /// <param name="user">The Aero user intended for creation; currently not included in the request.</param>
+    /// <returns>A task that never completes successfully.</returns>
+    /// <exception cref="NotImplementedException">
+    /// Always thrown after the raw WorkOS request completes successfully.
+    /// </exception>
+    /// <remarks>
+    /// SDK or transport exceptions propagate before <see cref="NotImplementedException"/> is thrown.
+    /// Callers must not treat the raw request as a completed user-provisioning contract.
+    /// </remarks>
 public async Task AddUser(AeroUser user)
     {
         var opts = new BaseOptions();
@@ -102,13 +112,15 @@ public async Task AddUser(AeroUser user)
 
 
 /// <summary>
-/// Represents a class for WorkOsHttpClient.
+/// Adapts an externally configured <see cref="HttpClient"/> to Aero's HTTP client base.
 /// </summary>
 public sealed class WorkOsHttpClient : HttpClientBase
 {
         /// <summary>
-    /// Initializes a new instance of the <see cref="WorkOsHttpClient"/> class.
+    /// Initializes a WorkOS HTTP adapter with the supplied transport and logger.
     /// </summary>
+    /// <param name="httpClient">The transport owned and configured by dependency injection.</param>
+    /// <param name="logger">The logger used by the base HTTP client.</param>
 public WorkOsHttpClient(HttpClient httpClient, ILogger<HttpClientBase> logger)
         : base(httpClient, logger)
     {

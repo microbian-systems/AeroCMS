@@ -3,8 +3,10 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Applies the first-release manifest and focused HTML nesting rules.
 /// </summary>
+/// <param name="catalog">The authoritative supported-element catalog.</param>
 public sealed class HtmlContentModelPolicy(HtmlElementCatalog catalog) : IHtmlContentModelPolicy
 {
+    /// <inheritdoc />
     public HtmlContentPolicyDecision CanContain(HtmlNode parent, HtmlNode child)
     {
         ArgumentNullException.ThrowIfNull(parent);

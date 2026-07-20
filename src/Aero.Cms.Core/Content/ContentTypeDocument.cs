@@ -5,58 +5,56 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Content;
 
 /// <summary>
-/// Represents a class for ContentTypeDocument.
+/// Stores the site-scoped definition of a content type.
 /// </summary>
 public sealed class ContentTypeDocument : SableDocument, IAuditable
 {
+    /// <summary>Gets or sets the identifier of the site that owns this definition.</summary>
+    public long SiteId { get; set; }
+    /// <summary>Gets or sets the site-scoped alias used to identify the content type.</summary>
+    public string Alias { get; set; } = string.Empty;
+    /// <summary>Gets or sets the display name of the content type.</summary>
+    public string Name { get; set; } = string.Empty;
         /// <summary>
-    /// Gets or sets the Site Id.
-    /// </summary>
-public long SiteId { get; set; }
-        /// <summary>
-    /// Gets or sets the Alias.
-    /// </summary>
-public string Alias { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
-public string Name { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Description.
+    /// Gets or sets the optional descriptive text for the content type.
     /// </summary>
 public string? Description { get; set; }
         /// <summary>
-    /// Gets or sets the Category.
+    /// Gets or sets the optional category used to organize the content type.
     /// </summary>
 public string? Category { get; set; }
         /// <summary>
-    /// Gets or sets the Icon.
+    /// Gets or sets the optional icon identifier used by clients.
     /// </summary>
 public string? Icon { get; set; }
         /// <summary>
-    /// Gets or sets the Allow Public Url.
+    /// Gets or sets whether items of this type may be addressed by a public URL.
     /// </summary>
 public bool AllowPublicUrl { get; set; }
         /// <summary>
-    /// Gets or sets the Hide From Search.
+    /// Gets or sets whether items of this type are excluded from search results.
     /// </summary>
 public bool HideFromSearch { get; set; }
         /// <summary>
-    /// Gets or sets the Fields.
+    /// Gets or sets the field definitions that form this content type's schema.
     /// </summary>
 public List<ContentFieldDefinition> Fields { get; set; } = [];
         /// <summary>
-    /// Gets or sets the Scriban Template.
+    /// Gets or sets the optional Scriban template used to render items of this type.
     /// </summary>
 public string? ScribanTemplate { get; set; }
         /// <summary>
-    /// Gets or sets the Schedule Config.
+    /// Gets or sets the optional scheduling configuration for items of this type.
     /// </summary>
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 
     // IAuditable
+    /// <summary>Gets or sets the audit creation timestamp.</summary>
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Gets or sets the most recent audit modification timestamp.</summary>
     public DateTimeOffset? ModifiedOn { get; set; }
+    /// <summary>Gets or sets the identity that created this definition, if recorded.</summary>
     public string? CreatedBy { get; set; }
+    /// <summary>Gets or sets the identity that last modified this definition, if recorded.</summary>
     public string? ModifiedBy { get; set; }
 }

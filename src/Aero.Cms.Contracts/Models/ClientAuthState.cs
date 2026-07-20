@@ -5,13 +5,13 @@ namespace Aero.Cms.Contracts.Models;
 /// <c>PersistentComponentState.PersistAsJson</c> and consumed on the WASM
 /// side by <c>ServerAuthenticationStateProvider</c>.
 ///
-/// This provides "instant auth" — the user is recognized immediately from
-/// the prerendered HTML without an HTTP round-trip. The rich profile
-/// (nickname, permissions) is fetched lazily from /auth/me.
-///
-/// Only includes data available from the server-side ClaimsPrincipal
-/// (NameIdentifier, Name, Email, Role claims).
+/// The record carries identifier, name, email, and role values projected from the
+/// server-side claims principal. It contains no authorization behavior.
 /// </summary>
+/// <param name="UserId">The authenticated user's identifier.</param>
+/// <param name="UserName">The authenticated user's name claim.</param>
+/// <param name="Email">The authenticated user's email claim, if available.</param>
+/// <param name="Roles">The authenticated user's role claims.</param>
 public sealed record ClientAuthState(
     long UserId,
     string UserName,

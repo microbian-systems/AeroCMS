@@ -23,11 +23,18 @@ namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 /// to <see cref="IAeroPageActor"/> (Orleans grain). Tree/navigation delegates to
 /// existing services (IPageTreeService, INavigationService).
 /// </summary>
+/// <remarks>
+/// These mappings label routes as administrative but do not attach an authorization
+/// policy. The host is responsible for protecting the admin prefix and draft-preview
+/// operations.
+/// </remarks>
 public static class PagesApi
 {
-        /// <summary>
-    /// MapPagesApi method.
+    /// <summary>
+    /// Maps page CRUD, translation, route-impact, publication, bulk deletion, and
+    /// HTML preview endpoints under the configured admin API prefix.
     /// </summary>
+    /// <param name="app">The endpoint route builder to extend.</param>
 public static void MapPagesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages")
@@ -897,20 +904,20 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         TranslateDocumentResponse? Response,
         string? Error)
     {
-                /// <summary>
-        /// Gets or sets the Culture.
-        /// </summary>
+        /// <summary>Gets the target culture from the translation plan.</summary>
 public string Culture => Plan.Culture;
 
-                /// <summary>
-        /// Success method.
-        /// </summary>
+        /// <summary>Creates a successful translated-plan result.</summary>
+        /// <param name="plan">The target translation plan.</param>
+        /// <param name="response">The translated document response.</param>
+        /// <returns>A successful result containing the response.</returns>
 public static AiTranslatedPagePlan Success(AiTranslatePagePlan plan, TranslateDocumentResponse response)
             => new(plan, true, response, null);
 
-                /// <summary>
-        /// Failed method.
-        /// </summary>
+        /// <summary>Creates a failed translated-plan result.</summary>
+        /// <param name="plan">The target translation plan.</param>
+        /// <param name="error">The failure description.</param>
+        /// <returns>A failed result without a translated response.</returns>
 public static AiTranslatedPagePlan Failed(AiTranslatePagePlan plan, string error)
             => new(plan, false, null, error);
     }

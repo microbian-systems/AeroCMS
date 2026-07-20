@@ -16,34 +16,25 @@ namespace Aero.Cms.Modules.Settings;
 [Module(nameof(SettingsModule))]
 public sealed class SettingsModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+        /// <inheritdoc />
 public override string Name => nameof(SettingsModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+        /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+        /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["admin", "settings"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["admin", "settings", "configuration", "management"];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Registers the fixed-key Orleans settings grain as the settings actor contract.
     /// </summary>
+    /// <param name="services">The service collection that receives the singleton grain proxy.</param>
+    /// <param name="config">Module configuration; not used.</param>
+    /// <param name="env">The host environment; not used.</param>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Grain-backed actor — direct injection for thin API controllers
@@ -52,8 +43,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     }
 
         /// <summary>
-    /// RunAsync method.
+    /// Adds the settings HTTP endpoints to the host route builder.
     /// </summary>
+    /// <param name="builder">The endpoint route builder to mutate.</param>
+    /// <returns>A task already completed after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapSettingsApi();

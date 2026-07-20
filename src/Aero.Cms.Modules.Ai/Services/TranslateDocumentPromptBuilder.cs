@@ -4,8 +4,12 @@ using Aero.Cms.Abstractions.Ai;
 namespace Aero.Cms.Modules.Ai.Services;
 
 /// <summary>
-/// Represents a class for TranslateDocumentPromptBuilder.
+/// Builds the user-role prompt used for a document-translation request.
 /// </summary>
+/// <remarks>
+/// Cultures and fields are JSON-serialized into the prompt to preserve their structure. Serialization
+/// does not sanitize values or prevent prompt-injection instructions embedded in source fields.
+/// </remarks>
 public sealed class TranslateDocumentPromptBuilder : ITranslateDocumentPromptBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -13,9 +17,7 @@ public sealed class TranslateDocumentPromptBuilder : ITranslateDocumentPromptBui
         WriteIndented = true
     };
 
-        /// <summary>
-    /// Build method.
-    /// </summary>
+    /// <inheritdoc />
 public string Build(TranslateDocumentRequest request)
     {
         var payload = JsonSerializer.Serialize(new

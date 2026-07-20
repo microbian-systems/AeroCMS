@@ -4,9 +4,12 @@ using AeroDB.Sable;
 namespace Aero.Cms.Modules.Commerce.Catalog.Models;
 
 /// <summary>
-/// Catalog product stored as an AeroDB document.
-/// Content type integration for product catalog.
+/// Catalog product persisted as an AeroDB document.
 /// </summary>
+/// <remarks>
+/// Price and stock are stored scalar values. This model does not itself validate currency codes, enforce a unique
+/// SKU or slug, calculate discounts or tax, reserve stock, or provide optimistic concurrency.
+/// </remarks>
 public sealed class ProductDocument : SableDocument, IAuditable
 {
         /// <summary>
@@ -38,19 +41,19 @@ public string? Category { get; set; }
     /// </summary>
 public string? ImageUrl { get; set; }
         /// <summary>
-    /// Gets or sets the Price.
+    /// Gets or sets the catalog price; no rounding, tax, or currency conversion is applied by this model.
     /// </summary>
 public decimal Price { get; set; }
         /// <summary>
-    /// Gets or sets the Compare At Price.
+    /// Gets or sets the optional comparison price; this model does not require it to exceed <see cref="Price"/>.
     /// </summary>
 public decimal? CompareAtPrice { get; set; }
         /// <summary>
-    /// Gets or sets the Currency.
+    /// Gets or sets the currency label for the price; this model does not validate it.
     /// </summary>
 public string Currency { get; set; } = "USD";
         /// <summary>
-    /// Gets or sets the Stock Quantity.
+    /// Gets or sets the catalog stock quantity; setting it does not reserve or allocate stock.
     /// </summary>
 public int StockQuantity { get; set; }
         /// <summary>

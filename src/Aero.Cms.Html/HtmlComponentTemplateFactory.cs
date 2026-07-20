@@ -6,11 +6,13 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Creates curated components as ordinary, independently editable HTML nodes.
 /// </summary>
+/// <param name="catalog">The authoritative catalog used to create every emitted element.</param>
 public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     : IHtmlComponentTemplateFactory
 {
     private const string PlaceholderBasePath = "/_content/Aero.Cms.Shared/images/page-builder";
 
+    /// <inheritdoc />
     public Result<HtmlNode> Create(HtmlComponentTemplateKind kind)
     {
         var component = kind switch
@@ -51,6 +53,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             : new Result<HtmlNode>.Ok(component);
     }
 
+    /// <summary>Builds a centered introductory section with editable copy, action, and media nodes.</summary>
     private HtmlNode CreateHero()
     {
         var section = Element("section", style: new HtmlStyle
@@ -89,6 +92,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive three-item feature grid with placeholder authoring content.</summary>
     private HtmlNode CreateFeatureGrid()
     {
         var section = Element("section", style: new HtmlStyle
@@ -116,6 +120,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive copy-and-media hero whose children remain independently editable.</summary>
     private HtmlNode CreateSplitHero()
     {
         var section = Element("section", style: new HtmlStyle
@@ -167,6 +172,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a compact action section with constrained semantic styling.</summary>
     private HtmlNode CreateCallToAction()
     {
         var section = Element("section", style: new HtmlStyle
@@ -190,6 +196,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds an ordered visual feature list without introducing a custom rendering abstraction.</summary>
     private HtmlNode CreateFeatureList()
     {
         var section = Element("section", style: new HtmlStyle
@@ -229,6 +236,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a centered action section with ordinary heading, copy, and link nodes.</summary>
     private HtmlNode CreateCenteredCallToAction()
     {
         var section = Element("section", style: new HtmlStyle
@@ -259,6 +267,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a static question-and-answer section suitable for direct author editing.</summary>
     private HtmlNode CreateFrequentlyAskedQuestions()
     {
         var section = Element("section", style: new HtmlStyle
@@ -284,6 +293,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a quotation section using semantic quote and attribution elements.</summary>
     private HtmlNode CreateTestimonial()
     {
         var section = Element("section", style: new HtmlStyle
@@ -316,6 +326,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a no-script accordion from native details and summary elements.</summary>
     private HtmlNode CreateAccordionFaq()
     {
         var section = Element("section", style: new HtmlStyle
@@ -349,6 +360,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive grid of value-and-label statistics.</summary>
     private HtmlNode CreateStatistics()
     {
         var section = Element("section", style: new HtmlStyle
@@ -374,6 +386,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive media-and-copy section with safe placeholder media URLs.</summary>
     private HtmlNode CreateImageAndText()
     {
         var section = Element("section", style: new HtmlStyle
@@ -404,6 +417,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a form skeleton only; submission behavior remains the host's responsibility.</summary>
     private HtmlNode CreateContactForm()
     {
         var section = Element("section", style: new HtmlStyle
@@ -462,6 +476,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a figure-based image grid with editable alternative text.</summary>
     private HtmlNode CreateGallery()
     {
         var section = Element("section", style: new HtmlStyle
@@ -485,6 +500,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a semantic header and navigation tree without client-side behavior.</summary>
     private HtmlNode CreateNavigationHeader()
     {
         var header = Element("header", style: new HtmlStyle
@@ -519,6 +535,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return header;
     }
 
+    /// <summary>Builds an accessible collection of placeholder organization marks.</summary>
     private HtmlNode CreateLogoCloud()
     {
         var section = Element("section", style: new HtmlStyle
@@ -549,6 +566,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive set of pricing cards with ordinary links and lists.</summary>
     private HtmlNode CreatePricingGrid()
     {
         var section = Element("section", style: new HtmlStyle
@@ -575,6 +593,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a responsive set of team profiles with placeholder images.</summary>
     private HtmlNode CreateTeamGrid()
     {
         var section = Element("section", style: new HtmlStyle
@@ -602,6 +621,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a semantic footer with grouped navigation links.</summary>
     private HtmlNode CreateSiteFooter()
     {
         var section = Element("section", style: new HtmlStyle
@@ -627,6 +647,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a subscription form skeleton without assigning transport or persistence behavior.</summary>
     private HtmlNode CreateNewsletterSignup()
     {
         var section = Element("section", style: new HtmlStyle
@@ -681,6 +702,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds an announcement region and a non-functional author-editable dismiss button.</summary>
     private HtmlNode CreateAnnouncementBanner()
     {
         var banner = Element("aside", style: new HtmlStyle
@@ -703,6 +725,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return banner;
     }
 
+    /// <summary>Builds placeholder article summaries; content-query integration remains outside the HTML model.</summary>
     private HtmlNode CreateLatestArticles()
     {
         var section = Element("section", style: new HtmlStyle
@@ -729,6 +752,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds an ordered set of process stages with visible sequence labels.</summary>
     private HtmlNode CreateProcessSteps()
     {
         var section = Element("section", style: new HtmlStyle
@@ -751,6 +775,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a media-led showcase collection from ordinary article nodes.</summary>
     private HtmlNode CreateShowcaseCollection()
     {
         var section = Element("section", style: new HtmlStyle
@@ -779,6 +804,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a chronological milestone list using machine-readable time elements.</summary>
     private HtmlNode CreateMilestoneTimeline()
     {
         var section = Element("section", style: new HtmlStyle
@@ -801,6 +827,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds an accessible comparison table with scoped column and row headers.</summary>
     private HtmlNode CreateFeatureComparisonTable()
     {
         var section = Element("section", style: new HtmlStyle { Padding = All(CssLength.Rem(3)) });
@@ -837,6 +864,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds a no-script supplementary-details list from native disclosure elements.</summary>
     private HtmlNode CreateDetailsList()
     {
         var section = Element("section", style: new HtmlStyle
@@ -867,6 +895,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Builds dialog markup only; opening, focus management, and actions remain host responsibilities.</summary>
     private HtmlNode CreateConfirmationDialog()
     {
         var section = Element("section", style: new HtmlStyle
@@ -917,6 +946,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return section;
     }
 
+    /// <summary>Creates a styled button node for a dialog action without attaching behavior.</summary>
     private HtmlNode DialogButton(string text, string backgroundColor, string textColor)
     {
         var button = Element("button", text, new HtmlStyle
@@ -940,6 +970,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return button;
     }
 
+    /// <summary>Creates one process-stage item with an author-visible sequence marker.</summary>
     private HtmlNode ProcessStep(string number, string heading, string body)
     {
         var item = Element("li");
@@ -960,6 +991,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return item;
     }
 
+    /// <summary>Creates one milestone with separate machine-readable and visible dates.</summary>
     private HtmlNode Milestone(string dateTime, string visibleDate, string heading, string body)
     {
         var item = Element("li");
@@ -980,6 +1012,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return item;
     }
 
+    /// <summary>Creates a table header whose supplied scope preserves row or column semantics.</summary>
     private HtmlNode TableHeader(string text, string scope)
     {
         var cell = Element("th", text, new HtmlStyle
@@ -991,6 +1024,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return cell;
     }
 
+    /// <summary>Creates one feature row with a row header and two comparison cells.</summary>
     private HtmlNode ComparisonRow(string feature, string standard, string premium)
     {
         var row = Element("tr");
@@ -1000,6 +1034,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return row;
     }
 
+    /// <summary>Appends one term-description pair to an existing description list.</summary>
     private void AddDetail(HtmlNode list, string term, string description)
     {
         list.Children.Add(Element("dt", term, Typography(color: "#111827", weight: 700)));
@@ -1010,6 +1045,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         }));
     }
 
+    /// <summary>Creates one showcase article using a local placeholder image asset.</summary>
     private HtmlNode ShowcaseItem(string heading, string summary, string imageName)
     {
         var item = Element("li");
@@ -1039,6 +1075,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return item;
     }
 
+    /// <summary>Creates one footer navigation group while preserving the caller's link order.</summary>
     private HtmlNode FooterLinkGroup(string heading, IReadOnlyList<string> links)
     {
         var group = Element("div");
@@ -1058,6 +1095,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return group;
     }
 
+    /// <summary>Creates one static article summary card without coupling it to a content query.</summary>
     private HtmlNode ArticleCard(string heading, string summary)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1074,6 +1112,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates a placeholder organization mark with accessible alternative text.</summary>
     private HtmlNode Logo(string name)
     {
         var item = Element("li");
@@ -1084,6 +1123,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return item;
     }
 
+    /// <summary>Creates one pricing option with ordered benefits and an author-editable action link.</summary>
     private HtmlNode PricingCard(
         string name,
         string price,
@@ -1115,6 +1155,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates one team profile using a local placeholder image asset.</summary>
     private HtmlNode TeamMember(string name, string role, string imageName)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1131,6 +1172,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates one statistic with separate machine-readable and display values.</summary>
     private HtmlNode Statistic(string value, string display, string label)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1147,6 +1189,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Appends a labeled input while keeping label and control association explicit.</summary>
     private void AddFormField(HtmlNode form, string labelText, string type, string name, string placeholder)
     {
         var input = catalog.CreateElement("input");
@@ -1163,6 +1206,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         form.Children.Add(field);
     }
 
+    /// <summary>Creates the shared visual container for a label-control pair.</summary>
     private HtmlNode FormField() => Element("div", style: new HtmlStyle
     {
         Display = CssDisplay.Flex,
@@ -1170,6 +1214,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         Gap = CssLength.Rem(0.5m)
     });
 
+    /// <summary>Creates a gallery figure around an image with author-supplied alternative text.</summary>
     private HtmlNode GalleryFigure(string source, string alternativeText)
     {
         var figure = Element("figure");
@@ -1178,6 +1223,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return figure;
     }
 
+    /// <summary>Creates an image node with explicit source, alternative text, and lazy-loading intent.</summary>
     private HtmlNode Image(string source, string alternativeText)
     {
         var image = catalog.CreateElement("img");
@@ -1187,6 +1233,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return image;
     }
 
+    /// <summary>Creates one independently editable feature summary.</summary>
     private HtmlNode Feature(string heading, string body)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1202,6 +1249,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates one static question-and-answer pair.</summary>
     private HtmlNode Question(string heading, string body)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1214,6 +1262,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates one feature-list item with a visible ordering marker.</summary>
     private HtmlNode FeatureListItem(string number, string heading, string body)
     {
         var article = Element("article", style: new HtmlStyle
@@ -1235,6 +1284,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return article;
     }
 
+    /// <summary>Creates one native details disclosure with a summary and answer.</summary>
     private HtmlNode AccordionQuestion(string heading, string body)
     {
         var details = Element("details", style: new HtmlStyle
@@ -1248,6 +1298,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return details;
     }
 
+    /// <summary>Creates a styled anchor; URL safety remains enforced by validation and rendering policies.</summary>
     private HtmlNode Link(string text, string href, string backgroundColor, string textColor)
     {
         var link = Element("a", text, new HtmlStyle
@@ -1271,6 +1322,10 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return link;
     }
 
+    /// <summary>
+    /// Creates a catalog-backed element and optionally appends one literal text child.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The hard-coded template tag is absent from the active catalog.</exception>
     private HtmlNode Element(string tag, string? text = null, HtmlStyle? style = null)
     {
         var node = catalog.CreateElement(tag);
@@ -1283,6 +1338,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         return node;
     }
 
+    /// <summary>Wraps optional typography values in the semantic style group expected by element templates.</summary>
     private static HtmlStyle Typography(
         string? color = null,
         CssLength? size = null,
@@ -1298,12 +1354,14 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             }
         };
 
+    /// <summary>Creates a solid surface value with an optional uniform corner radius.</summary>
     private static CssSurfaceStyle Surface(string color, CssLength? radius = null) => new()
     {
         BackgroundColor = CssColor.Hex(color),
         BorderRadius = radius
     };
 
+    /// <summary>Creates equal logical spacing on all four sides.</summary>
     private static CssLogicalSpacing All(CssLength value) => new()
     {
         BlockStart = value,
@@ -1312,6 +1370,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         InlineStart = value
     };
 
+    /// <summary>Creates equal spacing on the block axis while leaving inline spacing unspecified.</summary>
     private static CssLogicalSpacing Vertical(CssLength value) => new()
     {
         BlockStart = value,

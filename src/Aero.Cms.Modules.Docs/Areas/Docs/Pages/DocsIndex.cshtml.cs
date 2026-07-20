@@ -12,8 +12,14 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
 /// <summary>
-/// Represents a class for DocsIndexModel.
+/// Loads and organizes the culture-aware public documentation index.
 /// </summary>
+/// <remarks>
+/// The index renders published pages only, grouping direct children of the virtual <c>docs</c>
+/// root as chapters and their direct children as sections. When that root is absent in the requested
+/// culture, the site default culture is attempted. Service failures produce an empty index rather
+/// than an error response. Responses participate in response and named output caching.
+/// </remarks>
 [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "DocsIndexPolicy")]
 public class DocsIndexModel : PageModel
@@ -21,55 +27,70 @@ public class DocsIndexModel : PageModel
     private readonly IDocsService _docsService;
     private readonly IDocsTreeService _docsTreeService;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="DocsIndexModel"/> class.
     /// </summary>
+    /// <param name="docsService">The current-site content service.</param>
+    /// <param name="docsTreeService">The service used to project the sidebar hierarchy.</param>
 public DocsIndexModel(IDocsService docsService, IDocsTreeService docsTreeService)
     {
         _docsService = docsService;
         _docsTreeService = docsTreeService;
     }
 
-        /// <summary>
-    /// Gets or sets the Chapters.
+    /// <summary>
+    /// Gets published pages directly beneath the selected culture's docs root.
     /// </summary>
 public IReadOnlyList<DocsPage> Chapters { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Sections.
+
+    /// <summary>
+    /// Gets each chapter's published direct children, keyed by chapter identifier.
     /// </summary>
 public Dictionary<long, List<DocsPage>> Sections { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Sidebar Tree.
+
+    /// <summary>
+    /// Gets the selected culture's published sidebar hierarchy.
     /// </summary>
 public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Requested Culture.
+
+    /// <summary>
+    /// Gets the current UI culture requested by the localized route.
     /// </summary>
 public string RequestedCulture { get; private set; } = "en-US";
-        /// <summary>
-    /// Gets or sets the Rendered Culture.
+
+    /// <summary>
+    /// Gets the culture supplying the rendered docs root and hierarchy.
     /// </summary>
 public string RenderedCulture { get; private set; } = "en-US";
-        /// <summary>
-    /// Gets or sets the Is Culture Fallback.
+
+    /// <summary>
+    /// Gets whether a default-culture lookup was used after the requested culture lacked a root.
     /// </summary>
 public bool IsCultureFallback { get; private set; }
-        /// <summary>
-    /// Gets or sets the Canonical Url.
+
+    /// <summary>
+    /// Gets the absolute localized URL for the rendered docs index.
     /// </summary>
 public string CanonicalUrl { get; private set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alternate Links.
+
+    /// <summary>
+    /// Gets published root-translation links or site-supported culture links when no root is available.
     /// </summary>
 public IReadOnlyList<AlternateDocsIndexLink> AlternateLinks { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Culture Switcher Links.
+
+    /// <summary>
+    /// Gets the culture switcher links available for the rendered root.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-        /// <summary>
-    /// OnGetAsync method.
+    /// <summary>
+    /// Loads published pages, applies culture fallback, and prepares hierarchy and SEO links.
     /// </summary>
+    /// <param name="cancellationToken">The token used by content and hierarchy operations.</param>
+    /// <remarks>
+    /// A content-service failure clears chapters and sections and returns normally. A sidebar failure
+    /// clears the sidebar. When no root exists, pages whose parent is zero are treated as chapters.
+    /// </remarks>
 public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -133,6 +154,9 @@ public async Task OnGetAsync(CancellationToken cancellationToken = default)
         ViewData["CultureSwitcherLinks"] = CultureSwitcherLinks;
     }
 
+    /// <summary>
+    /// Builds the single active switcher entry represented by the selected root.
+    /// </summary>
     private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(DocsPage? rootDoc)
     {
         if (rootDoc is null)
@@ -144,6 +168,9 @@ public async Task OnGetAsync(CancellationToken cancellationToken = default)
             true)];
     }
 
+    /// <summary>
+    /// Builds alternate links from published root pages in the selected translation group.
+    /// </summary>
     private async Task<IReadOnlyList<AlternateDocsIndexLink>> BuildAlternateLinksAsync(DocsPage? rootDoc, CancellationToken cancellationToken)
     {
         if (rootDoc is null)
@@ -184,6 +211,10 @@ public async Task OnGetAsync(CancellationToken cancellationToken = default)
         return links;
     }
 
+    /// <summary>
+    /// Builds localized index links from the site's normalized supported-culture configuration.
+    /// </summary>
+    /// <remarks>An <c>x-default</c> link is always added for the normalized default culture.</remarks>
     private IReadOnlyList<AlternateDocsIndexLink> BuildSupportedCultureAlternates()
     {
         var site = HttpContext.Features.Get<IAeroSiteSlice>();
@@ -203,8 +234,10 @@ public async Task OnGetAsync(CancellationToken cancellationToken = default)
         return links;
     }
 
-        /// <summary>
-    /// Represents a record for AlternateDocsIndexLink.
+    /// <summary>
+    /// Describes an HTML alternate-language relation for the documentation index.
     /// </summary>
+    /// <param name="Hreflang">The lower-case culture tag or <c>x-default</c>.</param>
+    /// <param name="Href">The absolute localized docs-index URL.</param>
 public sealed record AlternateDocsIndexLink(string Hreflang, string Href);
 }

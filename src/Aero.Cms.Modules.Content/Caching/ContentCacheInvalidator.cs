@@ -8,6 +8,9 @@ namespace Aero.Cms.Modules.Content.Caching;
 /// response caches. Persistence success is never converted to failure by a
 /// transient cache outage.
 /// </summary>
+/// <param name="cache">The FusionCache whose tagged document snapshots are removed.</param>
+/// <param name="outputCache">The output-cache store whose rendered responses are evicted.</param>
+/// <param name="logger">The logger for suppressed cache failures.</param>
 internal sealed class ContentCacheInvalidator(
     IFusionCache cache,
     IOutputCacheStore outputCache,
@@ -15,6 +18,12 @@ internal sealed class ContentCacheInvalidator(
 {
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Invalidates the site's content-type list, public output, and each nonblank alias.
+    /// </summary>
+    /// <param name="siteId">The site whose tags are evicted.</param>
+    /// <param name="aliases">Aliases whose type-specific Fusion and output-cache tags are evicted.</param>
+    /// <remarks>Each cache operation receives its own five-second timeout and failures are suppressed.</remarks>
     public async Task InvalidateTypeAsync(
         long siteId,
         params string?[] aliases)
@@ -44,6 +53,11 @@ internal sealed class ContentCacheInvalidator(
         }
     }
 
+    /// <summary>
+    /// Invalidates cache tags for the distinct old and new identities of an item.
+    /// </summary>
+    /// <param name="oldIdentity">The identity before a mutation, or null for a create.</param>
+    /// <param name="newIdentity">The identity after a mutation, or null for a delete.</param>
     public async Task InvalidateItemAsync(
         ContentItemCacheIdentity? oldIdentity,
         ContentItemCacheIdentity? newIdentity)
@@ -94,6 +108,9 @@ internal sealed class ContentCacheInvalidator(
         }
     }
 
+    /// <summary>
+    /// Executes one cache operation with an independent timeout and suppresses every exception.
+    /// </summary>
     private async Task BestEffortAsync(
         string operation,
         Func<CancellationToken, ValueTask> action)
@@ -113,6 +130,9 @@ internal sealed class ContentCacheInvalidator(
     }
 }
 
+/// <summary>
+/// Captures all site, item, type, culture, and slug dimensions used in cache tags.
+/// </summary>
 internal sealed record ContentItemCacheIdentity(
     long SiteId,
     long ItemId,

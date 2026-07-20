@@ -11,13 +11,14 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.SiteMap;
 
 /// <summary>
-/// Represents a class for SitemapApi.
+/// Maps public sitemap and robots endpoints.
 /// </summary>
 public static class SitemapApi
 {
         /// <summary>
-    /// MapSitemapApi method.
+    /// Adds sitemap, culture-specific sitemap, redirect, and robots routes.
     /// </summary>
+    /// <param name="app">The route builder that receives the public SEO endpoints.</param>
 public static void MapSitemapApi(this IEndpointRouteBuilder app)
     {
         app.MapGet("/sitemap", RedirectToSitemapXml)
@@ -37,9 +38,18 @@ public static void MapSitemapApi(this IEndpointRouteBuilder app)
             .WithTags("SEO");
     }
 
+    /// <summary>
+    /// Permanently redirects the extensionless sitemap route to <c>/sitemap.xml</c>.
+    /// </summary>
+    /// <returns>An HTTP permanent redirect result.</returns>
     private static IResult RedirectToSitemapXml()
         => Results.Redirect("/sitemap.xml", permanent: true);
 
+    /// <summary>
+    /// Returns the current site's culture sitemap index.
+    /// </summary>
+    /// <returns>UTF-8 XML on success, or HTTP 500 when generation returns a failure.</returns>
+    /// <remarks>Successful production responses receive a five-minute public cache header.</remarks>
     private static async Task<IResult> GetSitemap(
         HttpContext httpContext,
         ISiteMapService sitemapService,
@@ -60,6 +70,11 @@ public static void MapSitemapApi(this IEndpointRouteBuilder app)
         return Results.Problem("Failed to generate sitemap");
     }
 
+    /// <summary>
+    /// Returns a sitemap URL set for the requested culture.
+    /// </summary>
+    /// <returns>UTF-8 XML on success, or HTTP 500 for unsupported cultures and generation failures.</returns>
+    /// <remarks>Successful production responses receive a five-minute public cache header.</remarks>
     private static async Task<IResult> GetCultureSitemap(
         string culture,
         HttpContext httpContext,
@@ -81,6 +96,14 @@ public static void MapSitemapApi(this IEndpointRouteBuilder app)
         return Results.Problem("Failed to generate sitemap");
     }
 
+    /// <summary>
+    /// Returns the globally stored robots text or a permissive host-derived default.
+    /// </summary>
+    /// <returns>A UTF-8 plain-text response.</returns>
+    /// <remarks>
+    /// The fallback always uses HTTPS and only the request host name; it does not preserve a
+    /// non-default port. The <c>SEO.RobotsTxt</c> setting is loaded without site scoping.
+    /// </remarks>
     private static async Task<IResult> GetRobotsTxt(
         HttpContext httpContext,
         IQuerySession session,

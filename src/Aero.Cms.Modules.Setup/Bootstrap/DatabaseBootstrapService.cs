@@ -9,17 +9,22 @@ using Microsoft.Extensions.Options;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Represents a class for DatabaseBootstrapService.
+/// Persists database bootstrap configuration while routing credentials through the selected secret provider.
 /// </summary>
+/// <remarks>
+/// Embedded mode removes the bootstrap connection-string, username, and password reference
+/// keys because the runtime derives its data path during dependency registration. It does not
+/// remove an existing <c>ConnectionStrings:aero</c> value. Server-mode secrets are stored
+/// through either the local secret manager or Infisical. Infisical references are retained in
+/// bootstrap configuration without copying the remote value into <c>ConnectionStrings</c>.
+/// </remarks>
 public sealed class DatabaseBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
     IOptionsMonitor<AeroDbOptions> embeddedOptions,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : IDatabaseBootstrapService
 {
-        /// <summary>
-    /// PersistAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -78,6 +83,9 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
             cancellationToken);
     }
 
+    /// <summary>
+    /// Stores a database secret with the provider selected by the setup request.
+    /// </summary>
     private StoredSecretReference StoreDatabaseSecret(string value, string name, DatabaseBootstrapModel model)
     {
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
@@ -95,6 +103,9 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         return secretManager.Store(value, name, SecretProviderType.Local);
     }
 
+    /// <summary>
+    /// Protects Infisical bootstrap credentials locally so the external provider can be contacted after restart.
+    /// </summary>
     private void PersistInfisicalAuth(JsonObject bootstrap, DatabaseBootstrapModel model)
     {
         var infisicalSettings = infisicalSettingsProvider.GetSettings();
@@ -116,9 +127,15 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         }
     }
 
+    /// <summary>
+    /// Determines whether a locally protected value must also be placed in the conventional connection-string section.
+    /// </summary>
     private static bool ShouldStoreEncryptedValue(string secretProvider)
         => !secretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Traverses an object path, creating missing JSON objects without replacing sibling settings.
+    /// </summary>
     private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)
     {
         JsonNode current = root;
@@ -132,12 +149,21 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         return (JsonObject)current;
     }
 
+    /// <summary>
+    /// Copies the locally protected representation of a stored secret into the connection-string section.
+    /// </summary>
     private static void SetConnectionString(JsonNode root, string key, StoredSecretReference reference)
         => SetConnectionString(root, key, reference.Value ?? string.Empty);
 
+    /// <summary>
+    /// Sets a named value in the connection-string section while preserving unrelated settings.
+    /// </summary>
     private static void SetConnectionString(JsonNode root, string key, string value)
         => GetOrCreateObject(root, "ConnectionStrings")[key] = value;
 
+    /// <summary>
+    /// Reads the environment settings object or creates an empty root when the file is absent.
+    /// </summary>
     private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

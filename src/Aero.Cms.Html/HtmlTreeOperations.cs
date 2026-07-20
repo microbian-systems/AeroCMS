@@ -10,6 +10,9 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Produces a structural copy of page content that preserves stable editor identities.
     /// </summary>
+    /// <param name="source">The content to copy.</param>
+    /// <returns>A fully independent page tree.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
     public static HtmlPageContent ClonePreservingNodeIds(HtmlPageContent source)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -25,6 +28,9 @@ public static class HtmlTreeOperations
     /// Used when publishing a draft snapshot; template insertion should use
     /// <see cref="CloneWithFreshNodeIds"/> instead.
     /// </summary>
+    /// <param name="source">The subtree to copy.</param>
+    /// <returns>A fully independent subtree with the same node identities.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
     public static HtmlNode ClonePreservingNodeIds(HtmlNode source)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -45,6 +51,9 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Produces a structural copy with fresh editor identities for every node.
     /// </summary>
+    /// <param name="source">The subtree to copy.</param>
+    /// <returns>A fully independent subtree suitable for insertion alongside the source.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
     public static HtmlNode CloneWithFreshNodeIds(HtmlNode source)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -65,6 +74,10 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Finds the node with the requested editor identity in depth-first order.
     /// </summary>
+    /// <param name="root">The root of the search subtree.</param>
+    /// <param name="nodeId">The stable identity to locate.</param>
+    /// <returns>The first matching node reference, or <see langword="null"/> when absent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="root"/> is <see langword="null"/>.</exception>
     public static HtmlNode? FindById(HtmlNode root, long nodeId)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -89,6 +102,10 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Finds the direct parent of the requested node identity, or <see langword="null"/> for the root or a missing node.
     /// </summary>
+    /// <param name="root">The root of the search subtree.</param>
+    /// <param name="nodeId">The stable identity whose parent is required.</param>
+    /// <returns>The direct parent reference, or <see langword="null"/> for the root or an absent identity.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="root"/> is <see langword="null"/>.</exception>
     public static HtmlNode? FindParentById(HtmlNode root, long nodeId)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -113,6 +130,9 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Determines whether a subtree contains unique editor identities.
     /// </summary>
+    /// <param name="root">The subtree to inspect.</param>
+    /// <returns><see langword="true"/> when every encountered identity is distinct.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="root"/> is <see langword="null"/>.</exception>
     public static bool HasUniqueNodeIds(HtmlNode root)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -121,6 +141,7 @@ public static class HtmlTreeOperations
         return HasUniqueNodeIds(root, seen);
     }
 
+    /// <summary>Performs the recursive identity check using traversal-wide state.</summary>
     private static bool HasUniqueNodeIds(HtmlNode node, ISet<long> seen)
     {
         if (!seen.Add(node.NodeId))
@@ -134,6 +155,8 @@ public static class HtmlTreeOperations
     /// <summary>
     /// Creates an independent copy of constrained style intent.
     /// </summary>
+    /// <param name="source">The style to copy, or <see langword="null"/>.</param>
+    /// <returns>An independent deep copy, or <see langword="null"/> when no style was supplied.</returns>
     public static HtmlStyle? CloneStyle(HtmlStyle? source) => source is null
         ? null
         : new HtmlStyle
@@ -152,6 +175,7 @@ public static class HtmlTreeOperations
             Typography = CloneTypography(source.Typography)
         };
 
+    /// <summary>Clones typography and nested color/gradient values.</summary>
     private static CssTypographyStyle? CloneTypography(CssTypographyStyle? source) => source is null
         ? null
         : new CssTypographyStyle
@@ -165,6 +189,7 @@ public static class HtmlTreeOperations
             Gradient = CloneGradient(source.Gradient)
         };
 
+    /// <summary>Clones both color stops and the gradient angle.</summary>
     private static CssTextGradient? CloneGradient(CssTextGradient? source) => source is null
         ? null
         : new CssTextGradient
@@ -174,6 +199,7 @@ public static class HtmlTreeOperations
             AngleDegrees = source.AngleDegrees
         };
 
+    /// <summary>Clones surface colors, sizing values, and immutable scalar settings.</summary>
     private static CssSurfaceStyle? CloneSurface(CssSurfaceStyle? source) => source is null
         ? null
         : new CssSurfaceStyle
@@ -188,10 +214,12 @@ public static class HtmlTreeOperations
             BorderRadius = CloneLength(source.BorderRadius)
         };
 
+    /// <summary>Clones a literal or token color reference.</summary>
     private static CssColor? CloneColor(CssColor? source) => source is null
         ? null
         : new CssColor { Kind = source.Kind, Value = source.Value };
 
+    /// <summary>Clones every populated logical side.</summary>
     private static CssLogicalSpacing? CloneSpacing(CssLogicalSpacing? source) => source is null
         ? null
         : new CssLogicalSpacing
@@ -202,6 +230,7 @@ public static class HtmlTreeOperations
             InlineStart = CloneLength(source.InlineStart)
         };
 
+    /// <summary>Clones a constrained numeric length.</summary>
     private static CssLength? CloneLength(CssLength? source) => source is null
         ? null
         : new CssLength { Value = source.Value, Unit = source.Unit };

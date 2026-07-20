@@ -28,8 +28,12 @@ using System.Globalization;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Represents a record for SeedDatabaseRequest.
+/// Contains the infrastructure selections and initial content needed to seed a new installation.
 /// </summary>
+/// <remarks>
+/// Passwords, connection strings, database credentials, and Infisical credentials are
+/// sensitive workflow inputs. They must not be logged or stored in the durable setup-state document.
+/// </remarks>
 public sealed record SeedDatabaseRequest(
     string DatabaseMode,
     string CacheMode,
@@ -60,56 +64,60 @@ public sealed record SeedDatabaseRequest(
 }
 
 /// <summary>
-/// Represents a class for SeedDatabaseResult.
+/// Describes installation artifacts created by a setup completion attempt.
 /// </summary>
 public sealed class SeedDatabaseResult
 {
-        /// <summary>
-    /// Gets or sets the Succeeded.
+    /// <summary>
+    /// Gets whether the result contains no reported errors.
     /// </summary>
 public bool Succeeded => Errors.Count == 0;
-        /// <summary>
-    /// Gets or sets the Already Complete.
+    /// <summary>
+    /// Gets whether the database already contained a completed setup marker.
     /// </summary>
 public bool AlreadyComplete { get; init; }
-        /// <summary>
-    /// Gets or sets the Created Admin.
+    /// <summary>
+    /// Gets whether this attempt created the initial administrator account.
     /// </summary>
 public bool CreatedAdmin { get; init; }
-        /// <summary>
-    /// Gets or sets the Created Roles.
+    /// <summary>
+    /// Gets whether this attempt created any CMS role or administrator role assignment.
     /// </summary>
 public bool CreatedRoles { get; init; }
-        /// <summary>
-    /// Gets or sets the Created Tenant.
+    /// <summary>
+    /// Gets whether the result reports a successfully provisioned tenant.
     /// </summary>
 public bool CreatedTenant { get; init; }
-        /// <summary>
-    /// Gets or sets the Created Site.
+    /// <summary>
+    /// Gets whether the result reports a successfully provisioned site.
     /// </summary>
 public bool CreatedSite { get; init; }
-        /// <summary>
-    /// Gets or sets the Tenant Id.
+    /// <summary>
+    /// Gets the provisioned or reused tenant identifier.
     /// </summary>
 public long? TenantId { get; init; }
-        /// <summary>
-    /// Gets or sets the Site Id.
+    /// <summary>
+    /// Gets the provisioned or reused site identifier.
     /// </summary>
 public long? SiteId { get; init; }
-        /// <summary>
-    /// Gets or sets the Errors.
+    /// <summary>
+    /// Gets failure messages returned by expected setup operations.
     /// </summary>
 public List<string> Errors { get; } = [];
 
-        /// <summary>
-    /// Failure method.
+    /// <summary>
+    /// Creates a failed result from zero or more error messages.
     /// </summary>
+    /// <param name="errors">The messages to include after blank values are removed.</param>
+    /// <returns>A result containing the supplied non-blank errors.</returns>
 public static SeedDatabaseResult Failure(params string[] errors)
         => Failure(errors.AsEnumerable());
 
-        /// <summary>
-    /// Failure method.
+    /// <summary>
+    /// Creates a failed result from an error sequence.
     /// </summary>
+    /// <param name="errors">The messages to include after blank values are removed.</param>
+    /// <returns>A result containing the supplied non-blank errors.</returns>
 public static SeedDatabaseResult Failure(IEnumerable<string> errors)
     {
         var result = new SeedDatabaseResult();
@@ -119,13 +127,20 @@ public static SeedDatabaseResult Failure(IEnumerable<string> errors)
 }
 
 /// <summary>
-/// Defines an interface for ISeedDatabaseService.
+/// Completes durable initialization of a newly configured AeroCMS installation.
 /// </summary>
 public interface ISeedDatabaseService
 {
-        /// <summary>
-    /// CompleteAsync method.
+    /// <summary>
+    /// Provisions identity, tenant, site, starter content, module state, and completion markers.
     /// </summary>
+    /// <param name="request">The infrastructure and initial-content selections.</param>
+    /// <param name="cancellationToken">Cancels database, identity, media, module, or file operations.</param>
+    /// <returns>
+    /// A result describing created artifacts or expected failures. Infrastructure exceptions
+    /// outside the starter-content stage may propagate.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
 Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 }
 
@@ -137,8 +152,15 @@ public interface ISetupCompletionService : ISeedDatabaseService { }
 // todo - each module should have its own seeding service via SRP and Verticle Slices 
 
 /// <summary>
-/// Represents a class for SeedDatabaseService.
+/// Coordinates initial installation seeding across Identity, AeroDB, content modules, and bootstrap persistence.
 /// </summary>
+/// <remarks>
+/// The durable setup-state document is authoritative for idempotency. If it is already
+/// complete, this service repairs the file-based completion flags and skips all seeding.
+/// The workflow spans multiple stores and is not transactional as a whole: Identity,
+/// tenant/site, content, module, and settings changes may commit at different points.
+/// Individual page-save failures are logged and do not fail the overall starter-content stage.
+/// </remarks>
 public sealed class SeedDatabaseService(
     IDocumentSession session,
     IWebHostEnvironment env,
@@ -155,9 +177,7 @@ public sealed class SeedDatabaseService(
     IApiKeyService apiKeyService,
     IReadOnlyList<ModuleDescriptor> moduleDescriptors) : ISeedDatabaseService, ISetupCompletionService
 {
-        /// <summary>
-    /// CompleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -258,6 +278,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
+    /// <summary>
+    /// Reuses a matching tenant/site pair or creates both and assigns the requested primary host.
+    /// </summary>
+    /// <remarks>Creation is sequential and a site or host failure does not roll back an already-created tenant.</remarks>
     private async Task<(Result<TenantModel, AeroError> Tenant, Result<SitesModel, AeroError> Site)> CreateTenantAndSiteAsync(
         SeedDatabaseRequest request, 
         CancellationToken cancellationToken)
@@ -345,6 +369,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return (tenantResult, siteResult);
     }
 
+    /// <summary>
+    /// Finds an existing site through its normalized host, then falls back to tenant and site names.
+    /// </summary>
     private async Task<(TenantModel? Tenant, SitesModel? Site)> FindExistingTenantAndSiteAsync(
         SeedDatabaseRequest request,
         CancellationToken cancellationToken)
@@ -390,6 +417,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return (tenant, site);
     }
 
+    /// <summary>
+    /// Extracts a user-facing site-host failure message from a railway result.
+    /// </summary>
     private static string GetHostFailureMessage(Result<SiteHost, AeroError> hostResult)
         => hostResult is Result<SiteHost, AeroError>.Failure failure
             ? failure.Error is AeroError.Error error
@@ -397,6 +427,13 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
                 : "Failed to create site host"
             : "Failed to create site host";
 
+    /// <summary>
+    /// Seeds initial pages, navigation, footer, media, posts, error aliases, products, and global settings.
+    /// </summary>
+    /// <remarks>
+    /// Spanish (Mexico) variants are added only when <c>es-MX</c> is supported but is not
+    /// the default culture. Several collaborators persist independently during this method.
+    /// </remarks>
     private async Task SeedStarterContentAsync(
         SeedDatabaseRequest request,
         long siteId,
@@ -562,6 +599,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         SeedDefaultSettings(defaultCulture);
     }
 
+    /// <summary>
+    /// Reuses or event-sources the default navigation menu and ensures it is selected for the site.
+    /// </summary>
+    /// <returns>The menu translation-group identifier used by localized variants.</returns>
     private async Task<long> SeedDefaultNavMenuAsync(
         long siteId,
         string culture,
@@ -626,6 +667,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return navMenuId;
     }
 
+    /// <summary>
+    /// Reuses or event-sources the default footer and ensures it is selected for the site.
+    /// </summary>
+    /// <returns>The footer translation-group identifier used by localized variants.</returns>
     private async Task<long> SeedDefaultFooterAsync(
         long siteId,
         string culture,
@@ -736,6 +781,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return footerId;
     }
 
+    /// <summary>
+    /// Seeds the supported Spanish (Mexico) page, navigation, and footer variants.
+    /// </summary>
     private async Task SeedSpanishMexicoStarterContentAsync(
         SeedDatabaseRequest request,
         long siteId,
@@ -807,6 +855,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             cancellationToken);
     }
 
+    /// <summary>
+    /// Creates the Spanish (Mexico) navigation stream unless that site, culture, and key already exist.
+    /// </summary>
     private async Task SeedSpanishMexicoNavMenuAsync(
         long siteId,
         long homepageId,
@@ -849,6 +900,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             });
     }
 
+    /// <summary>
+    /// Creates the Spanish (Mexico) footer stream unless that site, culture, and key already exist.
+    /// </summary>
     private async Task SeedSpanishMexicoFooterAsync(
         long siteId,
         long aboutPageId,
@@ -927,6 +981,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             });
     }
 
+    /// <summary>
+    /// Places ordered navigation components into a single responsive full-width row.
+    /// </summary>
     private static NavMenuSnapshot BuildSeedNavMenuSnapshot(IReadOnlyList<INavMenuComponent> components)
         => new()
         {
@@ -966,6 +1023,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             ]
         };
 
+    /// <summary>
+    /// Distributes ordered footer components across responsive columns.
+    /// </summary>
     private static List<FooterCanvasRow> BuildSeedFooterRows(IReadOnlyList<IFooterComponent> components)
     {
         var orderedComponents = components.OrderBy(component => component.Order).ToList();
@@ -1008,6 +1068,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         ];
     }
 
+    /// <summary>
+    /// Stages the initial security, general, SEO, and API settings in the current session.
+    /// </summary>
     private void SeedDefaultSettings(string defaultCulture)
     {
         var defaults = new List<Setting>
@@ -1041,6 +1104,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         }
     }
 
+    /// <summary>
+    /// Publishes the fallback page and stores aliases for 404, 500, and the retired setup route.
+    /// </summary>
     private async Task SeedOopsPageAsync(long siteId, string defaultCulture, CancellationToken ct)
     {
         var oopsPage = new PageDocument
@@ -1116,6 +1182,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Stages top-level web-root media and delegates hydrated-image import to the media service.
+    /// </summary>
+    /// <remarks>A missing media directory and hydrated-image failures are logged and do not fail setup.</remarks>
     private async Task SeedStarterMediaAsync(CancellationToken ct)
     {
         var mediaDir = Path.Combine(env.WebRootPath, "media");
@@ -1179,11 +1249,17 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             Directory.GetFiles(mediaDir).Length);
     }
 
+    /// <summary>
+    /// Initializes persisted state for every descriptor supplied to the setup service.
+    /// </summary>
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
     {
         await moduleInitializationService.InitializeModulesAsync(moduleDescriptors, cancellationToken);
     }
 
+    /// <summary>
+    /// Builds the default-culture home-page metadata before HTML content is attached.
+    /// </summary>
     private static PageDocument BuildHomepage(SeedDatabaseRequest request)
     {
         var homepageSummary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.";
@@ -1205,6 +1281,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture blog listing metadata before HTML content is attached.
+    /// </summary>
     private static PageDocument BuildBlogListingPage(SeedDatabaseRequest request)
     {
         return new PageDocument
@@ -1224,6 +1303,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture about-page metadata.
+    /// </summary>
     private static PageDocument BuildAboutPage()
     {
         const string summary = "Learn more about our mission and the team behind the platform.";
@@ -1245,6 +1327,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture contact-page metadata.
+    /// </summary>
     private static PageDocument BuildContactPage()
     {
         const string summary = "Get in touch with our team.";
@@ -1266,6 +1351,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture privacy-page metadata.
+    /// </summary>
     private static PageDocument BuildPrivacyPage()
     {
         const string summary = "Our commitment to your privacy and data protection.";
@@ -1287,6 +1375,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture terms-page metadata.
+    /// </summary>
     private static PageDocument BuildTermsPage()
     {
         const string summary = "Terms and conditions governing the use of our site.";
@@ -1308,6 +1399,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the default-culture cookie-policy metadata.
+    /// </summary>
     private static PageDocument BuildCookiesPage()
     {
         const string summary = "How we use cookies to improve your browsing experience.";
@@ -1329,6 +1423,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the Spanish (Mexico) home-page variant for an existing translation group.
+    /// </summary>
     private static PageDocument BuildSpanishHomepage(
         SeedDatabaseRequest request,
         long TranslationGroupId)
@@ -1356,6 +1453,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the Spanish (Mexico) blog-listing variant for an existing translation group.
+    /// </summary>
     private static PageDocument BuildSpanishBlogListingPage(
         SeedDatabaseRequest request,
         long TranslationGroupId)
@@ -1379,6 +1479,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the Spanish (Mexico) about-page variant for an existing translation group.
+    /// </summary>
     private static PageDocument BuildSpanishAboutPage(long TranslationGroupId)
     {
         const string title = "Acerca de";
@@ -1403,6 +1506,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds the Spanish (Mexico) contact-page variant for an existing translation group.
+    /// </summary>
     private static PageDocument BuildSpanishContactPage(long TranslationGroupId)
     {
         const string title = "Contacto";
@@ -1427,6 +1533,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     }
 
 
+    /// <summary>
+    /// Builds tags and randomized starter posts without storing them.
+    /// </summary>
+    /// <remarks>Like counts and three-tag selections are intentionally non-deterministic.</remarks>
     private static (IReadOnlyList<PostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {
         var random = new Random();
@@ -1527,6 +1637,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return (posts, tags);
     }
 
+    /// <summary>
+    /// Builds a published starter post with matching SEO metadata.
+    /// </summary>
     private static PostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
         new PostDocument
         {
@@ -1544,12 +1657,21 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             Likes = likes
         };
 
+    /// <summary>
+    /// Trims setup-supplied display text before it is copied into starter content.
+    /// </summary>
     private static string Normalize(string value)
         => value.Trim();
 
+    /// <summary>
+    /// Extracts a page workflow error message for seed logging.
+    /// </summary>
     private static string ErrMsg(Result<PageDocument, AeroError> r) =>
         r is Result<PageDocument, AeroError>.Failure f && f.Error is AeroError.Error e ? e.msg : "seed save failed";
 
+    /// <summary>
+    /// Saves a page draft and immediately publishes it when the save succeeds.
+    /// </summary>
     private async Task<Result<PageDocument, AeroError>> SavePublishedPageAsync(
         PageDocument page,
         CancellationToken cancellationToken)
@@ -1566,16 +1688,25 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             : saved;
     }
 
+    /// <summary>
+    /// Assigns a page culture and initializes its translation group to its own identifier.
+    /// </summary>
     private static void StampPageCulture(PageDocument page, string culture)
     {
         page.Culture = culture;
         page.TranslationGroupId ??= page.Id;
     }
 
+    /// <summary>
+    /// Determines whether a separate Spanish (Mexico) variant should be seeded.
+    /// </summary>
     private static bool ShouldSeedSpanishMexico(string defaultCulture, IReadOnlyList<string> supportedCultures)
         => !string.Equals(defaultCulture, "es-MX", StringComparison.OrdinalIgnoreCase)
            && supportedCultures.Any(culture => string.Equals(culture, "es-MX", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Canonicalizes culture names, removes duplicates, and ensures the default is supported.
+    /// </summary>
     private static (string DefaultCulture, List<string> SupportedCultures) NormalizeCultureSettings(
         string? defaultCulture,
         IEnumerable<string>? supportedCultures)
@@ -1595,6 +1726,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return (normalizedDefault, cultures.Count == 0 ? [normalizedDefault] : cultures);
     }
 
+    /// <summary>
+    /// Returns a canonical culture name or the site default when the input is blank or invalid.
+    /// </summary>
     private static string NormalizeCultureName(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -1612,6 +1746,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         }
     }
 
+    /// <summary>
+    /// Builds the fixed starter tag catalog with new Snowflake identifiers.
+    /// </summary>
     private static List<Tag> CreateTags()
     {
         var tagNames = new[]
@@ -1629,6 +1766,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         }).ToList();
     }
 
+    /// <summary>
+    /// Builds Spanish (Mexico) translations for recognized starter tags.
+    /// </summary>
     private static IReadOnlyList<TagTranslation> BuildSpanishMexicoTagTranslations(IReadOnlyList<Tag> tags)
     {
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -1672,6 +1812,9 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             .ToList();
     }
 
+    /// <summary>
+    /// Builds the initial published documentation hierarchy without storing it.
+    /// </summary>
     private List<DocsPage> BuildStarterDocsContent()
     {
         var docs = new List<DocsPage>();

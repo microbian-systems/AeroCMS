@@ -9,8 +9,14 @@ using Scriban.Syntax;
 namespace Aero.Cms.Core.Content.Templating;
 
 /// <summary>
-/// Represents a class for SecureScribanRenderer.
+/// Validates, resource-limits, renders, and sanitizes CMS-authored Scriban templates.
 /// </summary>
+/// <remarks>
+/// Parsed templates are cached by definition identity, version, and template text. Every
+/// render creates a new <see cref="TemplateContext"/> and cloned import scopes. This describes
+/// the implementation's isolation strategy and is not a blanket thread-safety guarantee for
+/// caller-supplied objects.
+/// </remarks>
 public sealed class SecureScribanRenderer : ISecureScribanRenderer
 {
     private readonly SecureScribanTemplateOptions options;
@@ -18,26 +24,31 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
     private readonly IHtmlSanitizer htmlSanitizer;
     private readonly ConcurrentDictionary<TemplateCacheKey, Template> templateCache = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
     /// </summary>
-public SecureScribanRenderer()
+    /// <remarks>Uses default guardrails and a new <see cref="HtmlSanitizer"/>.</remarks>
+    public SecureScribanRenderer()
         : this(new SecureScribanTemplateOptions(), new HtmlSanitizer())
     {
     }
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
     /// </summary>
-public SecureScribanRenderer(SecureScribanTemplateOptions options)
+    /// <param name="options">The validation and rendering limits.</param>
+    /// <remarks>Uses a new <see cref="HtmlSanitizer"/>.</remarks>
+    public SecureScribanRenderer(SecureScribanTemplateOptions options)
         : this(options, new HtmlSanitizer())
     {
     }
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
     /// </summary>
-public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitizer htmlSanitizer)
+    /// <param name="options">The validation and rendering limits.</param>
+    /// <param name="htmlSanitizer">The sanitizer applied to successful output.</param>
+    public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitizer htmlSanitizer)
     {
         this.options = options;
         this.htmlSanitizer = htmlSanitizer;
@@ -45,6 +56,13 @@ public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitize
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Template and data validation occur before execution. Includes, dynamic evaluation,
+    /// relaxed CLR access, and template loading are disabled. Both caller cancellation and
+    /// expiration of <see cref="SecureScribanTemplateOptions.RenderTimeout"/> are converted
+    /// to a timeout result rather than rethrown. Scriban runtime and invalid-operation
+    /// failures during execution are converted to validation results.
+    /// </remarks>
     public async Task<Result<string, AeroError>> RenderAsync(
         ScribanRenderDefinition definition,
         ScribanContentRenderModel model,

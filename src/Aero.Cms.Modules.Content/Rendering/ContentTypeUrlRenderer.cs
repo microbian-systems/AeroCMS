@@ -12,6 +12,9 @@ namespace Aero.Cms.Modules.Content.Rendering;
 /// Resolves a public content type URL (/content/{typeAlias}/{entrySlug}) and renders
 /// the matching content item through the existing Scriban pipeline.
 /// </summary>
+/// <param name="typeService">The service used to resolve the site-scoped content-type definition.</param>
+/// <param name="contentService">The service used to resolve a site-, type-, culture-, and slug-scoped item.</param>
+/// <param name="itemRenderer">The renderer that executes the type's Scriban template.</param>
 public sealed class ContentTypeUrlRenderer(
     IContentTypeService typeService,
     IContentService contentService,
@@ -21,6 +24,17 @@ public sealed class ContentTypeUrlRenderer(
     /// Renders a published content item by content type alias and entry slug.
     /// Returns Ok(html) on success, or an AeroError describing what went wrong.
     /// </summary>
+    /// <param name="siteId">The site boundary applied to both definition and item lookup.</param>
+    /// <param name="typeAlias">The content-type alias used for lookup.</param>
+    /// <param name="culture">The culture name normalized through <see cref="CultureInfo"/>.</param>
+    /// <param name="entrySlug">The public item slug.</param>
+    /// <param name="ct">The token propagated through lookup and rendering.</param>
+    /// <returns>Rendered HTML and cache metadata, or a failure describing lookup, policy, or rendering.</returns>
+    /// <exception cref="CultureNotFoundException">Thrown when <paramref name="culture"/> is invalid.</exception>
+    /// <remarks>
+    /// The returned HTML is template output and is not sanitized here; consumers must preserve the
+    /// renderer's trust boundary when emitting it as raw HTML.
+    /// </remarks>
     public async Task<Result<PublicContentRenderResult, AeroError>> RenderAsync(
         long siteId,
         string typeAlias,
@@ -66,4 +80,7 @@ public sealed class ContentTypeUrlRenderer(
 /// <summary>
 /// Public rendered content plus the stable metadata needed for output-cache tags.
 /// </summary>
+/// <param name="Html">The renderer-produced HTML, which is not sanitized by this record.</param>
+/// <param name="ItemId">The globally unique item identifier used for cache tagging.</param>
+/// <param name="Culture">The stored item culture used for culture-specific tags.</param>
 public sealed record PublicContentRenderResult(string Html, long ItemId, string Culture);

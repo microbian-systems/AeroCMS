@@ -7,39 +7,48 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Grpc;
 
 /// <summary>
-/// Represents a class for GrpcModule.
+/// Registers MagicOnion server services for the gRPC module.
 /// </summary>
+/// <remarks>
+/// This module does not map MagicOnion endpoints or configure transport listeners, TLS, authentication,
+/// authorization, interceptors beyond service-level attributes, message sizes, deadlines, retries, or environment
+/// gating. Service registration alone does not expose a protocol endpoint.
+/// </remarks>
 [Module(nameof(GrpcModule))]
 public class GrpcModule : AeroModuleBase
 {
         /// <summary>
-    /// Gets or sets the Name.
+    /// Gets the fixed name used to discover this module.
     /// </summary>
 public override string Name => nameof(GrpcModule);
         /// <summary>
-    /// Gets or sets the Version.
+    /// Gets the Aero CMS version reported by this module.
     /// </summary>
 public override string Version => AeroConstants.Version;
         /// <summary>
-    /// Gets or sets the Author.
+    /// Gets the Aero CMS author metadata reported by this module.
     /// </summary>
 public override string Author => AeroConstants.Author;
         /// <summary>
-    /// Gets or sets the Dependencies.
+    /// Gets an empty module dependency list.
     /// </summary>
 public override IReadOnlyList<string> Dependencies => [];
         /// <summary>
-    /// Gets or sets the Category.
+    /// Gets the infrastructure and communication discovery categories.
     /// </summary>
 public override IReadOnlyList<string> Category => ["Infrastructure", "Communication"];
         /// <summary>
-    /// Gets or sets the Tags.
+    /// Gets descriptive gRPC/RPC discovery tags.
     /// </summary>
 public override IReadOnlyList<string> Tags => ["grpc", "api", "communication", "rpc"];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Adds MagicOnion server services to the dependency-injection container.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="config">Unused configuration.</param>
+    /// <param name="env">Unused host environment.</param>
+    /// <remarks>Registration is synchronous; registration exceptions propagate and no cancellation token is exposed.</remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddMagicOnion();

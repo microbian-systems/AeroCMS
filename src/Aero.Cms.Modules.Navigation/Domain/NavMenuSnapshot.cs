@@ -3,58 +3,71 @@ using System.Text.Json.Serialization;
 namespace Aero.Cms.Modules.Navigation.Domain;
 
 /// <summary>
-/// Represents a record for NavMenuSnapshot.
+/// Captures a complete editable or published navigation layout and its polymorphic components.
 /// </summary>
+/// <remarks>
+/// New snapshots can use the row/column/block canvas. The left, center, and right collections
+/// remain as a legacy flat representation; <see cref="Components"/> prefers rows whenever any
+/// row exists.
+/// </remarks>
 public sealed record NavMenuSnapshot
 {
-        /// <summary>
-    /// Gets or sets the Layout.
+    /// <summary>
+    /// Gets the named legacy layout slots.
     /// </summary>
 public NavMenuLayout Layout { get; init; } = NavMenuLayout.Default;
-        /// <summary>
-    /// Gets or sets the Responsive.
+    /// <summary>
+    /// Gets the responsive breakpoint settings.
     /// </summary>
 public NavMenuResponsiveSettings Responsive { get; init; } = NavMenuResponsiveSettings.Default;
-        /// <summary>
-    /// Gets or sets the Style.
+    /// <summary>
+    /// Gets the menu-wide style settings.
     /// </summary>
 public NavMenuStyleSettings Style { get; init; } = NavMenuStyleSettings.Default;
-        /// <summary>
-    /// Gets or sets the Site Logo Url.
+    /// <summary>
+    /// Gets the optional site logo URL rendered with the menu.
     /// </summary>
 public string? SiteLogoUrl { get; init; }
-        /// <summary>
-    /// Gets or sets the Rows.
+    /// <summary>
+    /// Gets the row-based editor canvas.
     /// </summary>
 public List<NavCanvasRow> Rows { get; init; } = [];
-        /// <summary>
-    /// Gets or sets the Left.
+    /// <summary>
+    /// Gets legacy left-aligned components.
     /// </summary>
 public List<INavMenuComponent> Left { get; init; } = [];
-        /// <summary>
-    /// Gets or sets the Center.
+    /// <summary>
+    /// Gets legacy center-aligned components.
     /// </summary>
 public List<INavMenuComponent> Center { get; init; } = [];
-        /// <summary>
-    /// Gets or sets the Right.
+    /// <summary>
+    /// Gets legacy right-aligned components.
     /// </summary>
 public List<INavMenuComponent> Right { get; init; } = [];
 
-        /// <summary>
-    /// Gets or sets the Empty.
+    /// <summary>
+    /// Gets a shared empty snapshot.
     /// </summary>
+    /// <remarks>
+    /// The record contains mutable lists. Consumers must treat this shared instance as read-only.
+    /// </remarks>
 public static NavMenuSnapshot Empty { get; } = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="NavMenuSnapshot"/> class.
     /// </summary>
 public NavMenuSnapshot()
     {
     }
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="NavMenuSnapshot"/> class.
+    /// <summary>
+    /// Creates a snapshot from a flat component list and populates both canvas and alignment buckets.
     /// </summary>
+    /// <param name="layout">The legacy slot layout metadata.</param>
+    /// <param name="responsive">The responsive settings.</param>
+    /// <param name="style">The menu-wide style settings.</param>
+    /// <param name="components">The components to group by alignment while preserving their input order.</param>
+    /// <param name="siteLogoUrl">The optional logo URL, trimmed or stored as <see langword="null"/> when blank.</param>
 public NavMenuSnapshot(
         NavMenuLayout layout,
         NavMenuResponsiveSettings responsive,
@@ -74,9 +87,12 @@ public NavMenuSnapshot(
         }
     }
 
-        /// <summary>
-    /// Gets or sets the Components.
+    /// <summary>
+    /// Enumerates the effective components in visual row, column, and block order.
     /// </summary>
+    /// <remarks>
+    /// If <see cref="Rows"/> is non-empty, legacy alignment buckets are ignored.
+    /// </remarks>
 [JsonIgnore]
     public IEnumerable<INavMenuComponent> Components => Rows.Count > 0
         ? Rows.OrderBy(row => row.Order)
@@ -84,9 +100,13 @@ public NavMenuSnapshot(
             .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
         : Left.Concat(Center).Concat(Right);
 
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Validates component keys and the supported URL, target, and required-content rules.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// A key is missing or duplicated, a required component value is blank, or a URL or target
+    /// violates the navigation safety rules.
+    /// </exception>
 public void Validate()
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -96,6 +116,11 @@ public void Validate()
         }
     }
 
+    /// <summary>
+    /// Selects the legacy component bucket for an alignment.
+    /// </summary>
+    /// <param name="alignment">The component alignment.</param>
+    /// <returns>The mutable bucket owned by this snapshot.</returns>
     private List<INavMenuComponent> BucketFor(NavAlignment alignment)
         => alignment switch
         {
@@ -104,6 +129,12 @@ public void Validate()
             _ => Left
         };
 
+    /// <summary>
+    /// Validates one component and recursively validates menu children against a global key set.
+    /// </summary>
+    /// <param name="component">The component to validate.</param>
+    /// <param name="keys">The case-insensitive key set shared by the entire snapshot.</param>
+    /// <exception cref="InvalidOperationException">A component constraint is violated.</exception>
     private static void ValidateComponent(INavMenuComponent component, HashSet<string> keys)
     {
         if (string.IsNullOrWhiteSpace(component.Key))
@@ -161,6 +192,11 @@ public void Validate()
         }
     }
 
+    /// <summary>
+    /// Enforces absolute HTTP(S) URLs for external links and root-relative URLs or page identifiers for internal links.
+    /// </summary>
+    /// <param name="link">The link to validate.</param>
+    /// <exception cref="InvalidOperationException">The link target does not match its external/internal classification.</exception>
     private static void ValidateLinkUrl(NavLink link)
     {
         var href = link.Href.Trim();
@@ -188,6 +224,12 @@ public void Validate()
         throw new InvalidOperationException("Internal navigation links must use a relative URL or selected page.");
     }
 
+    /// <summary>
+    /// Requires an application-root-relative URL while rejecting protocol-relative values.
+    /// </summary>
+    /// <param name="href">The candidate URL.</param>
+    /// <param name="message">The exception message used for invalid input.</param>
+    /// <exception cref="InvalidOperationException"><paramref name="href"/> is not a safe root-relative URL.</exception>
     private static void ValidateRelativeUrl(string href, string message)
     {
         var trimmed = href.Trim();
@@ -199,6 +241,11 @@ public void Validate()
         throw new InvalidOperationException(message);
     }
 
+    /// <summary>
+    /// Restricts link targets to standard browsing-context keywords.
+    /// </summary>
+    /// <param name="target">The optional target value.</param>
+    /// <exception cref="InvalidOperationException">A nonblank target is not one of the supported keywords.</exception>
     private static void ValidateLinkTarget(string? target)
     {
         if (string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top")
@@ -209,6 +256,11 @@ public void Validate()
         throw new InvalidOperationException("Navigation link target must be _self, _blank, _parent, or _top.");
     }
 
+    /// <summary>
+    /// Adapts flat aligned components into the default header row and three responsive columns.
+    /// </summary>
+    /// <param name="components">The components to group by alignment.</param>
+    /// <returns>An empty list for no components; otherwise one header row.</returns>
     private static List<NavCanvasRow> BuildRowsFromComponents(IReadOnlyList<INavMenuComponent> components)
     {
         if (components.Count == 0)
@@ -259,92 +311,92 @@ public void Validate()
 }
 
 /// <summary>
-/// Represents a record for NavCanvasRow.
+/// Defines one ordered, device-responsive row in the navigation canvas.
 /// </summary>
 public sealed record NavCanvasRow
 {
-        /// <summary>
-    /// Gets or sets the Key.
+    /// <summary>
+    /// Gets the stable editor key for the row.
     /// </summary>
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
+    /// <summary>
+    /// Gets the row's visual order.
     /// </summary>
 public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Label.
+    /// <summary>
+    /// Gets the optional editor-facing row label.
     /// </summary>
 public string? Label { get; init; }
-        /// <summary>
-    /// Gets or sets the Desktop Display.
+    /// <summary>
+    /// Gets the desktop display-mode token interpreted by the navigation view.
     /// </summary>
 public string DesktopDisplay { get; init; } = "Flex";
-        /// <summary>
-    /// Gets or sets the Tablet Display.
+    /// <summary>
+    /// Gets the tablet display-mode token interpreted by the navigation view.
     /// </summary>
 public string TabletDisplay { get; init; } = "Flex";
-        /// <summary>
-    /// Gets or sets the Mobile Display.
+    /// <summary>
+    /// Gets the mobile display-mode token interpreted by the navigation view.
     /// </summary>
 public string MobileDisplay { get; init; } = "Stack";
-        /// <summary>
-    /// Gets or sets the Columns.
+    /// <summary>
+    /// Gets the row's columns.
     /// </summary>
 public List<NavCanvasColumn> Columns { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for NavCanvasColumn.
+/// Defines one ordered responsive column in a navigation canvas row.
 /// </summary>
 public sealed record NavCanvasColumn
 {
-        /// <summary>
-    /// Gets or sets the Key.
+    /// <summary>
+    /// Gets the stable editor key for the column.
     /// </summary>
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
+    /// <summary>
+    /// Gets the column's order within its row.
     /// </summary>
 public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Desktop Span.
+    /// <summary>
+    /// Gets the desktop span in the twelve-column grid.
     /// </summary>
 public int DesktopSpan { get; init; } = 4;
-        /// <summary>
-    /// Gets or sets the Tablet Span.
+    /// <summary>
+    /// Gets the tablet span in the twelve-column grid.
     /// </summary>
 public int TabletSpan { get; init; } = 6;
-        /// <summary>
-    /// Gets or sets the Mobile Span.
+    /// <summary>
+    /// Gets the mobile span in the twelve-column grid.
     /// </summary>
 public int MobileSpan { get; init; } = 12;
-        /// <summary>
-    /// Gets or sets the Blocks.
+    /// <summary>
+    /// Gets the component blocks placed in this column.
     /// </summary>
 public List<NavCanvasBlock> Blocks { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for NavCanvasBlock.
+/// Places a navigation component at an ordered position inside a canvas column.
 /// </summary>
 public sealed record NavCanvasBlock
 {
-        /// <summary>
-    /// Gets or sets the Key.
+    /// <summary>
+    /// Gets the stable editor key for the block.
     /// </summary>
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
+    /// <summary>
+    /// Gets the block's order within its column.
     /// </summary>
 public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Component.
+    /// <summary>
+    /// Gets the polymorphic component rendered by this block.
     /// </summary>
 public INavMenuComponent Component { get; init; } = new NavLink();
 }
 
 /// <summary>
-/// Defines an interface for INavMenuComponent.
+/// Defines the shared identity, alignment, and authentication visibility of renderable navigation components.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(NavLink), "link")]
@@ -355,229 +407,204 @@ public INavMenuComponent Component { get; init; } = new NavLink();
 [JsonDerivedType(typeof(NavAuthButton), "authButton")]
 public interface INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
+    /// <summary>
+    /// Gets the key unique across the complete snapshot, including nested menu children.
     /// </summary>
 string Key { get; }
-        /// <summary>
-    /// Gets or sets the Alignment.
+    /// <summary>
+    /// Gets the legacy alignment bucket used by flat snapshots.
     /// </summary>
 NavAlignment Alignment { get; }
-        /// <summary>
-    /// Gets or sets the Visibility.
+    /// <summary>
+    /// Gets the authentication state required for rendering.
     /// </summary>
 NavAuthVisibility Visibility { get; }
 }
 
 /// <summary>
-/// Defines an enumeration for NavAlignment.
+/// Identifies a component's legacy header alignment bucket.
 /// </summary>
 public enum NavAlignment
 {
+    /// <summary>Places the component in the left bucket.</summary>
     Left,
+    /// <summary>Places the component in the center bucket.</summary>
     Center,
+    /// <summary>Places the component in the right bucket.</summary>
     Right
 }
 
 /// <summary>
-/// Represents a record for NavLink.
+/// Renders a labeled internal page/route or external HTTP(S) navigation link.
 /// </summary>
 public sealed record NavLink : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; }
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Label.
+    /// <summary>
+    /// Gets the visible link label.
     /// </summary>
 public string Label { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Href.
+    /// <summary>
+    /// Gets the rendered URL.
     /// </summary>
 public string Href { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Open In New Tab.
+    /// <summary>
+    /// Gets whether rendering falls back to a <c>_blank</c> target when <see cref="Target"/> is blank.
     /// </summary>
 public bool OpenInNewTab { get; init; }
-        /// <summary>
-    /// Gets or sets the Is External.
+    /// <summary>
+    /// Gets whether validation requires an absolute HTTP or HTTPS URL.
     /// </summary>
 public bool IsExternal { get; init; }
-        /// <summary>
-    /// Gets or sets the Target.
+    /// <summary>
+    /// Gets the optional HTML browsing-context target keyword.
     /// </summary>
 public string? Target { get; init; }
-        /// <summary>
-    /// Gets or sets the Page Id.
+    /// <summary>
+    /// Gets the optional internal page identifier associated with the link.
     /// </summary>
 public long? PageId { get; init; }
-        /// <summary>
-    /// Gets or sets the Alt Text.
+    /// <summary>
+    /// Gets optional descriptive text retained in editor contracts; the current HTML renderer does not emit it.
     /// </summary>
 public string? AltText { get; init; }
 }
 
 /// <summary>
-/// Represents a record for NavMenu.
+/// Renders a labeled dropdown containing nested navigation components.
 /// </summary>
 public sealed record NavMenu : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; }
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Label.
+    /// <summary>
+    /// Gets the dropdown trigger label.
     /// </summary>
 public string Label { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Children.
+    /// <summary>
+    /// Gets the ordered child components; validation enforces key uniqueness recursively.
     /// </summary>
 public List<INavMenuComponent> Children { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for NavHtml.
+/// Renders trusted custom markup inside a navigation slot.
 /// </summary>
+/// <remarks>
+/// The renderer writes <see cref="Html"/> as raw HTML without sanitization. Only trusted
+/// administrative input may populate this component.
+/// </remarks>
 public sealed record NavHtml : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; }
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Html.
+    /// <summary>
+    /// Gets the nonblank markup written verbatim by the HTML renderer.
     /// </summary>
 public string Html { get; init; } = string.Empty;
 }
 
 /// <summary>
-/// Represents a record for NavSearch.
+/// Renders a GET search form in the navigation surface.
 /// </summary>
 public sealed record NavSearch : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; }
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Placeholder.
+    /// <summary>
+    /// Gets the encoded search-input placeholder.
     /// </summary>
 public string Placeholder { get; init; } = "Search...";
-        /// <summary>
-    /// Gets or sets the Search Action.
+    /// <summary>
+    /// Gets the encoded form action; validation requires a nonblank value.
     /// </summary>
 public string SearchAction { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Button Label.
+    /// <summary>
+    /// Gets the encoded submit-button label.
     /// </summary>
 public string ButtonLabel { get; init; } = "Search";
 }
 
 /// <summary>
-/// Represents a record for NavLanguageSelect.
+/// Renders links for switching among the current site's supported cultures.
 /// </summary>
 public sealed record NavLanguageSelect : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; } = NavAlignment.Right;
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Label.
+    /// <summary>
+    /// Gets the encoded control label and accessible navigation label.
     /// </summary>
 public string Label { get; init; } = "Language";
 }
 
 /// <summary>
-/// Represents a record for NavAuthButton.
+/// Renders an application-relative login, registration, or other authentication action.
 /// </summary>
 public sealed record NavAuthButton : INavMenuComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
+    /// <inheritdoc />
 public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Alignment.
-    /// </summary>
+    /// <inheritdoc />
 public NavAlignment Alignment { get; init; } = NavAlignment.Right;
-        /// <summary>
-    /// Gets or sets the Visibility.
-    /// </summary>
+    /// <inheritdoc />
 public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-        /// <summary>
-    /// Gets or sets the Label.
+    /// <summary>
+    /// Gets the encoded button label.
     /// </summary>
 public string Label { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Href.
+    /// <summary>
+    /// Gets the application-root-relative URL validated by <see cref="NavMenuSnapshot.Validate"/>.
     /// </summary>
 public string Href { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Button Style.
+    /// <summary>
+    /// Gets the presentation token used by editor contracts; the current renderer does not branch on it.
     /// </summary>
 public string ButtonStyle { get; init; } = "Primary";
 }
 
 /// <summary>
-/// Defines an enumeration for NavAuthVisibility.
+/// Controls whether a component is rendered for the current authentication state.
 /// </summary>
 public enum NavAuthVisibility
 {
+    /// <summary>Renders for anonymous and authenticated requests.</summary>
     Always,
+    /// <summary>Renders only when no authenticated principal is present.</summary>
     AnonymousOnly,
+    /// <summary>Renders only for an authenticated principal.</summary>
     AuthenticatedOnly
 }
 
 /// <summary>
-/// Represents a record for NavMenuLayout.
+/// Describes the ordered named slots used by legacy flat navigation layouts.
 /// </summary>
+/// <param name="Slots">The available layout slots.</param>
 public sealed record NavMenuLayout(IReadOnlyList<NavLayoutSlot> Slots)
 {
-        /// <summary>
-    /// Gets or sets the Default.
+    /// <summary>
+    /// Gets the left, center, and right slot layout.
     /// </summary>
 public static NavMenuLayout Default { get; } = new(
         [
@@ -588,31 +615,36 @@ public static NavMenuLayout Default { get; } = new(
 }
 
 /// <summary>
-/// Represents a record for NavLayoutSlot.
+/// Describes one named legacy navigation alignment slot.
 /// </summary>
+/// <param name="Key">The persisted slot key.</param>
+/// <param name="Label">The editor-facing label.</param>
+/// <param name="Order">The slot's visual order.</param>
 public sealed record NavLayoutSlot(string Key, string Label, int Order);
 
 /// <summary>
-/// Represents a class for NavLayoutSlots.
+/// Defines stable persisted keys for the built-in legacy layout slots.
 /// </summary>
 public static class NavLayoutSlots
 {
-        /// <summary>
-    /// Left.
+    /// <summary>
+    /// Identifies the left slot.
     /// </summary>
 public const string Left = "left";
-        /// <summary>
-    /// Center.
+    /// <summary>
+    /// Identifies the center slot.
     /// </summary>
 public const string Center = "center";
-        /// <summary>
-    /// Right.
+    /// <summary>
+    /// Identifies the right slot.
     /// </summary>
 public const string Right = "right";
 
-        /// <summary>
-    /// ToAlignment method.
+    /// <summary>
+    /// Maps a persisted slot key to a component alignment.
     /// </summary>
+    /// <param name="slotKey">The case-insensitive slot key.</param>
+    /// <returns>The center or right alignment when matched; otherwise left.</returns>
 public static NavAlignment ToAlignment(string? slotKey)
         => slotKey?.ToLowerInvariant() switch
         {
@@ -623,90 +655,109 @@ public static NavAlignment ToAlignment(string? slotKey)
 }
 
 /// <summary>
-/// Represents a record for NavMenuResponsiveSettings.
+/// Describes the CSS breakpoint at which the navigation switches to its mobile presentation.
 /// </summary>
+/// <param name="MobileBreakpoint">The presentation-layer breakpoint token.</param>
 public sealed record NavMenuResponsiveSettings(string MobileBreakpoint)
 {
-        /// <summary>
-    /// Gets or sets the Default.
+    /// <summary>
+    /// Gets settings using the <c>md</c> mobile breakpoint.
     /// </summary>
 public static NavMenuResponsiveSettings Default { get; } = new("md");
 }
 
 /// <summary>
-/// Represents a record for NavMenuStyleSettings.
+/// Describes menu-wide presentation flags.
 /// </summary>
+/// <param name="IsSticky">Whether the navigation should remain fixed during scrolling.</param>
 public sealed record NavMenuStyleSettings(bool IsSticky)
 {
-        /// <summary>
-    /// Gets or sets the Default.
+    /// <summary>
+    /// Gets the non-sticky default style.
     /// </summary>
 public static NavMenuStyleSettings Default { get; } = new(false);
 }
 
 /// <summary>
-/// Represents a record for NavItemVisibility.
+/// Describes device and role-based visibility rules for a navigation item.
 /// </summary>
+/// <param name="HideOnMobile">Whether to hide the item in mobile presentation.</param>
+/// <param name="HideOnDesktop">Whether to hide the item in desktop presentation.</param>
+/// <param name="AllowedRoles">The role names used by <paramref name="RoleMode"/>.</param>
+/// <param name="RoleMode">Whether any or all listed roles are required.</param>
 public sealed record NavItemVisibility(
     bool HideOnMobile,
     bool HideOnDesktop,
     IReadOnlyList<string> AllowedRoles,
     RoleVisibilityMode RoleMode)
 {
-        /// <summary>
-    /// Gets or sets the Default.
+    /// <summary>
+    /// Gets visibility with no device or role restrictions.
     /// </summary>
 public static NavItemVisibility Default { get; } = new(false, false, [], RoleVisibilityMode.Any);
-        /// <summary>
-    /// Gets or sets the Has Role Rules.
+    /// <summary>
+    /// Gets whether at least one allowed role is configured.
     /// </summary>
 public bool HasRoleRules => AllowedRoles.Count > 0;
 }
 
 /// <summary>
-/// Defines an enumeration for NavLinkTarget.
+/// Identifies the destination category selected by navigation editing tools.
 /// </summary>
 public enum NavLinkTarget
 {
+    /// <summary>Targets an application-relative URL.</summary>
     InternalUrl,
+    /// <summary>Targets a CMS page identifier.</summary>
     InternalPage,
+    /// <summary>Targets an absolute external URL.</summary>
     ExternalUrl
 }
 
 /// <summary>
-/// Defines an enumeration for SearchDisplayMode.
+/// Identifies the navigation search control presentation.
 /// </summary>
 public enum SearchDisplayMode
 {
+    /// <summary>Uses an icon that opens a search surface.</summary>
     IconPopup,
+    /// <summary>Displays the search text box inline.</summary>
     InlineTextbox
 }
 
 /// <summary>
-/// Defines an enumeration for SearchInputStyle.
+/// Identifies the search input's corner treatment.
 /// </summary>
 public enum SearchInputStyle
 {
+    /// <summary>Uses rounded corners.</summary>
     Rounded,
+    /// <summary>Uses square corners.</summary>
     Square
 }
 
 /// <summary>
-/// Defines an enumeration for RoleVisibilityMode.
+/// Controls how multiple allowed-role rules are combined.
 /// </summary>
 public enum RoleVisibilityMode
 {
+    /// <summary>Requires the user to have at least one listed role.</summary>
     Any,
+    /// <summary>Requires the user to have every listed role.</summary>
     All
 }
 
 /// <summary>
-/// Defines an enumeration for NavMenuLifecycleState.
+/// Represents the event-projected editing and publication state of a navigation menu.
 /// </summary>
 public enum NavMenuLifecycleState
 {
+    /// <summary>The menu has an editable draft but has never been published.</summary>
     Draft,
+    /// <summary>The current editor view matches the latest published snapshot.</summary>
     Published,
+    /// <summary>A newer draft exists after the latest published snapshot.</summary>
     PublishedWithDraft,
+    /// <summary>The menu is excluded from active listings and publication reads.</summary>
     Archived
 }

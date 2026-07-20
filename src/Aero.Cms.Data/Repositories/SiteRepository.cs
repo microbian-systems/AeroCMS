@@ -7,74 +7,89 @@ using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Data.Repositories;
 
-/// <summary>
-/// Defines an interface for ISiteRepository.
-/// </summary>
+/// <summary>Defines persistence and query operations for hosted sites.</summary>
+/// <remarks>
+/// Query methods do not normalize names, hostnames, or cultures. Cancellation and
+/// underlying session failures propagate unless a member explicitly documents a
+/// different result shape.
+/// </remarks>
 public interface ISiteRepository
 {
-        /// <summary>
-    /// GetAllAsync method.
-    /// </summary>
+    /// <summary>Returns one unordered page of site documents.</summary>
+    /// <param name="page">The one-based page number. Values below one are treated as one.</param>
+    /// <param name="num">The requested page size passed to the query provider.</param>
+    /// <param name="ct">Token forwarded to query materialization.</param>
+    /// <returns>The requested page, or an empty sequence when no documents are returned.</returns>
 Task<IEnumerable<SitesModel>> GetAllAsync(int page = 1, int num = 10, CancellationToken ct = default);
-        /// <summary>
-    /// FindByIdAsync method.
-    /// </summary>
+    /// <summary>Loads a site by document identifier.</summary>
+    /// <param name="id">The site document identifier.</param>
+    /// <param name="ct">Token forwarded to the load operation.</param>
+    /// <returns><see cref="Option{T}.Some"/> for a match; otherwise <see cref="Option{T}.None"/>.</returns>
 Task<Option<SitesModel>> FindByIdAsync(long id, CancellationToken ct = default);
-        /// <summary>
-    /// InsertAsync method.
-    /// </summary>
+    /// <summary>Stores a site and persists the session changes.</summary>
+    /// <param name="entity">The site document to store.</param>
+    /// <param name="ct">Token forwarded to the persistence operation.</param>
+    /// <returns>The same instance after persistence completes.</returns>
 Task<SitesModel> InsertAsync(SitesModel entity, CancellationToken ct = default);
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+    /// <summary>Stores a site as an update and persists the session changes.</summary>
+    /// <param name="entity">The site document to store.</param>
+    /// <param name="ct">Token forwarded to the persistence operation.</param>
+    /// <returns>The same instance after persistence completes.</returns>
 Task<SitesModel> UpdateAsync(SitesModel entity, CancellationToken ct = default);
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <summary>Deletes a site identifier and attempts to persist the session changes.</summary>
+    /// <param name="id">The site document identifier to delete.</param>
+    /// <param name="ct">Token used by persistence and its completion continuation.</param>
+    /// <returns><see langword="true"/> when persistence completes successfully; <see langword="false"/> when it faults.</returns>
 Task<bool> DeleteAsync(long id, CancellationToken ct = default);
 
-        /// <summary>
-    /// GetByTenantIdAsync method.
-    /// </summary>
+    /// <summary>Returns sites owned by one tenant.</summary>
+    /// <param name="tenantId">The tenant identifier to match.</param>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Matches ordered by stored site name, or an empty list.</returns>
 Task<IList<SitesModel>> GetByTenantIdAsync(long tenantId, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetByHostnameAsync method.
-    /// </summary>
+    /// <summary>Resolves an exact, pre-normalized host value to its owning site document.</summary>
+    /// <param name="hostname">The pre-normalized hostname to match without further transformation.</param>
+    /// <param name="cancellationToken">Token forwarded to both the host query and site load.</param>
+    /// <returns>The owning site, or <see langword="null"/> when either the host mapping or site document is absent.</returns>
 Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetByNameAsync method.
-    /// </summary>
+    /// <summary>Returns sites whose stored name exactly matches a supplied value.</summary>
+    /// <param name="name">The site name to match without normalization.</param>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Matches ordered by stored site name, or an empty list.</returns>
 Task<IList<SitesModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetEnabledAsync method.
-    /// </summary>
+    /// <summary>Returns enabled sites ordered by stored site name.</summary>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Enabled sites, or an empty list.</returns>
 Task<IList<SitesModel>> GetEnabledAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetDisabledAsync method.
-    /// </summary>
+    /// <summary>Returns disabled sites ordered by stored site name.</summary>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Disabled sites, or an empty list.</returns>
 Task<IList<SitesModel>> GetDisabledAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetByDefaultCultureAsync method.
-    /// </summary>
+    /// <summary>Returns sites whose stored default culture exactly matches a supplied value.</summary>
+    /// <param name="defaultCulture">The culture value to match without normalization.</param>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Matches ordered by stored site name, or an empty list.</returns>
 Task<IList<SitesModel>> GetByDefaultCultureAsync(string defaultCulture, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetCreatedInRangeAsync method.
-    /// </summary>
+    /// <summary>Returns sites created in the half-open interval from <paramref name="from"/> through, but excluding, <paramref name="to"/>.</summary>
+    /// <param name="from">The inclusive creation-time lower bound.</param>
+    /// <param name="to">The exclusive creation-time upper bound.</param>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>The matching sites without a guaranteed order.</returns>
 Task<IList<SitesModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
-        /// <summary>
-    /// GetModifiedInRangeAsync method.
-    /// </summary>
+    /// <summary>Returns sites modified in the half-open interval from <paramref name="from"/> through, but excluding, <paramref name="to"/>.</summary>
+    /// <param name="from">The inclusive modification-time lower bound.</param>
+    /// <param name="to">The exclusive modification-time upper bound.</param>
+    /// <param name="cancellationToken">Token forwarded to query execution.</param>
+    /// <returns>Matching sites with non-null modification timestamps, without a guaranteed order.</returns>
 Task<IList<SitesModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Represents a class for SiteRepository.
-/// </summary>
+/// <summary>Executes site operations through one caller-owned Sable document session.</summary>
+/// <param name="session">The session used for every read and write operation.</param>
+/// <param name="log">The logger supplied to the repository; the current implementation does not emit repository events.</param>
 public sealed class SiteRepository(IDocumentSession session, ILogger<SiteRepository> log) : ISiteRepository
 {
-        /// <summary>
-    /// GetAllAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IEnumerable<SitesModel>> GetAllAsync(int page = 1, int num = 10, CancellationToken ct = default)
     {
         if (page < 1) page = 1;
@@ -85,18 +100,14 @@ public async Task<IEnumerable<SitesModel>> GetAllAsync(int page = 1, int num = 1
         return records?.AsEnumerable() ?? [];
     }
 
-        /// <summary>
-    /// FindByIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Option<SitesModel>> FindByIdAsync(long id, CancellationToken ct = default)
     {
         var res = await session.LoadAsync<SitesModel>(id, ct);
         return res is not null ? Some(res) : None;
     }
 
-        /// <summary>
-    /// InsertAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SitesModel> InsertAsync(SitesModel entity, CancellationToken ct = default)
     {
         session.Store(entity);
@@ -104,9 +115,7 @@ public async Task<SitesModel> InsertAsync(SitesModel entity, CancellationToken c
         return entity;
     }
 
-        /// <summary>
-    /// UpdateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SitesModel> UpdateAsync(SitesModel entity, CancellationToken ct = default)
     {
         session.Store(entity);
@@ -114,9 +123,7 @@ public async Task<SitesModel> UpdateAsync(SitesModel entity, CancellationToken c
         return entity;
     }
 
-        /// <summary>
-    /// DeleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)
     {
         session.Delete<SitesModel>(id);
@@ -125,15 +132,11 @@ public async Task<bool> DeleteAsync(long id, CancellationToken ct = default)
         return result;
     }
 
-        /// <summary>
-    /// GetByTenantIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetByTenantIdAsync(long tenantId, CancellationToken cancellationToken = default)
         => await session.QueryAsync(new SitesByTenantIdQuery { TenantId = tenantId }, cancellationToken);
 
-        /// <summary>
-    /// GetByHostnameAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
     {
         // hostname is expected to be pre-normalized by the caller (see SiteService)
@@ -142,39 +145,27 @@ public async Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationT
         return await session.LoadAsync<SitesModel>(siteHost.SiteId, cancellationToken);
     }
 
-        /// <summary>
-    /// GetByNameAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default)
         => await session.QueryAsync(new SitesByNameQuery { Name = name }, cancellationToken);
 
-        /// <summary>
-    /// GetEnabledAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetEnabledAsync(CancellationToken cancellationToken = default)
         => await session.QueryAsync(new EnabledSitesQuery(), cancellationToken);
 
-        /// <summary>
-    /// GetDisabledAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetDisabledAsync(CancellationToken cancellationToken = default)
         => await session.QueryAsync(new DisabledSitesQuery(), cancellationToken);
 
-        /// <summary>
-    /// GetByDefaultCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetByDefaultCultureAsync(string defaultCulture, CancellationToken cancellationToken = default)
         => await session.QueryAsync(new SitesByDefaultCultureQuery { DefaultCulture = defaultCulture }, cancellationToken);
 
-        /// <summary>
-    /// GetCreatedInRangeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await session.QueryAsync(new SitesCreatedInRangeQuery { From = from, To = to }, cancellationToken);
 
-        /// <summary>
-    /// GetModifiedInRangeAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IList<SitesModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await session.QueryAsync(new SitesModifiedInRangeQuery { From = from, To = to }, cancellationToken);
 }

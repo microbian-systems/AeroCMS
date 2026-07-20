@@ -1,8 +1,9 @@
 namespace Aero.Cms.Data.Queries;
 
 /// <summary>
-/// Represents a class for DocsQueries.
+/// Groups documentation-page query definitions.
 /// </summary>
+/// <remarks>This type currently declares no query parameters or executable query expression.</remarks>
 public class DocsQueries
 {
 

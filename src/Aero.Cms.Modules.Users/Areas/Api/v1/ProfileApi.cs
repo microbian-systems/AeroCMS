@@ -8,13 +8,20 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Users.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for current user profile management.
+/// Maps current-principal profile, password, and avatar operations.
 /// </summary>
+/// <remarks>
+/// The route mapper does not attach an authorization policy. The host must protect the
+/// administrative route group; handlers return unauthorized when no numeric name-identifier
+/// claim resolves to an Identity user. Unexpected exception messages are copied into problem
+/// responses after logging.
+/// </remarks>
 public static class ProfileApi
 {
     /// <summary>
-    /// Maps the Profile Admin API endpoints.
+    /// Maps the administrative current-profile endpoint group.
     /// </summary>
+    /// <param name="app">The endpoint route builder receiving the group.</param>
     public static void MapProfileApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/profile")
@@ -36,6 +43,10 @@ public static class ProfileApi
             .WithName("DeleteAvatar");
     }
 
+    /// <summary>
+    /// Resolves the current Identity user and returns profile data with current roles.
+    /// </summary>
+    /// <remarks>The supplied cancellation token is not forwarded to Identity operations.</remarks>
     private static async Task<IResult> GetProfile(
         [FromServices] UserManager<AeroUser> userManager,
         [FromServices] IHttpContextAccessor httpContextAccessor,
@@ -68,6 +79,13 @@ public static class ProfileApi
         }
     }
 
+    /// <summary>
+    /// Replaces the current user's email and first-name field from the profile request.
+    /// </summary>
+    /// <remarks>
+    /// <c>DisplayName</c> is stored entirely in <c>FirstName</c>; <c>LastName</c> is not changed.
+    /// Identity validation failures become a bad-request response.
+    /// </remarks>
     private static async Task<IResult> UpdateProfile(
         [FromBody] UpdateProfileRequest request,
         [FromServices] UserManager<AeroUser> userManager,
@@ -110,6 +128,9 @@ public static class ProfileApi
         }
     }
 
+    /// <summary>
+    /// Changes the current user's password after Identity verifies the supplied current password.
+    /// </summary>
     private static async Task<IResult> UpdatePassword(
         [FromBody] ChangeProfilePasswordRequest request,
         [FromServices] UserManager<AeroUser> userManager,
@@ -138,6 +159,14 @@ public static class ProfileApi
         }
     }
 
+    /// <summary>
+    /// Stores the request content directly in the current user's profile-picture data field.
+    /// </summary>
+    /// <remarks>
+    /// This handler performs no content-type, size, data-URL, or path validation and ignores the
+    /// result returned by <c>UserManager.UpdateAsync</c>. Validation and
+    /// payload limits must be enforced before untrusted input reaches this endpoint.
+    /// </remarks>
     private static async Task<IResult> UploadAvatar(
         [FromBody] UploadAvatarRequest request,
         [FromServices] UserManager<AeroUser> userManager,
@@ -175,6 +204,10 @@ public static class ProfileApi
         }
     }
 
+    /// <summary>
+    /// Clears the current user's profile-picture data field.
+    /// </summary>
+    /// <remarks>The Identity update result is not inspected before success is returned.</remarks>
     private static async Task<IResult> DeleteAvatar(
         [FromServices] UserManager<AeroUser> userManager,
         [FromServices] IHttpContextAccessor httpContextAccessor,
@@ -201,6 +234,12 @@ public static class ProfileApi
         }
     }
 
+    /// <summary>
+    /// Resolves the current user from a numeric <see cref="ClaimTypes.NameIdentifier"/> claim.
+    /// </summary>
+    /// <param name="userManager">The Identity user manager.</param>
+    /// <param name="httpContextAccessor">The accessor for the active principal.</param>
+    /// <returns>The matching user, or <see langword="null"/> for a missing, nonnumeric, or unknown identifier.</returns>
     private static async Task<AeroUser?> GetCurrentUserAsync(UserManager<AeroUser> userManager, IHttpContextAccessor httpContextAccessor)
     {
         var userIdClaim = httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);

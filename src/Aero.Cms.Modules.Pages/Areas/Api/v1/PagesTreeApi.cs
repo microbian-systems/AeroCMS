@@ -8,14 +8,20 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for page hierarchy / tree operations.
-/// Registered as extension method on IEndpointRouteBuilder.
+/// Maps administrative page hierarchy, navigation, breadcrumb, and route-computation
+/// operations.
 /// </summary>
+/// <remarks>
+/// The route group does not attach an authorization policy. The host is responsible
+/// for protecting the configured admin API prefix.
+/// </remarks>
 public static class PagesTreeApi
 {
-        /// <summary>
-    /// MapPagesTreeApi method.
+    /// <summary>
+    /// Maps tree reads, culture-group children, moves, path computation, and sibling
+    /// order endpoints under the admin page-tree prefix.
     /// </summary>
+    /// <param name="app">The endpoint route builder to extend.</param>
 public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages/tree")

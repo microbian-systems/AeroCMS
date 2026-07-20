@@ -12,6 +12,9 @@ internal static class HtmlFragmentSyntaxGuard
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"
     };
 
+    /// <summary>
+    /// Scans source syntax before parsing so parser recovery, normalization, and discarded constructs fail closed.
+    /// </summary>
     internal static bool TryValidate(
         string source,
         HtmlFragmentImportLimits limits,
@@ -124,6 +127,7 @@ internal static class HtmlFragmentSyntaxGuard
         return true;
     }
 
+    /// <summary>Finds the closing angle bracket while ignoring brackets inside quoted attribute values.</summary>
     private static int FindTagEnd(string source, int start)
     {
         char quote = '\0';
@@ -153,6 +157,7 @@ internal static class HtmlFragmentSyntaxGuard
         return -1;
     }
 
+    /// <summary>Reads a canonical lower-case closing tag with no trailing syntax.</summary>
     private static bool TryReadClosingTag(ReadOnlySpan<char> source, out string tag)
     {
         tag = string.Empty;
@@ -173,6 +178,7 @@ internal static class HtmlFragmentSyntaxGuard
         return IsCanonicalLowerCase(tag);
     }
 
+    /// <summary>Reads an opening tag while enforcing canonical names, unique attributes, and quoted values.</summary>
     private static bool TryReadOpeningTag(
         ReadOnlySpan<char> source,
         out string tag,
@@ -268,19 +274,25 @@ internal static class HtmlFragmentSyntaxGuard
         return true;
     }
 
+    /// <summary>Advances the caller's cursor across contiguous Unicode whitespace.</summary>
     private static void SkipWhitespace(ReadOnlySpan<char> source, ref int index)
     {
         while (index < source.Length && char.IsWhiteSpace(source[index])) index++;
     }
 
+    /// <summary>Rejects uppercase source names that an HTML parser would silently normalize.</summary>
     private static bool IsCanonicalLowerCase(string value) => value.All(character => !char.IsUpper(character));
 
+    /// <summary>Determines whether a character can begin a supported HTML name.</summary>
     private static bool IsAsciiLetter(char value) => value is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
 
+    /// <summary>Determines whether a character can continue a supported tag name.</summary>
     private static bool IsTagNameCharacter(char value) => IsAsciiLetter(value) || char.IsDigit(value) || value is '-';
 
+    /// <summary>Determines whether a character can continue a supported attribute name.</summary>
     private static bool IsAttributeNameCharacter(char value) =>
         IsAsciiLetter(value) || char.IsDigit(value) || value is '-' or '_' or ':';
 }
 
+/// <summary>Captures source tag ancestry for comparison with the parser-produced DOM.</summary>
 internal sealed record HtmlFragmentSourceElement(string TagName, string? ParentTagName);

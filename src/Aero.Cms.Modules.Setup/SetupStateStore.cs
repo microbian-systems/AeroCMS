@@ -4,76 +4,79 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Defines an interface for ISetupStateStore.
+/// Loads the singleton durable setup-state document.
 /// </summary>
 public interface ISetupStateStore
 {
-        /// <summary>
-    /// LoadAsync method.
+    /// <summary>
+    /// Loads the installation outcome from the current data store.
     /// </summary>
+    /// <param name="cancellationToken">Cancels the database query.</param>
+    /// <returns>The setup-state document, or <see langword="null"/> when it has not been created.</returns>
 Task<SetupStateDocument?> LoadAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for AeroSetupStateStore.
+/// Loads setup state from an AeroDB Sable query session.
 /// </summary>
 public sealed class AeroSetupStateStore(IQuerySession querySession) : ISetupStateStore
 {
-        /// <summary>
-    /// LoadAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<SetupStateDocument?> LoadAsync(CancellationToken cancellationToken = default)
         => querySession.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, cancellationToken);
 }
 
 /// <summary>
-/// Defines an interface for ISetupInitializationService.
+/// Exposes the bootstrap state used to gate startup and requests.
 /// </summary>
 public interface ISetupInitializationService
 {
-        /// <summary>
-    /// GetBootstrapState method.
+    /// <summary>
+    /// Gets a snapshot of the file-based bootstrap lifecycle.
     /// </summary>
+    /// <returns>The current bootstrap state.</returns>
 BootstrapState GetBootstrapState();
-        /// <summary>
-    /// HasBootstrapConfig method.
+    /// <summary>
+    /// Determines whether bootstrap configuration has been persisted.
     /// </summary>
+    /// <returns><see langword="true"/> when bootstrap configuration is present.</returns>
 bool HasBootstrapConfig();
-        /// <summary>
-    /// GetStateAsync method.
+    /// <summary>
+    /// Gets durable setup state when supported by the current initialization implementation.
     /// </summary>
+    /// <param name="cancellationToken">Cancels state retrieval.</param>
+    /// <returns>The setup-state document, or <see langword="null"/> when unavailable.</returns>
 Task<SetupStateDocument?> GetStateAsync(CancellationToken cancellationToken = default);
-        /// <summary>
-    /// IsSetupCompleteAsync method.
+    /// <summary>
+    /// Determines whether the setup gate may allow normal application requests.
     /// </summary>
+    /// <param name="cancellationToken">Cancels state retrieval when the implementation performs I/O.</param>
+    /// <returns><see langword="true"/> when bootstrap is configured or running.</returns>
 Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for SetupInitializationService.
+/// Derives startup and request-gating decisions from the file-based bootstrap state.
 /// </summary>
+/// <remarks>
+/// The current implementation does not load the durable setup document and returns
+/// <see langword="null"/> from <see cref="GetStateAsync"/>. Configured is treated as
+/// complete for request gating so the runtime host can perform deferred seeding.
+/// </remarks>
 public sealed class SetupInitializationService(
     IBootstrapStateProvider bootstrapStateProvider) : ISetupInitializationService
 {
-        /// <summary>
-    /// GetBootstrapState method.
-    /// </summary>
+    /// <inheritdoc />
 public BootstrapState GetBootstrapState() => bootstrapStateProvider.GetState();
 
-        /// <summary>
-    /// HasBootstrapConfig method.
-    /// </summary>
+    /// <inheritdoc />
 public bool HasBootstrapConfig() => GetBootstrapState().HasBootstrapConfig;
 
-        /// <summary>
-    /// GetStateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<SetupStateDocument?> GetStateAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<SetupStateDocument?>(null);
 
-        /// <summary>
-    /// IsSetupCompleteAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default)
     {
         var bootstrapState = GetBootstrapState();

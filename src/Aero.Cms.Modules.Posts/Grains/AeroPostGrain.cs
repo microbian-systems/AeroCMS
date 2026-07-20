@@ -13,22 +13,26 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Orleans grain for blog post management — wraps AeroDB persistence behind
-/// the <see cref="IAeroPostActor"/> interface.
-///
-/// Uses manual-construction delegation: opens sessions from <see cref="IDocumentStore"/>,
-/// builds <see cref="PostContentService"/> inline with a <see cref="FixedSiteContext"/>,
-/// and delegates each operation to the service.
+/// Implements the post actor contract by combining direct Sable queries with <see cref="PostContentService"/>.
 /// </summary>
+/// <remarks>
+/// Each operation opens its own session. Service instances use a fixed site context, resolve the
+/// message bus and cache optionally, and omit an HTTP context, so service audit stamping uses
+/// <c>system</c>. Several convenience queries intentionally collapse service failures to empty or
+/// <see langword="null"/> results; response-shaped mutation methods preserve an error message.
+/// </remarks>
 public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 {
     private readonly IDocumentStore _store;
     private readonly IServiceProvider _services;
     private PostViewModel _state = new();
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="AeroPostGrain"/> class.
     /// </summary>
+    /// <param name="log">The actor logger.</param>
+    /// <param name="store">The store used to open per-operation sessions.</param>
+    /// <param name="services">The provider used to resolve optional bus and cache services.</param>
 public AeroPostGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
@@ -41,15 +45,20 @@ public AeroPostGrain(
 
     // ── IHaveState<PostViewModel> ────────────────────────────────────
 
-        /// <summary>
-    /// GetStateAsync method.
+    /// <summary>
+    /// Returns the current activation-local state without reading persistence.
     /// </summary>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>The current state reference.</returns>
 public Task<PostViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-        /// <summary>
-    /// UpdateStateAsync method.
+    /// <summary>
+    /// Replaces the activation-local state without persisting it.
     /// </summary>
+    /// <param name="state">The state reference to retain.</param>
+    /// <param name="ct">A cancellation token that is not observed because the operation is synchronous.</param>
+    /// <returns>A completed task.</returns>
 public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
     {
         _state = state;
@@ -58,6 +67,9 @@ public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
 
     // ── Helper: manual construction of PostContentService ──
 
+    /// <summary>
+    /// Creates a site-scoped service over a caller-owned session.
+    /// </summary>
     private PostContentService CreatePostService(IDocumentSession session, long siteId)
     {
         var bus = _services.GetService<IMessageBus>();
@@ -67,7 +79,8 @@ public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
 
     // ── Blog-specific methods (delegated to PostContentService) ────
 
-    /// <summary>Get all posts with paging and optional search.</summary>
+    /// <inheritdoc />
+    /// <remarks>Service failures are returned as an empty page with a zero total.</remarks>
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetAllPostsAsync(
         long siteId, int skip, int take, string? search, CancellationToken ct)
     {
@@ -79,7 +92,8 @@ public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
         return ([], 0);
     }
 
-    /// <summary>Load a post by ID within a site (returns null if not found or wrong site).</summary>
+    /// <inheritdoc />
+    /// <remarks>Not-found, wrong-site, and service failures are all collapsed to <see langword="null"/>.</remarks>
     public async Task<PostViewModel?> LoadAsync(long id, long siteId, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -90,13 +104,12 @@ public Task UpdateStateAsync(PostViewModel state, CancellationToken ct)
         return null;
     }
 
-    /// <summary>Find a published post by slug within a site.</summary>
+    /// <inheritdoc />
     public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, CancellationToken ct)
         => await FindBySlugAsync(slug, siteId, culture: null, ct);
 
-        /// <summary>
-    /// FindBySlugAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Not-found, unpublished, and service failures are all collapsed to <see langword="null"/>.</remarks>
 public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -107,9 +120,13 @@ public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, stri
         return null;
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
+    /// <summary>
+    /// Resolves a source post, then returns the variants in its translation group.
     /// </summary>
+    /// <param name="id">The identifier of any variant in the group.</param>
+    /// <param name="ct">A token used to cancel persistence queries.</param>
+    /// <returns>Mapped variants, or an empty list when the source or service result is unavailable.</returns>
+    /// <remarks>The source lookup is by identifier and derives its site from the document; it does not accept a caller site scope.</remarks>
 public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
@@ -127,9 +144,15 @@ public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, Cancell
             : [];
     }
 
-        /// <summary>
-    /// ForkPostForCultureAsync method.
+    /// <summary>
+    /// Creates and persists a draft culture variant of a source post.
     /// </summary>
+    /// <param name="id">The source post identifier.</param>
+    /// <param name="culture">The target culture.</param>
+    /// <param name="slug">The target slug.</param>
+    /// <param name="ct">A token used to cancel persistence work.</param>
+    /// <returns>The persisted variant or an error response.</returns>
+    /// <remarks>The initial source lookup is not supplied with a caller site; the source document determines the service scope.</remarks>
 public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
@@ -147,7 +170,11 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
         return Fail("Failed to create post translation");
     }
 
-    /// <summary>Save (create or update) a blog post, handling slug reservation + cache eviction.</summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// A missing series is assigned by a separate session before the post session is opened. General
+    /// series creation and post persistence therefore do not share a transaction.
+    /// </remarks>
     public async Task<AeroRequestResponse<PostViewModel>> SavePostAsync(PostViewModel vm, long siteId, CancellationToken ct)
     {
         vm.SeriesId ??= await EnsureGeneralSeriesIdAsync(siteId, ct);
@@ -165,7 +192,8 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
         return Fail("Failed to save post");
     }
 
-    /// <summary>Delete a blog post by ID, handling slug cleanup + cache eviction.</summary>
+    /// <inheritdoc />
+    /// <remarks>The method loads before deleting so a successful response can return the deleted snapshot.</remarks>
     public async Task<AeroRequestResponse<PostViewModel>> DeletePostAsync(long id, long siteId, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -182,7 +210,8 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
         return Fail("Failed to delete post");
     }
 
-    /// <summary>Publish a blog post by ID.</summary>
+    /// <inheritdoc />
+    /// <remarks>Loading and saving use separate sessions; a missing or wrong-site post produces a failure response.</remarks>
     public async Task<AeroRequestResponse<PostViewModel>> PublishPostAsync(long id, long siteId, CancellationToken ct)
     {
         var vm = await LoadAsync(id, siteId, ct);
@@ -195,7 +224,8 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
         return await SavePostAsync(vm, siteId, ct);
     }
 
-    /// <summary>Unpublish a blog post by ID (set to Draft).</summary>
+    /// <inheritdoc />
+    /// <remarks>Loading and saving use separate sessions; a missing or wrong-site post produces a failure response.</remarks>
     public async Task<AeroRequestResponse<PostViewModel>> UnpublishPostAsync(long id, long siteId, CancellationToken ct)
     {
         var vm = await LoadAsync(id, siteId, ct);
@@ -210,9 +240,12 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
 
     // ── ICruddable<PostViewModel, long> (direct IDocumentStore access) ──────
 
-        /// <summary>
-    /// GetByIdAsync method.
+    /// <summary>
+    /// Loads a post by identifier without applying a site or publication-state filter.
     /// </summary>
+    /// <param name="id">The persisted post identifier.</param>
+    /// <param name="ct">A token used to cancel the query.</param>
+    /// <returns>The mapped post or a not-found response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.QuerySessionAsync();
@@ -222,9 +255,12 @@ public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, Canc
             : NotFound($"Post {id} not found");
     }
 
-        /// <summary>
-    /// GetByIdsAsync method.
+    /// <summary>
+    /// Loads matching posts without a site filter and returns only the first mapped document.
     /// </summary>
+    /// <param name="ids">The post identifiers to query.</param>
+    /// <param name="ct">A token used to cancel the query.</param>
+    /// <returns>A successful response containing the first match or an empty view model.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.QuerySessionAsync();
@@ -235,9 +271,12 @@ public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, 
         return Ok(primary);
     }
 
-        /// <summary>
-    /// CreateAsync method.
+    /// <summary>
+    /// Adapts a recognized actor create request to a new post and delegates persistence to <see cref="SavePostAsync"/>.
     /// </summary>
+    /// <param name="request">A post create request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used to cancel persistence work.</param>
+    /// <returns>The saved post or an error response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreatePostRequest create)
@@ -263,9 +302,12 @@ public async Task<AeroRequestResponse<PostViewModel>> CreateAsync(IRequest reque
         return await SavePostAsync(vm, create.SiteId, ct);
     }
 
-        /// <summary>
-    /// UpdateAsync method.
+    /// <summary>
+    /// Loads a post by identifier, applies actor-request fields, and delegates persistence.
     /// </summary>
+    /// <param name="request">A post update request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used to cancel persistence work.</param>
+    /// <returns>The saved post, a not-found response, or a request-type failure response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdatePostRequest update)
@@ -287,9 +329,12 @@ public async Task<AeroRequestResponse<PostViewModel>> UpdateAsync(IRequest reque
         return await SavePostAsync(vm, existing.SiteId, ct);
     }
 
-        /// <summary>
-    /// DeleteAsync method.
+    /// <summary>
+    /// Resolves the post's site from persistence and delegates its deletion.
     /// </summary>
+    /// <param name="request">A post delete request; other request types produce a failure response.</param>
+    /// <param name="ct">A token used to cancel persistence work.</param>
+    /// <returns>The deleted post, a not-found response, or an error response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeletePostRequest delete)
@@ -305,9 +350,14 @@ public async Task<AeroRequestResponse<PostViewModel>> DeleteAsync(IRequest reque
 
     // ── ICanFindBySite<PostViewModel, long> ──────────────────────────
 
-        /// <summary>
-    /// GetBySiteIdAsync method.
+    /// <summary>
+    /// Returns the first item from a requested site page.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="page">The one-based page number.</param>
+    /// <param name="rows">The maximum number of posts queried.</param>
+    /// <param name="ct">A token used to cancel the query.</param>
+    /// <returns>The first post in the page, or a not-found response when the page is empty or the query fails.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
@@ -317,15 +367,22 @@ public async Task<AeroRequestResponse<PostViewModel>> GetBySiteIdAsync(
 
     // ── ICanFindBySlug<PostViewModel, long> ──────────────────────────
 
-        /// <summary>
-    /// GetBySlugAsync method.
+    /// <summary>
+    /// Finds a published post by slug within a site and returns an actor response.
     /// </summary>
+    /// <param name="siteId">The owning site identifier.</param>
+    /// <param name="slug">The route slug.</param>
+    /// <param name="ct">A token used to cancel the query.</param>
+    /// <returns>The post or a not-found response.</returns>
 public async Task<AeroRequestResponse<PostViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
     {
         var vm = await FindBySlugAsync(slug, siteId, ct);
         return vm is not null ? Ok(vm) : NotFound($"Post with slug '{slug}' not found");
     }
 
+    /// <summary>
+    /// Adapts the string site-key contract to the numeric site identifier used by persistence.
+    /// </summary>
     Task<AeroRequestResponse<PostViewModel>> ICanFindBySlug<PostViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
     {
         if (long.TryParse(siteId, out var id))
@@ -335,13 +392,12 @@ public async Task<AeroRequestResponse<PostViewModel>> GetBySlugAsync(long siteId
 
     // ── Additional blog query methods ────────────────────────────────
 
-    /// <summary>Get latest N published posts for a site.</summary>
+    /// <inheritdoc />
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct)
         => await GetLatestPostsAsync(siteId, count, culture: null, ct);
 
-        /// <summary>
-    /// GetLatestPostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Service failures are returned as an empty list with a zero total.</remarks>
 public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, string? culture, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -355,14 +411,13 @@ public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAs
         return ([], 0);
     }
 
-    /// <summary>Get paged published posts, skipping the first N latest posts.</summary>
+    /// <inheritdoc />
     public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
         long siteId, int page, int pageSize, int skipFromLatest, CancellationToken ct)
         => await GetPagedPostsAsync(siteId, page, pageSize, skipFromLatest, culture: null, ct);
 
-        /// <summary>
-    /// GetPagedPostsAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>Service failures are returned as an empty page with all metadata set to zero or false.</remarks>
 public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
         long siteId, int page, int pageSize, int skipFromLatest, string? culture, CancellationToken ct)
     {
@@ -383,7 +438,8 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
         return ([], 0, 0, false, false);
     }
 
-    /// <summary>Get all tag IDs mapped to their display names for a site.</summary>
+    /// <inheritdoc />
+    /// <remarks>Service failures are collapsed to an empty dictionary.</remarks>
     public async Task<Dictionary<long, string>> GetTagNameMapAsync(long siteId, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -394,7 +450,11 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
         return [];
     }
 
-    /// <summary>Get a summary of a post author for a site.</summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// The underlying author document has no site field, so <paramref name="siteId"/> only scopes the
+    /// constructed service and does not constrain the author lookup.
+    /// </remarks>
     public async Task<(string? Name, string? Bio, string? AvatarUrl)?> GetPostAuthorSummaryAsync(long siteId, long authorId, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -407,6 +467,9 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
 
     // ── Helpers ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Copies a persisted document into the actor model, substituting empty collections and system audit names.
+    /// </summary>
     private static PostViewModel MapToViewModel(PostDocument d)
     {
         return new()
@@ -436,6 +499,9 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
         };
     }
 
+    /// <summary>
+    /// Copies actor state into a persistence document without normalizing culture or reserving the slug.
+    /// </summary>
     private static PostDocument MapToDocument(PostViewModel vm)
     {
         var doc = new PostDocument
@@ -468,6 +534,9 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
         return doc;
     }
 
+    /// <summary>
+    /// Gets or persists the site's <c>general</c> series in an independent session.
+    /// </summary>
     private async Task<long> EnsureGeneralSeriesIdAsync(long siteId, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -494,16 +563,25 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
 
     // ── AeroRequestResponse helpers ────────────────────────────────────
 
+    /// <summary>
+    /// Creates a successful actor response.
+    /// </summary>
     private static AeroRequestResponse<PostViewModel> Ok(PostViewModel vm)
         => new(vm, new PostErrorViewModel());
 
+    /// <summary>
+    /// Creates a not-found response with an empty post payload.
+    /// </summary>
     private static AeroRequestResponse<PostViewModel> NotFound(string msg)
         => new(new PostViewModel(), new PostErrorViewModel { Message = msg });
 
+    /// <summary>
+    /// Creates a failure response with an empty post payload.
+    /// </summary>
     private static AeroRequestResponse<PostViewModel> Fail(string msg)
         => new(new PostViewModel(), new PostErrorViewModel { Message = msg });
 
-    /// <summary>Extract a human-readable message from any <see cref="AeroError"/> subtype.</summary>
+    /// <summary>Extracts a human-readable message from any <see cref="AeroError"/> subtype.</summary>
     private static string GetErrorMessage(AeroError error) => error switch
     {
         AeroError.Error e => e.msg,
@@ -527,14 +605,18 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
 
     // ── FixedSiteContext ─────────────────────────────────────────────
 
+    /// <summary>
+    /// Supplies the actor-selected site as both the site and tenant boundary for a delegated service.
+    /// </summary>
+    /// <param name="siteId">The identifier exposed as both site and tenant.</param>
     private sealed class FixedSiteContext(long siteId) : ISiteContext
     {
-                /// <summary>
-        /// Gets or sets the Site Id.
+        /// <summary>
+        /// Gets the fixed site identifier.
         /// </summary>
 public long SiteId { get; } = siteId;
-                /// <summary>
-        /// Gets or sets the Tenant Id.
+        /// <summary>
+        /// Gets the same identifier as <see cref="SiteId"/>.
         /// </summary>
 public long TenantId { get; } = siteId;
     }

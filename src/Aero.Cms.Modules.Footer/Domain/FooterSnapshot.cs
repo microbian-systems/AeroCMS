@@ -3,54 +3,64 @@ using System.Text.Json.Serialization;
 namespace Aero.Cms.Modules.Footer.Domain;
 
 /// <summary>
-/// Represents a record for FooterSnapshot.
+/// Captures the complete editable or published footer composition.
 /// </summary>
+/// <remarks>
+/// A snapshot can use either the row/column canvas model or the flat <see cref="Sections"/> model.
+/// When any rows exist, <see cref="Components"/> and validation ignore the flat sections.
+/// </remarks>
 public sealed record FooterSnapshot
 {
-        /// <summary>
-    /// Gets or sets the Brand.
-    /// </summary>
-public FooterBrandSettings Brand { get; init; } = new();
-        /// <summary>
-    /// Gets or sets the Style.
-    /// </summary>
-public FooterStyleSettings Style { get; init; } = FooterStyleSettings.Default;
-        /// <summary>
-    /// Gets or sets the Responsive.
-    /// </summary>
-public FooterResponsiveSettings Responsive { get; init; } = FooterResponsiveSettings.Default;
-        /// <summary>
-    /// Gets or sets the Legal.
-    /// </summary>
-public FooterLegalSettings Legal { get; init; } = FooterLegalSettings.Default;
-        /// <summary>
-    /// Gets or sets the Rows.
-    /// </summary>
-public List<FooterCanvasRow> Rows { get; init; } = [];
-        /// <summary>
-    /// Gets or sets the Sections.
-    /// </summary>
-public List<IFooterComponent> Sections { get; init; } = [];
+    /// <summary>Gets the logo, company name, and tagline content.</summary>
+    public FooterBrandSettings Brand { get; init; } = new();
 
-        /// <summary>
-    /// Gets or sets the Components.
+    /// <summary>Gets the visual settings supplied to the renderer.</summary>
+    public FooterStyleSettings Style { get; init; } = FooterStyleSettings.Default;
+
+    /// <summary>Gets the responsive metadata stored with the snapshot.</summary>
+    public FooterResponsiveSettings Responsive { get; init; } = FooterResponsiveSettings.Default;
+
+    /// <summary>Gets the copyright and legal-link content.</summary>
+    public FooterLegalSettings Legal { get; init; } = FooterLegalSettings.Default;
+
+    /// <summary>Gets the ordered canvas rows used by the structured layout model.</summary>
+    public List<FooterCanvasRow> Rows { get; init; } = [];
+
+    /// <summary>Gets the flat component list used when <see cref="Rows"/> is empty.</summary>
+    public List<IFooterComponent> Sections { get; init; } = [];
+
+    /// <summary>
+    /// Enumerates the active components in render order.
     /// </summary>
-[JsonIgnore]
+    /// <remarks>
+    /// Rows, columns, and blocks are independently ordered by their <c>Order</c> values. When rows
+    /// exist, flat sections are not returned. The property is excluded from JSON serialization.
+    /// </remarks>
+    [JsonIgnore]
     public IEnumerable<IFooterComponent> Components => Rows.Count > 0
         ? Rows.OrderBy(row => row.Order)
             .SelectMany(row => row.Columns.OrderBy(column => column.Order))
             .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
         : Sections.OrderBy(x => x.Order);
 
-        /// <summary>
-    /// Gets or sets the Empty.
+    /// <summary>
+    /// Gets a shared snapshot initialized with the model defaults and no components.
     /// </summary>
-public static FooterSnapshot Empty { get; } = new();
+    /// <remarks>The returned record contains mutable lists; callers should not mutate shared state.</remarks>
+    public static FooterSnapshot Empty { get; } = new();
 
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Validates the brand, style, active component keys, and component-specific required content.
     /// </summary>
-public void Validate()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when required content is missing, component keys are duplicated case-insensitively,
+    /// opacity is outside zero through one, or a validated URL is not app-relative HTTP/HTTPS.
+    /// </exception>
+    /// <remarks>
+    /// This validation does not sanitize content and does not validate row, column, or block keys,
+    /// ordering values, responsive tokens, or every style token.
+    /// </remarks>
+    public void Validate()
     {
         Brand.Validate();
         Style.Validate();
@@ -108,92 +118,73 @@ public void Validate()
 }
 
 /// <summary>
-/// Represents a record for FooterCanvasRow.
+/// Defines one ordered row in the structured footer canvas.
 /// </summary>
 public sealed record FooterCanvasRow
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Label.
-    /// </summary>
-public string? Label { get; init; }
-        /// <summary>
-    /// Gets or sets the Desktop Display.
-    /// </summary>
-public string DesktopDisplay { get; init; } = "Grid";
-        /// <summary>
-    /// Gets or sets the Tablet Display.
-    /// </summary>
-public string TabletDisplay { get; init; } = "Grid";
-        /// <summary>
-    /// Gets or sets the Mobile Display.
-    /// </summary>
-public string MobileDisplay { get; init; } = "Stack";
-        /// <summary>
-    /// Gets or sets the Columns.
-    /// </summary>
-public List<FooterCanvasColumn> Columns { get; init; } = [];
+    /// <summary>Gets the authoring key for the row.</summary>
+    public string Key { get; init; } = string.Empty;
+
+    /// <summary>Gets the row's relative sort position.</summary>
+    public int Order { get; init; }
+
+    /// <summary>Gets the optional author-facing label.</summary>
+    public string? Label { get; init; }
+
+    /// <summary>Gets the stored desktop display-mode token.</summary>
+    public string DesktopDisplay { get; init; } = "Grid";
+
+    /// <summary>Gets the stored tablet display-mode token.</summary>
+    public string TabletDisplay { get; init; } = "Grid";
+
+    /// <summary>Gets the stored mobile display-mode token.</summary>
+    public string MobileDisplay { get; init; } = "Stack";
+
+    /// <summary>Gets the columns contained by the row.</summary>
+    public List<FooterCanvasColumn> Columns { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for FooterCanvasColumn.
+/// Defines one ordered column and its responsive spans in a canvas row.
 /// </summary>
 public sealed record FooterCanvasColumn
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Desktop Span.
-    /// </summary>
-public int DesktopSpan { get; init; } = 4;
-        /// <summary>
-    /// Gets or sets the Tablet Span.
-    /// </summary>
-public int TabletSpan { get; init; } = 6;
-        /// <summary>
-    /// Gets or sets the Mobile Span.
-    /// </summary>
-public int MobileSpan { get; init; } = 12;
-        /// <summary>
-    /// Gets or sets the Blocks.
-    /// </summary>
-public List<FooterCanvasBlock> Blocks { get; init; } = [];
+    /// <summary>Gets the authoring key for the column.</summary>
+    public string Key { get; init; } = string.Empty;
+
+    /// <summary>Gets the column's relative sort position.</summary>
+    public int Order { get; init; }
+
+    /// <summary>Gets the requested desktop width on a twelve-column grid.</summary>
+    public int DesktopSpan { get; init; } = 4;
+
+    /// <summary>Gets the requested tablet width on a twelve-column grid.</summary>
+    public int TabletSpan { get; init; } = 6;
+
+    /// <summary>Gets the requested mobile width on a twelve-column grid.</summary>
+    public int MobileSpan { get; init; } = 12;
+
+    /// <summary>Gets the component blocks contained by the column.</summary>
+    public List<FooterCanvasBlock> Blocks { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for FooterCanvasBlock.
+/// Places one ordered footer component in a canvas column.
 /// </summary>
 public sealed record FooterCanvasBlock
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Component.
-    /// </summary>
-public IFooterComponent Component { get; init; } = new FooterTextBlock { Text = "Footer text" };
+    /// <summary>Gets the authoring key for the block.</summary>
+    public string Key { get; init; } = string.Empty;
+
+    /// <summary>Gets the block's relative sort position.</summary>
+    public int Order { get; init; }
+
+    /// <summary>Gets the component hosted by the block.</summary>
+    public IFooterComponent Component { get; init; } = new FooterTextBlock { Text = "Footer text" };
 }
 
 /// <summary>
-/// Defines an interface for IFooterComponent.
+/// Defines the identity, order, and intended placement shared by footer components.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(FooterLinkGroup), "linkGroup")]
@@ -204,211 +195,181 @@ public IFooterComponent Component { get; init; } = new FooterTextBlock { Text = 
 [JsonDerivedType(typeof(FooterSpacer), "spacer")]
 public interface IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-string Key { get; }
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-int Order { get; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-FooterSectionPlacement Placement { get; }
+    /// <summary>Gets the key that must be unique across active components.</summary>
+    string Key { get; }
+
+    /// <summary>Gets the component's relative sort position.</summary>
+    int Order { get; }
+
+    /// <summary>Gets the component's intended semantic footer region.</summary>
+    FooterSectionPlacement Placement { get; }
 }
 
 /// <summary>
-/// Defines an enumeration for FooterSectionPlacement.
+/// Identifies the intended semantic region for a flat footer component.
 /// </summary>
 public enum FooterSectionPlacement
 {
+    /// <summary>The brand and descriptive-content region.</summary>
     Brand,
+
+    /// <summary>The primary navigation or content region.</summary>
     Main,
+
+    /// <summary>The supporting utility region.</summary>
     Utility,
+
+    /// <summary>The bottom legal and social region.</summary>
     Bottom
 }
 
 /// <summary>
-/// Represents a record for FooterLinkGroup.
+/// Defines a titled collection of navigation links.
 /// </summary>
 public sealed record FooterLinkGroup : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Main;
-        /// <summary>
-    /// Gets or sets the Title.
-    /// </summary>
-public string Title { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Links.
-    /// </summary>
-public List<FooterLink> Links { get; init; } = [];
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Main;
+
+    /// <summary>Gets the heading displayed above the links.</summary>
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>Gets the links in their stored order.</summary>
+    public List<FooterLink> Links { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for FooterTextBlock.
+/// Defines a plain-text footer component.
 /// </summary>
 public sealed record FooterTextBlock : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Brand;
-        /// <summary>
-    /// Gets or sets the Text.
-    /// </summary>
-public string Text { get; init; } = string.Empty;
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Brand;
+
+    /// <summary>Gets the text content. The HTML renderer encodes this value.</summary>
+    public string Text { get; init; } = string.Empty;
 }
 
 /// <summary>
-/// Represents a record for FooterSocialLinks.
+/// Defines a collection of links to social platforms.
 /// </summary>
 public sealed record FooterSocialLinks : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
-        /// <summary>
-    /// Gets or sets the Links.
-    /// </summary>
-public List<FooterSocialLink> Links { get; init; } = [];
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
+
+    /// <summary>Gets the social links in their stored order.</summary>
+    public List<FooterSocialLink> Links { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for FooterNewsletterSignup.
+/// Defines a newsletter-subscription form rendered into the footer.
 /// </summary>
 public sealed record FooterNewsletterSignup : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
-        /// <summary>
-    /// Gets or sets the Endpoint Key.
-    /// </summary>
-public string EndpointKey { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Placeholder.
-    /// </summary>
-public string Placeholder { get; init; } = "Email address";
-        /// <summary>
-    /// Gets or sets the Button Label.
-    /// </summary>
-public string ButtonLabel { get; init; } = "Subscribe";
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
+
+    /// <summary>Gets the form action written by the renderer.</summary>
+    /// <remarks>This module renders the form but does not implement the receiving endpoint.</remarks>
+    public string EndpointKey { get; init; } = string.Empty;
+
+    /// <summary>Gets the email-input placeholder.</summary>
+    public string Placeholder { get; init; } = "Email address";
+
+    /// <summary>Gets the submit-button label.</summary>
+    public string ButtonLabel { get; init; } = "Subscribe";
 }
 
 /// <summary>
-/// Represents a record for FooterSearch.
+/// Defines a search form rendered into the footer.
 /// </summary>
 public sealed record FooterSearch : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
-        /// <summary>
-    /// Gets or sets the Placeholder.
-    /// </summary>
-public string Placeholder { get; init; } = "Search...";
-        /// <summary>
-    /// Gets or sets the Search Action.
-    /// </summary>
-public string SearchAction { get; init; } = "/search";
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Utility;
+
+    /// <summary>Gets the search-input placeholder.</summary>
+    public string Placeholder { get; init; } = "Search...";
+
+    /// <summary>Gets the action written on the rendered GET form.</summary>
+    /// <remarks>This module renders the form but does not implement the search endpoint.</remarks>
+    public string SearchAction { get; init; } = "/search";
 }
 
 /// <summary>
-/// Represents a record for FooterSpacer.
+/// Defines a visual spacing component.
 /// </summary>
 public sealed record FooterSpacer : IFooterComponent
 {
-        /// <summary>
-    /// Gets or sets the Key.
-    /// </summary>
-public string Key { get; init; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-public int Order { get; init; }
-        /// <summary>
-    /// Gets or sets the Placement.
-    /// </summary>
-public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Main;
-        /// <summary>
-    /// Gets or sets the Size Token.
-    /// </summary>
-public string SizeToken { get; init; } = "md";
+    /// <inheritdoc />
+    public string Key { get; init; } = string.Empty;
+
+    /// <inheritdoc />
+    public int Order { get; init; }
+
+    /// <inheritdoc />
+    public FooterSectionPlacement Placement { get; init; } = FooterSectionPlacement.Main;
+
+    /// <summary>Gets the size token written as a CSS class suffix by the renderer.</summary>
+    public string SizeToken { get; init; } = "md";
 }
 
 /// <summary>
-/// Represents a record for FooterBrandSettings.
+/// Defines the brand identity displayed by the footer renderer.
 /// </summary>
 public sealed record FooterBrandSettings
 {
-        /// <summary>
-    /// Gets or sets the Logo Url.
-    /// </summary>
-public string? LogoUrl { get; init; }
-        /// <summary>
-    /// Gets or sets the Logo Alt Text.
-    /// </summary>
-public string? LogoAltText { get; init; }
-        /// <summary>
-    /// Gets or sets the Company Name.
-    /// </summary>
-public string CompanyName { get; init; } = "Aero CMS";
-        /// <summary>
-    /// Gets or sets the Tagline.
-    /// </summary>
-public string? Tagline { get; init; }
+    /// <summary>Gets the optional app-relative or absolute HTTP/HTTPS logo URL.</summary>
+    public string? LogoUrl { get; init; }
 
-        /// <summary>
-    /// Validate method.
+    /// <summary>Gets the alternative text used when a logo image is rendered.</summary>
+    public string? LogoAltText { get; init; }
+
+    /// <summary>Gets the required company name.</summary>
+    public string CompanyName { get; init; } = "Aero CMS";
+
+    /// <summary>Gets the optional tagline displayed beneath the company name.</summary>
+    public string? Tagline { get; init; }
+
+    /// <summary>
+    /// Validates the required company name and logo URL shape.
     /// </summary>
-public void Validate()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the company name is blank or the nonblank logo URL is not app-relative HTTP/HTTPS.
+    /// </exception>
+    /// <remarks>This method validates URL shape; it does not fetch, authorize, or sanitize the resource.</remarks>
+    public void Validate()
     {
         if (string.IsNullOrWhiteSpace(CompanyName))
         {
@@ -420,52 +381,46 @@ public void Validate()
 }
 
 /// <summary>
-/// Represents a record for FooterStyleSettings.
+/// Defines visual tokens and optional background-image settings for a footer.
 /// </summary>
 public sealed record FooterStyleSettings
 {
-        /// <summary>
-    /// Gets or sets the Background Color Token.
-    /// </summary>
-public string? BackgroundColorToken { get; init; } = "slate-950";
-        /// <summary>
-    /// Gets or sets the Text Color Token.
-    /// </summary>
-public string? TextColorToken { get; init; } = "slate-100";
-        /// <summary>
-    /// Gets or sets the Accent Color Token.
-    /// </summary>
-public string? AccentColorToken { get; init; } = "indigo-300";
-        /// <summary>
-    /// Gets or sets the Background Image Url.
-    /// </summary>
-public string? BackgroundImageUrl { get; init; }
-        /// <summary>
-    /// Gets or sets the Background Image Mode.
-    /// </summary>
-public string BackgroundImageMode { get; init; } = "cover";
-        /// <summary>
-    /// Gets or sets the Overlay Color Token.
-    /// </summary>
-public string? OverlayColorToken { get; init; } = "slate-950";
-        /// <summary>
-    /// Gets or sets the Overlay Opacity.
-    /// </summary>
-public decimal OverlayOpacity { get; init; } = 0.35m;
-        /// <summary>
-    /// Gets or sets the Padding Token.
-    /// </summary>
-public string PaddingToken { get; init; } = "footer";
+    /// <summary>Gets the stored background-color token.</summary>
+    public string? BackgroundColorToken { get; init; } = "slate-950";
 
-        /// <summary>
-    /// Gets or sets the Default.
-    /// </summary>
-public static FooterStyleSettings Default { get; } = new();
+    /// <summary>Gets the stored text-color token.</summary>
+    public string? TextColorToken { get; init; } = "slate-100";
 
-        /// <summary>
-    /// Validate method.
+    /// <summary>Gets the stored accent-color token.</summary>
+    public string? AccentColorToken { get; init; } = "indigo-300";
+
+    /// <summary>Gets the optional app-relative or absolute HTTP/HTTPS background-image URL.</summary>
+    public string? BackgroundImageUrl { get; init; }
+
+    /// <summary>Gets the requested background-image mode.</summary>
+    /// <remarks>The current renderer recognizes cover and contain; other values render a repeating image.</remarks>
+    public string BackgroundImageMode { get; init; } = "cover";
+
+    /// <summary>Gets the stored overlay-color token.</summary>
+    public string? OverlayColorToken { get; init; } = "slate-950";
+
+    /// <summary>Gets the requested overlay opacity in the inclusive range zero through one.</summary>
+    public decimal OverlayOpacity { get; init; } = 0.35m;
+
+    /// <summary>Gets the stored padding token.</summary>
+    public string PaddingToken { get; init; } = "footer";
+
+    /// <summary>Gets a shared instance initialized with the style defaults.</summary>
+    public static FooterStyleSettings Default { get; } = new();
+
+    /// <summary>
+    /// Validates the background-image URL shape and overlay opacity.
     /// </summary>
-public void Validate()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the nonblank image URL is not app-relative HTTP/HTTPS or opacity is outside zero through one.
+    /// </exception>
+    /// <remarks>This method does not validate the color, mode, or padding tokens.</remarks>
+    public void Validate()
     {
         FooterUrlValidation.Validate(BackgroundImageUrl, "Footer background image URL");
 
@@ -477,52 +432,54 @@ public void Validate()
 }
 
 /// <summary>
-/// Represents a record for FooterResponsiveSettings.
+/// Stores the breakpoint token associated with a footer snapshot.
 /// </summary>
+/// <param name="MobileBreakpoint">The mobile breakpoint token. The model does not validate this value.</param>
 public sealed record FooterResponsiveSettings(string MobileBreakpoint)
 {
-        /// <summary>
-    /// Gets or sets the Default.
-    /// </summary>
-public static FooterResponsiveSettings Default { get; } = new("md");
+    /// <summary>Gets a shared settings instance using the <c>md</c> breakpoint.</summary>
+    public static FooterResponsiveSettings Default { get; } = new("md");
 }
 
 /// <summary>
-/// Represents a record for FooterLegalSettings.
+/// Defines copyright text and legal links displayed in the footer's bottom region.
 /// </summary>
 public sealed record FooterLegalSettings
 {
-        /// <summary>
-    /// Gets or sets the Copyright Text.
-    /// </summary>
-public string? CopyrightText { get; init; }
-        /// <summary>
-    /// Gets or sets the Auto Append Current Year.
-    /// </summary>
-public bool AutoAppendCurrentYear { get; init; } = true;
-        /// <summary>
-    /// Gets or sets the Legal Links.
-    /// </summary>
-public List<FooterLink> LegalLinks { get; init; } = [];
+    /// <summary>Gets the optional copyright text.</summary>
+    public string? CopyrightText { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Default.
-    /// </summary>
-public static FooterLegalSettings Default { get; } = new()
+    /// <summary>Gets whether the UTC calendar year is appended during rendering.</summary>
+    public bool AutoAppendCurrentYear { get; init; } = true;
+
+    /// <summary>Gets the legal links in their stored order.</summary>
+    public List<FooterLink> LegalLinks { get; init; } = [];
+
+    /// <summary>Gets a shared instance initialized with the default Aero CMS copyright text.</summary>
+    /// <remarks>The returned record contains a mutable link list; callers should not mutate shared state.</remarks>
+    public static FooterLegalSettings Default { get; } = new()
     {
         CopyrightText = "Aero CMS. All rights reserved."
     };
 }
 
 /// <summary>
-/// Represents a record for FooterLink.
+/// Defines a labeled footer hyperlink.
 /// </summary>
+/// <param name="Label">The required display label.</param>
+/// <param name="Href">The required app-relative or absolute HTTP/HTTPS destination.</param>
+/// <param name="OpenInNewTab">Whether the renderer requests a new browsing context.</param>
+/// <param name="Id">The optional persisted link identifier.</param>
 public sealed record FooterLink(string Label, string Href, bool OpenInNewTab = false, long Id = 0)
 {
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Validates the required label and destination URL shape.
     /// </summary>
-public void Validate()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the label or destination is blank, or the destination is not app-relative HTTP/HTTPS.
+    /// </exception>
+    /// <remarks>This method validates URL shape; it does not sanitize or verify the destination.</remarks>
+    public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Label))
             throw new InvalidOperationException("Footer link label is required.");
@@ -535,14 +492,23 @@ public void Validate()
 }
 
 /// <summary>
-/// Represents a record for FooterSocialLink.
+/// Defines a link to a named social platform.
 /// </summary>
+/// <param name="Platform">The required platform label.</param>
+/// <param name="Href">The optional app-relative or absolute HTTP/HTTPS destination.</param>
 public sealed record FooterSocialLink(string Platform, string Href)
 {
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Validates the platform label and, when nonblank, the destination URL shape.
     /// </summary>
-public void Validate()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the platform is blank or a nonblank destination is not app-relative HTTP/HTTPS.
+    /// </exception>
+    /// <remarks>
+    /// Unlike <see cref="FooterLink.Validate"/>, this method currently permits a blank destination.
+    /// It validates URL shape but does not sanitize or verify the destination.
+    /// </remarks>
+    public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Platform))
             throw new InvalidOperationException("Footer social platform is required.");
@@ -553,10 +519,14 @@ public void Validate()
 
 internal static class FooterUrlValidation
 {
-        /// <summary>
-    /// Validate method.
+    /// <summary>
+    /// Accepts blank values, single-slash app-relative URLs, and absolute HTTP or HTTPS URLs.
     /// </summary>
-public static void Validate(string? value, string fieldName)
+    /// <param name="value">The URL value to validate.</param>
+    /// <param name="fieldName">The field label included in an error message.</param>
+    /// <exception cref="InvalidOperationException">Thrown when a nonblank value has an unsupported URL shape or scheme.</exception>
+    /// <remarks>This check is validation, not content sanitization or destination authorization.</remarks>
+    public static void Validate(string? value, string fieldName)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

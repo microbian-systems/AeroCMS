@@ -14,11 +14,13 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// Thin admin API for content type definition management — delegates to
 /// <see cref="IAeroContentTypeActor"/> (Orleans grain).
 /// </summary>
+/// <remarks>Every route requires authorization and scopes actor operations to the current site.</remarks>
 public static class ContentTypesApi
 {
         /// <summary>
-    /// MapContentTypesApi method.
+    /// Maps authenticated content-type listing and mutation endpoints.
     /// </summary>
+    /// <param name="app">The endpoint route builder that receives the administrative routes.</param>
 public static void MapContentTypesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-types")
@@ -32,6 +34,11 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         group.MapDelete("/{alias}", DeleteContentType).WithName("DeleteContentType");
     }
 
+    /// <summary>
+    /// Lists current-site content types and counts their items sequentially.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 400 without a current site, or HTTP 500 on caught exceptions.</returns>
+    /// <remarks>A failed per-type count is represented as zero rather than failing the response.</remarks>
     private static async Task<IResult> ListContentTypes(
         [FromServices] IAeroContentTypeActor contentTypeActor,
         [FromServices] IContentQueryService contentQueryService,
@@ -78,6 +85,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Loads one current-site content type by alias.
+    /// </summary>
+    /// <returns>HTTP 200 when found; HTTP 404 for absence and all caught exceptions.</returns>
     private static async Task<IResult> GetContentTypeByAlias(
         string alias,
         [FromServices] IAeroContentTypeActor contentTypeActor,
@@ -104,6 +115,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Creates a content-type definition under the current site.
+    /// </summary>
+    /// <returns>HTTP 201, HTTP 400 for actor failure, or HTTP 500 on caught exceptions.</returns>
     private static async Task<IResult> CreateContentType(
         [FromBody] CreateContentTypeRequest request,
         [FromServices] IAeroContentTypeActor contentTypeActor,
@@ -147,6 +162,11 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Replaces an existing current-site definition, including allowing its alias to change.
+    /// </summary>
+    /// <returns>HTTP 200, HTTP 404 when the route alias is absent, HTTP 400 for actor failure, or HTTP 500.</returns>
+    /// <remarks>Fields and all mutable definition properties are replaced from the request.</remarks>
     private static async Task<IResult> UpdateContentType(
         string alias,
         [FromBody] CreateContentTypeRequest request,
@@ -192,6 +212,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Deletes a current-site content type by alias.
+    /// </summary>
+    /// <returns>HTTP 204 when deleted, HTTP 404 when absent, or HTTP 400 on caught exceptions.</returns>
     private static async Task<IResult> DeleteContentType(
         string alias,
         [FromServices] IAeroContentTypeActor contentTypeActor,
@@ -216,6 +240,9 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         }
     }
 
+    /// <summary>
+    /// Deserializes field definitions and projects a content-type detail response.
+    /// </summary>
     private static ContentTypeDetail MapToDetail(ContentTypeViewModel vm)
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "[]"
@@ -230,6 +257,9 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             vm.ScheduleConfig);
     }
 
+    /// <summary>
+    /// Creates the standard HTTP 400 response for an absent current-site selection.
+    /// </summary>
     private static IResult MissingSite()
         => TypedResults.BadRequest(new ProblemDetails
         {

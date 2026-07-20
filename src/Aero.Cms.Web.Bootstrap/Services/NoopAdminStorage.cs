@@ -7,14 +7,12 @@ namespace Aero.Cms.Web.Bootstrap.Services;
 /// </summary>
 internal sealed class NoopAdminStorage : IAdminStorage
 {
-        /// <summary>
-    /// GetItem method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>This server-side implementation does not read persistent state and always returns the default value.</remarks>
 public T? GetItem<T>(string key) => default;
 
-        /// <summary>
-    /// SetItem method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>This server-side implementation discards the key and value without persisting them.</remarks>
 public void SetItem<T>(string key, T value)
     {
     }

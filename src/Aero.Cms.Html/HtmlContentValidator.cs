@@ -13,6 +13,9 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
     private readonly IHtmlAttributePolicy _attributePolicy;
     private readonly HtmlContentValidationLimits _limits;
 
+    /// <summary>Creates a validator from the catalog, policy strategies, and optional resource limits.</summary>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A configured resource limit is not positive.</exception>
     public HtmlContentValidator(
         HtmlElementCatalog catalog,
         IHtmlContentModelPolicy contentPolicy,
@@ -28,6 +31,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         if (_limits.MaximumNodeCount < 1) throw new ArgumentOutOfRangeException(nameof(limits), "Maximum node count must be positive.");
     }
 
+    /// <inheritdoc />
     public Result<bool> Validate(HtmlPageContent content)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -50,6 +54,9 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
             : AeroError.ValidationError(state.Errors);
     }
 
+    /// <summary>
+    /// Traverses one node while enforcing depth, count, identity uniqueness, reference uniqueness, and form nesting.
+    /// </summary>
     private void ValidateNode(
         HtmlNode node,
         HtmlNode? parent,
@@ -138,6 +145,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
     }
 
+    /// <summary>Enforces the non-rendered, root-only fragment invariant.</summary>
     private static void ValidateFragment(HtmlNode node, HtmlNode? parent, ICollection<string> errors)
     {
         if (parent is not null) errors.Add("Fragment nodes are allowed only at the page root.");
@@ -148,6 +156,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
     }
 
+    /// <summary>Enforces that text nodes carry literal text and no element-only state.</summary>
     private static void ValidateText(HtmlNode node, ICollection<string> errors)
     {
         if (node.TagName is not null || node.Attributes.Count > 0 || node.ThemeClasses.Count > 0
@@ -157,6 +166,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
     }
 
+    /// <summary>Validates catalog membership, canonical casing, attributes, styles, and element-specific structure.</summary>
     private void ValidateElement(HtmlNode node, ICollection<string> errors)
     {
         if (!_catalog.TryGet(node.TagName, out var definition) || definition is null)
@@ -199,6 +209,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         ValidateElementStructure(node, definition, errors);
     }
 
+    /// <summary>Applies structure rules not expressible by the broad catalog child model.</summary>
     private static void ValidateElementStructure(
         HtmlNode node,
         HtmlElementDefinition definition,
@@ -228,6 +239,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         ValidateNumericElement(node, definition, errors);
     }
 
+    /// <summary>Validates relational numeric constraints for progress and meter elements.</summary>
     private static void ValidateNumericElement(
         HtmlNode node,
         HtmlElementDefinition definition,
@@ -280,6 +292,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
     }
 
+    /// <summary>Reads an invariant decimal attribute, returning <see langword="null"/> when absent or malformed.</summary>
     private static decimal? DecimalAttribute(HtmlNode node, string name) =>
         node.Attributes.TryGetValue(name, out var value)
         && decimal.TryParse(
@@ -290,6 +303,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
             ? parsed
             : null;
 
+    /// <summary>Rejects semantic style groups not enabled by the element manifest.</summary>
     private static void ValidateStyleCapabilities(
         HtmlStyle? style,
         HtmlElementDefinition definition,
@@ -304,11 +318,13 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         RequireCapability(style.Typography is not null, "typography", definition.Tag, capabilities, errors);
     }
 
+    /// <summary>Determines whether any layout or sizing control is populated.</summary>
     private static bool HasLayoutIntent(HtmlStyle style) =>
         style.Display is not null || style.FlexDirection is not null || style.GridColumns is not null
         || style.StackOnSmallScreens || style.Gap is not null || style.AlignItems is not null
         || style.JustifyContent is not null || style.MinimumHeight is not null;
 
+    /// <summary>Adds an error when populated style intent is absent from the element's capability allowlist.</summary>
     private static void RequireCapability(
         bool isUsed,
         string capability,
@@ -322,12 +338,18 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
     }
 
+    /// <summary>Holds traversal-wide identity, resource, and error state for one validation pass.</summary>
     private sealed class ValidationState
     {
+        /// <summary>Gets accumulated validation diagnostics in traversal order.</summary>
         public List<string> Errors { get; } = [];
+        /// <summary>Gets stable identities encountered during traversal.</summary>
         public HashSet<long> NodeIds { get; } = [];
+        /// <summary>Gets object references encountered so shared subtrees and cycles fail closed.</summary>
         public HashSet<HtmlNode> References { get; } = new(ReferenceEqualityComparer.Instance);
+        /// <summary>Gets or sets the number of nodes visited so far.</summary>
         public int NodeCount { get; set; }
+        /// <summary>Gets or sets whether the node-limit error has already been emitted.</summary>
         public bool NodeLimitReported { get; set; }
     }
 }

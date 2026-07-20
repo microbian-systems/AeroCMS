@@ -15,7 +15,7 @@ using Serilog;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Factory class for creating the setup-specific WebApplication with minimal services.
+/// Creates the setup-only web host used before runtime infrastructure is available.
 /// </summary>
 /// <remarks>
 /// This factory creates a lightweight WebApplication that runs during the setup phase.
@@ -27,11 +27,15 @@ namespace Aero.Cms.Modules.Setup;
 public static class SetupAppFactory
 {
     /// <summary>
-    /// Creates and configures a setup-specific WebApplication.
+    /// Creates and configures a setup-specific <see cref="WebApplication"/>.
     /// </summary>
-    /// <param name="args">Command line arguments.</param>
-    /// <param name="earlyConfig">Early configuration for bootstrap state checking.</param>
-    /// <returns>Configured WebApplication ready to start.</returns>
+    /// <param name="args">Command-line arguments passed to the setup host builder.</param>
+    /// <param name="earlyConfig">The caller's early configuration snapshot. The current factory retains this contract but builds setup services from the new host configuration.</param>
+    /// <returns>A configured application that has not yet been started.</returns>
+    /// <remarks>
+    /// Creating the application may create or load a data-protection certificate and key
+    /// ring. The setup host intentionally omits runtime database, Orleans, and Identity services.
+    /// </remarks>
     public static async Task<WebApplication> CreateSetupAppAsync(string[] args, IConfiguration earlyConfig)
     {
         var webProjectPath = AppSettingsPathResolver.GetWebProjectPath();
@@ -97,7 +101,7 @@ public static class SetupAppFactory
     }
 
     /// <summary>
-    /// Configures Data Protection with shared settings that will be identical in the main app.
+    /// Configures the setup host to use the same persistent key ring, certificate, and application name as the runtime host.
     /// </summary>
     private static void ConfigureDataProtection(IServiceCollection services, IConfiguration config)
     {
@@ -111,7 +115,7 @@ public static class SetupAppFactory
     }
 
     /// <summary>
-    /// Configures the minimal middleware pipeline for the setup app.
+    /// Configures exception handling, static assets, antiforgery, setup gating, and interactive setup components.
     /// </summary>
     private static void ConfigureSetupPipeline(WebApplication app)
     {

@@ -6,29 +6,19 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
-/// <summary>
-/// Represents a class for AliasByIdQuery.
-/// </summary>
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class AliasByIdQuery : EntityByIdQuery<AliasDocument>;
 
-/// <summary>
-/// Represents a class for AliasesByIdsQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class AliasesByIdsQuery : EntitiesByIdsQuery<AliasDocument>;
 
-/// <summary>
-/// Represents a class for AliasesBySiteIdQuery.
-/// </summary>
+/// <summary>Selects aliases owned by one site, ordered by stored old path.</summary>
 public sealed class AliasesBySiteIdQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-        /// <summary>
-    /// Gets or sets the Site Id.
-    /// </summary>
+    /// <summary>The site identifier that must match <see cref="AliasDocument.SiteId"/>.</summary>
 public required long SiteId { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
@@ -38,19 +28,14 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>
     }
 }
 
-/// <summary>
-/// Represents a class for AliasesByOldPathContainsQuery.
-/// </summary>
+/// <summary>Selects aliases whose stored old path contains a supplied substring.</summary>
+/// <remarks>The expression performs no path normalization and orders matches by stored old path.</remarks>
 public sealed class AliasesByOldPathContainsQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-        /// <summary>
-    /// Gets or sets the Old Path.
-    /// </summary>
+    /// <summary>The substring passed to <see cref="string.Contains(string)"/>.</summary>
 public required string OldPath { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
@@ -60,19 +45,14 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>
     }
 }
 
-/// <summary>
-/// Represents a class for AliasByOldPathQuery.
-/// </summary>
+/// <summary>Selects the first alias whose stored old path exactly matches a supplied value.</summary>
+/// <remarks>This query is not site-scoped and performs no path normalization. It returns <see langword="null"/> when no alias matches.</remarks>
 public sealed class AliasByOldPathQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
-        /// <summary>
-    /// Gets or sets the Old Path.
-    /// </summary>
+    /// <summary>The old-path value used by the equality predicate.</summary>
 public required string OldPath { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
@@ -81,23 +61,16 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> Quer
 }
 
 
-/// <summary>
-/// Represents a class for AliasByOldPathAndSiteIdQuery.
-/// </summary>
+/// <summary>Selects the first alias matching both a site and a stored old path.</summary>
+/// <remarks>The expression performs no path normalization and returns <see langword="null"/> when no alias matches.</remarks>
 public sealed class AliasByOldPathAndSiteIdQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
-        /// <summary>
-    /// Gets or sets the Site Id.
-    /// </summary>
+    /// <summary>The site identifier that must match <see cref="AliasDocument.SiteId"/>.</summary>
 public required long SiteId { get; set; }
-        /// <summary>
-    /// Gets or sets the Old Path.
-    /// </summary>
+    /// <summary>The old-path value used by the equality predicate.</summary>
 public required string OldPath { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
@@ -105,19 +78,14 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> Quer
     }
 }
 
-/// <summary>
-/// Represents a class for AliasesByNewPathQuery.
-/// </summary>
+/// <summary>Selects aliases whose stored destination path exactly matches a supplied value.</summary>
+/// <remarks>This query is not site-scoped, performs no path normalization, and orders matches by stored old path.</remarks>
 public sealed class AliasesByNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-        /// <summary>
-    /// Gets or sets the New Path.
-    /// </summary>
+    /// <summary>The destination-path value used by the equality predicate.</summary>
 public required string NewPath { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
@@ -127,23 +95,16 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>
     }
 }
 
-/// <summary>
-/// Represents a class for AliasesBySiteIdAndNewPathQuery.
-/// </summary>
+/// <summary>Selects aliases matching both a site and a stored destination path.</summary>
+/// <remarks>The expression performs no path normalization and orders matches by stored old path.</remarks>
 public sealed class AliasesBySiteIdAndNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-        /// <summary>
-    /// Gets or sets the Site Id.
-    /// </summary>
+    /// <summary>The site identifier that must match <see cref="AliasDocument.SiteId"/>.</summary>
 public required long SiteId { get; set; }
-        /// <summary>
-    /// Gets or sets the New Path.
-    /// </summary>
+    /// <summary>The destination-path value used by the equality predicate.</summary>
 public required string NewPath { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
@@ -153,19 +114,14 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>
     }
 }
 
-/// <summary>
-/// Represents a class for AliasesByNotesQuery.
-/// </summary>
+/// <summary>Selects aliases whose notes exactly match a supplied value.</summary>
+/// <remarks>The expression performs no text normalization and orders matches by stored old path.</remarks>
 public sealed class AliasesByNotesQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-        /// <summary>
-    /// Gets or sets the Notes.
-    /// </summary>
+    /// <summary>The notes value used by the equality predicate.</summary>
 public required string Notes { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
@@ -175,12 +131,8 @@ public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>
     }
 }
 
-/// <summary>
-/// Represents a class for AliasesCreatedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class AliasesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<AliasDocument>;
 
-/// <summary>
-/// Represents a class for AliasesModifiedInRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class AliasesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<AliasDocument>;

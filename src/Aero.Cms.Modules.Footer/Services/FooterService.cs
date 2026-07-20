@@ -10,17 +10,19 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Footer.Services;
 
 /// <summary>
-/// Represents a class for FooterService.
+/// Implements footer authoring with event streams, inline projections, and current-site checks.
 /// </summary>
+/// <remarks>
+/// Reads are uncached. Publish, default-selection, and archive messages are optional and occur after
+/// the database commit; a messaging exception can therefore yield a failure after state was committed.
+/// </remarks>
 public sealed class FooterService(
     IDocumentSession session,
     ISiteContext siteContext,
     ILogger<FooterService> logger,
     IMessageBus? bus = null) : IFooterService
 {
-        /// <summary>
-    /// ListAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<(IReadOnlyList<FooterDocument> Items, long TotalCount), AeroError>> ListAsync(
         int skip = 0,
         int take = 20,
@@ -55,9 +57,7 @@ public async Task<Result<(IReadOnlyList<FooterDocument> Items, long TotalCount),
         }
     }
 
-        /// <summary>
-    /// GetAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -77,9 +77,7 @@ public async Task<Result<FooterDocument, AeroError>> GetAsync(long id, Cancellat
         }
     }
 
-        /// <summary>
-    /// GetDetailAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
     {
         var footerResult = await GetAsync(id, cancellationToken);
@@ -94,9 +92,7 @@ public async Task<Result<FooterDetail, AeroError>> GetDetailAsync(long id, Cance
         return Ok<FooterDetail, AeroError>(MapDetail(footer, snapshot, version));
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -135,9 +131,7 @@ public async Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVar
         }
     }
 
-        /// <summary>
-    /// GetDefaultIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
@@ -158,9 +152,7 @@ public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, Cance
         }
     }
 
-        /// <summary>
-    /// GetPublishedSnapshotAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterSnapshot?, AeroError>> GetPublishedSnapshotAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -193,9 +185,7 @@ public async Task<Result<FooterSnapshot?, AeroError>> GetPublishedSnapshotAsync(
         }
     }
 
-        /// <summary>
-    /// ResolveSnapshotAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterSnapshot?, AeroError>> ResolveSnapshotAsync(
         long siteId,
         CancellationToken cancellationToken = default)
@@ -235,9 +225,7 @@ public async Task<Result<FooterSnapshot?, AeroError>> ResolveSnapshotAsync(
         }
     }
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDocument, AeroError>> CreateAsync(
         CreateFooterRequest request,
         long? userId = null,
@@ -282,9 +270,7 @@ public async Task<Result<FooterDocument, AeroError>> CreateAsync(
         }
     }
 
-        /// <summary>
-    /// SaveDraftAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDocument, AeroError>> SaveDraftAsync(
         long id,
         UpdateFooterRequest request,
@@ -332,9 +318,7 @@ public async Task<Result<FooterDocument, AeroError>> SaveDraftAsync(
         }
     }
 
-        /// <summary>
-    /// PublishAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDocument, AeroError>> PublishAsync(
         long id,
         long expectedVersion,
@@ -379,9 +363,7 @@ public async Task<Result<FooterDocument, AeroError>> PublishAsync(
         }
     }
 
-        /// <summary>
-    /// SetDefaultAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> SetDefaultAsync(
         long id,
         long? userId = null,
@@ -422,9 +404,7 @@ public async Task<Result<bool, AeroError>> SetDefaultAsync(
         }
     }
 
-        /// <summary>
-    /// ArchiveAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> ArchiveAsync(
         long id,
         long expectedVersion,
@@ -525,9 +505,7 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
         }
     }
 
-        /// <summary>
-    /// ForkToCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<FooterDocument, AeroError>> ForkToCultureAsync(
         long id,
         string targetCulture,

@@ -4,8 +4,12 @@ using Aero.Cms.Abstractions.Ai;
 namespace Aero.Cms.Modules.Ai.Services;
 
 /// <summary>
-/// Represents a class for EnhanceContentPromptBuilder.
+/// Builds the user-role prompt used for a content-enhancement request.
 /// </summary>
+/// <remarks>
+/// Request values are JSON-serialized into the prompt to preserve their structure. Serialization does
+/// not sanitize the values or prevent prompt-injection instructions embedded in supplied content.
+/// </remarks>
 public sealed class EnhanceContentPromptBuilder : IEnhanceContentPromptBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -13,9 +17,7 @@ public sealed class EnhanceContentPromptBuilder : IEnhanceContentPromptBuilder
         WriteIndented = true
     };
 
-        /// <summary>
-    /// Build method.
-    /// </summary>
+    /// <inheritdoc />
 public string Build(EnhanceContentRequest request)
     {
         var payload = JsonSerializer.Serialize(new

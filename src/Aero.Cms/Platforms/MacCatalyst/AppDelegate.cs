@@ -3,13 +3,11 @@ using Foundation;
 namespace Aero.Cms;
 
 /// <summary>
-/// Represents a class for AppDelegate.
+/// Bridges Mac Catalyst application startup to the shared MAUI host factory.
 /// </summary>
 [Register("AppDelegate")]
 public class AppDelegate : MauiUIApplicationDelegate
 {
-        /// <summary>
-    /// CreateMauiApp method.
-    /// </summary>
+    /// <inheritdoc />
 protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

@@ -6,13 +6,19 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Users.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for user management.
+/// Maps administrative Identity user, role, password, and site-assignment operations.
 /// </summary>
+/// <remarks>
+/// This mapper does not attach authorization or tenant/site policies. The host must restrict
+/// the route group to trusted administrators and enforce any tenant boundary externally.
+/// Unexpected exception messages are copied into problem responses after logging.
+/// </remarks>
 public static class UsersApi
 {
     /// <summary>
-    /// Maps the Users Admin API endpoints.
+    /// Maps the administrative users endpoint group.
     /// </summary>
+    /// <param name="app">The endpoint route builder receiving the group.</param>
     public static void MapUsersApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/users")
@@ -44,6 +50,13 @@ public static class UsersApi
             .WithName("UpdateUserSiteAssignments");
     }
 
+    /// <summary>
+    /// Executes a synchronous Identity user query with optional case-insensitive text filtering and pagination.
+    /// </summary>
+    /// <remarks>
+    /// The handler does not clamp negative pagination values and does not use its cancellation token.
+    /// Results are not tenant- or site-scoped.
+    /// </remarks>
     private static async Task<IResult> GetAllUsers(
         [FromServices] UserManager<AeroUser> userManager,
         [FromServices] ILoggerFactory loggerFactory,
@@ -92,6 +105,9 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Loads one Identity user and its current role names by Snowflake identifier.
+    /// </summary>
     private static async Task<IResult> GetUserById(
         long id,
         [FromServices] UserManager<AeroUser> userManager,
@@ -130,6 +146,13 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Creates an active Identity user with a Snowflake identifier, then adds requested roles.
+    /// </summary>
+    /// <remarks>
+    /// User creation and role assignment are separate operations. Role-assignment failures are
+    /// ignored and do not roll back the newly created user.
+    /// </remarks>
     private static async Task<IResult> CreateUser(
         [FromBody] CreateUserRequest request,
         [FromServices] UserManager<AeroUser> userManager,
@@ -181,6 +204,13 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Updates an Identity user's profile and enabled flag, then reconciles role membership.
+    /// </summary>
+    /// <remarks>
+    /// The user update commits before role additions and removals. Role-operation failures are
+    /// ignored, so the returned role list reflects the request rather than a verified persisted state.
+    /// </remarks>
     private static async Task<IResult> UpdateUser(
         long id,
         [FromBody] UpdateUserRequest request,
@@ -237,6 +267,9 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Deletes an Identity user and maps Identity validation failures to a bad request.
+    /// </summary>
     private static async Task<IResult> DeleteUser(
         long id,
         [FromServices] UserManager<AeroUser> userManager,
@@ -269,6 +302,10 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Changes a selected user's password after validating the supplied current password.
+    /// </summary>
+    /// <remarks>This is not an administrator reset operation; it requires the existing password.</remarks>
     private static async Task<IResult> ChangePassword(
         long id,
         [FromBody] ChangePasswordRequest request,
@@ -304,6 +341,10 @@ public static class UsersApi
 
     // ── User-Site Assignment handlers ──────────────────────
 
+    /// <summary>
+    /// Lists every persisted site assignment for a user identifier.
+    /// </summary>
+    /// <remarks>The handler does not verify that the user exists or filter assignments by a current tenant.</remarks>
     private static async Task<IResult> GetUserSiteAssignments(
         long userId,
         IQuerySession querySession,
@@ -327,6 +368,13 @@ public static class UsersApi
         }
     }
 
+    /// <summary>
+    /// Replaces all persisted site assignments for a user in one document-session commit.
+    /// </summary>
+    /// <remarks>
+    /// The handler does not verify the user, referenced sites, permissions, duplicates, or tenant
+    /// ownership. Callers must validate those relationships before invoking the endpoint.
+    /// </remarks>
     private static async Task<IResult> UpdateUserSiteAssignments(
         long userId,
         UserSiteAssignmentBatch request,
@@ -370,16 +418,23 @@ public static class UsersApi
 }
 
 /// <summary>
-/// Response model for a user-site assignment.
+/// Describes one persisted user-to-site permission assignment.
 /// </summary>
+/// <param name="Id">The assignment's Snowflake identifier.</param>
+/// <param name="UserId">The assigned user identifier.</param>
+/// <param name="SiteId">The assigned site identifier.</param>
+/// <param name="Permissions">The stored permission names.</param>
 public record UserSiteAssignmentResponse(long Id, long UserId, long SiteId, List<string> Permissions);
 
 /// <summary>
-/// Request batch for updating user-site assignments.
+/// Describes one requested site and permission set in an assignment replacement.
 /// </summary>
+/// <param name="SiteId">The site identifier to assign.</param>
+/// <param name="Permissions">The requested permission names, or <see langword="null"/> for none.</param>
 public record UserSiteAssignmentItem(long SiteId, List<string>? Permissions);
 
 /// <summary>
-/// Batch request for user-site assignments.
+/// Contains the complete replacement set of site assignments for a user.
 /// </summary>
+/// <param name="Assignments">The assignments to store after deleting the current set.</param>
 public record UserSiteAssignmentBatch(List<UserSiteAssignmentItem> Assignments);

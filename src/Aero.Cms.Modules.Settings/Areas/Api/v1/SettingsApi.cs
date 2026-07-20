@@ -6,14 +6,20 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Settings.Areas.Api.v1;
 
 /// <summary>
-/// Thin admin API for settings management.
-/// Handles input validation and delegates all logic to <see cref="IAeroSettingActor"/> (Orleans grain).
+/// Maps HTTP endpoints for settings management and delegates persistence to
+/// <see cref="IAeroSettingActor"/>.
 /// </summary>
+/// <remarks>
+/// The route group does not add an authorization requirement. Hosts must apply an authorization
+/// convention or middleware policy before exposing these endpoints because values are returned
+/// and mutated without site or tenant scoping.
+/// </remarks>
 public static class SettingsApi
 {
         /// <summary>
-    /// MapSettingsApi method.
+    /// Maps settings query and mutation endpoints under the administrative API prefix.
     /// </summary>
+    /// <param name="app">The endpoint route builder that receives the settings routes.</param>
 public static void MapSettingsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/settings")
@@ -38,6 +44,12 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
             .WithName("GetSettingCategories");
     }
 
+    /// <summary>
+    /// Returns summaries for every stored setting.
+    /// </summary>
+    /// <param name="settingActor">The actor that reads setting documents.</param>
+    /// <param name="cancellationToken">The token propagated to the actor call.</param>
+    /// <returns>An HTTP 200 result containing the actor's complete setting list.</returns>
     private static async Task<IResult> GetAllSettings(
         [FromServices] IAeroSettingActor settingActor,
         CancellationToken cancellationToken = default)
@@ -46,6 +58,10 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(settings);
     }
 
+    /// <summary>
+    /// Looks up one setting by its case-sensitive storage key.
+    /// </summary>
+    /// <returns>HTTP 200 with the setting, or HTTP 404 when the key is absent.</returns>
     private static async Task<IResult> GetSettingByKey(
         string key,
         [FromServices] IAeroSettingActor settingActor,
@@ -62,6 +78,10 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(detail);
     }
 
+    /// <summary>
+    /// Returns settings whose stored category exactly matches the route value.
+    /// </summary>
+    /// <returns>An HTTP 200 result; an unmatched category produces an empty collection.</returns>
     private static async Task<IResult> GetSettingsByCategory(
         string category,
         [FromServices] IAeroSettingActor settingActor,
@@ -71,6 +91,14 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(settings);
     }
 
+    /// <summary>
+    /// Creates or replaces a setting value through the backing actor.
+    /// </summary>
+    /// <returns>HTTP 200 with the persisted setting detail.</returns>
+    /// <remarks>
+    /// The endpoint performs no local validation and logs the submitted value at debug level.
+    /// Persistence and cancellation exceptions propagate to the ASP.NET Core pipeline.
+    /// </remarks>
     private static async Task<IResult> SetSetting(
         [FromBody] SetSettingRequest request,
         [FromServices] IAeroSettingActor settingActor,
@@ -83,6 +111,10 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(detail);
     }
 
+    /// <summary>
+    /// Deletes the setting identified by the route key.
+    /// </summary>
+    /// <returns>HTTP 200 with <see langword="true"/> when deleted, or HTTP 404 when absent.</returns>
     private static async Task<IResult> DeleteSetting(
         string key,
         [FromServices] IAeroSettingActor settingActor,
@@ -99,6 +131,10 @@ public static void MapSettingsApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(true);
     }
 
+    /// <summary>
+    /// Returns category names and counts derived from all settings.
+    /// </summary>
+    /// <returns>An HTTP 200 result containing the category aggregates.</returns>
     private static async Task<IResult> GetCategories(
         [FromServices] IAeroSettingActor settingActor,
         CancellationToken cancellationToken = default)

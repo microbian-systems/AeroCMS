@@ -21,9 +21,15 @@ public sealed class WolverineHandlerGenerator : IIncrementalGenerator
 {
     private const string WolverineHandlerAttributeName = "Wolverine.Attributes.WolverineHandlerAttribute";
 
-        /// <summary>
-    /// Initialize method.
+    /// <summary>
+    /// Builds the attributed-handler pipeline and emits a per-assembly registration class.
     /// </summary>
+    /// <param name="context">The incremental generator registration context.</param>
+    /// <remarks>
+    /// No output is emitted when the compilation contains no attributed handler classes. Duplicate
+    /// partial declarations are not de-duplicated here; each attribute match becomes an include call.
+    /// Generated output disables CS1591 because it is an implementation catalog rather than public API.
+    /// </remarks>
 public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var handlerCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -53,6 +59,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         });
     }
 
+    /// <summary>
+    /// Converts an attributed class symbol into the names required by generated source.
+    /// </summary>
+    /// <param name="context">The attribute syntax context for a class candidate.</param>
+    /// <returns>The fully qualified type information, or <see langword="null"/> for a non-type target.</returns>
     private static HandlerTypeInfo? GetHandlerCandidate(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol handlerType)
@@ -65,6 +76,12 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
             typeName: handlerType.Name);
     }
 
+    /// <summary>
+    /// Renders the registration type and assembly-level aggregation attribute for one assembly.
+    /// </summary>
+    /// <param name="assemblyName">The compilation assembly name used to derive namespace and type names.</param>
+    /// <param name="handlerTypes">The attributed handler types to include explicitly.</param>
+    /// <returns>UTF-8-ready C# source for <c>GeneratedWolverineHandlers.g.cs</c>.</returns>
     private static string RenderHandlerSource(string assemblyName, HandlerTypeInfo[] handlerTypes)
     {
         var safeName = SanitizeIdentifier(assemblyName) + "WolverineHandlers";
@@ -100,6 +117,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return source.ToString();
     }
 
+    /// <summary>
+    /// Replaces characters that cannot appear in a generated C# identifier.
+    /// </summary>
+    /// <param name="value">The source assembly name.</param>
+    /// <returns>An alphanumeric/underscore identifier, or <c>Generated</c> when empty.</returns>
     private static string SanitizeIdentifier(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -113,6 +135,11 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return builder.Length == 0 ? "Generated" : builder.ToString();
     }
 
+    /// <summary>
+    /// Replaces characters that cannot appear in a generated dotted namespace.
+    /// </summary>
+    /// <param name="value">The source assembly name.</param>
+    /// <returns>A namespace containing only letters, digits, underscores, and periods.</returns>
     private static string SanitizeNamespace(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -126,14 +153,19 @@ public void Initialize(IncrementalGeneratorInitializationContext context)
         return builder.Length == 0 ? "Generated" : builder.ToString();
     }
 
+    /// <summary>
+    /// Carries the symbol names used to render one handler registration.
+    /// </summary>
+    /// <param name="fullTypeName">The Roslyn fully qualified type name, including <c>global::</c>.</param>
+    /// <param name="typeName">The unqualified source type name.</param>
     private readonly struct HandlerTypeInfo(string fullTypeName, string typeName)
     {
-                /// <summary>
-        /// Gets or sets the Full Type Name.
+        /// <summary>
+        /// Gets the fully qualified type name written into generated generic arguments.
         /// </summary>
 public string FullTypeName { get; } = fullTypeName;
-                /// <summary>
-        /// Gets or sets the Type Name.
+        /// <summary>
+        /// Gets the unqualified handler name retained with the candidate.
         /// </summary>
 public string TypeName { get; } = typeName;
     }

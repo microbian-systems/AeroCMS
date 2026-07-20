@@ -1,8 +1,12 @@
 namespace Aero.Cms.Modules.Analytics;
 
 /// <summary>
-/// Represents a class for AnalyticsSettings.
+/// Configures identifiers and endpoints used to render third-party analytics tags.
 /// </summary>
+/// <remarks>
+/// Non-empty values enable the corresponding tag. This object contains only configuration values;
+/// it does not provide consent management, user targeting, tenant scoping, or event storage.
+/// </remarks>
 public class AnalyticsSettings
 {
         /// <summary>
@@ -17,12 +21,12 @@ public string? GoogleAnalyticsId { get; set; }
     /// Gets or sets the Linked In Partner Id.
     /// </summary>
 public string? LinkedInPartnerId { get; set; }
-        /// <summary>
-    /// Gets or sets the Posthog Api Key.
+    /// <summary>
+    /// Gets or sets the PostHog project API key emitted into client-side bootstrap markup.
     /// </summary>
 public string? PosthogApiKey { get; set; }
-        /// <summary>
-    /// Gets or sets the Posthog Host.
+    /// <summary>
+    /// Gets or sets the PostHog API host; rendering defaults to <c>https://app.posthog.com</c> when it is blank.
     /// </summary>
 public string? PosthogHost { get; set; }
         /// <summary>

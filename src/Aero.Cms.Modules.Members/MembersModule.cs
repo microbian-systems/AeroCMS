@@ -3,33 +3,21 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Members;
 
 /// <summary>
-/// Used to manage site membership (non cms users)
+/// Declares the module boundary for site members who are not CMS administration users.
 /// </summary>
 [Module(nameof(MembersModule))]
 public class MembersModule : AeroModuleBase
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name { get; }
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version { get; }
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author { get; }
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies { get; }
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category { get; }
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags { get; }
 }

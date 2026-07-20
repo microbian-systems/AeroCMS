@@ -10,38 +10,50 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Setup.Services;
 
 /// <summary>
-/// Defines an interface for ITranslationImportService.
+/// Imports culture-specific variants and translation records from a JSON or ZIP payload.
 /// </summary>
 public interface ITranslationImportService
 {
-        /// <summary>
-    /// ImportAsync method.
+    /// <summary>
+    /// Parses, validates, and applies a translation import as one document-session save.
     /// </summary>
+    /// <param name="request">The file metadata and Base64-encoded content.</param>
+    /// <param name="cancellationToken">Cancels parsing, database queries, slug reservations, or persistence.</param>
+    /// <returns>
+    /// A successful aggregate result when the file can be processed, including per-item skips
+    /// and missing-source errors; otherwise a failure describing a file-level or unexpected error.
+    /// </returns>
 Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         TranslationImportFileRequest request,
         CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for TranslationImportService.
+/// Applies translation imports to pages, posts, categories, tags, and products in an AeroDB document session.
 /// </summary>
+/// <remarks>
+/// Page and post imports require an existing source document and reserve localized slugs.
+/// Re-importing the same translation group and culture updates the existing variant. Changes
+/// are saved once after all payloads have been processed. The method catches all exceptions,
+/// including cancellation, logs them, and returns a failed result.
+/// </remarks>
 public sealed class TranslationImportService : ITranslationImportService
 {
     private readonly IDocumentSession _session;
     private readonly ILogger<TranslationImportService> _log;
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="TranslationImportService"/> class.
+    /// <summary>
+    /// Initializes an importer over the supplied document session.
     /// </summary>
+    /// <param name="session">The session used for queries, stores, slug reservations, and the final save.</param>
+    /// <param name="log">The logger used for file-level failures.</param>
 public TranslationImportService(IDocumentSession session, ILogger<TranslationImportService> log)
     {
         _session = session;
         _log = log;
     }
 
-        /// <summary>
-    /// ImportAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         TranslationImportFileRequest request,
         CancellationToken cancellationToken = default)
@@ -127,6 +139,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         }
     }
 
+    /// <summary>
+    /// Forks a source page into a culture or updates the existing translation-group variant.
+    /// </summary>
     private async Task ImportPageAsync(
         TranslationPageImport page,
         string culture,
@@ -177,6 +192,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         updated.Add(new TranslationImportItem("page", existing.Id, culture, slug));
     }
 
+    /// <summary>
+    /// Forks a source post into a culture or updates the existing translation-group variant.
+    /// </summary>
     private async Task ImportPostAsync(
         TranslationPostImport post,
         string culture,
@@ -226,6 +244,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         updated.Add(new TranslationImportItem("post", existing.Id, culture, slug));
     }
 
+    /// <summary>
+    /// Creates or updates a category translation identified by category and culture.
+    /// </summary>
     private async Task UpsertCategoryTranslationAsync(
         TranslationCategoryImport category,
         string culture,
@@ -259,6 +280,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         translation.Description = category.Description;
     }
 
+    /// <summary>
+    /// Creates or updates a tag translation identified by tag and culture.
+    /// </summary>
     private async Task UpsertTagTranslationAsync(
         TranslationTagImport tag,
         string culture,
@@ -291,6 +315,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         translation.Description = tag.Description;
     }
 
+    /// <summary>
+    /// Creates or updates a product translation identified by product and culture.
+    /// </summary>
     private async Task UpsertProductTranslationAsync(
         TranslationProductImport product,
         string culture,
@@ -324,6 +351,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         translation.ShortDescription = product.ShortDescription;
     }
 
+    /// <summary>
+    /// Reserves the localized slug and releases the previous reservation when it changes.
+    /// </summary>
     private async Task ReserveSlugAsync(
         long ownerId,
         ContentSlugOwnerType ownerType,
@@ -342,6 +372,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
             previousSlug,
             cancellationToken);
 
+    /// <summary>
+    /// Applies only supplied page fields and refreshes the modification timestamp.
+    /// </summary>
     private static void ApplyPageFields(PageDocument page, TranslationPageImport import)
     {
         if (!string.IsNullOrWhiteSpace(import.Title))
@@ -355,6 +388,9 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         page.ModifiedOn = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// Applies only supplied post fields and refreshes the modification timestamp.
+    /// </summary>
     private static void ApplyPostFields(PostDocument post, TranslationPostImport import)
     {
         if (!string.IsNullOrWhiteSpace(import.Title))
@@ -368,12 +404,18 @@ public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         post.ModifiedOn = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// Normalizes an imported slug or falls back to the normalized source slug.
+    /// </summary>
     private static string ResolveSlug(string? importedSlug, string sourceSlug)
         => string.IsNullOrWhiteSpace(importedSlug)
             ? sourceSlug.Trim().Trim('/')
             : importedSlug.Trim().Trim('/');
 }
 
+/// <summary>
+/// Parses translation payloads from JSON files or JSON entries in ZIP archives.
+/// </summary>
 internal static class TranslationImportPayloadReader
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -381,9 +423,13 @@ internal static class TranslationImportPayloadReader
         PropertyNameCaseInsensitive = true
     };
 
-        /// <summary>
-    /// ReadAsync method.
+    /// <summary>
+    /// Dispatches parsing based on a case-insensitive <c>.json</c> or <c>.zip</c> file-name extension.
     /// </summary>
+    /// <param name="fileName">The uploaded file name used for format selection and error context.</param>
+    /// <param name="fileData">The decoded file bytes.</param>
+    /// <param name="cancellationToken">Cancels JSON stream parsing.</param>
+    /// <returns>The parsed payloads, or a failure for an unsupported extension or malformed content.</returns>
 public static async Task<Result<List<TranslationImportPayload>, AeroError>> ReadAsync(
         string fileName,
         byte[] fileData,
@@ -399,6 +445,9 @@ public static async Task<Result<List<TranslationImportPayload>, AeroError>> Read
             AeroError.CreateError($"Unsupported file type: '{fileName}'. Accepted: .json, .zip"));
     }
 
+    /// <summary>
+    /// Parses one JSON document that may contain either a payload object or an array.
+    /// </summary>
     private static async Task<Result<List<TranslationImportPayload>, AeroError>> ReadJsonAsync(
         byte[] fileData,
         string fileName,
@@ -408,6 +457,13 @@ public static async Task<Result<List<TranslationImportPayload>, AeroError>> Read
         return await DeserializePayloadsAsync(stream, fileName, cancellationToken);
     }
 
+    /// <summary>
+    /// Parses JSON file entries from a ZIP archive, ignoring non-JSON entries.
+    /// </summary>
+    /// <remarks>
+    /// Entry names containing <c>..</c> are skipped. When at least one entry parses,
+    /// errors from other entries do not make the overall parse fail.
+    /// </remarks>
     private static async Task<Result<List<TranslationImportPayload>, AeroError>> ReadZipAsync(
         byte[] fileData,
         CancellationToken cancellationToken)
@@ -456,6 +512,9 @@ public static async Task<Result<List<TranslationImportPayload>, AeroError>> Read
         }
     }
 
+    /// <summary>
+    /// Deserializes a JSON object or array with case-insensitive property matching.
+    /// </summary>
     private static async Task<Result<List<TranslationImportPayload>, AeroError>> DeserializePayloadsAsync(
         Stream stream,
         string fileName,
@@ -484,16 +543,21 @@ public static async Task<Result<List<TranslationImportPayload>, AeroError>> Read
 }
 
 /// <summary>
-/// Represents a record for TranslationImportFileRequest.
+/// Carries an uploaded translation file as Base64 text.
 /// </summary>
+/// <remarks><see cref="MimeType"/> is descriptive; format selection uses <see cref="FileName"/>.</remarks>
 public sealed record TranslationImportFileRequest(
     string FileName,
     string MimeType,
     string Base64Data);
 
 /// <summary>
-/// Represents a record for TranslationImportResult.
+/// Summarizes the persisted, updated, skipped, and rejected items in an import.
 /// </summary>
+/// <remarks>
+/// <see cref="TotalProcessed"/> is the sum of imported, updated, skipped, and error items.
+/// A successful result may still contain item-level errors.
+/// </remarks>
 public sealed record TranslationImportResult(
     int TotalProcessed,
     int TotalImported,
@@ -505,225 +569,225 @@ public sealed record TranslationImportResult(
     IReadOnlyList<TranslationImportError> Errors);
 
 /// <summary>
-/// Represents a record for TranslationImportItem.
+/// Identifies a translation that was created or updated.
 /// </summary>
 public sealed record TranslationImportItem(string Type, long Id, string Culture, string Slug);
 
 /// <summary>
-/// Represents a record for TranslationImportSkip.
+/// Identifies an input item that was intentionally skipped before persistence.
 /// </summary>
 public sealed record TranslationImportSkip(string Type, long Id, string Reason);
 
 /// <summary>
-/// Represents a record for TranslationImportError.
+/// Identifies an input item that could not be imported.
 /// </summary>
 public sealed record TranslationImportError(string Type, long Id, string Message);
 
 /// <summary>
-/// Represents a record for TranslationImportPayload.
+/// Represents one culture's translation import collections.
 /// </summary>
 public sealed record TranslationImportPayload
 {
-        /// <summary>
-    /// Gets or sets the Culture.
+    /// <summary>
+    /// Gets the target culture, defaulting to the site model's default culture.
     /// </summary>
 [JsonPropertyName("culture")]
     public string Culture { get; init; } = SitesModel.DefaultCultureName;
 
-        /// <summary>
-    /// Gets or sets the Pages.
+    /// <summary>
+    /// Gets page translations to fork or update.
     /// </summary>
 [JsonPropertyName("pages")]
     public List<TranslationPageImport> Pages { get; init; } = [];
 
-        /// <summary>
-    /// Gets or sets the Posts.
+    /// <summary>
+    /// Gets post translations to fork or update.
     /// </summary>
 [JsonPropertyName("posts")]
     public List<TranslationPostImport> Posts { get; init; } = [];
 
-        /// <summary>
-    /// Gets or sets the Categories.
+    /// <summary>
+    /// Gets category translation records to upsert.
     /// </summary>
 [JsonPropertyName("categories")]
     public List<TranslationCategoryImport> Categories { get; init; } = [];
 
-        /// <summary>
-    /// Gets or sets the Tags.
+    /// <summary>
+    /// Gets tag translation records to upsert.
     /// </summary>
 [JsonPropertyName("tags")]
     public List<TranslationTagImport> Tags { get; init; } = [];
 
-        /// <summary>
-    /// Gets or sets the Products.
+    /// <summary>
+    /// Gets product translation records to upsert.
     /// </summary>
 [JsonPropertyName("products")]
     public List<TranslationProductImport> Products { get; init; } = [];
 }
 
 /// <summary>
-/// Represents a record for TranslationPageImport.
+/// Describes translated fields for a page identified by its source document.
 /// </summary>
 public sealed record TranslationPageImport
 {
-        /// <summary>
-    /// Gets or sets the Source Id.
+    /// <summary>
+    /// Gets the source page identifier used to locate the translation group.
     /// </summary>
 [JsonPropertyName("sourceId")]
     public long SourceId { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets an optional localized slug; the source slug is used when omitted.
     /// </summary>
 [JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Title.
+    /// <summary>
+    /// Gets an optional localized title; blank values do not replace the source title.
     /// </summary>
 [JsonPropertyName("title")]
     public string? Title { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Summary.
+    /// <summary>
+    /// Gets an optional localized summary; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("summary")]
     public string? Summary { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Seo Title.
+    /// <summary>
+    /// Gets an optional localized SEO title; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("seoTitle")]
     public string? SeoTitle { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Seo Description.
+    /// <summary>
+    /// Gets an optional localized SEO description; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("seoDescription")]
     public string? SeoDescription { get; init; }
 }
 
 /// <summary>
-/// Represents a record for TranslationPostImport.
+/// Describes translated fields for a post identified by its source document.
 /// </summary>
 public sealed record TranslationPostImport
 {
-        /// <summary>
-    /// Gets or sets the Source Id.
+    /// <summary>
+    /// Gets the source post identifier used to locate the translation group.
     /// </summary>
 [JsonPropertyName("sourceId")]
     public long SourceId { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets an optional localized slug; the source slug is used when omitted.
     /// </summary>
 [JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Title.
+    /// <summary>
+    /// Gets an optional localized title; blank values do not replace the source title.
     /// </summary>
 [JsonPropertyName("title")]
     public string? Title { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Excerpt.
+    /// <summary>
+    /// Gets an optional localized excerpt; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("excerpt")]
     public string? Excerpt { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Seo Title.
+    /// <summary>
+    /// Gets an optional localized SEO title; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("seoTitle")]
     public string? SeoTitle { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Seo Description.
+    /// <summary>
+    /// Gets an optional localized SEO description; <see langword="null"/> preserves the source value.
     /// </summary>
 [JsonPropertyName("seoDescription")]
     public string? SeoDescription { get; init; }
 }
 
 /// <summary>
-/// Represents a record for TranslationCategoryImport.
+/// Describes a category translation upsert.
 /// </summary>
 public sealed record TranslationCategoryImport
 {
-        /// <summary>
-    /// Gets or sets the Category Id.
+    /// <summary>
+    /// Gets the source category identifier.
     /// </summary>
 [JsonPropertyName("categoryId")]
     public long CategoryId { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Name.
+    /// <summary>
+    /// Gets the localized name; <see langword="null"/> is stored as an empty string.
     /// </summary>
 [JsonPropertyName("name")]
     public string? Name { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Slug.
+    /// <summary>
+    /// Gets the localized slug; <see langword="null"/> is stored as an empty string.
     /// </summary>
 [JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Description.
+    /// <summary>
+    /// Gets the optional localized description.
     /// </summary>
 [JsonPropertyName("description")]
     public string? Description { get; init; }
 }
 
 /// <summary>
-/// Represents a record for TranslationTagImport.
+/// Describes a tag translation upsert.
 /// </summary>
 public sealed record TranslationTagImport
 {
-        /// <summary>
-    /// Gets or sets the Tag Id.
+    /// <summary>
+    /// Gets the source tag identifier.
     /// </summary>
 [JsonPropertyName("tagId")]
     public long TagId { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Name.
+    /// <summary>
+    /// Gets the localized name; <see langword="null"/> is stored as an empty string.
     /// </summary>
 [JsonPropertyName("name")]
     public string? Name { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Description.
+    /// <summary>
+    /// Gets the optional localized description.
     /// </summary>
 [JsonPropertyName("description")]
     public string? Description { get; init; }
 }
 
 /// <summary>
-/// Represents a record for TranslationProductImport.
+/// Describes a product translation upsert.
 /// </summary>
 public sealed record TranslationProductImport
 {
-        /// <summary>
-    /// Gets or sets the Product Id.
+    /// <summary>
+    /// Gets the source product identifier.
     /// </summary>
 [JsonPropertyName("productId")]
     public long ProductId { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Name.
+    /// <summary>
+    /// Gets the localized name; <see langword="null"/> is stored as an empty string.
     /// </summary>
 [JsonPropertyName("name")]
     public string? Name { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Description.
+    /// <summary>
+    /// Gets the optional localized description.
     /// </summary>
 [JsonPropertyName("description")]
     public string? Description { get; init; }
 
-        /// <summary>
-    /// Gets or sets the Short Description.
+    /// <summary>
+    /// Gets the optional localized short description.
     /// </summary>
 [JsonPropertyName("shortDescription")]
     public string? ShortDescription { get; init; }

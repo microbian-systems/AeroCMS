@@ -5,9 +5,13 @@ namespace Aero.Cms.Html;
 /// </summary>
 public abstract class StyleFrameworkAdapterBase : IStyleFrameworkAdapter
 {
+    /// <inheritdoc />
     public abstract string AdapterId { get; }
+
+    /// <inheritdoc />
     public abstract string AdapterVersion { get; }
 
+    /// <inheritdoc />
     public FrameworkStyleMapping Map(HtmlStyle style, IStyleProfile profile)
     {
         ArgumentNullException.ThrowIfNull(style);
@@ -27,12 +31,24 @@ public abstract class StyleFrameworkAdapterBase : IStyleFrameworkAdapter
             IsEmpty(residual) ? null : residual);
     }
 
+    /// <summary>Consumes layout values that have exact framework utility equivalents.</summary>
     protected abstract void MapLayout(HtmlStyle residual, ICollection<string> classes);
+
+    /// <summary>Consumes spacing values that have exact framework utility equivalents.</summary>
     protected abstract void MapSpacing(HtmlStyle residual, ICollection<string> classes);
+
+    /// <summary>Consumes sizing values that have exact framework utility equivalents.</summary>
     protected abstract void MapSizing(HtmlStyle residual, ICollection<string> classes);
+
+    /// <summary>Consumes surface values that have exact framework utility equivalents.</summary>
     protected abstract void MapSurface(HtmlStyle residual, ICollection<string> classes);
+
+    /// <summary>Consumes typography values that have exact framework utility equivalents.</summary>
     protected abstract void MapTypography(HtmlStyle residual, ICollection<string> classes);
 
+    /// <summary>
+    /// Maps a spacing group only when all four logical sides are equal and the framework supports the value exactly.
+    /// </summary>
     protected static bool TryMapUniformSpacing(
         CssLogicalSpacing? spacing,
         Func<CssLength, string?> classFactory,
@@ -59,9 +75,11 @@ public abstract class StyleFrameworkAdapterBase : IStyleFrameworkAdapter
         return true;
     }
 
+    /// <summary>Compares both the numeric value and unit of two constrained lengths.</summary>
     protected static bool SameLength(CssLength left, CssLength right) =>
         left.Unit == right.Unit && left.Value == right.Value;
 
+    /// <summary>Removes empty nested style groups so a fully consumed residual becomes <see langword="null"/>.</summary>
     protected static void PruneEmptyGroups(HtmlStyle style)
     {
         if (style.Surface is { } surface
@@ -90,6 +108,7 @@ public abstract class StyleFrameworkAdapterBase : IStyleFrameworkAdapter
         }
     }
 
+    /// <summary>Determines whether any framework-neutral style intent remains.</summary>
     protected static bool IsEmpty(HtmlStyle style) =>
         style.Display is null
         && style.FlexDirection is null

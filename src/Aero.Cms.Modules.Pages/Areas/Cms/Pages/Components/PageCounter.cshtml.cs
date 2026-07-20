@@ -5,17 +5,17 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages.Components;
 // ~/Pages/Components/PageCounter.cshtml.cs
 
 /// <summary>
-/// Represents a class for PageCounter.
+/// Provides the mutable counter state for the Hydro page-counter component.
 /// </summary>
 public class PageCounter : HydroComponent
 {
-        /// <summary>
-    /// Gets or sets the Count.
+    /// <summary>
+    /// Gets or sets the current counter value.
     /// </summary>
 public int Count { get; set; }
 
-        /// <summary>
-    /// Add method.
+    /// <summary>
+    /// Increments <see cref="Count"/> by one.
     /// </summary>
 public void Add()
     {

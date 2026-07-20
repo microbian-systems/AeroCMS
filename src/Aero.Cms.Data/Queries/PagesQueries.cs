@@ -6,69 +6,44 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
-/// <summary>
-/// Represents a class for PageByIdQuery.
-/// </summary>
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class PageByIdQuery : EntityByIdQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesByIdsQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class PagesByIdsQuery : EntitiesByIdsQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesCreatedByQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByCreatedByQuery{T}"/>
 public sealed class PagesCreatedByQuery : EntitiesByCreatedByQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesModifiedByQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByModifiedByQuery{T}"/>
 public sealed class PagesModifiedByQuery : EntitiesByModifiedByQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesCreatedOnRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class PagesCreatedOnRangeQuery : EntitiesCreatedInRangeQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesModifiedOnRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class PagesModifiedOnRangeQuery : EntitiesModifiedInRangeQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesByCreatedByInDateRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByCreatedByInDateRangeQuery{T}"/>
 public sealed class PagesByCreatedByInDateRangeQuery : EntitiesByCreatedByInDateRangeQuery<PageDocument>;
-/// <summary>
-/// Represents a class for PagesByModifiedByInDateRangeQuery.
-/// </summary>
+/// <inheritdoc cref="EntitiesByModifiedByInDateRangeQuery{T}"/>
 public sealed class PagesByModifiedByInDateRangeQuery : EntitiesByModifiedByInDateRangeQuery<PageDocument>;
-/// <summary>
-/// Represents a class for LatestPageCreatedByQuery.
-/// </summary>
+/// <inheritdoc cref="LatestCreatedByQuery{T}"/>
 public sealed class LatestPageCreatedByQuery : LatestCreatedByQuery<PageDocument>;
-/// <summary>
-/// Represents a class for LatestPageModifiedByQuery.
-/// </summary>
+/// <inheritdoc cref="LatestModifiedByQuery{T}"/>
 public sealed class LatestPageModifiedByQuery : LatestModifiedByQuery<PageDocument>;
 
 /// <summary>
-/// Compiled query: finds all descendant pages by materialized path prefix.
-/// Used by PageTreeService.MoveAsync and NavigationService.MarkHiddenDescendantsAsync
-/// to avoid re-compiling the LINQ expression tree on each call.
-///
-/// AeroDB's LINQ provider translates <c>Path.StartsWith(prefix)</c> to a
-/// PostgreSQL prefix match (leveraging the NgramIndex on Path).
+/// Selects pages in one site whose materialized path starts with a supplied prefix.
 /// </summary>
+/// <remarks>
+/// The expression passes <see cref="PathPrefix"/> directly to
+/// <see cref="string.StartsWith(string)"/> without normalization and declares no
+/// result ordering. Whether the page at the prefix itself is included depends on
+/// whether its stored path starts with the exact supplied value.
+/// </remarks>
 public sealed class PagesByPathPrefixQuery : ICompiledQuery<PageDocument, IList<PageDocument>>
 {
-        /// <summary>
-    /// Gets or sets the Site Id.
-    /// </summary>
+    /// <summary>The site identifier that must match <see cref="PageDocument.SiteId"/>.</summary>
 public required long SiteId { get; set; }
-        /// <summary>
-    /// Gets or sets the Path Prefix.
-    /// </summary>
+    /// <summary>The unmodified path prefix used by the starts-with predicate.</summary>
 public required string PathPrefix { get; set; }
 
-        /// <summary>
-    /// QueryIs method.
-    /// </summary>
+    /// <inheritdoc />
 public Expression<Func<ISurrealDbQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
     {
         return q => q

@@ -15,34 +15,25 @@ namespace Aero.Cms.Modules.Modules;
 [Module(nameof(ModulesModule))]
 public sealed class ModulesModule : AeroModuleBase, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+        /// <inheritdoc />
 public override string Name => nameof(ModulesModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+        /// <inheritdoc />
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+        /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["Infrastructure", "Settings", "Management"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+        /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["modules", "settings", "configuration", "management"];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Registers the module initialization service and persistent state store when absent.
     /// </summary>
+    /// <param name="services">The service collection to augment with scoped services.</param>
+    /// <param name="config">Module configuration; not used.</param>
+    /// <param name="env">The host environment; not used.</param>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Register the initialization service
@@ -55,6 +46,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// <summary>
     /// Configures the ModuleDocument schema — implements <see cref="IConfigureAeroDB.Configure(StoreOptions)"/>.
     /// </summary>
+    /// <param name="opts">The store options whose module schema is configured.</param>
     public void Configure(StoreOptions opts)
     {
         opts.Schema.For<ModuleDocument>().Identity(x => x.Id);
@@ -66,8 +58,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     }
 
         /// <summary>
-    /// Configure method.
+    /// Applies the module-document schema through the service-aware configuration contract.
     /// </summary>
+    /// <param name="services">The service provider; not used.</param>
+    /// <param name="opts">The store options to configure.</param>
 public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);

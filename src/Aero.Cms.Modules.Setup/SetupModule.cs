@@ -23,57 +23,43 @@ namespace Aero.Cms.Modules.Setup;
 // todo - after setup runs it should autodisable itslf by setting hte Enabled = false and disable the aspnet core FeatureFlag and save to db
 
 /// <summary>
-/// Aero CMS infrastructure setup (database, caching, etc)
+/// Registers the bootstrap-safe setup surface and, once configured, runtime setup and import services.
 /// </summary>
 [Module(nameof(SetupModule))]
 public sealed class SetupModule : AeroModuleBase
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name => nameof(SetupModule);
 
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version => AeroConstants.Version;
 
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
+    /// <inheritdoc />
 public override short Order { get; } = -32768;
 
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies => [];
 
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category => ["setup", "bootstrap"];
 
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags => ["setup", "bootstrap"];
 
-        /// <summary>
-    /// Gets or sets the Urls.
-    /// </summary>
+    /// <inheritdoc />
 public override Dictionary<string, Uri> Urls { get; } = new()
     {
         ["github"] = new Uri("https://github.com/microbian-systems/aerocms"),
         ["website"] = new Uri($"https://aerocms.io/modules/{nameof(SetupModule)}")
     };
 
-        /// <summary>
-    /// ConfigureServices method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Bootstrap-safe services are always registered. Services that require Identity or
+    /// AeroDB are registered only when the state is configured or running.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddLocalization();
@@ -115,9 +101,11 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         }
     }
 
-        /// <summary>
-    /// RunAsync method.
-    /// </summary>
+    /// <inheritdoc />
+    /// <remarks>
+    /// This hook currently records discovered modules only while setup is incomplete; it
+    /// does not execute persistence or seeding.
+    /// </remarks>
 public override async Task RunAsync(IServiceProvider sp)
     {
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
@@ -144,13 +132,11 @@ public override async Task RunAsync(IServiceProvider sp)
 }
 
 /// <summary>
-/// Represents a class for TranslationImportStartupFilter.
+/// Inserts routing and translation-import endpoint mapping into the runtime application pipeline.
 /// </summary>
 public sealed class TranslationImportStartupFilter : IStartupFilter
 {
-        /// <summary>
-    /// Configure method.
-    /// </summary>
+    /// <inheritdoc />
 public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         => app =>
         {

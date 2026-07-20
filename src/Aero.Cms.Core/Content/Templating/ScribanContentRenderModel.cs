@@ -9,6 +9,10 @@ namespace Aero.Cms.Core.Content.Templating;
 /// Immutable, explicitly projected input for a content-type Scriban template.
 /// No persisted document or application service is exposed to the template.
 /// </summary>
+/// <param name="Fields">The cloned JSON object exposed as the root <c>fields</c> scope.</param>
+/// <param name="Item">The metadata exposed as the <c>item</c> scope.</param>
+/// <param name="ContentType">The metadata exposed as the <c>content_type</c> scope.</param>
+/// <param name="Site">The metadata exposed as the <c>site</c> scope.</param>
 public sealed record ScribanContentRenderModel(
     JsonElement Fields,
     ScribanContentItemRenderScope Item,
@@ -19,6 +23,13 @@ public sealed record ScribanContentRenderModel(
     /// Projects the current content item and its definition into the supported
     /// template scopes.
     /// </summary>
+    /// <param name="contentType">The content type metadata to project.</param>
+    /// <param name="item">The content item to project.</param>
+    /// <param name="site">
+    /// Optional site metadata. When omitted, only the item's site identifier and culture are populated.
+    /// </param>
+    /// <returns>A detached render model with cloned, ordinally ordered JSON objects.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="contentType"/> or <paramref name="item"/> is null.</exception>
     public static ScribanContentRenderModel Create(
         ContentTypeDefinition contentType,
         ContentItem item,
@@ -100,6 +111,16 @@ public sealed record ScribanContentRenderModel(
 /// <summary>
 /// Content-item metadata available to Scriban as <c>item</c>.
 /// </summary>
+/// <param name="Id">The content-item identifier.</param>
+/// <param name="Slug">The content-item slug.</param>
+/// <param name="Title">The optional title.</param>
+/// <param name="Culture">The content culture.</param>
+/// <param name="PublicationState">The publication-state name.</param>
+/// <param name="Version">The content version number.</param>
+/// <param name="CreatedOn">The invariant round-trip creation timestamp.</param>
+/// <param name="ModifiedOn">The invariant round-trip modification timestamp, if present.</param>
+/// <param name="PublishedOn">The invariant round-trip publication timestamp, if present.</param>
+/// <param name="Fields">A cloned JSON object containing the item's fields.</param>
 public sealed record ScribanContentItemRenderScope(
     long Id,
     string Slug,
@@ -115,6 +136,12 @@ public sealed record ScribanContentItemRenderScope(
 /// <summary>
 /// Content-type metadata available to Scriban as <c>content_type</c>.
 /// </summary>
+/// <param name="Id">The content-type identifier.</param>
+/// <param name="Alias">The content-type alias.</param>
+/// <param name="Name">The display name.</param>
+/// <param name="Description">The optional description.</param>
+/// <param name="Category">The optional category.</param>
+/// <param name="Fields">The projected field definitions.</param>
 public sealed record ScribanContentTypeRenderScope(
     long Id,
     string Alias,
@@ -126,6 +153,13 @@ public sealed record ScribanContentTypeRenderScope(
 /// <summary>
 /// Field-definition metadata exposed inside <c>content_type.fields</c>.
 /// </summary>
+/// <param name="Name">The field name.</param>
+/// <param name="FieldType">The field type identifier.</param>
+/// <param name="Label">The optional display label.</param>
+/// <param name="Required">Whether the definition marks the field as required.</param>
+/// <param name="DefaultValue">The optional default value.</param>
+/// <param name="Placeholder">The optional editor placeholder.</param>
+/// <param name="Settings">A cloned JSON object containing field settings.</param>
 public sealed record ScribanContentFieldRenderScope(
     string Name,
     string FieldType,
@@ -138,6 +172,11 @@ public sealed record ScribanContentFieldRenderScope(
 /// <summary>
 /// Site metadata available to Scriban as <c>site</c>.
 /// </summary>
+/// <param name="Id">The site identifier.</param>
+/// <param name="CurrentCulture">The current content culture.</param>
+/// <param name="Name">The optional site name.</param>
+/// <param name="DefaultCulture">The optional default site culture.</param>
+/// <param name="BaseUrl">The optional site base URL.</param>
 public sealed record ScribanSiteRenderScope(
     long Id,
     string CurrentCulture,

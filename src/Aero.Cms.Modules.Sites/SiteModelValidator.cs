@@ -5,13 +5,17 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Represents a class for SiteModelValidator.
+/// Validates the identifiers and required display name used when creating or updating a site.
 /// </summary>
 public sealed class SiteModelValidator : AbstractValidator<SitesModel>
 {
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="SiteModelValidator"/> class.
     /// </summary>
+    /// <remarks>
+    /// A site and tenant identifier must both be positive, and the site name must contain a value.
+    /// Host, culture, and tenant-existence checks are outside this validator.
+    /// </remarks>
 public SiteModelValidator()
     {
         RuleFor(x => x.Id)

@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Aero.Cms.Modules.Audit.Areas.Audit.Pages;
 
 /// <summary>
-/// Represents a class for Page1Model.
+/// Placeholder Razor Page model for the Audit area.
 /// </summary>
 public class Page1Model : PageModel
 {
-        /// <summary>
-    /// OnGet method.
+    /// <summary>
+    /// Handles a GET request without loading or changing model state.
     /// </summary>
 public void OnGet()
     {

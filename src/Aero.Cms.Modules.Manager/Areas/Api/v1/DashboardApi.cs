@@ -7,13 +7,19 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Manager.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for dashboard statistics and activity.
+/// Maps administrative aggregate-count and recent-audit dashboard endpoints.
 /// </summary>
+/// <remarks>
+/// The mapper does not attach authorization or site/tenant filters. The host must secure the
+/// route group, and consumers must treat the current counts and activity as store-wide data.
+/// Unexpected exception messages are copied into problem responses after logging.
+/// </remarks>
 public static class DashboardApi
 {
     /// <summary>
-    /// Maps the Dashboard Admin API endpoints.
+    /// Maps the administrative dashboard endpoint group.
     /// </summary>
+    /// <param name="app">The endpoint route builder receiving the group.</param>
     public static void MapDashboardApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/dashboard")
@@ -26,6 +32,10 @@ public static class DashboardApi
             .WithName("GetRecentActivity");
     }
 
+    /// <summary>
+    /// Counts all page and post documents in the session and returns placeholder media and user totals.
+    /// </summary>
+    /// <remarks>No current-site predicate is applied.</remarks>
     private static async Task<IResult> GetDashboardStats(
         [FromServices] IDocumentSession session,
         [FromServices] ILoggerFactory loggerFactory,
@@ -56,6 +66,13 @@ public static class DashboardApi
         }
     }
 
+    /// <summary>
+    /// Returns the newest audit events across the store.
+    /// </summary>
+    /// <remarks>
+    /// Event identifiers are projected as zero because the source contract exposes no identifier.
+    /// The requested count is not clamped, and no current-site or tenant predicate is applied.
+    /// </remarks>
     private static async Task<IResult> GetRecentActivity(
         [FromServices] IDocumentSession session,
         [FromServices] ILoggerFactory loggerFactory,

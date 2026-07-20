@@ -1,8 +1,11 @@
 namespace Aero.Cms.Modules.Posts.Requests;
 
+/// <summary>
+/// Validates the required fields, length limits, and route-safe slug format for post creation.
+/// </summary>
 internal class CreatePostRequestValidator : AbstractValidator<CreatePostRequest>
 {
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="CreatePostRequestValidator"/> class.
     /// </summary>
 public CreatePostRequestValidator()

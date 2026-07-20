@@ -5,8 +5,11 @@ using Aero.AppServer.Startup;
 namespace Aero.AppServer;
 
 /// <summary>
-/// Represents a class for AeroEmbeddedDbService.
+/// Publishes readiness and lifetime signals for the in-process SurrealKV database.
 /// </summary>
+/// <param name="log">The logger for lifecycle events.</param>
+/// <param name="readiness">The mutable process readiness snapshot.</param>
+/// <param name="startupSignal">The named readiness-signal registry.</param>
 /// <remarks>
 /// SurrealDB embedded (Sable) runs in-process via SurrealDbKvClient with zero startup time.
 /// This service exists to signal readiness to the <see cref="RuntimeStartupCoordinator"/>
@@ -17,18 +20,22 @@ public class AeroEmbeddedDbService(
     IInfrastructureReadinessSnapshot readiness,
     IMultiStartupSignal startupSignal) : BackgroundService
 {
-        /// <summary>
-    /// ExecuteAsync method.
+    /// <summary>
+    /// Keeps the hosted service alive until application shutdown.
     /// </summary>
+    /// <param name="stoppingToken">Cancels the indefinite wait.</param>
+    /// <returns>A task that completes through cancellation during normal shutdown.</returns>
 protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         log.LogInformation("AeroEmbedDbService: Sable KV embedded store running in-process...");
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
-        /// <summary>
-    /// StartAsync method.
+    /// <summary>
+    /// Marks the embedded database ready before starting the background-service lifetime.
     /// </summary>
+    /// <param name="cancellationToken">The host startup cancellation token.</param>
+    /// <returns>A task that completes when the base hosted service has started.</returns>
 public override async Task StartAsync(CancellationToken cancellationToken)
     {
         log.LogInformation("AeroEmbedDbService: Signaling Sable KV readiness (in-process, zero startup)");
@@ -43,17 +50,19 @@ public override async Task StartAsync(CancellationToken cancellationToken)
         await base.StartAsync(cancellationToken);
     }
 
-        /// <summary>
-    /// StopAsync method.
+    /// <summary>
+    /// Requests shutdown of the embedded-database lifetime service.
     /// </summary>
+    /// <param name="cancellationToken">The token limiting graceful shutdown.</param>
+    /// <returns>The base hosted-service shutdown task.</returns>
 public override Task StopAsync(CancellationToken cancellationToken)
     {
         log.LogInformation("AeroEmbedDbService: Stopping Aero embedded SurrealDB service...");
         return base.StopAsync(cancellationToken);
     }
 
-        /// <summary>
-    /// Dispose method.
+    /// <summary>
+    /// Releases inherited background-service resources.
     /// </summary>
 public override void Dispose()
     {

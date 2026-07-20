@@ -15,6 +15,11 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Initializes an editor over a page-content tree.
     /// </summary>
+    /// <param name="content">The mutable content owned by this editing session.</param>
+    /// <param name="contentPolicy">The policy used for immediate containment decisions.</param>
+    /// <param name="history">An optional existing caretaker; a new empty caretaker is created when omitted.</param>
+    /// <param name="validateCandidate">An optional whole-document validator for insert and move candidates.</param>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public HtmlTreeEditor(
         HtmlPageContent content,
         IHtmlContentModelPolicy contentPolicy,
@@ -40,6 +45,10 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Inserts a disconnected, identity-unique subtree into a valid parent.
     /// </summary>
+    /// <param name="parentNodeId">The stable identity of the direct parent.</param>
+    /// <param name="child">The disconnected subtree to insert without cloning.</param>
+    /// <param name="index">The requested child index; omitted or out-of-range values are clamped.</param>
+    /// <returns>The inserted node, or a not-found, conflict, or validation failure without changing content or history.</returns>
     public Result<HtmlNode> InsertChild(long parentNodeId, HtmlNode child, int? index = null)
     {
         ArgumentNullException.ThrowIfNull(child);
@@ -85,6 +94,10 @@ public sealed class HtmlTreeEditor
     /// This is the boundary used by static HTML fragment import so one undo restores the
     /// complete pre-import document.
     /// </summary>
+    /// <param name="parentNodeId">The stable identity of the shared direct parent.</param>
+    /// <param name="children">The ordered, disconnected subtrees to insert without cloning.</param>
+    /// <param name="index">The requested starting index; omitted or out-of-range values are clamped.</param>
+    /// <returns>The supplied children, or a not-found, conflict, or validation failure without partial insertion.</returns>
     public Result<IReadOnlyList<HtmlNode>> InsertChildren(
         long parentNodeId,
         IReadOnlyList<HtmlNode> children,
@@ -143,6 +156,10 @@ public sealed class HtmlTreeEditor
     /// Inserts a disconnected subtree before, after, or inside a stable target
     /// identity. Palette adapters use this semantic boundary instead of model indexes.
     /// </summary>
+    /// <param name="child">The disconnected subtree to insert.</param>
+    /// <param name="targetNodeId">The stable target identity.</param>
+    /// <param name="placement">The semantic position relative to the target.</param>
+    /// <returns>The inserted node, or a failure without changing content or history.</returns>
     public Result<HtmlNode> InsertRelative(
         HtmlNode child,
         long targetNodeId,
@@ -177,6 +194,8 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Removes a non-root node and returns the detached subtree.
     /// </summary>
+    /// <param name="nodeId">The stable identity to remove.</param>
+    /// <returns>The detached subtree, or a not-found/not-allowed failure.</returns>
     public Result<HtmlNode> Remove(long nodeId)
     {
         if (Content.Root.NodeId == nodeId)
@@ -200,6 +219,10 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Moves an existing node to a destination position interpreted after its removal from the source parent.
     /// </summary>
+    /// <param name="nodeId">The stable identity to move.</param>
+    /// <param name="destinationParentNodeId">The stable identity of the new direct parent.</param>
+    /// <param name="destinationIndex">The requested index after source removal; out-of-range values are clamped.</param>
+    /// <returns>The moved node, or a failure without changing content or history.</returns>
     public Result<HtmlNode> Move(long nodeId, long destinationParentNodeId, int destinationIndex)
     {
         if (Content.Root.NodeId == nodeId)
@@ -268,6 +291,10 @@ public sealed class HtmlTreeEditor
     /// Moves an existing node before, after, or inside another node. The target's
     /// stable identity keeps browser geometry independent from text-node indexes.
     /// </summary>
+    /// <param name="nodeId">The stable identity to move.</param>
+    /// <param name="targetNodeId">The stable target identity.</param>
+    /// <param name="placement">The semantic position relative to the target.</param>
+    /// <returns>The moved node, or a failure without changing content or history.</returns>
     public Result<HtmlNode> MoveRelative(
         long nodeId,
         long targetNodeId,
@@ -320,6 +347,10 @@ public sealed class HtmlTreeEditor
     /// Atomically replaces the editable properties of one element. The candidate
     /// document is committed only after the supplied validation strategy succeeds.
     /// </summary>
+    /// <param name="nodeId">The stable element identity to update.</param>
+    /// <param name="properties">The replacement attribute, class, style, and optional literal-text state.</param>
+    /// <param name="validateCandidate">The authoritative whole-document validation strategy.</param>
+    /// <returns>The updated node in the newly committed tree, or a failure preserving the current tree and history.</returns>
     public Result<HtmlNode> UpdateProperties(
         long nodeId,
         HtmlNodeProperties properties,
@@ -369,6 +400,10 @@ public sealed class HtmlTreeEditor
     /// other child editors use this boundary so candidate validation occurs
     /// before the current document or its Memento history changes.
     /// </summary>
+    /// <param name="nodeId">The stable element identity to update.</param>
+    /// <param name="children">Source child subtrees; the committed copies receive fresh identities.</param>
+    /// <param name="validateCandidate">The authoritative whole-document validation strategy.</param>
+    /// <returns>The updated node in the newly committed tree, or a failure preserving the current tree and history.</returns>
     public Result<HtmlNode> UpdateChildren(
         long nodeId,
         IReadOnlyList<HtmlNode> children,
@@ -409,6 +444,10 @@ public sealed class HtmlTreeEditor
     /// Applies one guided structural mutation to a cloned subtree and commits it
     /// as one Memento only after the complete candidate document is valid.
     /// </summary>
+    /// <param name="nodeId">The stable element identity to update.</param>
+    /// <param name="updateCandidate">The mutation applied only to the isolated candidate node.</param>
+    /// <param name="validateCandidate">The authoritative whole-document validation strategy.</param>
+    /// <returns>The updated node in the newly committed tree, or a failure preserving the current tree and history.</returns>
     public Result<HtmlNode> UpdateStructure(
         long nodeId,
         Action<HtmlNode> updateCandidate,
@@ -446,6 +485,7 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Restores the preceding content snapshot, if available.
     /// </summary>
+    /// <returns>The restored tree, or a not-allowed failure when no undo snapshot exists.</returns>
     public Result<HtmlPageContent> Undo()
     {
         var result = History.Undo(Content);
@@ -460,6 +500,7 @@ public sealed class HtmlTreeEditor
     /// <summary>
     /// Restores the next content snapshot, if available.
     /// </summary>
+    /// <returns>The restored tree, or a not-allowed failure when no redo snapshot exists.</returns>
     public Result<HtmlPageContent> Redo()
     {
         var result = History.Redo(Content);
@@ -471,9 +512,11 @@ public sealed class HtmlTreeEditor
         return result;
     }
 
+    /// <summary>Clamps a requested insertion index and treats omission as append.</summary>
     private static int NormalizeIndex(int? requestedIndex, int collectionCount) =>
         Math.Clamp(requestedIndex ?? collectionCount, 0, collectionCount);
 
+    /// <summary>Collects a subtree's identities into shared batch state and stops at the first duplicate.</summary>
     private static bool CollectIds(HtmlNode node, ISet<long> ids)
     {
         if (!ids.Add(node.NodeId))

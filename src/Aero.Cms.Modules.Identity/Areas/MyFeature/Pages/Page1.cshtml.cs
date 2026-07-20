@@ -2,15 +2,24 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Identity.Areas.MyFeature.Pages
 {
-        /// <summary>
-    /// Represents a class for Page1Model.
+    /// <summary>
+    /// Provides the page model for an empty module-template Razor Page scaffold.
     /// </summary>
-public class Page1Model : PageModel
+    /// <remarks>
+    /// This scaffold contains no Identity behavior, authorization metadata, or
+    /// user-facing content and is not part of the supported Identity module API. It
+    /// should be excluded from the curated DocFX reference.
+    /// </remarks>
+    public class Page1Model : PageModel
     {
-                /// <summary>
-        /// OnGet method.
+        /// <summary>
+        /// Handles a GET request without performing any work.
         /// </summary>
-public void OnGet()
+        /// <remarks>
+        /// The method does not load state, authenticate the caller, or produce a model
+        /// value.
+        /// </remarks>
+        public void OnGet()
         {
 
         }

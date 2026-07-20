@@ -6,9 +6,13 @@ namespace Aero.Cms.Html;
 /// </summary>
 public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
 {
+    /// <inheritdoc />
     public override string AdapterId => "bootstrap";
+
+    /// <inheritdoc />
     public override string AdapterVersion => "1";
 
+    /// <inheritdoc />
     protected override void MapLayout(HtmlStyle residual, ICollection<string> classes)
     {
         if (residual.StackOnSmallScreens || residual.GridColumns is not null)
@@ -26,6 +30,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
             residual.JustifyContent = null;
     }
 
+    /// <inheritdoc />
     protected override void MapSpacing(HtmlStyle residual, ICollection<string> classes)
     {
         if (TryMapUniformSpacing(residual.Padding, length => LengthClass("p", length), classes))
@@ -34,14 +39,17 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
             residual.Margin = null;
     }
 
+    /// <inheritdoc />
     protected override void MapSizing(HtmlStyle residual, ICollection<string> classes)
     {
     }
 
+    /// <inheritdoc />
     protected override void MapSurface(HtmlStyle residual, ICollection<string> classes)
     {
     }
 
+    /// <inheritdoc />
     protected override void MapTypography(HtmlStyle residual, ICollection<string> classes)
     {
         if (residual.Typography is not { } typography)
@@ -60,6 +68,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
             typography.FontWeight = null;
     }
 
+    /// <summary>Adds a utility class only when an exact mapping was found.</summary>
     private static bool TryAdd(string? className, ICollection<string> classes)
     {
         if (className is null)
@@ -68,6 +77,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         return true;
     }
 
+    /// <summary>Maps the small built-in Bootstrap spacing scale without rounding arbitrary values.</summary>
     private static string? LengthClass(string prefix, CssLength? length)
     {
         if (length?.Unit is not CssLengthUnit.Rem)
@@ -85,6 +95,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         return scale is null ? null : $"{prefix}-{scale}";
     }
 
+    /// <summary>Resolves an exact Bootstrap display utility.</summary>
     private static string? DisplayClass(CssDisplay? value) => value switch
     {
         CssDisplay.Block => "d-block",
@@ -97,6 +108,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Bootstrap flex-direction utility.</summary>
     private static string? FlexDirectionClass(CssFlexDirection? value) => value switch
     {
         CssFlexDirection.Row => "flex-row",
@@ -106,6 +118,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Bootstrap cross-axis alignment utility.</summary>
     private static string? AlignmentClass(CssAlignment? value) => value switch
     {
         CssAlignment.Start => "align-items-start",
@@ -116,6 +129,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Bootstrap main-axis distribution utility.</summary>
     private static string? JustificationClass(CssJustification? value) => value switch
     {
         CssJustification.Start => "justify-content-start",
@@ -127,6 +141,7 @@ public sealed class BootstrapStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Bootstrap text-alignment utility.</summary>
     private static string? TextAlignmentClass(CssTextAlignment? value) => value switch
     {
         CssTextAlignment.Start => "text-start",

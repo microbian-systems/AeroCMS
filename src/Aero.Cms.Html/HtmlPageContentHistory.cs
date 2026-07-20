@@ -26,6 +26,8 @@ public sealed class HtmlPageContentHistory
     /// Records the current content before an editor command changes it.
     /// A new edit invalidates the redo branch.
     /// </summary>
+    /// <param name="content">The state that undo must restore.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="content"/> is <see langword="null"/>.</exception>
     public void CaptureBeforeChange(HtmlPageContent content)
     {
         _undo.Push(HtmlPageContentMemento.Capture(content));
@@ -35,6 +37,9 @@ public sealed class HtmlPageContentHistory
     /// <summary>
     /// Restores the prior snapshot and records the supplied current state for redo.
     /// </summary>
+    /// <param name="current">The state to capture on the redo stack before restoration.</param>
+    /// <returns>The restored independent tree, or a not-allowed failure when no undo snapshot exists.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="current"/> is <see langword="null"/>.</exception>
     public Result<HtmlPageContent> Undo(HtmlPageContent current)
     {
         ArgumentNullException.ThrowIfNull(current);
@@ -51,6 +56,9 @@ public sealed class HtmlPageContentHistory
     /// <summary>
     /// Restores the next snapshot and records the supplied current state for undo.
     /// </summary>
+    /// <param name="current">The state to capture on the undo stack before restoration.</param>
+    /// <returns>The restored independent tree, or a not-allowed failure when no redo snapshot exists.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="current"/> is <see langword="null"/>.</exception>
     public Result<HtmlPageContent> Redo(HtmlPageContent current)
     {
         ArgumentNullException.ThrowIfNull(current);

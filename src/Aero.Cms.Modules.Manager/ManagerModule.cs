@@ -10,47 +10,40 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Manager;
 
 /// <summary>
-/// Represents a class for ManagerModule.
+/// Registers the administrative dashboard endpoints.
 /// </summary>
 [Module(nameof(ManagerModule))]
 public class ManagerModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <inheritdoc />
 public override string Name { get; } = nameof(ManagerModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <inheritdoc />
 public override string Version { get; } = AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <inheritdoc />
 public override string Author { get; } = AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Dependencies { get; } = [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Category { get; } = [];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <inheritdoc />
 public override IReadOnlyList<string> Tags { get; } = [];
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <summary>
+    /// Applies base web-module service configuration without adding manager-specific services.
     /// </summary>
+    /// <param name="services">The host service collection.</param>
+    /// <param name="config">Optional configuration forwarded to the base module.</param>
+    /// <param name="env">Optional environment forwarded to the base module.</param>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
     }
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps dashboard endpoints during module startup.
     /// </summary>
+    /// <param name="builder">The host endpoint route builder.</param>
+    /// <returns>A completed task after synchronous route registration.</returns>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapDashboardApi();

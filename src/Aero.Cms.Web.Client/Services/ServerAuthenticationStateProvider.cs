@@ -8,39 +8,47 @@ using Aero.Cms.Contracts.Models;
 namespace Aero.Cms.Web.Client.Services;
 
 /// <summary>
-/// Hybrid AuthenticationStateProvider for InteractiveWebAssembly rendering.
-///
-/// Two-phase auth resolution:
-///   1. Instant: reads a <see cref="ClientAuthState"/> snapshot from
-///      <see cref="PersistentComponentState"/> (serialized during server prerendering).
-///      This provides authentication with zero network latency.
-///   2. Fallback: calls <c>GET /api/v1/admin/auth/me</c> to determine the user's
-///      auth state via the .AeroCms.Auth cookie.
-///
-/// The rich profile (nickname, permissions) is fetched separately by the
-/// manager shell layout via AppState.LoadPermissions() and cached there.
+/// Resolves Interactive WebAssembly authentication from prerendered state or the server Identity endpoint.
 /// </summary>
+/// <param name="httpClient">The same-origin client that sends the authentication cookie automatically.</param>
+/// <param name="persistentState">The state transferred from server prerendering.</param>
+/// <remarks>
+/// Resolution first consumes the <c>ClientAuthState</c> prerender snapshot, then falls back to
+/// <c>GET /api/v1/admin/auth/me</c>. The snapshot path supplies identity, email, and roles only;
+/// nickname and permission claims are available only after the HTTP path. Any HTTP, JSON, or
+/// unexpected exception fails closed to an unauthenticated principal. The snapshot infers the
+/// <c>is_admin</c> claim from an <c>Admin</c> role, while the HTTP path trusts its explicit flag.
+/// </remarks>
 internal sealed class ServerAuthenticationStateProvider(
     HttpClient httpClient,
     PersistentComponentState persistentState)
     : AuthenticationStateProvider
 {
+    /// <summary>
+    /// Gets the shared unauthenticated state returned by failed resolution.
+    /// </summary>
     private static readonly AuthenticationState Unauthenticated =
         new(new ClaimsPrincipal(new ClaimsIdentity()));
 
+    /// <summary>
+    /// Caches the resolved principal until explicit invalidation.
+    /// </summary>
     private AuthenticationState? _cachedAuthState;
+    /// <summary>
+    /// Caches the richer HTTP response when the fallback path succeeds.
+    /// </summary>
     private CurrentUserResponse? _cachedUser;
 
     /// <summary>
-    /// Returns the cached current user response from HTTP call, or null
-    /// if auth was resolved from prerendered snapshot (no HTTP call made).
-    /// Components can read this after auth resolution for rich profile data.
+    /// Gets the cached HTTP profile, or <see langword="null"/> when authentication came from
+    /// prerendered state or has not resolved through HTTP.
     /// </summary>
     public CurrentUserResponse? CurrentUser => _cachedUser;
 
-        /// <summary>
-    /// GetAuthenticationStateAsync method.
+    /// <summary>
+    /// Returns the cached state, consumes a prerender snapshot, or queries the current-user endpoint.
     /// </summary>
+    /// <returns>The authenticated state, or an unauthenticated state on non-success, empty content, or exception.</returns>
 public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         // Return cached result if we've already resolved
@@ -99,9 +107,10 @@ public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         }
     }
 
-        /// <summary>
-    /// InvalidateCache method.
+    /// <summary>
+    /// Clears both caches and notifies subscribers with a new asynchronous resolution.
     /// </summary>
+    /// <remarks>The notification is raised immediately with the unresolved task; this method does not await the HTTP refresh.</remarks>
 public void InvalidateCache()
     {
         _cachedAuthState = null;
@@ -109,12 +118,22 @@ public void InvalidateCache()
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 
+    /// <summary>
+    /// Stores and returns an authentication state.
+    /// </summary>
+    /// <param name="state">The resolved state.</param>
+    /// <returns>The same instance.</returns>
     private AuthenticationState Cache(AuthenticationState state)
     {
         _cachedAuthState = state;
         return state;
     }
 
+    /// <summary>
+    /// Creates a principal from the limited prerender-safe authentication snapshot.
+    /// </summary>
+    /// <param name="snapshot">The server-persisted identity, email, and roles.</param>
+    /// <returns>An authenticated state using the Blazor authentication type.</returns>
     private static AuthenticationState BuildAuthStateFromSnapshot(ClientAuthState snapshot)
     {
         var claims = new List<Claim>
@@ -136,9 +155,16 @@ public void InvalidateCache()
             new ClaimsPrincipal(new ClaimsIdentity(claims, "BlazorWebAppAuthentication")));
     }
 
-        /// <summary>
-    /// Represents a record for CurrentUserResponse.
+    /// <summary>
+    /// Models the richer response returned by the current-user Identity endpoint.
     /// </summary>
+    /// <param name="UserId">The authenticated user's Snowflake identifier.</param>
+    /// <param name="UserName">The login name.</param>
+    /// <param name="Email">The optional email address.</param>
+    /// <param name="Roles">The current Identity roles.</param>
+    /// <param name="IsAdmin">Whether to emit the explicit <c>is_admin</c> claim.</param>
+    /// <param name="Nickname">The optional nickname claim.</param>
+    /// <param name="Permissions">Permission claim values supplied by the endpoint.</param>
 public sealed record CurrentUserResponse(
         long UserId,
         string UserName,

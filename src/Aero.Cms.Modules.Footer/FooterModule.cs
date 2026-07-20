@@ -16,40 +16,41 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Footer;
 
 /// <summary>
-/// Represents a class for FooterModule.
+/// Registers the footer authoring, persistence, rendering, and administrative API services.
 /// </summary>
+/// <remarks>
+/// Footer and site-default projections run inline with event persistence. The module does not
+/// register authorization policies, output caching, or cache invalidation; hosts are responsible
+/// for applying those concerns to the mapped administrative endpoints.
+/// </remarks>
 [Module(nameof(FooterModule))]
 public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
-public override string Name => nameof(FooterModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
-public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
-public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
-public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
-public override IReadOnlyList<string> Category => ["content", "layout"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
-public override IReadOnlyList<string> Tags => ["content", "footer", "cms"];
+    /// <inheritdoc />
+    public override string Name => nameof(FooterModule);
 
-        /// <summary>
-    /// ConfigureServices method.
+    /// <inheritdoc />
+    public override string Version => AeroConstants.Version;
+
+    /// <inheritdoc />
+    public override string Author => AeroConstants.Author;
+
+    /// <inheritdoc />
+    public override IReadOnlyList<string> Dependencies => [];
+
+    /// <inheritdoc />
+    public override IReadOnlyList<string> Category => ["content", "layout"];
+
+    /// <inheritdoc />
+    public override IReadOnlyList<string> Tags => ["content", "footer", "cms"];
+
+    /// <summary>
+    /// Registers the scoped footer service and context, the singleton HTML renderer, and request validators.
     /// </summary>
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    /// <param name="services">The service collection to update.</param>
+    /// <param name="config">The host configuration. This module does not read it.</param>
+    /// <param name="env">The host environment. This module does not inspect it.</param>
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IFooterService, FooterService>();
         services.AddScoped<FooterContext>();
@@ -58,10 +59,11 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.UpdateFooterRequest>, UpdateFooterRequestValidator>();
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures inline event projections and indexes for footer and site-default documents.
     /// </summary>
-public void Configure(StoreOptions opts)
+    /// <param name="opts">The AeroDB store options to configure.</param>
+    public void Configure(StoreOptions opts)
     {
         opts.Projections.Add(new FooterDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteFooterSettingsProjection(), ProjectionLifecycle.Inline);
@@ -80,18 +82,23 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<SiteFooterSettingsDocument>().Index(x => x.DefaultFooterId);
     }
 
-        /// <summary>
-    /// Configure method.
+    /// <summary>
+    /// Configures the footer store schema without resolving services from the provider.
     /// </summary>
-public void Configure(IServiceProvider services, StoreOptions opts)
+    /// <param name="services">The application service provider. It is not used by this module.</param>
+    /// <param name="opts">The AeroDB store options to configure.</param>
+    public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-        /// <summary>
-    /// RunAsync method.
+    /// <summary>
+    /// Maps the footer administrative endpoints.
     /// </summary>
-public override Task RunAsync(IEndpointRouteBuilder builder)
+    /// <param name="builder">The route builder that receives the endpoint group.</param>
+    /// <returns>A completed task after route registration.</returns>
+    /// <remarks>The module does not attach an authorization policy to the endpoint group.</remarks>
+    public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapFooterAdminApi();
         return Task.CompletedTask;

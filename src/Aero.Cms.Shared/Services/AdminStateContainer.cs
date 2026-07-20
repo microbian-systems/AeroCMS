@@ -43,7 +43,7 @@ public string? CurrentSiteName { get; private set; }
 public string? CurrentView { get; set; }
 
     /// <summary>
-    /// True after <see cref="LoadFromStorageAsync(ILocalStorageService)"/> has completed.
+    /// True after <see cref="LoadFromStorage"/> has completed.
     /// </summary>
     public bool IsInitialized { get; private set; }
 

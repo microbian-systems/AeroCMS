@@ -13,14 +13,27 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Footer.Areas.Api.v1;
 
 /// <summary>
-/// Represents a class for FooterAdminApi.
+/// Maps the minimal API surface for footer administration, culture variants, publication, and history.
 /// </summary>
+/// <remarks>
+/// Most authoring operations enforce current-site ownership through <see cref="IFooterService"/>.
+/// Event-history lookup reads the requested stream directly and does not perform that ownership check.
+/// The route group does not attach authorization or rate-limiting metadata, so the host must secure it.
+/// </remarks>
 public static class FooterAdminApi
 {
-        /// <summary>
-    /// MapFooterAdminApi method.
+    /// <summary>
+    /// Maps footer administration endpoints beneath the configured API prefix and <c>admin/footers</c>.
     /// </summary>
-public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
+    /// <param name="app">The endpoint route builder that receives the footer route group.</param>
+    /// <remarks>
+    /// The mapped surface includes list/detail, culture fork, multi-culture AI translation, draft save,
+    /// publish, default selection, archive, and raw event history. AI translation translates selected
+    /// textual fields only, saves drafts without publishing, and can partially succeed across target
+    /// cultures because the per-culture changes are not transactional as a group. Cancellation tokens
+    /// are forwarded by the handlers. Service failures are converted to HTTP problem responses.
+    /// </remarks>
+    public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/footers")
             .WithTags("Admin - Footers");
@@ -550,13 +563,21 @@ public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
 }
 
 /// <summary>
-/// Represents a record for FooterEventItem.
+/// Describes one event returned by the footer event-history endpoint.
 /// </summary>
+/// <param name="Version">The event's version in the stream.</param>
+/// <param name="EventType">The runtime event type name.</param>
+/// <param name="Timestamp">The event timestamp reported by the event store.</param>
+/// <param name="StreamKey">The footer event-stream key.</param>
+/// <param name="IsArchived">Whether the event is a <see cref="FooterArchived"/> event.</param>
 public sealed record FooterEventItem(long Version, string EventType, DateTimeOffset Timestamp, string StreamKey, bool IsArchived);
 
 /// <summary>
-/// Represents a record for FooterEventHistory.
+/// Contains the complete event-history response for a footer stream.
 /// </summary>
+/// <param name="FooterId">The requested footer identifier.</param>
+/// <param name="TotalEvents">The number of events returned.</param>
+/// <param name="Events">The stream events in the order returned by the store.</param>
 public sealed record FooterEventHistory(long FooterId, int TotalEvents, IReadOnlyList<FooterEventItem> Events);
 
 internal sealed record AiTranslateFooterPlan(
@@ -569,20 +590,20 @@ internal sealed record AiTranslatedFooterPlan(
     TranslateDocumentResponse? Response,
     string? Error)
 {
-        /// <summary>
-    /// Gets or sets the Culture.
-    /// </summary>
-public string Culture => Plan.Culture;
+    /// <summary>Gets the target culture from the translation plan.</summary>
+    public string Culture => Plan.Culture;
 
-        /// <summary>
-    /// Success method.
-    /// </summary>
-public static AiTranslatedFooterPlan Success(AiTranslateFooterPlan plan, TranslateDocumentResponse response)
+    /// <summary>Creates a successful per-culture translation result.</summary>
+    /// <param name="plan">The source plan and any existing culture variant.</param>
+    /// <param name="response">The translated text response.</param>
+    /// <returns>A successful plan result.</returns>
+    public static AiTranslatedFooterPlan Success(AiTranslateFooterPlan plan, TranslateDocumentResponse response)
         => new(plan, true, response, null);
 
-        /// <summary>
-    /// Failed method.
-    /// </summary>
-public static AiTranslatedFooterPlan Failed(AiTranslateFooterPlan plan, string error)
+    /// <summary>Creates a failed per-culture translation result without a translated response.</summary>
+    /// <param name="plan">The source plan and any existing culture variant.</param>
+    /// <param name="error">The failure description returned to the aggregate handler.</param>
+    /// <returns>A failed plan result.</returns>
+    public static AiTranslatedFooterPlan Failed(AiTranslateFooterPlan plan, string error)
         => new(plan, false, null, error);
 }

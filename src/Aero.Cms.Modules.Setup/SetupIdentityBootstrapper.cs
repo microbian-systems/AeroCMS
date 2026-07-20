@@ -6,42 +6,45 @@ using Microsoft.AspNetCore.Identity;
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
-/// Represents a record for SetupIdentityBootstrapRequest.
+/// Contains the credentials used to create the installation's initial administrator.
 /// </summary>
+/// <remarks><see cref="Password"/> is sensitive and must not be logged or persisted by callers.</remarks>
 public sealed record SetupIdentityBootstrapRequest(
     string AdminUserName,
     string AdminEmail,
     string Password);
 
 /// <summary>
-/// Represents a class for SetupIdentityBootstrapResult.
+/// Describes identity artifacts created or verified during setup.
 /// </summary>
 public sealed class SetupIdentityBootstrapResult
 {
-        /// <summary>
-    /// Gets or sets the Succeeded.
+    /// <summary>
+    /// Gets whether the operation produced no Identity errors.
     /// </summary>
 public bool Succeeded => Errors.Count == 0;
-        /// <summary>
-    /// Gets or sets the Created Admin.
+    /// <summary>
+    /// Gets whether a new administrator account was created.
     /// </summary>
 public bool CreatedAdmin { get; init; }
-        /// <summary>
-    /// Gets or sets the Created Roles.
+    /// <summary>
+    /// Gets whether any CMS role or the administrator's role assignment was created.
     /// </summary>
 public bool CreatedRoles { get; init; }
-        /// <summary>
-    /// Gets or sets the Admin User.
+    /// <summary>
+    /// Gets the administrator account that was created or selected.
     /// </summary>
 public AeroUser? AdminUser { get; init; }
-        /// <summary>
-    /// Gets or sets the Errors.
+    /// <summary>
+    /// Gets Identity errors returned by role, user, or membership operations.
     /// </summary>
 public List<IdentityError> Errors { get; } = [];
 
-        /// <summary>
-    /// Failure method.
+    /// <summary>
+    /// Creates a failed result from Identity errors.
     /// </summary>
+    /// <param name="errors">The errors to copy into the result.</param>
+    /// <returns>A result whose <see cref="Succeeded"/> value is <see langword="false"/> when at least one error is supplied.</returns>
 public static SetupIdentityBootstrapResult Failure(IEnumerable<IdentityError> errors)
     {
         var result = new SetupIdentityBootstrapResult();
@@ -51,31 +54,40 @@ public static SetupIdentityBootstrapResult Failure(IEnumerable<IdentityError> er
 }
 
 /// <summary>
-/// Defines an interface for ISetupIdentityBootstrapper.
+/// Creates or repairs the initial CMS administrator and required CMS roles.
 /// </summary>
 public interface ISetupIdentityBootstrapper
 {
-        /// <summary>
-    /// BootstrapAsync method.
+    /// <summary>
+    /// Ensures CMS roles exist, selects or creates an administrator, and assigns the administrator role.
     /// </summary>
+    /// <param name="request">The initial administrator identity and password.</param>
+    /// <param name="cancellationToken">Accepted for workflow coordination; current Identity manager calls do not consume it.</param>
+    /// <returns>A result containing created-state flags, the selected administrator, or Identity errors.</returns>
 Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Ensures the installation's initial administrator is assigned the CMS administrator role.
     /// </summary>
+    /// <param name="adminEmail">The persisted setup administrator email.</param>
+    /// <param name="cancellationToken">Accepted for workflow coordination; current Identity manager calls do not consume it.</param>
+    /// <returns>A result describing role creation or assignment and any Identity errors.</returns>
     Task<SetupIdentityBootstrapResult> EnsureInitialAdminRoleAsync(string adminEmail, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for SetupIdentityBootstrapper.
+/// Implements idempotent role provisioning and initial-administrator selection with ASP.NET Core Identity managers.
 /// </summary>
+/// <remarks>
+/// If any user already belongs to the CMS administrator role, that user is retained and the
+/// requested email is not used to create another administrator. Partial role creation is not
+/// rolled back if a later Identity operation fails.
+/// </remarks>
 public sealed class SetupIdentityBootstrapper(
     UserManager<AeroUser> userManager,
     RoleManager<AeroRole> roleManager) : ISetupIdentityBootstrapper
 {
-        /// <summary>
-    /// BootstrapAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
     {
         var roleResult = await EnsureCmsRolesAsync(cancellationToken);
@@ -179,6 +191,9 @@ public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBoot
         };
     }
 
+    /// <summary>
+    /// Creates each missing CMS role and stops at the first Identity failure.
+    /// </summary>
     private async Task<SetupIdentityBootstrapResult> EnsureCmsRolesAsync(CancellationToken cancellationToken)
     {
         var createdRoles = false;

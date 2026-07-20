@@ -21,50 +21,43 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Site alias management module for handling URL aliases and redirects.
-///
-/// Architecture:
-///   AliasDocument → AeroDB persistence (owner)
-///   IAliasRuleCache → ImmutableDictionary hot lookup (zero DB per request)
-///   AliasRewriteRule → sync IRule, reads cache only, site-scoped via IAeroSiteSlice
-///   AliasStartupFilter → IStartupFilter, registers UseRewriter
-///   AliasRuleCacheWarmupService → BackgroundService, loads cache on startup
-///
-/// Pipeline order: SitesModule (-9999) → AliasModule (-9998) → rest of pipeline
+/// Registers alias persistence, the alias cache, page-route alias staging, and
+/// the administrative endpoint mappings. Its order is intended to follow the
+/// sites module so that requests have site context before alias rewriting;
+/// final middleware ordering remains the host's responsibility.
 /// </summary>
 [Module(nameof(AliasModule))]
 public class AliasModule : AeroWebModule, IConfigureAeroDB
 {
-    /// <summary>Load after SitesModule (-9999) so site is resolved before alias lookup.</summary>
+    /// <summary>Gets the module order intended to follow site resolution.</summary>
     public override short Order => -9998;
 
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>Gets the module's stable registration name.</summary>
 public override string Name => nameof(AliasModule);
         /// <summary>
-    /// Gets or sets the Version.
+    /// Gets the CMS version associated with this module.
     /// </summary>
 public override string Version => AeroConstants.Version;
         /// <summary>
-    /// Gets or sets the Author.
+    /// Gets the CMS author metadata associated with this module.
     /// </summary>
 public override string Author => AeroConstants.Author;
         /// <summary>
-    /// Gets or sets the Dependencies.
+    /// Gets the explicitly declared module dependencies; this module declares none.
     /// </summary>
 public override IReadOnlyList<string> Dependencies => [];
         /// <summary>
-    /// Gets or sets the Category.
+    /// Gets the module categories; this module declares none.
     /// </summary>
 public override IReadOnlyList<string> Category => [];
         /// <summary>
-    /// Gets or sets the Tags.
+    /// Gets the module tags; this module declares none.
     /// </summary>
 public override IReadOnlyList<string> Tags => [];
 
         /// <summary>
-    /// ConfigureServices method.
+    /// Registers alias services, validation, cache infrastructure, and the
+    /// rewrite startup filter when it is enabled for the current environment.
     /// </summary>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
@@ -107,7 +100,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     }
 
         /// <summary>
-    /// RunAsync method.
+    /// Maps the module's administrative alias endpoints.
     /// </summary>
 public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
@@ -115,7 +108,8 @@ public override async Task RunAsync(IEndpointRouteBuilder builder)
     }
 
         /// <summary>
-    /// Configure method.
+    /// Configures the persisted alias document schema, including uniqueness of
+    /// the site, culture, and normalized old-path scope.
     /// </summary>
 public void Configure(StoreOptions opts)
     {
@@ -132,7 +126,8 @@ public void Configure(StoreOptions opts)
     }
 
         /// <summary>
-    /// Configure method.
+    /// Applies this module's document-schema configuration using the supplied
+    /// service provider only to satisfy the configuration contract.
     /// </summary>
 public void Configure(IServiceProvider services, StoreOptions opts)
     {

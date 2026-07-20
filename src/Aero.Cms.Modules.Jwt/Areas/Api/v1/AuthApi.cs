@@ -10,13 +10,54 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Jwt.Areas.Api.v1;
 
 /// <summary>
-/// Represents a class for AuthApi.
+/// Maps the username/password headless and cookie sign-in endpoints.
 /// </summary>
+/// <remarks>
+/// Authentication and cookie behavior are delegated to ASP.NET Core Identity
+/// and host-registered services. This type does not configure cookie lifetime,
+/// token storage, tenant scope, lockout policy, transport protection, or
+/// credential redaction. Its JSON POST endpoints do not attach antiforgery
+/// metadata.
+/// </remarks>
 public static class AuthApi
 {
         /// <summary>
-    /// MapAuthApi method.
+    /// Maps <c>POST /api/v1/auth/login</c> and
+    /// <c>POST /api/v1/auth/login/cookie</c>.
     /// </summary>
+    /// <param name="app">The endpoint route builder to update.</param>
+    /// <remarks>
+    /// The headless login looks up a user by username, checks the password with
+    /// lockout-on-failure disabled, rejects inactive or deleted users, generates
+    /// an API key, and returns the raw key with user and role data. On every
+    /// successful login, the default API-key service replaces that user's stored
+    /// digest, so a previously returned key stops validating. It does not
+    /// restrict the user to a CMS role. The handler returns 200 on success, 401
+    /// for missing users, password failure, or inactive/deleted users, and 500
+    /// for caught exceptions; the 500 problem response exposes
+    /// <see cref="Exception.Message"/>.
+    ///
+    /// The cookie login accepts a username or email, rejects inactive or deleted
+    /// users, requires membership in a CMS role, and calls
+    /// <c>PasswordSignInAsync</c> with the request's remember-me value and
+    /// lockout-on-failure disabled. The host's Identity configuration determines
+    /// the cookie scheme, attributes, and lifetime. A successful sign-in writes
+    /// the cookie before <c>LastLoginAt</c> is saved. The subsequent
+    /// <c>UserManager.UpdateAsync</c> result is ignored, so an unsuccessful
+    /// update result still produces a 200 response with the cookie already
+    /// issued. The handler returns 401 for missing, inactive/deleted, or failed
+    /// password users; 403 for users outside the CMS roles; 200 after successful
+    /// sign-in; and 500 for caught exceptions. A caught exception message is
+    /// returned in the problem response, including an exception thrown after
+    /// the cookie was issued.
+    ///
+    /// Neither JSON POST endpoint attaches an explicit authorization policy,
+    /// antiforgery metadata, or rate limit. Errors log the supplied username.
+    /// The headless handler forwards request cancellation only to API-key
+    /// creation. The cookie handler accepts a cancellation token but does not
+    /// use it; its Identity lookups, role checks, sign-in, and user update are
+    /// not cancellable through that parameter.
+    /// </remarks>
 public static void MapAuthApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}auth")
@@ -30,15 +71,17 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
     }
 
     /// <summary>
-    /// Logs in via ASP.NET Core Identity cookie authentication.
-    /// The SignInManager.PasswordSignInAsync method internally calls
-    /// HttpContext.SignInAsync, which writes a Set-Cookie header for the
-    /// .AeroCms.Auth cookie into the HTTP response. This cookie is then
-    /// automatically sent by the browser on subsequent requests.
-    ///
-    /// Per MS Learn, minimal API endpoints using SignInManager do not require
-    /// manually creating cookie responses — the framework handles it.
+    /// Attempts an ASP.NET Core Identity password sign-in using the host's
+    /// configured application-cookie scheme.
     /// </summary>
+    /// <remarks>
+    /// A successful <c>PasswordSignInAsync</c> call writes the configured
+    /// authentication cookie through the current HTTP response. The cookie name,
+    /// attributes, persistence behavior, and lifetime are controlled outside
+    /// this endpoint. The later <c>UserManager.UpdateAsync</c> result is ignored,
+    /// and the endpoint's cancellation-token parameter is unused. The JSON POST
+    /// has no antiforgery metadata.
+    /// </remarks>
     private static async Task<IResult> LoginWithCookie(
         [FromBody] LoginRequest request,
         [FromServices] SignInManager<AeroUser> signInManager,
@@ -130,7 +173,7 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
                 return TypedResults.Unauthorized();
             }
 
-            // Step 2: Create or retrieve API key (upsert)
+            // Step 2: Generate a key and upsert its digest, replacing any prior digest for the user.
             var apiKey = await apiKeyService.CreateKeyAsync(user.Id, user.Email!, cancellationToken: cancellationToken);
 
             // Step 3: Get user roles

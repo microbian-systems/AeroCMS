@@ -10,47 +10,59 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Health;
 
 /// <summary>
-/// Represents a class for HealthModule.
+/// Registers ASP.NET Core health-check services and conditionally exposes the
+/// aggregate health report at <c>/health</c>.
 /// </summary>
+/// <remarks>
+/// This module does not register an <c>IHealthCheck</c> implementation and does
+/// not define separate readiness or liveness probes. Outside the Development
+/// environment, its endpoint executes all checks registered in the application's
+/// shared health-check service collection.
+/// </remarks>
 [Module(nameof(HealthModule))]
 public sealed class HealthModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets or sets the Name.
-    /// </summary>
+    /// <summary>The stable module identifier, <c>HealthModule</c>.</summary>
 public override string Name => nameof(HealthModule);
-        /// <summary>
-    /// Gets or sets the Version.
-    /// </summary>
+    /// <summary>The Aero CMS version reported in module metadata.</summary>
 public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets or sets the Author.
-    /// </summary>
+    /// <summary>The Aero CMS author reported in module metadata.</summary>
 public override string Author => AeroConstants.Author;
-        /// <summary>
-    /// Gets or sets the Dependencies.
-    /// </summary>
+    /// <summary>An empty collection because the module declares no module-ordering dependencies.</summary>
 public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
+    /// <summary>The infrastructure and monitoring categories used to classify this module.</summary>
 public override IReadOnlyList<string> Category => ["Infrastructure", "Monitoring"];
-        /// <summary>
-    /// Gets or sets the Tags.
-    /// </summary>
+    /// <summary>The health, monitoring, and diagnostics discovery tags for this module.</summary>
 public override IReadOnlyList<string> Tags => ["health", "monitoring", "diagnostics"];
 
-        /// <summary>
-    /// ConfigureServices method.
-    /// </summary>
+    /// <summary>Registers the ASP.NET Core health-check service infrastructure.</summary>
+    /// <param name="services">The application service collection to update.</param>
+    /// <param name="config">Unused by this module.</param>
+    /// <param name="env">Unused by this module.</param>
+    /// <remarks>
+    /// The call to <c>AddHealthChecks</c> does not add a concrete dependency check;
+    /// checks registered elsewhere share the same service collection.
+    /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddHealthChecks();
     }
 
-        /// <summary>
-    /// RunAsync method.
-    /// </summary>
+    /// <summary>Runs base module startup and maps the aggregate health endpoint outside Development.</summary>
+    /// <param name="app">The endpoint builder whose service provider supplies the host environment.</param>
+    /// <returns>A task that completes after endpoint registration; health checks are executed per request.</returns>
+    /// <remarks>
+    /// In Development, this method maps no endpoint. In other environments,
+    /// <c>/health</c> uses the framework defaults: all registered checks run, the
+    /// aggregate status is written as plain text, Healthy and Degraded return HTTP
+    /// 200, and Unhealthy returns HTTP 503. This module attaches no explicit
+    /// authorization, host restriction, CORS policy, or readiness/liveness filter;
+    /// effective exposure can still be affected by the host application's pipeline
+    /// and endpoint policies.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// No <see cref="IHostEnvironment"/> is registered in the endpoint service provider.
+    /// </exception>
 public override async Task RunAsync(IEndpointRouteBuilder app)
     {
         await base.RunAsync(app);

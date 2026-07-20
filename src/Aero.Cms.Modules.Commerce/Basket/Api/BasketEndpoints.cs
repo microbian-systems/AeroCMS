@@ -7,14 +7,27 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Commerce.Basket.Api;
 
 /// <summary>
-/// Represents a class for BasketEndpoints.
+/// Registers authenticated HTTP endpoints for reading and mutating baskets.
 /// </summary>
+/// <remarks>
+/// Every route in this group requires authorization. The <c>customerId</c> value is nevertheless supplied by model
+/// binding rather than derived from the authenticated principal, so these endpoints do not themselves establish that
+/// the caller owns the addressed basket. They also expose no tenant or site filter.
+/// </remarks>
 public static class BasketEndpoints
 {
-        /// <summary>
-    /// MapBasketApi method.
+    /// <summary>
+    /// Maps the <c>/api/commerce/basket</c> route group.
     /// </summary>
-public static IEndpointRouteBuilder MapBasketApi(this IEndpointRouteBuilder builder)
+    /// <param name="builder">The route builder to which the authenticated routes are added.</param>
+    /// <returns>The supplied <paramref name="builder"/>.</returns>
+    /// <remarks>
+    /// GET <c>/</c> returns or creates a basket; POST <c>/items</c> adds or increments an item; DELETE
+    /// <c>/items/{productId}</c> removes matching items; and DELETE <c>/</c> clears items. Each route returns the
+    /// resulting basket with 200 on a service success and 400 for a service failure. No endpoint accepts an
+    /// idempotency key or performs stock, pricing, or ownership validation.
+    /// </remarks>
+    public static IEndpointRouteBuilder MapBasketApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/basket")

@@ -1,16 +1,16 @@
 namespace Aero.AppServer.Startup;
 
 /// <summary>
-/// Represents a class for StartupServiceNames.
+/// Defines stable names used to correlate local infrastructure readiness signals.
 /// </summary>
 public static class StartupServiceNames
 {
         /// <summary>
-        /// AeroDb.
+        /// Gets the embedded AeroDB readiness-signal name.
         /// </summary>
         public const string AeroDb = nameof(AeroDb);
         /// <summary>
-    /// Garnet.
+    /// Gets the local Garnet readiness-signal name.
     /// </summary>
 public const string Garnet = nameof(Garnet);
 }

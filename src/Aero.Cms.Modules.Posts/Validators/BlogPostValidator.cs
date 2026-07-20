@@ -1,8 +1,11 @@
 namespace Aero.Cms.Modules.Posts.Validators;
 
+/// <summary>
+/// Validates the minimum persisted identity, ownership, routing, title, and body requirements of a post.
+/// </summary>
 internal class PostValidator : AbstractValidator<PostDocument>
 {
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="PostValidator"/> class.
     /// </summary>
 public PostValidator()

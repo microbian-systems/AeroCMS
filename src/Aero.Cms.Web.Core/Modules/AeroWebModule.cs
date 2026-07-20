@@ -12,13 +12,13 @@ namespace Aero.Cms.Web.Core.Modules;
 /// endpoint configuration logic.</remarks>
 public interface IAeroWebModule : IAeroModule
 {
-        /// <summary>
-    /// Run method.
-    /// </summary>
+    /// <summary>Configures the module synchronously against an endpoint route builder.</summary>
+    /// <param name="builder">The host-owned route builder.</param>
+    /// <remarks>Implementations may map endpoints or perform startup work; authentication and policies are module-defined.</remarks>
 void Run(IEndpointRouteBuilder builder);
-        /// <summary>
-    /// RunAsync method.
-    /// </summary>
+    /// <summary>Configures the module asynchronously against an endpoint route builder.</summary>
+    /// <param name="builder">The host-owned route builder.</param>
+    /// <returns>A task representing module startup configuration.</returns>
 Task RunAsync(IEndpointRouteBuilder builder);
 }
 
@@ -29,10 +29,12 @@ Task RunAsync(IEndpointRouteBuilder builder);
 /// the RunAsync method to configure endpoints or perform additional setup during application startup.</remarks>
 public abstract class AeroWebModule : AeroModuleBase, IAeroWebModule
 {
-        /// <summary>
-    /// Run method.
+    /// <summary>
+    /// Runs <see cref="RunAsync"/> synchronously and propagates its exception.
     /// </summary>
-public virtual void Run(IEndpointRouteBuilder builder)
+    /// <param name="builder">The host-owned route builder.</param>
+    /// <remarks>Blocking asynchronous implementations can deadlock when invoked under a custom synchronization context.</remarks>
+    public virtual void Run(IEndpointRouteBuilder builder)
         => RunAsync(builder).GetAwaiter().GetResult();
 
     /// <summary>

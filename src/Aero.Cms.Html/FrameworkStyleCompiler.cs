@@ -9,12 +9,15 @@ namespace Aero.Cms.Html;
 /// Decorates the native compiler with exact framework-class mappings and preserves
 /// scoped native CSS for every intent the selected framework cannot express exactly.
 /// </summary>
+/// <param name="adapter">The exact-mapping strategy for the selected CSS framework.</param>
+/// <param name="nativeFallback">The compiler used for residual style intent; the native compiler is used when omitted.</param>
 public sealed class FrameworkStyleCompiler(
     IStyleFrameworkAdapter adapter,
     IStyleCompiler? nativeFallback = null) : IStyleCompiler
 {
     private readonly IStyleCompiler _nativeFallback = nativeFallback ?? new NativeCssStyleCompiler();
 
+    /// <inheritdoc />
     public Result<CompiledPageStyles> Compile(HtmlPageContent content, IStyleProfile profile)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -50,6 +53,7 @@ public sealed class FrameworkStyleCompiler(
         });
     }
 
+    /// <summary>Maps exact framework classes on a cloned tree and leaves only residual style intent.</summary>
     private void MapNode(
         HtmlNode node,
         IStyleProfile profile,
@@ -75,6 +79,7 @@ public sealed class FrameworkStyleCompiler(
         }
     }
 
+    /// <summary>Merges framework and native-fallback classes for every node in source-tree order.</summary>
     private static IReadOnlyDictionary<long, IReadOnlyList<string>> MergeClasses(
         HtmlNode root,
         IReadOnlyDictionary<long, IReadOnlyList<string>> frameworkClasses,
@@ -85,6 +90,7 @@ public sealed class FrameworkStyleCompiler(
         return merged;
     }
 
+    /// <summary>Combines and de-duplicates both compiler class sets for one node before recursing.</summary>
     private static void MergeNode(
         HtmlNode node,
         IReadOnlyDictionary<long, IReadOnlyList<string>> frameworkClasses,
@@ -106,6 +112,7 @@ public sealed class FrameworkStyleCompiler(
         }
     }
 
+    /// <summary>Builds the complete deterministic fingerprint input for profile, CSS, structure, and classes.</summary>
     private static string Canonicalize(
         HtmlNode root,
         IReadOnlyDictionary<long, IReadOnlyList<string>> nodeClasses,
@@ -121,6 +128,7 @@ public sealed class FrameworkStyleCompiler(
         return builder.ToString();
     }
 
+    /// <summary>Appends structural identity and ordered class assignments without depending on node IDs.</summary>
     private static void AppendClasses(
         HtmlNode node,
         IReadOnlyDictionary<long, IReadOnlyList<string>> nodeClasses,
@@ -138,6 +146,7 @@ public sealed class FrameworkStyleCompiler(
         }
     }
 
+    /// <summary>Computes a deterministic lowercase SHA-256 digest for compiled output identity.</summary>
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 }

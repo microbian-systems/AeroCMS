@@ -4,13 +4,14 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Banner;
 
 /// <summary>
-/// Represents a class for BannerValidator.
+/// Validates the required banner identity, name, and configured date values.
 /// </summary>
 public class BannerValidator : AbstractValidator<BannerModel>
 {
-        /// <summary>
-    /// Initializes a new instance of the <see cref="BannerValidator"/> class.
+    /// <summary>
+    /// Initializes validation rules requiring a positive identifier, a non-empty name, and non-empty start and end dates.
     /// </summary>
+    /// <remarks>The validator does not verify chronological ordering, message content, or site/culture eligibility.</remarks>
 public BannerValidator()
     {
         RuleFor(x => x.Id)

@@ -9,28 +9,36 @@ using Microsoft.Extensions.Options;
 namespace Aero.Cms.Modules.Analytics;
 
 /// <summary>
-/// Defines an interface for ISeoScriptRenderer.
+/// Renders enabled third-party analytics snippets for a position in the document.
 /// </summary>
 public interface ISeoScriptRenderer
 {
-        /// <summary>
-    /// RenderAsync method.
+    /// <summary>
+    /// Renders the configured scripts and non-script fallbacks for the requested placement.
     /// </summary>
+    /// <param name="placement">The document position that selects which provider snippets are included.</param>
+    /// <param name="cancellationToken">Token forwarded when reading the current SEO settings.</param>
+    /// <returns>Trusted HTML content, or an empty HTML value when no snippets apply.</returns>
 Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Represents a class for SeoScriptRenderer.
+/// Reads analytics configuration and renders the corresponding third-party snippets.
 /// </summary>
+/// <param name="settings">Configuration fallback when a matching SEO setting is absent.</param>
+/// <param name="settingActor">Provider used to read the current <c>SEO</c> settings category.</param>
+/// <remarks>
+/// Dynamic values emitted by this renderer are encoded for their JavaScript or URL context. The result is
+/// intentionally returned as trusted <see cref="IHtmlContent"/>. This renderer does not apply consent,
+/// user, tenant, or page-level eligibility checks.
+/// </remarks>
 public sealed class SeoScriptRenderer(
     IOptions<AnalyticsSettings> settings,
     IAeroSettingActor settingActor) : ISeoScriptRenderer
 {
     private readonly AnalyticsSettings _configuredSettings = settings.Value;
 
-        /// <summary>
-    /// RenderAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default)
     {
         var scriptSettings = await LoadScriptSettingsAsync(cancellationToken);

@@ -12,6 +12,12 @@ public static class NativeStyleProfileFactory
 {
     private const int MaximumColorTokens = 64;
 
+    /// <summary>
+    /// Creates a runtime profile after applying the same normalization used for persisted settings.
+    /// </summary>
+    /// <param name="siteId">The positive site identity included in the profile identifier.</param>
+    /// <param name="settings">The persisted settings to validate and normalize.</param>
+    /// <returns>The runtime profile, or all discovered validation errors.</returns>
     public static Result<NativeStyleProfile, AeroError> Create(
         long siteId,
         StyleProfileSettings settings)
@@ -28,6 +34,12 @@ public static class NativeStyleProfileFactory
         };
     }
 
+    /// <summary>
+    /// Produces canonical persisted settings and their matching runtime profile as one validation operation.
+    /// </summary>
+    /// <param name="siteId">The positive site identity included in the profile identifier.</param>
+    /// <param name="settings">The persisted settings to validate and normalize.</param>
+    /// <returns>Sorted canonical tokens and the resolved profile, or all discovered validation errors.</returns>
     public static Result<NormalizedNativeStyleProfile, AeroError> Normalize(
         long siteId,
         StyleProfileSettings settings)
@@ -117,6 +129,7 @@ public static class NativeStyleProfileFactory
             new NormalizedNativeStyleProfile(normalizedSettings, profile));
     }
 
+    /// <summary>Converts an author token label to lower-case kebab form using ASCII letters and digits.</summary>
     private static string NormalizeTokenName(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -149,6 +162,7 @@ public static class NativeStyleProfileFactory
         return builder.ToString();
     }
 
+    /// <summary>Enforces the bounded CSS-safe token-name grammar after normalization.</summary>
     private static bool IsValidTokenName(string value)
     {
         if (value.Length is < 1 or > 64 || value[0] is < 'a' or > 'z')
@@ -158,6 +172,7 @@ public static class NativeStyleProfileFactory
             character is >= 'a' and <= 'z' or >= '0' and <= '9' or '-');
     }
 
+    /// <summary>Normalizes supported hexadecimal forms to lower-case six- or eight-digit values with a hash prefix.</summary>
     private static bool TryNormalizeHex(string? value, out string normalized)
     {
         normalized = string.Empty;
@@ -183,6 +198,9 @@ public static class NativeStyleProfileFactory
     }
 }
 
+/// <summary>Pairs canonical persisted settings with the runtime profile derived from them.</summary>
+/// <param name="Settings">The normalized, sorted settings suitable for persistence.</param>
+/// <param name="Profile">The runtime profile resolved from those settings.</param>
 public sealed record NormalizedNativeStyleProfile(
     StyleProfileSettings Settings,
     NativeStyleProfile Profile);

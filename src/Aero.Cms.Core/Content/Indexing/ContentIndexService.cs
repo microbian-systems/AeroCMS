@@ -10,17 +10,32 @@ namespace Aero.Cms.Core.Content.Indexing;
 /// Builds a search index document from a ContentItem by extracting field-level tokens
 /// using registered IContentFieldIndexer implementations.
 /// </summary>
+/// <remarks>
+/// Indexers are matched to field types case-insensitively. Duplicate registrations for
+/// the same field type cause index construction to fail.
+/// </remarks>
 public sealed class ContentIndexService(
     IEnumerable<IContentFieldIndexer> indexers,
     IContentTypeService typeService)
 {
     /// <summary>
     /// Builds a <see cref="ContentSearchDocument"/> for the given content item.
-    /// Returns a document with at minimum the Id populated if the content type cannot be resolved.
+    /// Returns an identifier-only document if the content type cannot be resolved.
     /// </summary>
     /// <param name="item">The content item to index.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>A search document containing indexed field tokens.</returns>
+    /// <param name="ct">A token that can cancel content-type resolution.</param>
+    /// <returns>
+    /// A search document containing tokens from fields that have both a value and a
+    /// registered indexer. Hidden content types return metadata without field tokens.
+    /// </returns>
+    /// <remarks>
+    /// Tokens are preserved as returned by each indexer. They are joined with spaces into
+    /// <see cref="ContentSearchDocument.FullText"/>; no additional case or culture
+    /// normalization is applied.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Multiple indexers have the same field type, ignoring case.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
     public async Task<ContentSearchDocument> BuildIndexAsync(ContentItem item, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(item);

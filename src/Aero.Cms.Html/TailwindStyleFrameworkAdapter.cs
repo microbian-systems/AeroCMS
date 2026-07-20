@@ -8,9 +8,13 @@ namespace Aero.Cms.Html;
 /// </summary>
 public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
 {
+    /// <inheritdoc />
     public override string AdapterId => "tailwind";
+
+    /// <inheritdoc />
     public override string AdapterVersion => "1";
 
+    /// <inheritdoc />
     protected override void MapLayout(HtmlStyle residual, ICollection<string> classes)
     {
         // The site breakpoint is not assumed to equal Tailwind's configured breakpoints.
@@ -37,6 +41,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
             residual.JustifyContent = null;
     }
 
+    /// <inheritdoc />
     protected override void MapSpacing(HtmlStyle residual, ICollection<string> classes)
     {
         if (TryMapUniformSpacing(residual.Padding, length => LengthClass("p", length), classes))
@@ -45,6 +50,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
             residual.Margin = null;
     }
 
+    /// <inheritdoc />
     protected override void MapSizing(HtmlStyle residual, ICollection<string> classes)
     {
         if (residual.MinimumHeight is { Unit: CssLengthUnit.ViewportHeight, Value: 100 })
@@ -54,6 +60,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         }
     }
 
+    /// <inheritdoc />
     protected override void MapSurface(HtmlStyle residual, ICollection<string> classes)
     {
         if (residual.Surface?.BorderRadius is not { } radius)
@@ -72,6 +79,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         residual.Surface.BorderRadius = null;
     }
 
+    /// <inheritdoc />
     protected override void MapTypography(HtmlStyle residual, ICollection<string> classes)
     {
         if (residual.Typography is not { } typography)
@@ -88,6 +96,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         }
     }
 
+    /// <summary>Adds a length utility only when the value is on the stable allowlisted scale.</summary>
     private static bool MapLength(CssLength? length, string prefix, ICollection<string> classes)
     {
         if (length is null)
@@ -99,6 +108,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         return true;
     }
 
+    /// <summary>Maps exact length values without emitting Tailwind arbitrary-value syntax.</summary>
     private static string? LengthClass(string prefix, CssLength length)
     {
         if (length.Unit is not CssLengthUnit.Rem)
@@ -122,6 +132,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         return scale is null ? null : $"{prefix}-{scale}";
     }
 
+    /// <summary>Adds a mapped utility only when the nullable enum value has an exact allowlisted mapping.</summary>
     private static bool Map<T>(
         T? value,
         Func<T, string?> mapper,
@@ -137,6 +148,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         return true;
     }
 
+    /// <summary>Resolves an exact Tailwind display utility.</summary>
     private static string? DisplayClass(CssDisplay value) => value switch
     {
         CssDisplay.Block => "block",
@@ -150,6 +162,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Tailwind flex-direction utility.</summary>
     private static string? FlexDirectionClass(CssFlexDirection value) => value switch
     {
         CssFlexDirection.Row => "flex-row",
@@ -159,6 +172,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Tailwind cross-axis alignment utility.</summary>
     private static string? AlignmentClass(CssAlignment value) => value switch
     {
         CssAlignment.Start => "items-start",
@@ -169,6 +183,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Tailwind main-axis distribution utility.</summary>
     private static string? JustificationClass(CssJustification value) => value switch
     {
         CssJustification.Start => "justify-start",
@@ -180,6 +195,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Resolves an exact Tailwind text-alignment utility.</summary>
     private static string? TextAlignmentClass(CssTextAlignment value) => value switch
     {
         CssTextAlignment.Start => "text-start",
@@ -189,6 +205,7 @@ public sealed class TailwindStyleFrameworkAdapter : StyleFrameworkAdapterBase
         _ => null
     };
 
+    /// <summary>Maps numeric font weights to stable Tailwind weight names.</summary>
     private static string WeightName(int weight) => weight switch
     {
         100 => "thin",

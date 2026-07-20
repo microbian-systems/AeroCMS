@@ -5,19 +5,19 @@ using FluentValidation;
 namespace Aero.Cms.Core.Content.Services;
 
 /// <summary>
-/// Represents a class for TextFieldValidator.
+/// Validates text field JSON values and configured length limits.
 /// </summary>
 public sealed class TextFieldValidator : IContentFieldValidator
 {
-        /// <summary>
-    /// Gets or sets the Field Type.
-    /// </summary>
-public string FieldType => "text";
+    /// <inheritdoc />
+    public string FieldType => "text";
 
-        /// <summary>
-    /// ValidateElement method.
-    /// </summary>
-public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+    /// <inheritdoc />
+    /// <remarks>
+    /// Requires a JSON string. Integer <c>minLength</c> and <c>maxLength</c> settings are
+    /// enforced in both validation modes when present.
+    /// </remarks>
+    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         if (element.ValueKind != JsonValueKind.String)
         {
@@ -36,19 +36,19 @@ public void ValidateElement(ContentFieldDefinition field, JsonElement element, C
 }
 
 /// <summary>
-/// Represents a class for NumberFieldValidator.
+/// Validates numeric field JSON values and configured decimal bounds.
 /// </summary>
 public sealed class NumberFieldValidator : IContentFieldValidator
 {
-        /// <summary>
-    /// Gets or sets the Field Type.
-    /// </summary>
-public string FieldType => "number";
+    /// <inheritdoc />
+    public string FieldType => "number";
 
-        /// <summary>
-    /// ValidateElement method.
-    /// </summary>
-public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+    /// <inheritdoc />
+    /// <remarks>
+    /// Requires a JSON number representable as <see cref="decimal"/>. Decimal <c>min</c> and
+    /// <c>max</c> settings are enforced in both validation modes when present.
+    /// </remarks>
+    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         if (!element.TryGetDecimal(out var value))
         {
@@ -65,19 +65,20 @@ public void ValidateElement(ContentFieldDefinition field, JsonElement element, C
 }
 
 /// <summary>
-/// Represents a class for ReferenceFieldValidator.
+/// Validates the JSON shape and identifier syntax of reference fields.
 /// </summary>
 public sealed class ReferenceFieldValidator : IContentFieldValidator
 {
-        /// <summary>
-    /// Gets or sets the Field Type.
-    /// </summary>
-public string FieldType => "reference";
+    /// <inheritdoc />
+    public string FieldType => "reference";
 
-        /// <summary>
-    /// ValidateElement method.
-    /// </summary>
-public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+    /// <inheritdoc />
+    /// <remarks>
+    /// When <c>allowMultiple</c> is JSON <see langword="true"/>, the value must be an array
+    /// of strings parseable as <see cref="long"/>. Otherwise one parseable string is required.
+    /// The optional <c>targetContentType</c> setting is read but is not enforced.
+    /// </remarks>
+    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         var targetContentType = field.Settings.TryGetValue("targetContentType", out var target)
             && target.ValueKind == JsonValueKind.String

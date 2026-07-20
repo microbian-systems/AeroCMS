@@ -10,17 +10,20 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Navigation.Services;
 
 /// <summary>
-/// Represents a class for NavMenuService.
+/// Implements event-sourced navigation editing, publication, culture selection, and site defaults.
 /// </summary>
+/// <remarks>
+/// Manager operations are constrained by the injected <see cref="ISiteContext"/>. Stream events and
+/// their inline document projections are committed together; Wolverine change notifications, when
+/// configured, are published after that commit.
+/// </remarks>
 public sealed class NavMenuService(
     IDocumentSession session,
     ISiteContext siteContext,
     ILogger<NavMenuService> logger,
     IMessageBus? bus = null) : INavMenuService
 {
-        /// <summary>
-    /// ListAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
         int skip = 0,
         int take = 20,
@@ -55,9 +58,7 @@ public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount)
         }
     }
 
-        /// <summary>
-    /// GetAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -77,9 +78,7 @@ public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, Cancella
         }
     }
 
-        /// <summary>
-    /// GetDetailAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
     {
         var menuResult = await GetAsync(id, cancellationToken);
@@ -94,9 +93,7 @@ public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, C
         return Ok<NavigationDetail, AeroError>(MapDetail(menu, snapshot, version));
     }
 
-        /// <summary>
-    /// ListCultureVariantsAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -135,9 +132,7 @@ public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultur
         }
     }
 
-        /// <summary>
-    /// GetDefaultIdAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
@@ -158,9 +153,7 @@ public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, Cance
         }
     }
 
-        /// <summary>
-    /// GetPublishedSnapshotAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -193,9 +186,7 @@ public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync
         }
     }
 
-        /// <summary>
-    /// ResolveSnapshotAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
         long siteId,
         long? pageOverrideId = null,
@@ -229,9 +220,7 @@ public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
         }
     }
 
-        /// <summary>
-    /// CreateAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
         CreateNavigationRequest request,
         long? userId = null,
@@ -276,9 +265,7 @@ public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
         }
     }
 
-        /// <summary>
-    /// SaveDraftAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
         long id,
         UpdateNavigationRequest request,
@@ -330,9 +317,7 @@ public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
         }
     }
 
-        /// <summary>
-    /// PublishAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
         long id,
         long expectedVersion,
@@ -383,9 +368,7 @@ public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
         }
     }
 
-        /// <summary>
-    /// SetDefaultAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> SetDefaultAsync(
         long id,
         long? userId = null,
@@ -431,9 +414,7 @@ public async Task<Result<bool, AeroError>> SetDefaultAsync(
         }
     }
 
-        /// <summary>
-    /// ArchiveAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<bool, AeroError>> ArchiveAsync(
         long id,
         long expectedVersion,
@@ -478,6 +459,15 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
         }
     }
 
+    /// <summary>
+    /// Selects the snapshot shown by the editor from the menu stream.
+    /// </summary>
+    /// <param name="menu">The projected menu whose lifecycle state controls snapshot preference.</param>
+    /// <param name="cancellationToken">The token used to fetch the event stream.</param>
+    /// <returns>
+    /// The published snapshot for a clean published menu; otherwise the latest draft,
+    /// then the latest publication, then <see cref="NavMenuSnapshot.Empty"/>.
+    /// </returns>
     private async Task<NavMenuSnapshot> LoadEditorSnapshotAsync(NavMenuDocument menu, CancellationToken cancellationToken)
     {
         var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(menu.Id), ct: cancellationToken);
@@ -501,6 +491,12 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
         return draft?.Snapshot ?? published?.Snapshot ?? NavMenuSnapshot.Empty;
     }
 
+    /// <summary>
+    /// Finds the latest draft only when it has not been superseded by a later publication.
+    /// </summary>
+    /// <param name="id">The navigation stream identifier.</param>
+    /// <param name="cancellationToken">The token used to fetch the event stream.</param>
+    /// <returns>The publishable draft event, or <see langword="null"/> when no unpublished draft exists.</returns>
     private async Task<NavMenuDraftSaved?> LoadLatestDraftAsync(long id, CancellationToken cancellationToken)
     {
         var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(id), ct: cancellationToken);
@@ -522,18 +518,36 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
             : (NavMenuDraftSaved)latestDraft.Data;
     }
 
+    /// <summary>
+    /// Reads the current event-stream version used by editor concurrency tokens.
+    /// </summary>
+    /// <param name="id">The navigation menu identifier.</param>
+    /// <param name="cancellationToken">The token used for the stream-state query.</param>
+    /// <returns>The stream version, or zero when the stream has no state.</returns>
     private async Task<long> GetStreamVersionAsync(long id, CancellationToken cancellationToken)
     {
         var state = await session.Events.FetchStreamStateAsync(NavMenuStreams.Menu(id), cancellationToken);
         return state?.Version ?? 0;
     }
 
+    /// <summary>
+    /// Resolves and normalizes the current manager site's default culture.
+    /// </summary>
+    /// <param name="cancellationToken">The token used to load the site document.</param>
+    /// <returns>The normalized site culture, falling back to the platform default.</returns>
     private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
     {
         var site = await session.LoadAsync<SitesModel>(siteContext.SiteId, cancellationToken);
         return NormalizeCulture(site?.DefaultCulture);
     }
 
+    /// <summary>
+    /// Performs the optional preflight event-stream concurrency check.
+    /// </summary>
+    /// <param name="id">The navigation menu identifier.</param>
+    /// <param name="expectedVersion">The caller's version; non-positive values skip the preflight check.</param>
+    /// <param name="cancellationToken">The token used for the stream-state query.</param>
+    /// <exception cref="InvalidOperationException">The current stream version differs from a positive expected version.</exception>
     private async Task EnsureExpectedVersionAsync(long id, long expectedVersion, CancellationToken cancellationToken)
     {
         if (expectedVersion <= 0)
@@ -548,9 +562,7 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
         }
     }
 
-        /// <summary>
-    /// ForkToCultureAsync method.
-    /// </summary>
+    /// <inheritdoc />
 public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         long id,
         string targetCulture,
@@ -599,6 +611,18 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         }
     }
 
+    /// <summary>
+    /// Selects a published culture variant of a default or page-override menu when one exists.
+    /// </summary>
+    /// <param name="siteId">The site constraining the variant query.</param>
+    /// <param name="defaultMenuId">The fallback menu identifier.</param>
+    /// <param name="culture">The normalized requested UI culture.</param>
+    /// <param name="cancellationToken">The token used for persistence reads.</param>
+    /// <returns>The matching published variant identifier, or <paramref name="defaultMenuId"/>.</returns>
+    /// <remarks>
+    /// The initial identifier load is not site-constrained. The caller is responsible for ensuring
+    /// a page override identifies a menu belonging to <paramref name="siteId"/>.
+    /// </remarks>
     private async Task<long> ResolveCultureVariantIdAsync(
         long siteId,
         long defaultMenuId,
@@ -624,6 +648,15 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         return cultureVariant?.Id ?? defaultMenuId;
     }
 
+    /// <summary>
+    /// Publishes an optional post-commit cache-invalidation notification.
+    /// </summary>
+    /// <param name="navMenuId">The changed menu identifier.</param>
+    /// <param name="siteId">The owning site identifier carried by the event.</param>
+    /// <param name="changeKind">The persisted change category.</param>
+    /// <param name="changedOn">The event timestamp.</param>
+    /// <param name="cancellationToken">Accepted for call-site symmetry; it is not forwarded to Wolverine.</param>
+    /// <returns>The message publication task, or a completed task when no bus is configured.</returns>
     private Task PublishNavigationChangedAsync(
         long navMenuId,
         long siteId,
@@ -634,9 +667,18 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
             ? Task.CompletedTask
             : bus.PublishAsync(new NavigationMenuChangedEvent(navMenuId, siteId, changeKind, changedOn)).AsTask();
 
+    /// <summary>
+    /// Returns the normalized ambient UI culture used for variant selection.
+    /// </summary>
+    /// <returns>The normalized current UI culture name.</returns>
     private static string GetCurrentCulture()
         => NormalizeCulture(CultureInfo.CurrentUICulture.Name);
 
+    /// <summary>
+    /// Canonicalizes a culture name and applies the platform default for missing or invalid values.
+    /// </summary>
+    /// <param name="culture">The candidate culture name.</param>
+    /// <returns>A canonical culture name.</returns>
     private static string NormalizeCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
@@ -652,6 +694,12 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         }
     }
 
+    /// <summary>
+    /// Maps legacy create-request links into a default three-column snapshot.
+    /// </summary>
+    /// <param name="items">The ordered link requests.</param>
+    /// <param name="siteLogoUrl">The optional logo URL.</param>
+    /// <returns>A snapshot whose links receive new Snowflake keys.</returns>
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<CreateNavigationItemRequest> items, string? siteLogoUrl)
         => new(
             NavMenuLayout.Default,
@@ -674,6 +722,12 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
                 .ToList(),
             siteLogoUrl);
 
+    /// <summary>
+    /// Maps legacy update-request links into a default three-column snapshot.
+    /// </summary>
+    /// <param name="items">The ordered link requests.</param>
+    /// <param name="siteLogoUrl">The optional logo URL.</param>
+    /// <returns>A snapshot that preserves positive request identifiers and generates missing keys.</returns>
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<UpdateNavigationItemRequest> items, string? siteLogoUrl)
         => new(
             NavMenuLayout.Default,
@@ -696,6 +750,12 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
                 .ToList(),
             siteLogoUrl);
 
+    /// <summary>
+    /// Maps flat component requests into a default three-column snapshot.
+    /// </summary>
+    /// <param name="components">The ordered component requests.</param>
+    /// <param name="siteLogoUrl">The optional logo URL.</param>
+    /// <returns>The mapped snapshot.</returns>
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<UpdateNavigationComponentRequest> components, string? siteLogoUrl)
         => new(
             NavMenuLayout.Default,
@@ -706,6 +766,12 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
                 .ToList(),
             siteLogoUrl);
 
+    /// <summary>
+    /// Maps the full row/column/block editor canvas into a snapshot.
+    /// </summary>
+    /// <param name="rows">The editor rows, columns, and blocks.</param>
+    /// <param name="siteLogoUrl">The optional logo URL.</param>
+    /// <returns>A row-based snapshot with display values trimmed and spans clamped to 1 through 12.</returns>
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<UpdateNavigationCanvasRowRequest> rows, string? siteLogoUrl)
     {
         var canvasRows = rows
@@ -754,6 +820,14 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         return snapshot;
     }
 
+    /// <summary>
+    /// Maps a discriminated component request to its persisted polymorphic component.
+    /// </summary>
+    /// <param name="component">The component request.</param>
+    /// <returns>
+    /// A menu, HTML, search, language, authentication, or link component. Unknown kinds
+    /// intentionally fall back to a link.
+    /// </returns>
     private static INavMenuComponent MapComponent(UpdateNavigationComponentRequest component)
     {
         var key = (component.Id == 0 ? Snowflake.NewId() : component.Id).ToString();
@@ -823,6 +897,13 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         };
     }
 
+    /// <summary>
+    /// Projects a persisted document and snapshot into the administrative editor contract.
+    /// </summary>
+    /// <param name="menu">The lifecycle and audit document.</param>
+    /// <param name="snapshot">The selected editor snapshot.</param>
+    /// <param name="version">The current event-stream version.</param>
+    /// <returns>The flattened legacy items, polymorphic components, and canvas rows.</returns>
     private static NavigationDetail MapDetail(NavMenuDocument menu, NavMenuSnapshot snapshot, long version)
         => new(
             menu.Id,
@@ -856,6 +937,11 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
                 .Select(MapRowDetail)
                 .ToList());
 
+    /// <summary>
+    /// Maps a persisted canvas row to its API detail representation.
+    /// </summary>
+    /// <param name="row">The persisted row.</param>
+    /// <returns>The ordered row detail.</returns>
     private static NavigationCanvasRowDetail MapRowDetail(NavCanvasRow row)
         => new(
             ParseKey(row.Key),
@@ -866,6 +952,11 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
             row.MobileDisplay,
             row.Columns.OrderBy(x => x.Order).Select(MapColumnDetail).ToList());
 
+    /// <summary>
+    /// Maps a persisted canvas column and its ordered blocks to API details.
+    /// </summary>
+    /// <param name="column">The persisted column.</param>
+    /// <returns>The column detail.</returns>
     private static NavigationCanvasColumnDetail MapColumnDetail(NavCanvasColumn column)
         => new(
             ParseKey(column.Key),
@@ -875,6 +966,12 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
             column.MobileSpan,
             column.Blocks.OrderBy(x => x.Order).Select(x => MapComponentDetail(x.Component, x.Order)).ToList());
 
+    /// <summary>
+    /// Maps a polymorphic component to the editor's string-discriminated API contract.
+    /// </summary>
+    /// <param name="component">The persisted component.</param>
+    /// <param name="order">The component's sibling order.</param>
+    /// <returns>The component detail; unknown implementations produce an <c>unknown</c> placeholder.</returns>
     private static NavigationComponentDetail MapComponentDetail(INavMenuComponent component, int order)
         => component switch
         {
@@ -945,30 +1042,67 @@ public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
             _ => new NavigationComponentDetail(0, "unknown", null, null, null, order)
         };
 
+    /// <summary>
+    /// Parses alignment text, defaulting unknown values to the left bucket.
+    /// </summary>
+    /// <param name="alignment">The case-insensitive alignment text.</param>
+    /// <returns>The parsed alignment or <see cref="NavAlignment.Left"/>.</returns>
     private static NavAlignment ParseAlignment(string? alignment)
         => Enum.TryParse<NavAlignment>(alignment, true, out var parsed)
             ? parsed
             : NavAlignment.Left;
 
+    /// <summary>
+    /// Parses authentication visibility text, defaulting unknown values to always visible.
+    /// </summary>
+    /// <param name="visibility">The case-insensitive visibility text.</param>
+    /// <returns>The parsed visibility or <see cref="NavAuthVisibility.Always"/>.</returns>
     private static NavAuthVisibility ParseVisibility(string? visibility)
         => Enum.TryParse<NavAuthVisibility>(visibility, true, out var parsed)
             ? parsed
             : NavAuthVisibility.Always;
 
+    /// <summary>
+    /// Restricts a responsive grid span to the supported twelve-column range.
+    /// </summary>
+    /// <param name="span">The requested span.</param>
+    /// <returns>A value from 1 through 12.</returns>
     private static int ClampSpan(int span)
         => Math.Clamp(span, 1, 12);
 
+    /// <summary>
+    /// Trims a responsive display value or substitutes its device-specific fallback.
+    /// </summary>
+    /// <param name="value">The requested display value.</param>
+    /// <param name="fallback">The value used when the request is blank.</param>
+    /// <returns>The normalized display value.</returns>
     private static string CleanDisplay(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
+    /// <summary>
+    /// Converts a persisted string component key back to the numeric API identifier.
+    /// </summary>
+    /// <param name="key">The persisted key.</param>
+    /// <returns>The parsed identifier, or zero for a non-numeric key.</returns>
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;
 
+    /// <summary>
+    /// Restricts link targets to supported HTML browsing-context keywords.
+    /// </summary>
+    /// <param name="target">The requested target.</param>
+    /// <param name="isExternal">Whether an invalid target should default to a new tab.</param>
+    /// <returns>A supported target keyword.</returns>
     private static string NormalizeTarget(string? target, bool isExternal)
         => target is "_self" or "_blank" or "_parent" or "_top"
             ? target
             : isExternal ? "_blank" : "_self";
 
+    /// <summary>
+    /// Determines whether a value is an absolute HTTP or HTTPS URL.
+    /// </summary>
+    /// <param name="url">The candidate URL.</param>
+    /// <returns><see langword="true"/> for absolute HTTP(S) URLs; otherwise <see langword="false"/>.</returns>
     private static bool IsHttpUrl(string? url)
         => Uri.TryCreate(url, UriKind.Absolute, out var uri)
            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);

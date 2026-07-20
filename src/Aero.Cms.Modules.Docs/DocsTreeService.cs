@@ -9,16 +9,22 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Docs;
 
 /// <summary>
-/// Represents a class for DocsTreeService.
+/// Implements documentation navigation and hierarchy mutations over an operation-scoped session.
 /// </summary>
+/// <param name="session">The document session used for the operation.</param>
+/// <param name="bus">The message bus used after hierarchy mutations are committed.</param>
+/// <param name="logger">The diagnostic logger.</param>
+/// <remarks>
+/// Site and docs-space identifiers are supplied per call; this service does not authorize them.
+/// Mutations commit before publishing Wolverine notifications, and caught cancellation is returned
+/// as a database failure.
+/// </remarks>
 public sealed class DocsTreeService(
     IDocumentSession session,
     IMessageBus bus,
     ILogger<DocsTreeService> logger) : IDocsTreeService
 {
-        /// <summary>
-    /// GetSidebarTreeAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId = 0,
@@ -26,9 +32,7 @@ public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarT
         CancellationToken ct = default)
         => await GetSidebarTreeAsync(siteId, activeId, publishedOnly, null, ct);
 
-        /// <summary>
-    /// GetSidebarTreeAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId,
@@ -56,9 +60,7 @@ public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarT
         }
     }
 
-        /// <summary>
-    /// GetBreadcrumbsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
@@ -66,9 +68,7 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsyn
         CancellationToken ct = default)
         => await GetBreadcrumbsAsync(siteId, docId, publishedOnly, null, ct);
 
-        /// <summary>
-    /// GetBreadcrumbsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
@@ -106,15 +106,11 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsyn
         }
     }
 
-        /// <summary>
-    /// ExtractHeadings method.
-    /// </summary>
+/// <inheritdoc />
 public IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown)
         => HeadingExtractor.Extract(markdown);
 
-        /// <summary>
-    /// CreateChildSectionAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
         long siteId,
         long spaceId,
@@ -173,9 +169,7 @@ public async Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
         }
     }
 
-        /// <summary>
-    /// MoveSectionAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<DocsPage, AeroError>> MoveSectionAsync(
         long siteId,
         long spaceId,
@@ -239,9 +233,7 @@ public async Task<Result<DocsPage, AeroError>> MoveSectionAsync(
         }
     }
 
-        /// <summary>
-    /// ReorderSiblingsAsync method.
-    /// </summary>
+/// <inheritdoc />
 public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         long siteId,
         long spaceId,
@@ -294,6 +286,10 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         }
     }
 
+    /// <summary>
+    /// Loads the ordered working set used for navigation or hierarchy validation.
+    /// </summary>
+    /// <remarks>A blank culture leaves all cultures in the working set.</remarks>
     private Task<List<DocsPage>> LoadSiteDocsAsync(long siteId, bool publishedOnly, string? culture, CancellationToken ct)
     {
         var query = session.Query<DocsPage>()
@@ -314,6 +310,9 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// Canonicalizes a culture, falling back to <c>en-US</c> when parsing fails.
+    /// </summary>
     private static string NormalizeCulture(string? culture)
     {
         try
@@ -326,6 +325,9 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         }
     }
 
+    /// <summary>
+    /// Recursively projects an ordered parent lookup into sidebar nodes and active-path expansion.
+    /// </summary>
     private static List<DocsSidebarNode> BuildNodes(
         long parentId,
         int depth,
@@ -358,6 +360,10 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         return nodes;
     }
 
+    /// <summary>
+    /// Walks parent identifiers to determine whether a page is rooted in a docs space.
+    /// </summary>
+    /// <remarks>Missing parent records terminate the walk and produce <see langword="false"/>.</remarks>
     private static bool IsWithinSpace(DocsPage page, long spaceId, IReadOnlyList<DocsPage> docs)
     {
         if (page.Id == spaceId)
@@ -375,6 +381,9 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         return false;
     }
 
+    /// <summary>
+    /// Walks parent identifiers to determine whether a page descends from an ancestor.
+    /// </summary>
     private static bool IsDescendantOf(DocsPage page, long ancestorId, IReadOnlyList<DocsPage> docs)
     {
         var parentId = page.ParentId;
@@ -389,6 +398,9 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         return false;
     }
 
+    /// <summary>
+    /// Returns one greater than the maximum sibling order while excluding the moving page.
+    /// </summary>
     private static int NextOrder(long parentId, IReadOnlyList<DocsPage> docs, long excludeId)
         => docs
             .Where(doc => doc.ParentId == parentId && doc.Id != excludeId)
@@ -396,6 +408,13 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
             .DefaultIfEmpty(-1)
             .Max() + 1;
 
+    /// <summary>
+    /// Recursively rewrites descendants whose slug begins with the moved page's old path.
+    /// </summary>
+    /// <remarks>
+    /// Descendants with unrelated slugs are traversed but left unchanged. Changed pages and their
+    /// prior slugs are appended for the caller's shared commit and later event publication.
+    /// </remarks>
     private static void RewriteDescendantSlugs(
         string oldParentSlug,
         string newParentSlug,
@@ -418,6 +437,10 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         }
     }
 
+    /// <summary>
+    /// Generates a hierarchical slug and appends numeric suffixes until it is unique in the loaded set.
+    /// </summary>
+    /// <remarks>The uniqueness comparison spans the supplied working set, including all loaded cultures.</remarks>
     private static string GenerateUniqueChildSlug(string parentSlug, string title, IReadOnlyList<DocsPage> docs, long? excludeId = null)
     {
         var baseSlug = $"{NormalizeSlug(parentSlug)}/{GenerateSlug(title)}".Trim('/');
@@ -430,17 +453,26 @@ public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         return candidate;
     }
 
+    /// <summary>
+    /// Slugifies each non-empty path segment and rejoins it with forward slashes.
+    /// </summary>
     private static string NormalizeSlug(string value)
         => string.Join('/', value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(GenerateSlug)
             .Where(part => !string.IsNullOrWhiteSpace(part)));
 
+    /// <summary>
+    /// Returns the final non-empty path segment, or the original value when none exists.
+    /// </summary>
     private static string SlugLeaf(string value)
     {
         var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return parts.Length == 0 ? value : parts[^1];
     }
 
+    /// <summary>
+    /// Lowercases text, replaces non-alphanumeric characters with hyphens, and collapses repeats.
+    /// </summary>
     private static string GenerateSlug(string value)
     {
         var slug = new string(value

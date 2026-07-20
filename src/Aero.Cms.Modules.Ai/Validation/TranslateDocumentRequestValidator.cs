@@ -4,13 +4,21 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Ai.Validation;
 
 /// <summary>
-/// Represents a class for TranslateDocumentRequestValidator.
+/// Validates document-translation requests before their fields are sent to an AI provider.
 /// </summary>
+/// <remarks>
+/// The validator checks culture and field-shape constraints. It does not validate culture names
+/// against a culture registry, sanitize field content, or verify the provider's translation.
+/// </remarks>
 public sealed class TranslateDocumentRequestValidator : AbstractValidator<TranslateDocumentRequest>
 {
         /// <summary>
-    /// Initializes a new instance of the <see cref="TranslateDocumentRequestValidator"/> class.
+    /// Initializes validation rules for cultures, provider selection, and translated fields.
     /// </summary>
+    /// <remarks>
+    /// A request must contain at least one field, field keys must be unique without regard to case,
+    /// and each source field is limited to 100,000 characters.
+    /// </remarks>
 public TranslateDocumentRequestValidator()
     {
         RuleFor(x => x.SourceCulture)

@@ -7,16 +7,23 @@ using Aero.Core.Railway;
 namespace Aero.Cms.Core.Content.Rendering;
 
 /// <summary>
-/// Represents a class for ContentItemRenderer.
+/// Renders content items through the configured secure Scriban renderer.
 /// </summary>
 public sealed class ContentItemRenderer(
     IEnumerable<IFieldTemplateSnippet> templateSnippets,
     ISecureScribanRenderer scribanRenderer) : IContentItemRenderer
 {
-        /// <summary>
-    /// RenderAsync method.
-    /// </summary>
-public async Task<Result<string, AeroError>> RenderAsync(
+    /// <inheritdoc />
+    /// <remarks>
+    /// A default template is generated when the definition has no template; otherwise the
+    /// supplied template is normalized. The generated schema is cloned into a render
+    /// definition and disposed after rendering. Default site scope contains only the item's
+    /// site identifier and culture.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="typeDefinition"/> or <paramref name="item"/> is null.
+    /// </exception>
+    public async Task<Result<string, AeroError>> RenderAsync(
         ContentTypeDefinition typeDefinition,
         ContentItem item,
         CancellationToken ct = default)

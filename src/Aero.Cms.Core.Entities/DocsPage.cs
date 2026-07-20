@@ -8,57 +8,57 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>
-/// Represents a class for DocsPage.
+/// Stores a site- and culture-specific documentation page with markdown and publication metadata.
 /// </summary>
 public sealed class DocsPage : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
-    /// Gets or sets the Site Id.
+    /// Gets or sets the site identifier recorded with this page; isolation is not enforced by the entity.
     /// </summary>
 public long SiteId { get; set; }
         /// <summary>
-    /// Gets or sets the Translation Group Id.
+    /// Gets or sets an optional identifier grouping culture variants.
     /// </summary>
 public long? TranslationGroupId { get; set; }
         /// <summary>
-    /// Gets or sets the Culture.
+    /// Gets or sets the stored culture label, initialized to <c>en-US</c> without normalization.
     /// </summary>
 public string Culture { get; set; } = "en-US";
         /// <summary>
-    /// Gets or sets the Slug.
+    /// Gets or sets the stored route slug; validation and uniqueness are external concerns.
     /// </summary>
 public string Slug { get; set; } = string.Empty;
         /// <summary>
-    /// Gets or sets the Title.
+    /// Gets or sets the required-initialized display title.
     /// </summary>
 public string Title { get; set; } = string.Empty;
         /// <summary>
-    /// Gets or sets the Summary.
+    /// Gets or sets optional summary text.
     /// </summary>
 public string? Summary { get; set; }
         /// <summary>
-    /// Gets or sets the Markdown Content.
+    /// Gets or sets optional markdown source; rendering and sanitization are outside this entity.
     /// </summary>
 public string? MarkdownContent { get; set; }
         /// <summary>
-    /// Gets or sets the Seo Title.
+    /// Gets or sets optional SEO title metadata.
     /// </summary>
 public string? SeoTitle { get; set; }
         /// <summary>
-    /// Gets or sets the Seo Description.
+    /// Gets or sets optional SEO description metadata.
     /// </summary>
 public string? SeoDescription { get; set; }
     
         /// <summary>
-    /// Gets or sets the Publication State.
+    /// Gets or sets the stored publication state; changing it has no side effects here.
     /// </summary>
 public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
         /// <summary>
-    /// Gets or sets the Published On.
+    /// Gets or sets an optional publication timestamp; its offset is not normalized by this type.
     /// </summary>
 public DateTimeOffset? PublishedOn { get; set; } = null;
         /// <summary>
-    /// Gets or sets the Is Publicly Visible.
+    /// Gets whether the stored publication state is <c>Published</c>; no other visibility rules are evaluated.
     /// </summary>
     [JsonIgnore]
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
@@ -90,9 +90,13 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
 
     // ── IAuditable ─────────────────────────────────────────────────────────
 
+    /// <summary>Gets or sets the creation timestamp. The default is UTC, but setters do not enforce an offset.</summary>
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Gets or sets the last-modified timestamp; callers and persistence conventionally use UTC, but setters do not enforce it.</summary>
     public DateTimeOffset? ModifiedOn { get; set; }
+    /// <summary>Gets or sets the actor recorded as creating this document, when available.</summary>
     public string? CreatedBy { get; set; }
+    /// <summary>Gets or sets the actor recorded as last modifying this document, when available.</summary>
     public string? ModifiedBy { get; set; }
 
     // ── Mapping ──────────────────────────────────────────────────────────
@@ -102,6 +106,7 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
     /// message bus publishing and Orleans grain transport.
     /// Mirroring <see cref="PageDocument.ToViewModel()"/>.
     /// </summary>
+    /// <returns>A transport model containing this document's current metadata and content values.</returns>
     public DocViewModel ToViewModel() => new()
     {
         Id = Id,

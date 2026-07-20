@@ -5,14 +5,21 @@ using Microsoft.AspNetCore.Routing;
 namespace Aero.Cms.Modules.Commerce.Payments.Api;
 
 /// <summary>
-/// Represents a class for PaymentEndpoints.
+/// Registers the authenticated, informational payment-status endpoint.
 /// </summary>
 public static class PaymentEndpoints
 {
-        /// <summary>
-    /// MapPaymentApi method.
+    /// <summary>
+    /// Maps the <c>/api/commerce/payments</c> route group.
     /// </summary>
-public static IEndpointRouteBuilder MapPaymentApi(this IEndpointRouteBuilder builder)
+    /// <param name="builder">The route builder to which the authenticated route is added.</param>
+    /// <returns>The supplied <paramref name="builder"/>.</returns>
+    /// <remarks>
+    /// GET <c>/status/{orderId}</c> always returns an informational 200 response and does not load an order, verify
+    /// its payment state, or check customer ownership. Payment capture, refunds, and provider interaction are not
+    /// exposed by this endpoint.
+    /// </remarks>
+    public static IEndpointRouteBuilder MapPaymentApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/payments")
