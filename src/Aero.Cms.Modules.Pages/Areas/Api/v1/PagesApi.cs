@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
 using Aero.Core.Http;
@@ -227,7 +228,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.HideFooter,
                 request.ShowChatAgent,
                 siteContext.SiteId,
-                DraftContentJson: SerializeDraftContent(request.DraftContent));
+                DraftContentJson: SerializeDraftContent(request.DraftContent),
+                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition));
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -271,7 +273,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.HideFooter,
                 request.ShowChatAgent,
                 DraftContentJson: SerializeDraftContent(request.DraftContent),
-                PreviousPathBehavior: request.PreviousPathBehavior);
+                PreviousPathBehavior: request.PreviousPathBehavior,
+                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition));
 
             var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
             if (!string.IsNullOrWhiteSpace(existing.error.Message))
@@ -725,7 +728,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             vm.Culture,
             vm.TranslationGroupId,
             DeserializeDraftContent(vm.DraftContentJson),
-            DeserializeDraftContent(vm.PublishedContentJson)
+            DeserializeDraftContent(vm.PublishedContentJson),
+            DeserializeDraftComposition(vm.DraftCompositionJson),
+            DeserializeDraftComposition(vm.PublishedCompositionJson)
         );
     }
 
@@ -753,7 +758,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             document.Culture,
             document.TranslationGroupId,
             document.DraftContent,
-            document.PublishedContent);
+            document.PublishedContent,
+            document.DraftComposition,
+            document.PublishedComposition);
 
     private static string? SerializeDraftContent(HtmlPageContent? content) => content is null
         ? null
@@ -762,6 +769,19 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static HtmlPageContent? DeserializeDraftContent(string? json) => string.IsNullOrWhiteSpace(json)
         ? null
         : System.Text.Json.JsonSerializer.Deserialize(json, HtmlJsonContext.Default.HtmlPageContent);
+
+    private static string? SerializeDraftComposition(PageCompositionDocument? composition) => composition is null
+        ? null
+        : System.Text.Json.JsonSerializer.Serialize(
+            composition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+
+    private static PageCompositionDocument? DeserializeDraftComposition(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize(
+                json,
+                PageCompositionJsonContext.Default.PageCompositionDocument);
 
     private static IReadOnlySet<string> GetSupportedCultures(SitesModel? site)
     {

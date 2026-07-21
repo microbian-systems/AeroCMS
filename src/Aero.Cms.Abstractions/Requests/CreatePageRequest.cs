@@ -18,6 +18,7 @@ namespace Aero.Cms.Abstractions.Requests;
 /// <param name="ShowChatAgent">Whether the page enables the chat agent.</param>
 /// <param name="SiteId">The owning site identifier.</param>
 /// <param name="DraftContentJson">Optional JSON transport for the living-standard draft content.</param>
+/// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
 [GenerateSerializer]
 [Alias("CreatePageRequest")]
 public record CreatePageRequest(
@@ -33,7 +34,8 @@ public record CreatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     long SiteId = 0,
-    string? DraftContentJson = null
+    string? DraftContentJson = null,
+    string? DraftCompositionJson = null
 ) : IRequest;
 
 /// <summary>
@@ -53,6 +55,7 @@ public record CreatePageRequest(
 /// <param name="ShowChatAgent">Whether the page enables the chat agent.</param>
 /// <param name="DraftContentJson">Optional JSON transport for the living-standard draft content.</param>
 /// <param name="PreviousPathBehavior">Optional instruction for handling the page's prior route when its path changes.</param>
+/// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
 [GenerateSerializer]
 [Alias("UpdatePageRequest")]
 public record UpdatePageRequest(
@@ -69,7 +72,8 @@ public record UpdatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     string? DraftContentJson = null,
-    PreviousPathBehavior? PreviousPathBehavior = null
+    PreviousPathBehavior? PreviousPathBehavior = null,
+    string? DraftCompositionJson = null
 ) : IRequest;
 
 /// <summary>

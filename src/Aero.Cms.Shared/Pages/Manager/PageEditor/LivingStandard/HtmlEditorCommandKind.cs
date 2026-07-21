@@ -7,6 +7,9 @@ public enum HtmlEditorCommandKind
 {
     Undo,
     Redo,
+    MoveUp,
+    MoveDown,
     Duplicate,
+    Edit,
     Delete
 }

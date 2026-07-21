@@ -1,0 +1,145 @@
+- generic [ref=f1e25]:
+  - banner [ref=f1e26]:
+    - generic [ref=f1e27]:
+      - link "Aero CMS AERO" [ref=f1e28] [cursor=pointer]:
+        - /url: /manager
+        - img "Aero CMS" [ref=f1e29]
+        - generic [ref=f1e30]: AERO
+      - button "Aero CMS" [ref=f1e31] [cursor=pointer]
+      - generic [ref=f1e36]: "|"
+      - navigation [ref=f1e37]:
+        - button "Aero CMS | 1528077103668363265" [ref=f1e39] [cursor=pointer]:
+          - generic [ref=f1e40]: Aero CMS
+          - generic [ref=f1e41]: "| 1528077103668363265"
+    - button "AD admin" [ref=f1e46] [cursor=pointer]:
+      - generic [ref=f1e47]: AD
+      - generic [ref=f1e48]: admin
+  - generic [ref=f1e51]:
+    - complementary [ref=f1e52]:
+      - generic [ref=f1e53]:
+        - button "Toggle Sidebar" [ref=f1e54] [cursor=pointer]
+        - generic [ref=f1e57]: Menu
+      - navigation [ref=f1e59]:
+        - link "Dashboard" [ref=f1e62] [cursor=pointer]:
+          - /url: /manager
+        - generic [ref=f1e68]:
+          - link "Sites" [ref=f1e69] [cursor=pointer]:
+            - /url: /manager/sites
+          - button [ref=f1e74] [cursor=pointer]
+        - generic [ref=f1e78]:
+          - link "Aliases" [ref=f1e79] [cursor=pointer]:
+            - /url: /manager/aliases
+          - button [ref=f1e84] [cursor=pointer]
+        - generic [ref=f1e88]:
+          - link "Header" [ref=f1e89] [cursor=pointer]:
+            - /url: /manager/navigations
+          - button [ref=f1e94] [cursor=pointer]
+        - generic [ref=f1e98]:
+          - link "Footer" [ref=f1e99] [cursor=pointer]:
+            - /url: /manager/footers
+          - button [ref=f1e104] [cursor=pointer]
+        - generic [ref=f1e108]:
+          - link "Pages" [ref=f1e109] [cursor=pointer]:
+            - /url: /manager/pages
+          - button [ref=f1e114] [cursor=pointer]
+        - generic [ref=f1e118]:
+          - link "Posts" [ref=f1e119] [cursor=pointer]:
+            - /url: /manager/posts
+          - button [ref=f1e124] [cursor=pointer]
+        - generic [ref=f1e128]:
+          - link "Content" [ref=f1e129] [cursor=pointer]:
+            - /url: /manager/content-types
+          - button [ref=f1e134] [cursor=pointer]
+        - generic [ref=f1e138]:
+          - link "Commerce" [ref=f1e139] [cursor=pointer]:
+            - /url: /manager/commerce
+          - button [ref=f1e144] [cursor=pointer]
+        - generic [ref=f1e148]:
+          - link "Docs" [ref=f1e149] [cursor=pointer]:
+            - /url: /manager/docs
+          - button [ref=f1e154] [cursor=pointer]
+        - generic [ref=f1e158]:
+          - link "Modules" [ref=f1e159] [cursor=pointer]:
+            - /url: /manager/modules
+          - button [ref=f1e164] [cursor=pointer]
+        - generic [ref=f1e168]:
+          - link "Taxonomy" [ref=f1e169] [cursor=pointer]:
+            - /url: /manager/taxonomy
+          - button [ref=f1e174] [cursor=pointer]
+        - generic [ref=f1e178]:
+          - link "Media" [ref=f1e179] [cursor=pointer]:
+            - /url: /manager/media
+          - button [ref=f1e184] [cursor=pointer]
+        - generic [ref=f1e188]:
+          - link "Users" [ref=f1e189] [cursor=pointer]:
+            - /url: /manager/users
+          - button [ref=f1e194] [cursor=pointer]
+        - generic [ref=f1e198]:
+          - link "Themes" [ref=f1e199] [cursor=pointer]:
+            - /url: /manager/themes
+          - button [ref=f1e204] [cursor=pointer]
+        - generic [ref=f1e208]:
+          - link "SEO" [ref=f1e209] [cursor=pointer]:
+            - /url: /manager/seo
+          - button [ref=f1e214] [cursor=pointer]
+        - generic [ref=f1e218]:
+          - link "AI" [ref=f1e219] [cursor=pointer]:
+            - /url: /manager/ai
+          - button [ref=f1e224] [cursor=pointer]
+        - generic [ref=f1e228]:
+          - link "Audit" [ref=f1e229] [cursor=pointer]:
+            - /url: /manager/audit
+          - button [ref=f1e234] [cursor=pointer]
+        - link "Global Settings" [ref=f1e240] [cursor=pointer]:
+          - /url: /manager/settings
+    - generic [ref=f1e320]:
+      - generic [ref=f1e321]:
+        - generic [ref=f1e322]:
+          - paragraph [ref=f1e323]: Content entries
+          - heading "Test" [level=1] [ref=f1e324]
+          - paragraph [ref=f1e325]: Managing 0 test entries with optional public pages.
+        - generic [ref=f1e326]:
+          - textbox "Search test..." [ref=f1e327]
+          - button "New Test" [ref=f1e328] [cursor=pointer]:
+            - generic [ref=f1e329]:
+              - generic [ref=f1e330]: add
+              - generic [ref=f1e331]: New Test
+      - grid [ref=f1e332] [cursor=pointer]:
+        - generic [ref=f1e333]:
+          - rowgroup [ref=f1e341]:
+            - row [ref=f1e342]:
+              - columnheader "Entry sort" [ref=f1e343]:
+                - generic "Entry" [ref=f1e345]: sort
+              - columnheader "URL sort" [ref=f1e348]:
+                - generic "URL" [ref=f1e350]: sort
+              - columnheader "Status sort" [ref=f1e353]:
+                - generic "Status" [ref=f1e355]: sort
+              - columnheader "Published sort" [ref=f1e358]:
+                - generic "Published" [ref=f1e360]: sort
+              - columnheader "Version sort" [ref=f1e363]:
+                - generic "Version" [ref=f1e365]: sort
+              - columnheader "Actions" [ref=f1e368]:
+                - generic "Actions" [ref=f1e370]
+          - rowgroup [ref=f1e372]:
+            - row [ref=f1e373]:
+              - gridcell "No entries found. Create the first one when you're ready." [ref=f1e374]
+        - navigation "Pagination" [ref=f1e375]:
+          - generic [ref=f1e376]: Page 1 of 1 (0 items)
+          - list [ref=f1e377]:
+            - listitem [ref=f1e378]:
+              - button "Go to first page." [disabled] [ref=f1e379]:
+                - generic [ref=f1e380]: first_page
+            - listitem [ref=f1e381]:
+              - button "Go to previous page." [disabled] [ref=f1e382]:
+                - generic [ref=f1e383]: navigate_before
+            - listitem [ref=f1e384]:
+              - button "Go to page 1." [ref=f1e385]: "1"
+            - listitem [ref=f1e386]:
+              - button "Go to next page." [disabled] [ref=f1e387]:
+                - generic [ref=f1e388]: navigate_next
+            - listitem [ref=f1e389]:
+              - button "Go to last page." [disabled] [ref=f1e390]:
+                - generic [ref=f1e391]: last_page
+          - combobox "10" [ref=f1e392]:
+            - generic [ref=f1e394]: arrow_drop_down
+          - generic [ref=f1e396]: items per page

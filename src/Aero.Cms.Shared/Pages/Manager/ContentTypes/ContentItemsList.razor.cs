@@ -27,7 +27,8 @@ public partial class ContentItemsList
     private RadzenDataGrid<ContentItemSummary>? _grid;
     private IEnumerable<ContentItemSummary> _items = [];
     private int _count;
-    private bool _isLoading = true;
+    private bool _isLoading = false;
+    private bool _hasRequestedInitialItems;
     private string _searchText = string.Empty;
     private string _typeName = "Content";
     private bool _allowPublicUrl;
@@ -46,14 +47,26 @@ protected override async Task OnInitializedAsync()
         {
             _typeName = ok.Value.Name;
             _allowPublicUrl = ok.Value.AllowPublicUrl;
-            return;
+        }
+        else
+        {
+            _typeName = Alias;
         }
 
-        _typeName = Alias;
+        if (!_hasRequestedInitialItems)
+        {
+            _hasRequestedInitialItems = true;
+            await LoadData(new LoadDataArgs { Skip = 0, Top = 10 });
+        }
     }
 
     private async Task LoadData(LoadDataArgs args)
     {
+        if (_isLoading)
+        {
+            return;
+        }
+
         _isLoading = true;
         try
         {
@@ -96,6 +109,18 @@ protected override async Task OnInitializedAsync()
 
     private void OnRowClick(DataGridRowMouseEventArgs<ContentItemSummary> args)
         => EditItem(args.Data.Id);
+
+    private bool CanOpenPublishedPage(ContentItemSummary item)
+        => _allowPublicUrl &&
+           string.Equals(item.PublicationState, "Published", StringComparison.OrdinalIgnoreCase) &&
+           !string.IsNullOrWhiteSpace(Alias) &&
+           !string.IsNullOrWhiteSpace(item.Slug);
+
+    private string BuildPublicContentPath(string slug)
+        => $"/content/{Uri.EscapeDataString(Alias.Trim())}/{Uri.EscapeDataString(slug.Trim())}";
+
+    private string BuildPublicContentUrl(string slug)
+        => new Uri(new Uri(Navigation.BaseUri), BuildPublicContentPath(slug).TrimStart('/')).ToString();
 
     private async Task DeleteItemAsync(long id)
     {

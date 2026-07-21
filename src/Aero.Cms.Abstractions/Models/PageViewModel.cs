@@ -153,8 +153,20 @@ public record PageViewModel : AeroEntityViewModel
         /// <summary>
     /// Gets the source-generated JSON transport for the published content snapshot.
     /// </summary>
-[Id(32)]
+    [Id(32)]
     public string? PublishedContentJson { get; init; }
+
+    /// <summary>
+    /// Gets the JSON transport for draft page-composition metadata.
+    /// </summary>
+    [Id(33)]
+    public string? DraftCompositionJson { get; init; }
+
+    /// <summary>
+    /// Gets the JSON transport for the published page-composition snapshot.
+    /// </summary>
+    [Id(34)]
+    public string? PublishedCompositionJson { get; init; }
 }
 
 /// <summary>

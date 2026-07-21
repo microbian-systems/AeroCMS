@@ -1,6 +1,6 @@
 # Commerce Production Vertical Slice
 
-Status: Active; WU-0 through WU-3 complete; WU-4 production external-member issuance is next
+Status: Active; WU-0 through WU-3 and WU-4a foundation complete; WU-4 provider adapters/routes remain
 Created: 2026-07-20
 Scope: Catalog contract/persistence safety, manager and public storefront UI,
 production external-member issuance, Stripe/PayPal checkout continuation, and
@@ -269,7 +269,7 @@ WU-1 storefront/manager work.
 
 ### WU-4 — Production external-member issuance
 
-- [ ] Implement provider-neutral identity links, tenant/organization bindings,
+- [x] Implement the WU-4a provider-neutral identity links, tenant/organization bindings,
       invitations, and callback state using Snowflake IDs.
 - [ ] Implement login, callback, failure, local/upstream logout, cookie issuance,
       and session revocation for the selected first provider.
@@ -277,6 +277,19 @@ WU-1 storefront/manager work.
       member, invitation/provisioning, and site-assignment validation succeeds.
 - [ ] Prove callback state, provider/tenant mix-up, account-linking, invitation,
       revocation, scheme-isolation, and cross-site boundaries.
+
+WU-4a is a local issuance foundation only. It validates an adapter-supplied
+external identity and consumes callback state plus any supplied/required
+invitation. Completion creates member, link, and assignment documents only when
+provisioning. A returning sign-in creates a session and consumes callback state;
+if an invitation was supplied, it is validated and consumed in the same commit.
+Returning members with an active exact identity link and active exact-site
+assignment can create a new local session without another invitation. Any new
+principal, link, or missing assignment remains invitation-gated and requires a
+fresh provider-verified matching email. Opaque one-time handles expose the
+Snowflake ID plus a 256-bit secret, while persistence retains only its digest.
+It does not map login/callback routes, issue the ASP.NET cookie, or integrate an
+Entra/WorkOS SDK; therefore WU-4 remains incomplete.
 
 ### WU-5 — Checkout payment continuation
 

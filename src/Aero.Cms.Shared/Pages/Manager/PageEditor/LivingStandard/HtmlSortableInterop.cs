@@ -17,6 +17,7 @@ public sealed class HtmlSortableInterop(IJSRuntime js) : IAsyncDisposable
 
     public async ValueTask InitializeAsync(
         ElementReference surface,
+        ElementReference selectionToolbar,
         ElementReference dragHandle,
         DotNetObjectReference<HtmlPageEditorCanvas> callbackReference)
     {
@@ -24,6 +25,7 @@ public sealed class HtmlSortableInterop(IJSRuntime js) : IAsyncDisposable
         _handle = await _module.InvokeAsync<string>(
             InitializeMethod,
             surface,
+            selectionToolbar,
             dragHandle,
             callbackReference);
     }

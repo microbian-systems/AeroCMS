@@ -1,0 +1,41 @@
+.aero-page-sidebar-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.aero-page-sidebar-tabs button {
+    display: grid;
+    min-width: 0;
+    justify-items: center;
+    gap: 0.2rem;
+    border: 0;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.2rem;
+    color: #64748b;
+    background: transparent;
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aero-page-sidebar-tabs button:hover,
+.aero-page-sidebar-tabs button:focus-visible {
+    color: #5b21b6;
+    background: #f3e8ff;
+    outline: none;
+}
+
+.aero-page-sidebar-tabs button.is-active {
+    color: #5b21b6;
+    background: #ede9fe;
+    box-shadow: inset 0 0 0 1px #ddd6fe;
+}
+
+.aero-page-sidebar-tabs__icon {
+    font-size: 0.9rem;
+    line-height: 1;
+}

@@ -19,15 +19,54 @@
          tabindex="-1"
          aria-describedby="aero-page-canvas-instructions"
          @onclick="ClearSelectionAsync">
-        <button class="aero-page-canvas__drag-handle"
-                @ref="_dragHandle"
-                type="button"
-                aria-describedby="aero-page-canvas-instructions"
-                aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Control+D Meta+D Delete Backspace Control+Z Meta+Z Control+Y Meta+Y"
-                aria-label="Drag selected element to reorder. Use arrow keys for keyboard reordering."
-                title="Drag to move · Arrow keys to reorder or nest">
-            <span aria-hidden="true">⠿</span>
-        </button>
+        <div class="aero-page-canvas__selection-toolbar"
+             @ref="_selectionToolbar"
+             role="toolbar"
+             aria-label="Selected element actions"
+             @onclick:stopPropagation="true">
+            <button class="aero-page-canvas__drag-handle"
+                    @ref="_dragHandle"
+                    type="button"
+                    aria-describedby="aero-page-canvas-instructions"
+                    aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Control+D Meta+D Delete Backspace Control+Z Meta+Z Control+Y Meta+Y"
+                    aria-label="Drag selected element to reorder. Use arrow keys for keyboard reordering."
+                    title="Drag to move · Arrow keys to reorder or nest">
+                <span aria-hidden="true">⠿</span>
+            </button>
+            <button type="button"
+                    disabled="@(!CanMoveSelectedUp)"
+                    aria-label="Move selected element up"
+                    title="Move up"
+                    @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.MoveUp)">
+                <span aria-hidden="true">↑</span>
+            </button>
+            <button type="button"
+                    disabled="@(!CanMoveSelectedDown)"
+                    aria-label="Move selected element down"
+                    title="Move down"
+                    @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.MoveDown)">
+                <span aria-hidden="true">↓</span>
+            </button>
+            <button type="button"
+                    aria-label="Duplicate selected element"
+                    title="Duplicate"
+                    @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.Duplicate)">
+                <span aria-hidden="true">⧉</span>
+            </button>
+            <button type="button"
+                    aria-label="Edit selected element"
+                    title="Edit properties"
+                    @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.Edit)">
+                <span aria-hidden="true">✎</span>
+            </button>
+            <button type="button"
+                    class="aero-page-canvas__toolbar-delete"
+                    aria-label="Delete selected element"
+                    title="Delete"
+                    @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.Delete)">
+                <span aria-hidden="true">×</span>
+            </button>
+        </div>
 
         @if (Content.Root.Children.Count == 0)
         {

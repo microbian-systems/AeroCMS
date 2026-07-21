@@ -2,22 +2,28 @@
 @using Aero.Cms.Html
 
 <section class="aero-property-panel" aria-label="Element properties">
-    <header class="aero-property-panel__header">
-        <button type="button" class="aero-property-panel__back" @onclick="ClearSelectionAsync" aria-label="Back to elements">←</button>
-        <div>
-            <span class="aero-property-panel__eyebrow">Selected element</span>
-            <h2>@Definition.DisplayName <code>&lt;@Definition.Tag&gt;</code></h2>
-        </div>
-    </header>
+    @if (ShowHeader)
+    {
+        <header class="aero-property-panel__header">
+            <button type="button" class="aero-property-panel__back" @onclick="ClearSelectionAsync" aria-label="Back to elements">←</button>
+            <div>
+                <span class="aero-property-panel__eyebrow">Selected element</span>
+                <h2>@Definition.DisplayName <code>&lt;@Definition.Tag&gt;</code></h2>
+            </div>
+        </header>
+    }
 
-    <div class="aero-property-panel__element-actions" role="group" aria-label="Selected element actions">
-        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                aria-keyshortcuts="Control+D Meta+D"
-                @onclick="RequestDuplicateAsync">Duplicate</button>
-        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                aria-keyshortcuts="Delete Backspace"
-                @onclick="RequestRemoveAsync">Delete</button>
-    </div>
+    @if (ShowElementActions)
+    {
+        <div class="aero-property-panel__element-actions" role="group" aria-label="Selected element actions">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                    aria-keyshortcuts="Control+D Meta+D"
+                    @onclick="RequestDuplicateAsync">Duplicate</button>
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                    aria-keyshortcuts="Delete Backspace"
+                    @onclick="RequestRemoveAsync">Delete</button>
+        </div>
+    }
 
     @if (SupportsRichText)
     {

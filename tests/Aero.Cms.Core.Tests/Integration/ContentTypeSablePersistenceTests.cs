@@ -50,6 +50,7 @@ public sealed class ContentTypeSablePersistenceTests
             Fields = new Dictionary<string, JsonElement>
             {
                 ["text"] = Json("\"Hello\""),
+                ["rich-text"] = Json("\"<p>Hello <strong>world</strong></p>\""),
                 ["number"] = Json("42.5"),
                 ["enabled"] = Json("true"),
                 ["publishedOn"] = Json("\"2026-07-17T12:30:00Z\""),
@@ -75,6 +76,7 @@ public sealed class ContentTypeSablePersistenceTests
             savedType.Fields.Single().Settings["editor"].GetProperty("spellcheck").GetBoolean().ShouldBeTrue();
 
             savedItem.Fields["text"].GetString().ShouldBe("Hello");
+            savedItem.Fields["rich-text"].GetString().ShouldBe("<p>Hello <strong>world</strong></p>");
             savedItem.Fields["number"].GetDecimal().ShouldBe(42.5m);
             savedItem.Fields["enabled"].GetBoolean().ShouldBeTrue();
             savedItem.Fields["metadata"].GetProperty("author").GetProperty("name").GetString().ShouldBe("Ada");
@@ -86,6 +88,7 @@ public sealed class ContentTypeSablePersistenceTests
             var savedItem = (await updateSession.Query<ContentItem>().ToListAsync())
                 .Single(document => document.Slug == "nested-content");
             savedItem.Fields["text"] = Json("\"Updated\"");
+            savedItem.Fields["rich-text"] = Json("\"<p>Updated <em>content</em></p>\"");
             savedItem.Fields["metadata"] = Json("""{"author":{"name":"Grace"},"tags":["updated"]}""");
             updateSession.Store(savedItem);
             await updateSession.SaveChangesAsync();
@@ -97,6 +100,7 @@ public sealed class ContentTypeSablePersistenceTests
             .Single(document => document.Slug == "nested-content");
 
         updated.Fields["text"].GetString().ShouldBe("Updated");
+        updated.Fields["rich-text"].GetString().ShouldBe("<p>Updated <em>content</em></p>");
         updated.Fields["metadata"].GetProperty("author").GetProperty("name").GetString().ShouldBe("Grace");
         updated.Fields["metadata"].GetProperty("tags").GetArrayLength().ShouldBe(1);
     }

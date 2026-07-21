@@ -657,6 +657,56 @@ public sealed class HtmlPageEditorSessionTests
     }
 
     [Test]
+    public async Task MoveSelectedSibling_reorders_the_selected_node_and_updates_available_actions()
+    {
+        var first = HtmlNode.CreateElement("p");
+        var second = HtmlNode.CreateElement("p");
+        var third = HtmlNode.CreateElement("p");
+        var session = CreateSession(first, second, third);
+        session.Select(second.NodeId);
+
+        await Assert.That(session.CanMoveSelectedUp).IsTrue();
+        await Assert.That(session.CanMoveSelectedDown).IsTrue();
+
+        var movedUp = session.MoveSelectedUp();
+
+        await Assert.That(movedUp).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Content.Root.Children[0].NodeId).IsEqualTo(second.NodeId);
+        await Assert.That(session.Content.Root.Children[1].NodeId).IsEqualTo(first.NodeId);
+        await Assert.That(session.Content.Root.Children[2].NodeId).IsEqualTo(third.NodeId);
+        await Assert.That(session.CanMoveSelectedUp).IsFalse();
+        await Assert.That(session.CanMoveSelectedDown).IsTrue();
+
+        var movedDown = session.MoveSelectedDown();
+
+        await Assert.That(movedDown).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Content.Root.Children[0].NodeId).IsEqualTo(first.NodeId);
+        await Assert.That(session.Content.Root.Children[1].NodeId).IsEqualTo(second.NodeId);
+        await Assert.That(session.Content.Root.Children[2].NodeId).IsEqualTo(third.NodeId);
+        await Assert.That(session.CanUndo).IsTrue();
+    }
+
+    [Test]
+    public async Task MoveSelectedSibling_rejects_container_boundaries_without_history()
+    {
+        var first = HtmlNode.CreateElement("p");
+        var second = HtmlNode.CreateElement("p");
+        var session = CreateSession(first, second);
+        session.Select(first.NodeId);
+
+        var beforeFirst = session.MoveSelectedUp();
+
+        await Assert.That(beforeFirst).IsTypeOf<Result<HtmlNode>.Failure>();
+        await Assert.That(session.CanUndo).IsFalse();
+
+        session.Select(second.NodeId);
+        var afterLast = session.MoveSelectedDown();
+
+        await Assert.That(afterLast).IsTypeOf<Result<HtmlNode>.Failure>();
+        await Assert.That(session.CanUndo).IsFalse();
+    }
+
+    [Test]
     public async Task AddElementRelative_uses_palette_defaults_and_selects_the_inserted_node()
     {
         var section = HtmlNode.CreateElement("section");

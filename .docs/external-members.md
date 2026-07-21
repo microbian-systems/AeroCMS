@@ -565,20 +565,33 @@ Use these rules:
 - [x] Add non-admin `GET /api/v1/member/me` and `POST /api/v1/member/logout`.
 - [ ] Refactor `/auth/me`, site selection, audit attribution, and
   `SitePermissionHandler`.
-- [ ] Add provider identity links, organization bindings, receipts, and
-  provider callbacks when Entra/WorkOS integration begins.
-- [ ] Add invitation state and one-time consumption.
+- [x] Add the WU-4a provider-neutral identity-link, organization-binding,
+  invitation, callback-state, and committed local-session issuance foundation.
+- [ ] Add Entra/WorkOS adapters, production login/callback routes, cookie
+  issuance, upstream logout, and provider-specific failure handling.
 
 Exit criterion for the bounded foundation: a test-only cookie harness can issue
 an external principal that is authorized entirely through local tenant/site
 assignments without creating an `AeroUser`. This criterion is met. Real
 provider callbacks remain later phases.
 
-Current foundation note: this slice intentionally does not introduce a test
-login endpoint or a provider callback. The principal factory is available to a
-future validated provider adapter; no external cookie is issued by production
-routes yet. Setup continues to configure Local Identity only for CMS
-administrators and managers; external providers are configured per tenant.
+Current foundation note: WU-4a now provides a provider-neutral application
+service that accepts only an already validated external identity. It validates
+a pre-existing tenant authority binding and persists Snowflake-keyed links,
+digest-only invitations and callback states, assignments, and revocable sessions
+across separate local commits. Invitation creation, authentication-state
+creation, and completion are separate local commits.
+Completion atomically consumes the applicable state and invitation and persists
+or updates only the member, link, assignment, and session documents required for
+that sign-in. One-time browser handles use a strict opaque `id.secret` format while
+only the SHA-256 secret digest is persisted. A returning active linked member
+with an active exact-site assignment does not need another invitation; creating
+a principal, link, or missing site assignment requires a fresh provider-verified
+email that matches a valid invitation. It intentionally does not introduce provider packages, login/callback
+routes, or production cookie issuance. Those provider-facing pieces remain
+required before WU-4 or Phase 2/3 is complete. Setup continues to configure
+Local Identity only for CMS administrators and managers; external providers
+are configured per tenant.
 
 ### Phase 2 — Entra External ID
 

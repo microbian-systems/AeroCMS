@@ -1,5 +1,6 @@
 @page "/manager/content/{alias}/editor/{id:long?}"
 @using Aero.Cms.Shared.Layout
+@using Aero.Cms.Shared.Components
 @using Microsoft.Extensions.Localization
 
 <PageTitle>@(Id.HasValue ? L["Edit {0}", _typeName] : L["New {0}", _typeName])</PageTitle>
@@ -64,6 +65,16 @@
         </div>
         <div class="flex gap-3">
             <RadzenButton Text="@L["Cancel"]" ButtonStyle="ButtonStyle.Secondary" Click="@Cancel" />
+            @if (CanPreviewPublishedPage)
+            {
+                <button type="button"
+                        class="pe-btn pe-btn-secondary"
+                        @onclick="OpenPublishedPagePreview"
+                        title="@L["Preview published page"]">
+                    <span class="rz-button-icon-left rzi rzi-visibility"></span>
+                    @L["Preview published page"]
+                </button>
+            }
             @if (Id.HasValue)
             {
                 <RadzenButton Icon="delete" Text="@L["Delete"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@DeleteAsync" Disabled="@_isSaving" />
@@ -337,6 +348,13 @@
         </section>
     }
 </div>
+
+<PreviewOverlay Visible="@_showPublishedPagePreview"
+                OnClose="ClosePublishedPagePreview"
+                FrameUrl="@FrameUrl"
+                UrlBarText="@PublicPath"
+                SuppressBrowserLinkErrors="true"
+                Title="@L["Content preview"]" />
 
 <MediaSelectorModal Show="@_showMediaSelector"
                     MultiSelect="false"

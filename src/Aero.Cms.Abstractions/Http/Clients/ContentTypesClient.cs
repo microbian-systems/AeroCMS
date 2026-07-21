@@ -220,7 +220,8 @@ public record ContentTypeSummary(
     bool HideFromSearch,
     int FieldCount,
     bool HasCustomTemplate,
-    long ItemCount);
+    long ItemCount,
+    long Id = 0);
 
 /// <summary>Detailed information for a content type definition.</summary>
 public record ContentTypeDetail(
@@ -233,7 +234,8 @@ public record ContentTypeDetail(
     bool HideFromSearch,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    ContentTypeScheduleConfig? ScheduleConfig);
+    ContentTypeScheduleConfig? ScheduleConfig,
+    long Id = 0);
 
 /// <summary>Request to create or update a content type definition.</summary>
 public record CreateContentTypeRequest(

@@ -47,6 +47,7 @@ const ON_EDITOR_COMMAND_REQUESTED = 'OnEditorCommandRequested';
 
 export function initialize(
   surface: HTMLElement,
+  selectionToolbar: HTMLElement,
   dragHandle: HTMLButtonElement,
   dotNetCallback: DotNetCallback,
 ): string {
@@ -73,15 +74,15 @@ export function initialize(
       positionFrame = null;
       const selected = selectedNode();
       if (!isEnabled() || !selected) {
-        dragHandle.classList.remove('is-visible');
+        selectionToolbar.classList.remove('is-visible');
         return;
       }
 
       const surfaceRect = surface.getBoundingClientRect();
       const selectedRect = selected.getBoundingClientRect();
-      dragHandle.style.left = `${selectedRect.left - surfaceRect.left + surface.scrollLeft + 4}px`;
-      dragHandle.style.top = `${selectedRect.top - surfaceRect.top + surface.scrollTop + 4}px`;
-      dragHandle.classList.add('is-visible');
+      selectionToolbar.style.left = `${selectedRect.left - surfaceRect.left + surface.scrollLeft + 4}px`;
+      selectionToolbar.style.top = `${selectedRect.top - surfaceRect.top + surface.scrollTop + 4}px`;
+      selectionToolbar.classList.add('is-visible');
     });
   };
 
@@ -372,7 +373,7 @@ export function initialize(
       activePaletteDrag.dragging = true;
       activePaletteDrag.source.classList.add('aero-palette-drag-source');
       surface.classList.add('aero-sort-active');
-      dragHandle.classList.remove('is-visible');
+      selectionToolbar.classList.remove('is-visible');
     }
 
     activePaletteDrag.proposal = proposeDrop(event.clientX, event.clientY, null);

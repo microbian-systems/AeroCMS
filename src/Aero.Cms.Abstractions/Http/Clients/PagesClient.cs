@@ -2,6 +2,7 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 
 using Aero.Core.Railway;
@@ -442,7 +443,9 @@ public record PageDetail(
     string Culture = "en-US",
     long? TranslationGroupId = null,
     HtmlPageContent? DraftContent = null,
-    HtmlPageContent? PublishedContent = null);
+    HtmlPageContent? PublishedContent = null,
+    PageCompositionDocument? DraftComposition = null,
+    PageCompositionDocument? PublishedComposition = null);
 
 /// <summary>
 /// Request to create a new page.
@@ -459,7 +462,8 @@ public record CreatePageRequest(
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    HtmlPageContent? DraftContent = null);
+    HtmlPageContent? DraftContent = null,
+    PageCompositionDocument? DraftComposition = null);
 
 /// <summary>
 /// Request to update an existing page.
@@ -477,7 +481,8 @@ public record UpdatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     HtmlPageContent? DraftContent = null,
-    PreviousPathBehavior? PreviousPathBehavior = null);
+    PreviousPathBehavior? PreviousPathBehavior = null,
+    PageCompositionDocument? DraftComposition = null);
 
 /// <summary>Proposed route inputs used to calculate redirect impact.</summary>
 public sealed record PageRouteChangeRequest(string Slug, long? ParentId);

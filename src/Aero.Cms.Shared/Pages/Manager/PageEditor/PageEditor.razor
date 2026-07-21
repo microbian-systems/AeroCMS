@@ -85,8 +85,10 @@
                               SelectedNodeId="HtmlEditor.SelectedNodeId"
                               CompiledStyles="HtmlEditor.CompiledStyles"
                               PreviewMode="PreviewMode"
+                              CanMoveSelectedUp="HtmlEditor.CanMoveSelectedUp"
+                              CanMoveSelectedDown="HtmlEditor.CanMoveSelectedDown"
                               SelectionChanged="SelectHtmlNodeAsync"
-                              NodeEditRequested="OpenHtmlRichTextForNodeAsync"
+                              NodeEditRequested="OpenHtmlElementEditorForNodeAsync"
                               SortMoveRequested="MoveHtmlNodeAsync"
                               PaletteInsertRequested="InsertHtmlPaletteItemAsync"
                               EditorCommandRequested="ApplyHtmlEditorCommandAsync"
@@ -433,41 +435,85 @@ else if (ActiveTab == "translations")
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
-    <AeroSidebar Title="@(HtmlEditor.SelectedNode is null ? L["Elements"] : L["Inspector"])"
+    <AeroSidebar Title="@RightSidebarTitle"
                  Side="SidebarSide.Right"
                  IsCollapsed="RightSidebarCollapsed"
                  IsCollapsedChanged="OnRightSidebarCollapsedChanged">
         @if (ActiveTab == "editor")
         {
-            <HtmlPageEditorOutline Content="HtmlEditor.Content"
-                                   SelectedNodeId="HtmlEditor.SelectedNodeId"
-                                   SelectionChanged="SelectHtmlNodeAsync" />
+            <HtmlPageEditorSidebarTabs ActiveTab="RightSidebarTab"
+                                       ActiveTabChanged="SetRightSidebarTabAsync" />
 
-            @if (HtmlEditor.SelectedNode is { } selectedNode
-                && SelectedHtmlDefinition is { } selectedDefinition)
+            <div id="aero-page-sidebar-panel"
+                 role="tabpanel"
+                 aria-labelledby="@($"aero-page-sidebar-tab-{RightSidebarTab.ToString().ToLowerInvariant()}")">
+            @switch (RightSidebarTab)
             {
-                <HtmlElementPropertyPanel Node="selectedNode"
-                                          Definition="selectedDefinition"
-                                          ErrorMessage="HtmlPropertyError"
-                                          PropertiesChanged="ApplyHtmlPropertiesAsync"
-                                          SelectionCleared="ClearHtmlSelectionAsync"
-                                          RichTextRequested="OpenHtmlRichTextEditorAsync"
-                                          CollectionActionRequested="ApplyHtmlCollectionActionAsync"
-                                          DuplicateRequested="DuplicateSelectedHtmlNodeAsync"
-                                          RemoveRequested="RemoveSelectedHtmlNodeAsync"
-                                          MediaRequested="OpenHtmlMediaSelectorAsync" />
+                case HtmlPageEditorSidebarTab.Document:
+                    <HtmlPageEditorOutline Content="HtmlEditor.Content"
+                                           SelectedNodeId="HtmlEditor.SelectedNodeId"
+                                           SelectionChanged="SelectHtmlNodeAsync" />
+                    break;
+                case HtmlPageEditorSidebarTab.Content:
+                    <HtmlContentTypePalette ContentTypes="ContentTypeOptions"
+                                            SelectedAlias="SelectedContentTypeAlias"
+                                            SelectedContentType="SelectedContentType"
+                                            IsLoading="IsContentPaletteLoading"
+                                            ErrorMessage="ContentPaletteError"
+                                            SelectedAliasChanged="SelectContentTypeAsync"
+                                            RefreshRequested="RefreshContentTypesAsync" />
+                    break;
+                case HtmlPageEditorSidebarTab.Inspector:
+                    @if (HtmlEditor.SelectedNode is { } selectedNode
+                        && SelectedHtmlDefinition is { } selectedDefinition)
+                    {
+                        <HtmlElementPropertyPanel Node="selectedNode"
+                                                  Definition="selectedDefinition"
+                                                  ErrorMessage="HtmlPropertyError"
+                                                  PropertiesChanged="ApplyHtmlPropertiesAsync"
+                                                  SelectionCleared="ClearHtmlSelectionAsync"
+                                                  RichTextRequested="OpenHtmlRichTextEditorAsync"
+                                                  CollectionActionRequested="ApplyHtmlCollectionActionAsync"
+                                                  DuplicateRequested="DuplicateSelectedHtmlNodeAsync"
+                                                  RemoveRequested="RemoveSelectedHtmlNodeAsync"
+                                                  MediaRequested="OpenHtmlMediaSelectorAsync" />
+                    }
+                    else
+                    {
+                        <div class="p-4 text-sm" style="color: var(--pe-text-muted);">
+                            @L["Select an element on the canvas to inspect all of its properties."]
+                        </div>
+                    }
+                    break;
+                default:
+                    <HtmlElementPalette Elements="HtmlElementDefinitions"
+                                        ElementRequested="AddHtmlElementAsync"
+                                        LayoutRequested="AddHtmlLayoutAsync"
+                                        ComponentRequested="AddHtmlComponentAsync"
+                                        ImportRequested="OpenHtmlFragmentImportAsync" />
+                    break;
             }
-            else
-            {
-                <HtmlElementPalette Elements="HtmlElementDefinitions"
-                                    ElementRequested="AddHtmlElementAsync"
-                                    LayoutRequested="AddHtmlLayoutAsync"
-                                    ComponentRequested="AddHtmlComponentAsync"
-                                    ImportRequested="OpenHtmlFragmentImportAsync" />
-            }
+            </div>
         }
     </AeroSidebar>
 </SectionContent>
+
+@if (HtmlElementEditorOpen
+    && HtmlEditor.SelectedNode is { } elementEditorNode
+    && SelectedHtmlDefinition is { } elementEditorDefinition)
+{
+    <HtmlElementEditorDialog @key="elementEditorNode.NodeId"
+                             Node="elementEditorNode"
+                             Definition="elementEditorDefinition"
+                             ErrorMessage="HtmlPropertyError"
+                             Closed="CloseHtmlElementEditorAsync"
+                             PropertiesChanged="ApplyHtmlPropertiesAsync"
+                             RichTextRequested="OpenHtmlRichTextEditorAsync"
+                             CollectionActionRequested="ApplyHtmlCollectionActionAsync"
+                             DuplicateRequested="DuplicateSelectedHtmlNodeAsync"
+                             RemoveRequested="RemoveSelectedHtmlNodeAsync"
+                             MediaRequested="OpenHtmlMediaSelectorAsync" />
+}
 
 @if (HtmlRichTextEditorOpen && HtmlEditor.SelectedNode is { } richTextNode)
 {

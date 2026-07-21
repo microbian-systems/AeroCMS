@@ -4,7 +4,7 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>Grants a local external member storefront access to one site within one tenant.</summary>
-public sealed class ExternalMemberSiteAssignment : SableDocument, IAuditable
+public sealed class ExternalMemberSiteAssignment : SableDocument, IAuditable, IVersioned
 {
     /// <summary>Gets or sets the local external member identifier.</summary>
     public long ExternalMemberId { get; set; }
@@ -22,4 +22,5 @@ public sealed class ExternalMemberSiteAssignment : SableDocument, IAuditable
     public DateTimeOffset? ModifiedOn { get; set; }
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
+    public long Version { get; set; }
 }

@@ -1,5 +1,6 @@
 @page "/manager/content-type/editor/{alias?}"
 @using Aero.Cms.Abstractions.Http.Clients
+@using BlazorMonaco.Editor
 @using Radzen.Blazor
 
 <PageTitle>@(IsNew ? L["New Content Type"] : $"{L["Edit"]} {Name}")</PageTitle>
@@ -67,6 +68,11 @@
     .ct-help {
         color: var(--pe-text-secondary);
         font-size: .875rem;
+    }
+
+    #content-type-scriban-editor {
+        height: 420px;
+        min-height: 420px;
     }
 
     @@media (max-width: 1024px) {
@@ -334,10 +340,10 @@
                     <div class="flex justify-end">
                         <RadzenButton Text="@L["Generate starter template"]" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@AutoGenerateTemplate" />
                     </div>
-                    <RadzenTextArea @bind-Value="ScribanTemplate"
-                                    Rows="18"
-                                    Class="w-full"
-                                    Style="font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 13px; line-height: 1.5;" />
+                    <StandaloneCodeEditor @ref="_scribanEditor"
+                                          Id="content-type-scriban-editor"
+                                          ConstructionOptions="ScribanEditorConstructionOptions"
+                                          OnDidChangeModelContent="OnScribanEditorContentChanged" />
                 </div>
             }
         </section>
@@ -397,9 +403,18 @@
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="@L["URL"]" Width="220px">
                         <Template Context="item">
-                            @if (AllowPublicUrl)
+                            @if (CanOpenPublishedPage(item))
                             {
-                                <code class="text-xs" style="color: var(--pe-text-muted);">/content/@AliasValue/@item.Slug</code>
+                                <a href="@BuildPublicContentUrl(item.Slug)"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   @onclick:stopPropagation="true">
+                                    <code class="text-xs" style="color: var(--pe-text-muted);">@BuildPublicContentPath(item.Slug)</code>
+                                </a>
+                            }
+                            else if (AllowPublicUrl)
+                            {
+                                <code class="text-xs" style="color: var(--pe-text-muted);">@BuildPublicContentPath(item.Slug)</code>
                             }
                             else
                             {

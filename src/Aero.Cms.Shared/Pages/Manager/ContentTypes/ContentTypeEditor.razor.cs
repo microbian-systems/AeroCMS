@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
+using BlazorMonaco.Editor;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
 using Radzen;
@@ -48,6 +49,7 @@ public partial class ContentTypeEditor
     private bool _aliasLocked;
     private bool _useCustomTemplate;
     private int? _selectedFieldIndex;
+    private StandaloneCodeEditor? _scribanEditor;
     private RadzenDataGrid<ContentItemSummary>? _entriesGrid;
     private IEnumerable<ContentItemSummary> _entries = [];
     private int _entriesCount;
@@ -265,7 +267,28 @@ protected override async Task OnInitializedAsync()
             ContentJsonContext.Default.String);
     }
 
-    private void AutoGenerateTemplate()
+    private StandaloneEditorConstructionOptions ScribanEditorConstructionOptions(StandaloneCodeEditor editor)
+        => new()
+        {
+            AutomaticLayout = true,
+            Language = "liquid",
+            Value = ScribanTemplate ?? string.Empty,
+            Minimap = new EditorMinimapOptions { Enabled = false },
+            ScrollBeyondLastLine = false,
+            WordWrap = "on",
+            LineNumbers = "on",
+            TabSize = 2
+        };
+
+    private async Task OnScribanEditorContentChanged()
+    {
+        if (_scribanEditor is not null)
+        {
+            ScribanTemplate = await _scribanEditor.GetValue();
+        }
+    }
+
+    private async Task AutoGenerateTemplate()
     {
         var sb = new StringBuilder();
         sb.AppendLine($"""<article class="content-type-{AliasValue}">""");
@@ -277,6 +300,10 @@ protected override async Task OnInitializedAsync()
         }
         sb.AppendLine("</article>");
         ScribanTemplate = sb.ToString();
+        if (_scribanEditor is not null)
+        {
+            await _scribanEditor.SetValue(ScribanTemplate);
+        }
     }
 
     private static string ScribanFieldAccessor(string fieldName) =>
@@ -286,6 +313,11 @@ protected override async Task OnInitializedAsync()
 
     private async Task SaveAsync()
     {
+        if (_useCustomTemplate && _scribanEditor is not null)
+        {
+            ScribanTemplate = await _scribanEditor.GetValue();
+        }
+
         if (!ValidateBeforeSave()) return;
 
         _isSaving = true;
@@ -427,6 +459,18 @@ protected override async Task OnInitializedAsync()
             EditEntry(args.Data.Id);
         }
     }
+
+    private bool CanOpenPublishedPage(ContentItemSummary item)
+        => AllowPublicUrl &&
+           string.Equals(item.PublicationState, "Published", StringComparison.OrdinalIgnoreCase) &&
+           !string.IsNullOrWhiteSpace(AliasValue) &&
+           !string.IsNullOrWhiteSpace(item.Slug);
+
+    private string BuildPublicContentPath(string slug)
+        => $"/content/{Uri.EscapeDataString(AliasValue.Trim())}/{Uri.EscapeDataString(slug.Trim())}";
+
+    private string BuildPublicContentUrl(string slug)
+        => new Uri(new Uri(Navigation.BaseUri), BuildPublicContentPath(slug).TrimStart('/')).ToString();
 
     private async Task DeleteEntryAsync(long id)
     {

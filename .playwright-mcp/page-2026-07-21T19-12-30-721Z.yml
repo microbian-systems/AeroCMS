@@ -1,0 +1,168 @@
+- generic [ref=e25]:
+  - banner [ref=e26]:
+    - generic [ref=e27]:
+      - link "Aero CMS AERO" [ref=e28] [cursor=pointer]:
+        - /url: /manager
+        - img "Aero CMS" [ref=e29]
+        - generic [ref=e30]: AERO
+      - button "Aero CMS" [ref=e31] [cursor=pointer]
+      - generic [ref=e36]: "|"
+      - navigation [ref=e37]:
+        - button "Aero CMS | 1528077103668363265" [ref=e39] [cursor=pointer]:
+          - generic [ref=e40]: Aero CMS
+          - generic [ref=e41]: "| 1528077103668363265"
+    - button "AD admin" [ref=e46] [cursor=pointer]:
+      - generic [ref=e47]: AD
+      - generic [ref=e48]: admin
+  - generic [ref=e54]:
+    - complementary [ref=e55]:
+      - generic [ref=e56]:
+        - button "Toggle Sidebar" [ref=e57] [cursor=pointer]
+        - generic [ref=e60]: Menu
+      - navigation [ref=e62]:
+        - link "Dashboard" [ref=e65] [cursor=pointer]:
+          - /url: /manager
+        - generic [ref=e71]:
+          - link "Sites" [ref=e72] [cursor=pointer]:
+            - /url: /manager/sites
+          - button [ref=e77] [cursor=pointer]
+        - generic [ref=e81]:
+          - link "Aliases" [ref=e82] [cursor=pointer]:
+            - /url: /manager/aliases
+          - button [ref=e87] [cursor=pointer]
+        - generic [ref=e91]:
+          - link "Header" [ref=e92] [cursor=pointer]:
+            - /url: /manager/navigations
+          - button [ref=e97] [cursor=pointer]
+        - generic [ref=e101]:
+          - link "Footer" [ref=e102] [cursor=pointer]:
+            - /url: /manager/footers
+          - button [ref=e107] [cursor=pointer]
+        - generic [ref=e111]:
+          - link "Pages" [ref=e112] [cursor=pointer]:
+            - /url: /manager/pages
+          - button [ref=e117] [cursor=pointer]
+        - generic [ref=e121]:
+          - link "Posts" [ref=e122] [cursor=pointer]:
+            - /url: /manager/posts
+          - button [ref=e127] [cursor=pointer]
+        - generic [ref=e131]:
+          - link "Content" [ref=e132] [cursor=pointer]:
+            - /url: /manager/content-types
+          - button [ref=e137] [cursor=pointer]
+        - generic [ref=e141]:
+          - link "Commerce" [ref=e142] [cursor=pointer]:
+            - /url: /manager/commerce
+          - button [ref=e147] [cursor=pointer]
+        - generic [ref=e151]:
+          - link "Docs" [ref=e152] [cursor=pointer]:
+            - /url: /manager/docs
+          - button [ref=e157] [cursor=pointer]
+        - generic [ref=e161]:
+          - link "Modules" [ref=e162] [cursor=pointer]:
+            - /url: /manager/modules
+          - button [ref=e167] [cursor=pointer]
+        - generic [ref=e171]:
+          - link "Taxonomy" [ref=e172] [cursor=pointer]:
+            - /url: /manager/taxonomy
+          - button [ref=e177] [cursor=pointer]
+        - generic [ref=e181]:
+          - link "Media" [ref=e182] [cursor=pointer]:
+            - /url: /manager/media
+          - button [ref=e187] [cursor=pointer]
+        - generic [ref=e191]:
+          - link "Users" [ref=e192] [cursor=pointer]:
+            - /url: /manager/users
+          - button [ref=e197] [cursor=pointer]
+        - generic [ref=e201]:
+          - link "Themes" [ref=e202] [cursor=pointer]:
+            - /url: /manager/themes
+          - button [ref=e207] [cursor=pointer]
+        - generic [ref=e211]:
+          - link "SEO" [ref=e212] [cursor=pointer]:
+            - /url: /manager/seo
+          - button [ref=e217] [cursor=pointer]
+        - generic [ref=e221]:
+          - link "AI" [ref=e222] [cursor=pointer]:
+            - /url: /manager/ai
+          - button [ref=e227] [cursor=pointer]
+        - generic [ref=e231]:
+          - link "Audit" [ref=e232] [cursor=pointer]:
+            - /url: /manager/audit
+          - button [ref=e237] [cursor=pointer]
+        - link "Global Settings" [ref=e243] [cursor=pointer]:
+          - /url: /manager/settings
+    - generic [ref=e249]:
+      - generic [ref=e250]:
+        - generic [ref=e251]:
+          - paragraph [ref=e252]: Content entry
+          - heading "New Test" [level=1] [ref=e253]
+          - paragraph [ref=e254]: This entry can have its own public page.
+        - generic [ref=e255]:
+          - button "Cancel" [ref=e256] [cursor=pointer]
+          - button "Save Draft" [ref=e259] [cursor=pointer]:
+            - generic [ref=e260]:
+              - generic [ref=e261]: save
+              - generic [ref=e262]: Save Draft
+          - button "Publish" [ref=e263] [cursor=pointer]:
+            - generic [ref=e264]:
+              - generic [ref=e265]: publish
+              - generic [ref=e266]: Publish
+      - generic [ref=e267]:
+        - button "Content" [ref=e268] [cursor=pointer]
+        - button "Translations" [ref=e269] [cursor=pointer]
+      - generic [ref=e270]:
+        - region "Entry fields" [ref=e271]:
+          - generic [ref=e272]:
+            - generic [ref=e273]:
+              - generic [ref=e274]: Title
+              - paragraph [ref=e275]: Single line names, headlines, and labels.
+            - textbox "Single line names, headlines, and labels." [ref=e276]
+          - generic [ref=e277]:
+            - generic [ref=e278]:
+              - generic [ref=e279]: Image
+              - paragraph [ref=e280]: Photo or graphic URL.
+            - generic [ref=e282]:
+              - button "Choose image" [ref=e283] [cursor=pointer]:
+                - generic [ref=e284]:
+                  - generic [ref=e285]: image
+                  - generic [ref=e286]: Choose image
+              - textbox "Image URL" [ref=e287]
+          - generic [ref=e288]:
+            - generic [ref=e289]:
+              - generic [ref=e290]: Yes/No
+              - paragraph [ref=e291]: A simple on/off choice.
+            - generic [ref=e292]:
+              - checkbox [ref=e293]
+              - text: "Yes"
+          - generic [ref=e295]:
+            - generic [ref=e296]:
+              - generic [ref=e297]: Date
+              - paragraph [ref=e298]: Dates and milestones.
+            - generic [ref=e299]:
+              - textbox [ref=e300]
+              - button "Toggle" [ref=e301] [cursor=pointer]:
+                - generic [ref=e302]: calendar_today
+              - text: chevron_left chevron_right arrow_drop_down arrow_drop_down
+          - generic [ref=e303]:
+            - generic [ref=e304]:
+              - generic [ref=e305]: Rich text
+              - paragraph [ref=e306]: Longer formatted copy.
+            - textbox [ref=e307]
+        - complementary [ref=e308]:
+          - region "Entry metadata" [ref=e309]:
+            - generic [ref=e310]:
+              - heading "Details" [level=2] [ref=e311]
+              - generic [ref=e312]: Draft
+            - generic [ref=e313]:
+              - generic [ref=e314]: Title
+              - textbox "Title" [ref=e315]:
+                - /placeholder: Untitled Test
+            - generic [ref=e316]:
+              - generic [ref=e317]: Public URL slug
+              - textbox "Public URL slug /content/test/" [ref=e318]:
+                - /placeholder: entry-url
+              - generic [ref=e319]: /content/test/
+          - region "Publishing note" [ref=e320]:
+            - heading "Publishing" [level=2] [ref=e321]
+            - paragraph [ref=e322]: Drafts can be incomplete. Publishing checks required fields and then makes the latest version available to pages, blocks, and public URLs when enabled.

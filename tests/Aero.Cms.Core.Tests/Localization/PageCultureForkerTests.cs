@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
@@ -28,7 +29,22 @@ public sealed class PageCultureForkerTests
             PublishedOn = DateTimeOffset.UtcNow,
             PublishedVersion = 7,
             DraftContent = content,
+            DraftComposition = new PageCompositionDocument
+            {
+                ContentItems =
+                [
+                    new PageContentItemScope
+                    {
+                        NodeId = paragraph.NodeId,
+                        ContentTypeId = 501,
+                        ContentTypeAlias = "welcome-messages",
+                        ContentItemId = 601,
+                        Slug = "welcome"
+                    }
+                ]
+            },
             PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(content),
+            PublishedComposition = new PageCompositionDocument(),
             ContentRevision = 3
         };
 
@@ -44,9 +60,12 @@ public sealed class PageCultureForkerTests
         await Assert.That(fork.PublishedOn).IsNull();
         await Assert.That(fork.PublishedVersion).IsEqualTo(0);
         await Assert.That(fork.PublishedContent).IsNull();
+        await Assert.That(fork.PublishedComposition).IsNull();
         await Assert.That(fork.ContentRevision).IsEqualTo(3);
         await Assert.That(fork.DraftContent.Root.Children[0].Children[0].Text).IsEqualTo("Welcome");
         await Assert.That(fork.DraftContent).IsNotSameReferenceAs(source.DraftContent);
+        await Assert.That(fork.DraftComposition).IsNotSameReferenceAs(source.DraftComposition);
+        await Assert.That(fork.DraftComposition.ContentItems[0].ContentItemId).IsEqualTo(601);
         await Assert.That(fork.DraftContent.Root.Children[0].NodeId)
             .IsEqualTo(source.DraftContent.Root.Children[0].NodeId);
     }

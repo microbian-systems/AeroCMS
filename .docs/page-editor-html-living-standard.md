@@ -9,6 +9,10 @@ style intent, seeded pages, and browser-tested create/save/reload/publish.
 Remaining catalog expansion and advanced capabilities are explicitly deferred
 below; they are not blockers for the first usable page builder.
 
+Typed content scopes, field bindings, rendered fragments, sidebar tabs, canvas
+element actions, and the manager assistant boundary are specified separately in
+[Page Editor: Typed Content Composition and Extensibility](page-editor-content-composition.md).
+
 ## Context
 
 The existing PageEditor is based on NeoUI blocks, `NeoPageNode`, and
@@ -814,6 +818,9 @@ optional engineering improvements, not PageEditor feature blockers.
    family, remove the assembly-resolution warnings, and rerun the approved
    static-fragment import and browser acceptance coverage before treating HTML
    import as production-hardened.
+7. Implement the additive typed-content and fragment sidecar described in
+   [Page Editor: Typed Content Composition and Extensibility](page-editor-content-composition.md)
+   without changing the `HtmlPageContent` persistence or rendering contract.
 
 ### Cutover Strategy
 

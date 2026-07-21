@@ -24,12 +24,20 @@ public sealed class ExternalMemberCookieValidator
             var session = context.HttpContext.RequestServices.GetRequiredService<IQuerySession>();
             var member = await session.LoadAsync<ExternalMember>(claims.MemberId, context.HttpContext.RequestAborted);
             var externalSession = await session.LoadAsync<ExternalMemberSession>(claims.SessionId, context.HttpContext.RequestAborted);
+            var identityLink = externalSession is null || externalSession.ExternalIdentityLinkId <= 0
+                ? null
+                : await session.LoadAsync<ExternalIdentityLink>(
+                    externalSession.ExternalIdentityLinkId,
+                    context.HttpContext.RequestAborted);
 
             if (member is null || !member.IsActive || member.SecurityVersion != claims.SecurityVersion ||
                 externalSession is null || externalSession.ExternalMemberId != member.Id ||
                 !string.Equals(externalSession.AuthenticationProvider, claims.Provider, StringComparison.Ordinal) ||
                 externalSession.SecurityVersion != claims.SecurityVersion || externalSession.RevokedAt is not null ||
-                externalSession.ExpiresAt <= DateTimeOffset.UtcNow)
+                externalSession.ExpiresAt <= DateTimeOffset.UtcNow ||
+                identityLink is null || !identityLink.IsActive || identityLink.ExternalMemberId != member.Id ||
+                identityLink.Id != externalSession.ExternalIdentityLinkId ||
+                !string.Equals(identityLink.Provider, claims.Provider, StringComparison.Ordinal))
             {
                 await RejectAsync(context);
             }

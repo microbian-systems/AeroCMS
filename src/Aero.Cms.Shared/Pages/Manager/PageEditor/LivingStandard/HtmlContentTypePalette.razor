@@ -1,0 +1,101 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="aero-content-type-palette" aria-labelledby="aero-content-type-palette-title">
+    <header class="aero-content-type-palette__header">
+        <div>
+            <h2 id="aero-content-type-palette-title">Structured content</h2>
+            <p>Browse reusable content without copying it into the page.</p>
+        </div>
+        <button type="button"
+                class="aero-content-type-palette__refresh"
+                disabled="@IsLoading"
+                title="Refresh content types"
+                @onclick="RefreshAsync">
+            ↻
+        </button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="aero-content-type-palette__error" role="alert">@ErrorMessage</div>
+    }
+
+    <label class="aero-content-type-palette__selector">
+        <span>Content type</span>
+        <select value="@SelectedAlias"
+                disabled="@(IsLoading || ContentTypes.Count == 0)"
+                @onchange="OnTypeChangedAsync">
+            @if (ContentTypes.Count == 0)
+            {
+                <option value="">@(IsLoading ? "Loading content types…" : "No content types available")</option>
+            }
+            else
+            {
+                @foreach (var contentType in ContentTypes)
+                {
+                    <option @key="contentType.Alias" value="@contentType.Alias">@contentType.Name</option>
+                }
+            }
+        </select>
+    </label>
+
+    @if (SelectedContentType is { } selectedType)
+    {
+        <div class="aero-content-type-palette__summary">
+            <strong>@selectedType.Name</strong>
+            <code>@selectedType.Alias</code>
+            @if (!string.IsNullOrWhiteSpace(selectedType.Description))
+            {
+                <p>@selectedType.Description</p>
+            }
+        </div>
+
+        <div class="aero-content-type-palette__section">
+            <h3>Content scopes</h3>
+            <div class="aero-content-type-palette__scope-grid" aria-label="Content scope types">
+                <button type="button" disabled title="Available after page composition bindings are persisted">
+                    <strong>Content list</strong>
+                    <span>Pageable entries</span>
+                </button>
+                <button type="button" disabled title="Available after page composition bindings are persisted">
+                    <strong>Content item</strong>
+                    <span>Resolve one entry</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="aero-content-type-palette__section">
+            <div class="aero-content-type-palette__section-heading">
+                <h3>Fields</h3>
+                <span>@selectedType.Fields.Count</span>
+            </div>
+
+            @if (selectedType.Fields.Count == 0)
+            {
+                <p class="aero-content-type-palette__empty">This content type has no fields.</p>
+            }
+            else
+            {
+                <div class="aero-content-type-palette__fields">
+                    @foreach (var field in selectedType.Fields)
+                    {
+                        <button @key="field.Name"
+                                type="button"
+                                disabled
+                                title="Field dragging will be enabled with persisted content bindings">
+                            <span>
+                                <strong>@(string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label)</strong>
+                                <code>@field.Name</code>
+                            </span>
+                            <span class="aero-content-type-palette__field-type">@field.FieldType</span>
+                        </button>
+                    }
+                </div>
+            }
+
+            <p class="aero-content-type-palette__guidance">
+                Content scopes and field dragging will activate with the composition sidecar; the page HTML remains unchanged in this slice.
+            </p>
+        </div>
+    }
+</section>

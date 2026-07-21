@@ -99,6 +99,8 @@ protected string Author       { get; set; } = "Admin";
 
     protected string? HtmlPropertyError { get; private set; }
 
+    protected bool HtmlElementEditorOpen { get; private set; }
+
     protected bool HtmlRichTextEditorOpen { get; private set; }
 
     protected string? HtmlRichTextError { get; private set; }
@@ -420,6 +422,7 @@ protected override async Task OnInitializedAsync()
             HtmlEditor = CreateHtmlEditorSession(
                 page.DraftContent ?? new HtmlPageContent(),
                 _siteStyleProfile!);
+            DraftComposition = page.DraftComposition?.CreateSnapshot() ?? new();
 
             UpdateLastSaved();
             _pageState = PageState.Clean;
@@ -533,6 +536,11 @@ protected async Task TogglePreview()
         if (nodeId is not null)
         {
             RightSidebarCollapsed = false;
+            RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+        }
+        else if (RightSidebarTab == HtmlPageEditorSidebarTab.Inspector)
+        {
+            RightSidebarTab = HtmlPageEditorSidebarTab.Elements;
         }
 
         return Task.CompletedTask;
@@ -726,6 +734,14 @@ protected async Task TogglePreview()
     {
         var result = HtmlEditor.RemoveSelected();
         HandleHtmlEditorResult(result, "Element removed.");
+        if (result is Result<HtmlNode>.Ok)
+        {
+            HtmlElementEditorOpen = false;
+            if (RightSidebarTab == HtmlPageEditorSidebarTab.Inspector)
+            {
+                RightSidebarTab = HtmlPageEditorSidebarTab.Elements;
+            }
+        }
         return Task.CompletedTask;
     }
 
@@ -740,10 +756,27 @@ protected async Task TogglePreview()
     {
         HtmlEditorCommandKind.Undo when HtmlEditor.CanUndo => UndoHtmlChangeAsync(),
         HtmlEditorCommandKind.Redo when HtmlEditor.CanRedo => RedoHtmlChangeAsync(),
+        HtmlEditorCommandKind.MoveUp when HtmlEditor.CanMoveSelectedUp => MoveSelectedHtmlNodeUpAsync(),
+        HtmlEditorCommandKind.MoveDown when HtmlEditor.CanMoveSelectedDown => MoveSelectedHtmlNodeDownAsync(),
         HtmlEditorCommandKind.Duplicate => DuplicateSelectedHtmlNodeAsync(),
+        HtmlEditorCommandKind.Edit => OpenSelectedHtmlElementEditorAsync(),
         HtmlEditorCommandKind.Delete => RemoveSelectedHtmlNodeAsync(),
         _ => Task.CompletedTask
     };
+
+    protected Task MoveSelectedHtmlNodeUpAsync()
+    {
+        var result = HtmlEditor.MoveSelectedUp();
+        HandleHtmlEditorResult(result, "Element moved up.");
+        return Task.CompletedTask;
+    }
+
+    protected Task MoveSelectedHtmlNodeDownAsync()
+    {
+        var result = HtmlEditor.MoveSelectedDown();
+        HandleHtmlEditorResult(result, "Element moved down.");
+        return Task.CompletedTask;
+    }
 
     protected Task UndoHtmlChangeAsync()
     {
@@ -780,6 +813,7 @@ protected async Task TogglePreview()
 
     protected Task OpenHtmlRichTextEditorAsync()
     {
+        HtmlElementEditorOpen = false;
         HtmlRichTextError = null;
         HtmlRichTextEditorOpen = HtmlEditor.SelectedNode is not null;
         return Task.CompletedTask;
@@ -790,6 +824,7 @@ protected async Task TogglePreview()
         HtmlEditor.Select(nodeId);
         HtmlPropertyError = null;
         RightSidebarCollapsed = false;
+        RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
 
         var node = HtmlEditor.SelectedNode;
         var converter = new TiptapInlineContentConverter();
@@ -797,6 +832,29 @@ protected async Task TogglePreview()
             && SelectedHtmlDefinition?.ChildModel is HtmlChildModel.Phrasing
             && converter.CanEdit(node);
         HtmlRichTextError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenHtmlElementEditorForNodeAsync(long nodeId)
+    {
+        HtmlEditor.Select(nodeId);
+        HtmlPropertyError = null;
+        HtmlRichTextEditorOpen = false;
+        RightSidebarCollapsed = false;
+        RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+        HtmlElementEditorOpen = HtmlEditor.SelectedNode is { Kind: HtmlNodeKind.Element }
+            && SelectedHtmlDefinition is not null;
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenSelectedHtmlElementEditorAsync() => HtmlEditor.SelectedNodeId is { } nodeId
+        ? OpenHtmlElementEditorForNodeAsync(nodeId)
+        : Task.CompletedTask;
+
+    protected Task CloseHtmlElementEditorAsync()
+    {
+        HtmlElementEditorOpen = false;
+        HtmlPropertyError = null;
         return Task.CompletedTask;
     }
 
@@ -1729,7 +1787,8 @@ protected string FormatCulture(string? culture)
                     HideFooter,
                     ShowChatAgent,
                     DraftContent: HtmlEditor.Content,
-                    PreviousPathBehavior: routeDecision.Behavior
+                    PreviousPathBehavior: routeDecision.Behavior,
+                    DraftComposition: DraftComposition
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -1763,7 +1822,8 @@ protected string FormatCulture(string? culture)
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    DraftContent: HtmlEditor.Content
+                    DraftContent: HtmlEditor.Content,
+                    DraftComposition: DraftComposition
                 );
 
                 var result = await PagesClient.CreateAsync(request);

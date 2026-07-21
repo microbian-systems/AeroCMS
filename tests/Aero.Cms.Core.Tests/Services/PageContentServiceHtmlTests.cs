@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
@@ -26,7 +27,21 @@ public sealed class PageContentServiceHtmlTests
         await harness.InitializeAsync();
 
         var page = CreatePage(9_301, CreateContent("Old draft"));
+        page.DraftComposition = CreateItemComposition(page.DraftContent, 7001);
         page.PublishedContent = CreateContent("Published");
+        page.PublishedComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = page.PublishedContent.Root.Children[0].NodeId,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    ContentItemId = 6001
+                }
+            ]
+        };
         page.PublicationState = ContentPublicationState.Published;
         page.ContentRevision = 4;
         page.PublishedVersion = 2;
@@ -37,6 +52,7 @@ public sealed class PageContentServiceHtmlTests
         await using var editSession = await harness.OpenSessionAsync();
         var service = CreateService(editSession, page.SiteId);
         var editedPage = CreatePage(page.Id, CreateContent("New draft"));
+        editedPage.DraftComposition = CreateItemComposition(editedPage.DraftContent, 7002);
         editedPage.PublicationState = ContentPublicationState.Draft;
         editedPage.PublishedContent = CreateContent("Attempted overwrite");
 
@@ -47,7 +63,9 @@ public sealed class PageContentServiceHtmlTests
         var restored = await verificationSession.LoadAsync<PageDocument>(page.Id);
         restored.ShouldNotBeNull();
         restored!.DraftContent.Root.Children[0].Children[0].Children[0].Text.ShouldBe("New draft");
+        restored.DraftComposition.ContentItems[0].ContentItemId.ShouldBe(7002);
         restored.PublishedContent!.Root.Children[0].Children[0].Children[0].Text.ShouldBe("Published");
+        restored.PublishedComposition!.ContentItems[0].ContentItemId.ShouldBe(6001);
         restored.PublicationState.ShouldBe(ContentPublicationState.Published);
         restored.ContentRevision.ShouldBe(5);
         restored.PublishedVersion.ShouldBe(2);
@@ -102,6 +120,10 @@ public sealed class PageContentServiceHtmlTests
         var transportJson = JsonSerializer.Serialize(
             replacement,
             HtmlJsonContext.Default.HtmlPageContent);
+        var replacementComposition = CreateItemComposition(replacement, 8_001);
+        var compositionJson = JsonSerializer.Serialize(
+            replacementComposition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
 
         await using var editSession = await harness.OpenSessionAsync();
         var service = CreateService(editSession, page.SiteId);
@@ -113,7 +135,8 @@ public sealed class PageContentServiceHtmlTests
             page.SeoTitle,
             page.SeoDescription,
             page.PublicationState,
-            DraftContentJson: transportJson);
+            DraftContentJson: transportJson,
+            DraftCompositionJson: compositionJson);
 
         var result = await service.UpdateAsync(page.Id, request);
 
@@ -123,7 +146,53 @@ public sealed class PageContentServiceHtmlTests
         restored.ShouldNotBeNull();
         restored!.DraftContent.Root.Children[0].Children[0].Children[0].Text
             .ShouldBe("Typed HTTP content");
+        restored.DraftComposition.ContentItems[0].ContentItemId.ShouldBe(8_001);
         restored.ContentRevision.ShouldBe(1);
+    }
+
+    [Test]
+    public async Task CreateAsync_validates_the_submitted_composition_against_the_submitted_html()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentSlugDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+
+        var content = CreateContent("New page draft");
+        var invalidComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = 9_999_999,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    ContentItemId = 7_001
+                }
+            ]
+        };
+        var contentJson = JsonSerializer.Serialize(
+            content,
+            HtmlJsonContext.Default.HtmlPageContent);
+        var compositionJson = JsonSerializer.Serialize(
+            invalidComposition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+
+        await using var editSession = await harness.OpenSessionAsync();
+        var service = CreateService(editSession, 42);
+        var request = new Aero.Cms.Abstractions.Requests.CreatePageRequest(
+            "Invalid composition",
+            "invalid-composition",
+            null,
+            null,
+            null,
+            DraftContentJson: contentJson,
+            DraftCompositionJson: compositionJson);
+
+        var result = await service.CreateAsync(request);
+
+        result.IsFailure.ShouldBeTrue();
     }
 
     private static AeroPageContentService CreateService(IDocumentSession session, long siteId)
@@ -174,5 +243,37 @@ public sealed class PageContentServiceHtmlTests
         var content = new HtmlPageContent();
         content.Root.Children.Add(section);
         return content;
+    }
+
+    private static PageCompositionDocument CreateItemComposition(
+        HtmlPageContent content,
+        long contentItemId)
+    {
+        var scope = content.Root.Children[0];
+        var target = scope.Children[0];
+        return new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = scope.NodeId,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    ContentItemId = contentItemId,
+                    Slug = $"article-{contentItemId}"
+                }
+            ],
+            FieldBindings =
+            [
+                new PageFieldBinding
+                {
+                    NodeId = target.NodeId,
+                    ScopeNodeId = scope.NodeId,
+                    FieldName = "title",
+                    Target = PageFieldBindingTarget.TextContent
+                }
+            ]
+        };
     }
 }

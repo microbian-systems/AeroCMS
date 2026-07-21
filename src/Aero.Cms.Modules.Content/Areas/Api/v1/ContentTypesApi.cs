@@ -73,7 +73,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 summaries.Add(new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
                     t.AllowPublicUrl, t.HideFromSearch, fields.Count,
-                    !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount));
+                    !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount,
+                    Id: t.Id));
             }
 
             return TypedResults.Ok(summaries);
@@ -254,7 +255,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
             vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
-            vm.ScheduleConfig);
+            vm.ScheduleConfig,
+            Id: vm.Id);
     }
 
     /// <summary>

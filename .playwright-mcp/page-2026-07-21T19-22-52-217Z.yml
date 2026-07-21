@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - generic:
+      - img "Loading…"
+      - paragraph: Loading AeroCMS…
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Aero CMS AERO" [ref=e5] [cursor=pointer]:
+          - /url: /manager
+          - img "Aero CMS" [ref=e6]
+          - generic [ref=e7]: AERO
+        - generic [ref=e8]: "|"
+        - navigation [ref=e9]:
+          - button "No site selected" [ref=e11] [cursor=pointer]
+      - button "? User" [ref=e17] [cursor=pointer]:
+        - generic [ref=e18]: "?"
+        - generic [ref=e19]: User
+    - img "Loading…" [ref=e24]

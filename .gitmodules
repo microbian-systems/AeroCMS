@@ -16,3 +16,6 @@
 [submodule "tiptap-dotnet"]
 	path = tiptap-dotnet
 	url = git@github.com:microbian-systems/tiptap-dotnet.git
+[submodule "AeroVault"]
+	path = AeroVault
+	url = git@github.com:microbian-systems/AeroVault.git

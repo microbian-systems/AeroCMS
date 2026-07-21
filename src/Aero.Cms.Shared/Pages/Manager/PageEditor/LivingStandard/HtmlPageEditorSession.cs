@@ -58,6 +58,16 @@ public sealed class HtmlPageEditorSession
 
     public bool CanRedo => _treeEditor.History.CanRedo;
 
+    /// <summary>
+    /// Gets whether the selected node has a preceding sibling in its current parent.
+    /// </summary>
+    public bool CanMoveSelectedUp => CanMoveSelectedSibling(-1);
+
+    /// <summary>
+    /// Gets whether the selected node has a following sibling in its current parent.
+    /// </summary>
+    public bool CanMoveSelectedDown => CanMoveSelectedSibling(1);
+
     public void Select(long? nodeId)
     {
         SelectedNodeId = nodeId is { } value
@@ -188,6 +198,18 @@ public sealed class HtmlPageEditorSession
         return result;
     }
 
+    /// <summary>
+    /// Moves the selected subtree immediately before its preceding sibling.
+    /// </summary>
+    /// <returns>The moved node, or a railway error when movement is unavailable.</returns>
+    public Result<HtmlNode> MoveSelectedUp() => MoveSelectedSibling(-1);
+
+    /// <summary>
+    /// Moves the selected subtree immediately after its following sibling.
+    /// </summary>
+    /// <returns>The moved node, or a railway error when movement is unavailable.</returns>
+    public Result<HtmlNode> MoveSelectedDown() => MoveSelectedSibling(1);
+
     public Result<HtmlNode> RemoveSelected()
     {
         if (SelectedNodeId is not { } nodeId)
@@ -231,6 +253,43 @@ public sealed class HtmlPageEditorSession
         }
 
         return parent.Kind is HtmlNodeKind.Fragment ? null : parent.NodeId;
+    }
+
+    private bool CanMoveSelectedSibling(int offset)
+    {
+        if (SelectedNodeId is not { } nodeId)
+        {
+            return false;
+        }
+
+        var parent = HtmlTreeOperations.FindParentById(Content.Root, nodeId);
+        var index = parent?.Children.FindIndex(child => child.NodeId == nodeId) ?? -1;
+        var targetIndex = index + offset;
+        return parent is not null && index >= 0 && targetIndex >= 0 && targetIndex < parent.Children.Count;
+    }
+
+    private Result<HtmlNode> MoveSelectedSibling(int offset)
+    {
+        if (SelectedNodeId is not { } nodeId)
+        {
+            return AeroError.NotAllowedError("Select an element before moving it.");
+        }
+
+        var parent = HtmlTreeOperations.FindParentById(Content.Root, nodeId);
+        var index = parent?.Children.FindIndex(child => child.NodeId == nodeId) ?? -1;
+        var targetIndex = index + offset;
+        if (parent is null || index < 0 || targetIndex < 0 || targetIndex >= parent.Children.Count)
+        {
+            return AeroError.NotAllowedError(offset < 0
+                ? "The selected element is already first in its container."
+                : "The selected element is already last in its container.");
+        }
+
+        var target = parent.Children[targetIndex];
+        return MoveRelative(
+            nodeId,
+            target.NodeId,
+            offset < 0 ? HtmlRelativePlacement.Before : HtmlRelativePlacement.After);
     }
 
     public Result<HtmlNode> DuplicateSelected()

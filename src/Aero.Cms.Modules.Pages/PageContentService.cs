@@ -5,6 +5,7 @@ using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Requests;
 using PageRouteChangeImpact = Aero.Cms.Abstractions.Http.Clients.PageRouteChangeImpact;
 using Aero.Cms.Core.Entities;
@@ -442,7 +443,18 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 return Prelude.Fail<PageDocument, AeroError>(draftFailure.Error);
             }
 
-            page.DraftContent = ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value;
+            var draftCompositionResult = DeserializeDraftComposition(request.DraftCompositionJson);
+            if (draftCompositionResult is Result<PageCompositionDocument, AeroError>.Failure compositionFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(compositionFailure.Error);
+            }
+
+            var draftContent = ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value;
+            var draftComposition =
+                ((Result<PageCompositionDocument, AeroError>.Ok)draftCompositionResult).Value;
+            page.DraftContent = draftContent;
+            page.DraftComposition = draftComposition;
+
             page.TranslationGroupId = page.Id;
 
             // Compute hierarchy fields (Path, Depth, Order) BEFORE validation
@@ -518,7 +530,7 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 cancellationToken: cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
-            page.ReplaceDraftContent(page.DraftContent, now);
+            page.ReplaceDraftContent(draftContent, draftComposition, now);
             page.CreatedOn = now;
             page.CreatedBy = actor ?? "system";
             page.ModifiedBy = actor ?? "system";
@@ -586,16 +598,27 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 }
             }
 
-            if (request.DraftContentJson is not null)
+            if (request.DraftContentJson is not null || request.DraftCompositionJson is not null)
             {
-                var draftContentResult = DeserializeDraftContent(request.DraftContentJson);
+                var draftContentResult = request.DraftContentJson is null
+                    ? Prelude.Ok<HtmlPageContent, AeroError>(page.DraftContent)
+                    : DeserializeDraftContent(request.DraftContentJson);
                 if (draftContentResult is Result<HtmlPageContent, AeroError>.Failure draftFailure)
                 {
                     return Prelude.Fail<PageDocument, AeroError>(draftFailure.Error);
                 }
 
+                var draftCompositionResult = request.DraftCompositionJson is null
+                    ? Prelude.Ok<PageCompositionDocument, AeroError>(page.DraftComposition)
+                    : DeserializeDraftComposition(request.DraftCompositionJson);
+                if (draftCompositionResult is Result<PageCompositionDocument, AeroError>.Failure compositionFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(compositionFailure.Error);
+                }
+
                 page.ReplaceDraftContent(
                     ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value,
+                    ((Result<PageCompositionDocument, AeroError>.Ok)draftCompositionResult).Value,
                     DateTimeOffset.UtcNow);
             }
 
@@ -987,7 +1010,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             }
 
             var now = DateTimeOffset.UtcNow;
-            targetPage.ReplaceDraftContent(page.DraftContent, now);
+            targetPage.ReplaceDraftContent(page.DraftContent, page.DraftComposition, now);
 
             targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
             targetPage.TranslationGroupId ??= targetPage.Id;
@@ -1013,6 +1036,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             {
                 targetPage.PublicationState = ContentPublicationState.Draft;
                 targetPage.PublishedContent = null;
+                targetPage.PublishedComposition = null;
                 targetPage.PublishedOn = null;
                 targetPage.PublishedVersion = 0;
             }
@@ -1067,6 +1091,14 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             return Prelude.Fail<bool, AeroError>(contentFailure.Error);
         }
 
+        var compositionValidation = await new PageCompositionValidator(page.DraftContent)
+            .ValidateAsync(page.DraftComposition, cancellationToken);
+        if (!compositionValidation.IsValid)
+        {
+            return Prelude.Fail<bool, AeroError>(
+                AeroError.ValidationError(compositionValidation.Errors.Select(error => error.ErrorMessage)));
+        }
+
         var profileResult = await styleProfileResolver.ResolveAsync(
             page.SiteId,
             cancellationToken);
@@ -1115,6 +1147,31 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         {
             return Prelude.Fail<HtmlPageContent, AeroError>(
                 AeroError.ValidationError([$"The page draft content payload is invalid: {exception.Message}"]));
+        }
+    }
+
+    private static Result<PageCompositionDocument, AeroError> DeserializeDraftComposition(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Prelude.Ok<PageCompositionDocument, AeroError>(new PageCompositionDocument());
+        }
+
+        try
+        {
+            var composition = JsonSerializer.Deserialize(
+                json,
+                PageCompositionJsonContext.Default.PageCompositionDocument);
+            return composition is null
+                ? Prelude.Fail<PageCompositionDocument, AeroError>(
+                    AeroError.ValidationError(["The page draft composition payload was empty."]))
+                : Prelude.Ok<PageCompositionDocument, AeroError>(composition);
+        }
+        catch (JsonException exception)
+        {
+            return Prelude.Fail<PageCompositionDocument, AeroError>(
+                AeroError.ValidationError(
+                    [$"The page draft composition payload is invalid: {exception.Message}"]));
         }
     }
 

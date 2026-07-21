@@ -54,6 +54,18 @@ public partial class HtmlElementPropertyPanel
     public string? ErrorMessage { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the panel renders its selected-element heading and back action.
+    /// </summary>
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the panel renders its duplicate and delete actions.
+    /// </summary>
+    [Parameter]
+    public bool ShowElementActions { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the callback that receives a detached property update assembled from the
     /// current form.
     /// </summary>

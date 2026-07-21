@@ -57,7 +57,9 @@ public static PageDocument Fork(PageDocument source, long targetPageId, string t
             HideFooter = source.HideFooter,
             ShowChatAgent = source.ShowChatAgent,
             DraftContent = HtmlTreeOperations.ClonePreservingNodeIds(source.DraftContent),
+            DraftComposition = source.DraftComposition.CreateSnapshot(),
             PublishedContent = null,
+            PublishedComposition = null,
             ContentRevision = source.ContentRevision
         };
     }

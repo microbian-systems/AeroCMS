@@ -11,6 +11,8 @@ using Microsoft.Extensions.Hosting;
 using Aero.Modular;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authorization;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -107,17 +109,51 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
         services.AddScoped<ICurrentPrincipal, CurrentPrincipal>();
         services.AddScoped<ExternalMemberCookieValidator>();
         services.AddScoped<IAuthorizationHandler, ExternalMemberSiteAuthorizationHandler>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<IValidator<CreateExternalMemberInvitationRequest>, CreateExternalMemberInvitationRequestValidator>();
+        services.AddScoped<IValidator<BeginExternalMemberSignInRequest>, BeginExternalMemberSignInRequestValidator>();
+        services.AddScoped<IValidator<CompleteExternalMemberSignInRequest>, CompleteExternalMemberSignInRequestValidator>();
+        services.AddScoped<IExternalMemberIssuanceService, ExternalMemberIssuanceService>();
     }
 
     /// <summary>Configures local external-member documents and their lookup constraints.</summary>
     public void Configure(AeroDB.Sable.StoreOptions opts)
     {
-        opts.Schema.For<ExternalMember>().Index(member => member.IsActive);
-        opts.Schema.For<ExternalMemberSession>().Index(session => session.ExternalMemberId);
-        opts.Schema.For<ExternalMemberSession>().Index(session => session.ExpiresAt);
-        opts.Schema.For<ExternalMemberSiteAssignment>()
+        var members = opts.Schema.For<ExternalMember>();
+        members.UseOptimisticConcurrency = true;
+        members.Index(member => member.IsActive);
+
+        var sessions = opts.Schema.For<ExternalMemberSession>();
+        sessions.UseOptimisticConcurrency = true;
+        sessions.Index(session => session.ExternalMemberId);
+        sessions.Index(session => session.ExternalIdentityLinkId);
+        sessions.Index(session => session.ExpiresAt);
+
+        var assignments = opts.Schema.For<ExternalMemberSiteAssignment>();
+        assignments.UseOptimisticConcurrency = true;
+        assignments
             .UniqueIndex(assignment => new { assignment.ExternalMemberId, assignment.SiteId });
-        opts.Schema.For<ExternalMemberSiteAssignment>().Index(assignment => assignment.TenantId);
+        assignments.Index(assignment => assignment.TenantId);
+
+        var links = opts.Schema.For<ExternalIdentityLink>();
+        links.UseOptimisticConcurrency = true;
+        links.UniqueIndex(link => link.IdentityKey);
+        links.Index(link => link.ExternalMemberId);
+
+        var bindings = opts.Schema.For<ExternalOrganizationBinding>();
+        bindings.UseOptimisticConcurrency = true;
+        bindings.UniqueIndex(binding => binding.TenantId);
+        bindings.UniqueIndex(binding => binding.BindingKey);
+
+        var invitations = opts.Schema.For<ExternalMemberInvitation>();
+        invitations.UseOptimisticConcurrency = true;
+        invitations.UniqueIndex(invitation => invitation.TokenDigest);
+        invitations.Index(invitation => new { invitation.TenantId, invitation.SiteId });
+
+        var states = opts.Schema.For<ExternalAuthenticationState>();
+        states.UseOptimisticConcurrency = true;
+        states.UniqueIndex(state => state.SecretDigest);
+        states.Index(state => state.ExpiresAt);
     }
 
     /// <summary>Applies the external-member schema through the service-aware configuration hook.</summary>

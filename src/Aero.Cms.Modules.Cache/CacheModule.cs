@@ -10,7 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ZiggyCreatures.Caching.Fusion;
-using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 
 namespace Aero.Cms.Modules.Cache;
 
@@ -21,9 +20,11 @@ namespace Aero.Cms.Modules.Cache;
 /// </summary>
 /// <remarks>
 /// FusionCache is configured with a five-minute default entry duration, the registered distributed cache, and a
-/// Redis backplane using the selected cache connection. These registrations alone do not prove cross-node coherence
-/// or transactional invalidation. The page hook types are registered only as concrete scoped services; this module's
-/// <see cref="Configure"/> contains no global hook-pipeline wiring, so page read/store/save hooks are inactive.
+/// Redis backplane only in Server cache mode. Local cache mode retains the Redis-compatible distributed-cache layer
+/// backed by the in-process Garnet server, but does not attach a FusionCache backplane. These registrations alone do
+/// not prove cross-node coherence or transactional invalidation. The page hook types are registered only as concrete
+/// scoped services; this module's <see cref="Configure"/> contains no global hook-pipeline wiring, so page
+/// read/store/save hooks are inactive.
 /// </remarks>
 [Module(nameof(CacheModule))]
 public class CacheModule : AeroModuleBase, IAeroPipelineModule
@@ -92,10 +93,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             .WithSystemTextJsonSerializer()
             .WithRegisteredDistributedCache(ignoreMemoryDistributedCache: false);
 
-        cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
+        if (cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
-            Configuration = cacheString
-        }));
+            services.AddFusionCacheStackExchangeRedisBackplane(options =>
+            {
+                options.Configuration = cacheString;
+            });
+            cacheBuilder.WithRegisteredBackplane();
+        }
 
         // ---- Page caching hooks ----
         services.AddSingleton<ICacheInvalidationService, FusionCacheInvalidationService>();

@@ -16,6 +16,7 @@ public sealed class ExternalMemberBoundaryTests
 {
     private const long MemberId = 101;
     private const long SessionId = 202;
+    private const long LinkId = 203;
     private const long SiteId = 303;
     private const long TenantId = 404;
 
@@ -24,7 +25,7 @@ public sealed class ExternalMemberBoundaryTests
     {
         var member = ActiveMember();
         var externalSession = ActiveSession();
-        var (context, authenticationService, services) = CreateValidationContext(member, externalSession);
+        var (context, authenticationService, services) = CreateValidationContext(member, externalSession, ActiveLink());
         using (services)
         {
             await new ExternalMemberCookieValidator().ValidateAsync(context);
@@ -45,10 +46,15 @@ public sealed class ExternalMemberBoundaryTests
     [Arguments("stale-session-version")]
     [Arguments("revoked-session")]
     [Arguments("expired-session")]
+    [Arguments("missing-link")]
+    [Arguments("inactive-link")]
+    [Arguments("wrong-link-owner")]
+    [Arguments("wrong-link-provider")]
     public async Task Cookie_validator_rejects_invalid_local_state(string scenario)
     {
         ExternalMember? member = ActiveMember();
         ExternalMemberSession? externalSession = ActiveSession();
+        ExternalIdentityLink? identityLink = ActiveLink();
 
         switch (scenario)
         {
@@ -79,9 +85,21 @@ public sealed class ExternalMemberBoundaryTests
             case "expired-session":
                 externalSession!.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1);
                 break;
+            case "missing-link":
+                identityLink = null;
+                break;
+            case "inactive-link":
+                identityLink!.IsActive = false;
+                break;
+            case "wrong-link-owner":
+                identityLink!.ExternalMemberId++;
+                break;
+            case "wrong-link-provider":
+                identityLink!.Provider = "entra_external_id";
+                break;
         }
 
-        var (context, authenticationService, services) = CreateValidationContext(member, externalSession);
+        var (context, authenticationService, services) = CreateValidationContext(member, externalSession, identityLink);
         using (services)
         {
             await new ExternalMemberCookieValidator().ValidateAsync(context);
@@ -207,19 +225,35 @@ public sealed class ExternalMemberBoundaryTests
         Id = SessionId,
         ExternalMemberId = MemberId,
         AuthenticationProvider = "workos",
+        ExternalIdentityLinkId = LinkId,
         SecurityVersion = 3,
         ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
+    };
+
+    private static ExternalIdentityLink ActiveLink() => new()
+    {
+        Id = LinkId,
+        ExternalMemberId = MemberId,
+        Provider = "workos",
+        Issuer = "https://issuer.example",
+        Subject = "subject-1",
+        IdentityKey = "digest",
+        IsActive = true
     };
 
     private static (
         CookieValidatePrincipalContext Context,
         IAuthenticationService AuthenticationService,
         ServiceProvider Services)
-        CreateValidationContext(ExternalMember? member, ExternalMemberSession? externalSession)
+        CreateValidationContext(
+            ExternalMember? member,
+            ExternalMemberSession? externalSession,
+            ExternalIdentityLink? identityLink)
     {
         var querySession = Substitute.For<IQuerySession>();
         querySession.LoadAsync<ExternalMember>(MemberId, Arg.Any<CancellationToken>()).Returns(member);
         querySession.LoadAsync<ExternalMemberSession>(SessionId, Arg.Any<CancellationToken>()).Returns(externalSession);
+        querySession.LoadAsync<ExternalIdentityLink>(LinkId, Arg.Any<CancellationToken>()).Returns(identityLink);
         return CreateValidationContext(querySession);
     }
 

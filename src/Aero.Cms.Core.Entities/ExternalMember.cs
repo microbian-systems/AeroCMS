@@ -4,7 +4,7 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>Represents a local storefront customer or partner principal.</summary>
-public sealed class ExternalMember : SableDocument, IAuditable
+public sealed class ExternalMember : SableDocument, IAuditable, IVersioned
 {
     /// <summary>Gets or sets whether this local member may authenticate.</summary>
     public bool IsActive { get; set; } = true;
@@ -22,4 +22,5 @@ public sealed class ExternalMember : SableDocument, IAuditable
     public DateTimeOffset? ModifiedOn { get; set; }
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
+    public long Version { get; set; }
 }

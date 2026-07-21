@@ -1,0 +1,18 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<nav class="aero-page-sidebar-tabs" role="tablist" aria-label="Page editor tools">
+    @foreach (var tab in Tabs)
+    {
+        <button @key="tab.Value"
+                id="@TabId(tab.Value)"
+                type="button"
+                role="tab"
+                aria-selected="@(tab.Value == ActiveTab ? "true" : "false")"
+                aria-controls="aero-page-sidebar-panel"
+                class="@(tab.Value == ActiveTab ? "is-active" : null)"
+                @onclick="() => SelectAsync(tab.Value)">
+            <span class="aero-page-sidebar-tabs__icon" aria-hidden="true">@tab.Icon</span>
+            <span>@tab.Label</span>
+        </button>
+    }
+</nav>

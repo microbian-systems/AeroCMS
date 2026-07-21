@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Aero.Core.Data;
 using AeroDB.Sable;
@@ -102,6 +103,16 @@ public string? SeoDescription { get; set; }
     public HtmlPageContent? PublishedContent { get; set; }
 
     /// <summary>
+    /// Gets or sets optional typed-content meaning attached to stable nodes in <see cref="DraftContent"/>.
+    /// </summary>
+    public PageCompositionDocument DraftComposition { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the published composition snapshot paired with <see cref="PublishedContent"/>.
+    /// </summary>
+    public PageCompositionDocument? PublishedComposition { get; set; }
+
+    /// <summary>
     /// Replaces the editable draft with an independent validated snapshot.
     /// Validation is performed by the Pages application boundary before this mutation.
     /// </summary>
@@ -110,10 +121,29 @@ public string? SeoDescription { get; set; }
     /// <exception cref="ArgumentNullException"><paramref name="content"/> is <see langword="null"/>.</exception>
     /// <exception cref="OverflowException">Incrementing <see cref="ContentRevision"/> exceeds <see cref="long.MaxValue"/>.</exception>
     public void ReplaceDraftContent(HtmlPageContent content, DateTimeOffset modifiedOn)
+        => ReplaceDraftContent(content, DraftComposition, modifiedOn);
+
+    /// <summary>
+    /// Replaces the editable HTML and composition sidecar as one independent draft snapshot.
+    /// Validation is performed by the Pages application boundary before this mutation.
+    /// </summary>
+    /// <param name="content">The non-null validated HTML content.</param>
+    /// <param name="composition">The non-null validated composition sidecar.</param>
+    /// <param name="modifiedOn">The timestamp to record as the last modification time.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="content"/> or <paramref name="composition"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="OverflowException">Incrementing <see cref="ContentRevision"/> exceeds <see cref="long.MaxValue"/>.</exception>
+    public void ReplaceDraftContent(
+        HtmlPageContent content,
+        PageCompositionDocument composition,
+        DateTimeOffset modifiedOn)
     {
         ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(composition);
 
         DraftContent = HtmlTreeOperations.ClonePreservingNodeIds(content);
+        DraftComposition = composition.CreateSnapshot();
         ContentRevision = checked(ContentRevision + 1);
         ModifiedOn = modifiedOn;
     }
@@ -126,6 +156,7 @@ public string? SeoDescription { get; set; }
     public void PublishDraftContent(DateTimeOffset publishedOn)
     {
         PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(DraftContent);
+        PublishedComposition = DraftComposition.CreateSnapshot();
         PublicationState = ContentPublicationState.Published;
         PublishedOn = publishedOn;
         PublishedVersion = checked(PublishedVersion + 1);
@@ -256,6 +287,14 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         DraftContentJson = JsonSerializer.Serialize(DraftContent, HtmlJsonContext.Default.HtmlPageContent),
         PublishedContentJson = PublishedContent is null
             ? null
-            : JsonSerializer.Serialize(PublishedContent, HtmlJsonContext.Default.HtmlPageContent)
+            : JsonSerializer.Serialize(PublishedContent, HtmlJsonContext.Default.HtmlPageContent),
+        DraftCompositionJson = JsonSerializer.Serialize(
+            DraftComposition,
+            PageCompositionJsonContext.Default.PageCompositionDocument),
+        PublishedCompositionJson = PublishedComposition is null
+            ? null
+            : JsonSerializer.Serialize(
+                PublishedComposition,
+                PageCompositionJsonContext.Default.PageCompositionDocument)
     };
 }

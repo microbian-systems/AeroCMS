@@ -16,6 +16,7 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 public partial class HtmlPageEditorCanvas : IAsyncDisposable
 {
     private ElementReference _surface;
+    private ElementReference _selectionToolbar;
     private ElementReference _dragHandle;
     private HtmlSortableInterop? _sortable;
     private DotNetObjectReference<HtmlPageEditorCanvas>? _callbackReference;
@@ -60,6 +61,18 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     /// </summary>
     [Parameter]
     public bool PreviewMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the selected node can move before its preceding sibling.
+    /// </summary>
+    [Parameter]
+    public bool CanMoveSelectedUp { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the selected node can move after its following sibling.
+    /// </summary>
+    [Parameter]
+    public bool CanMoveSelectedDown { get; set; }
 
     /// <summary>
     /// Gets or sets the callback invoked when the selected node changes.
@@ -125,7 +138,7 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
 
         _sortable = new HtmlSortableInterop(JS);
         _callbackReference = DotNetObjectReference.Create(this);
-        await _sortable.InitializeAsync(_surface, _dragHandle, _callbackReference);
+        await _sortable.InitializeAsync(_surface, _selectionToolbar, _dragHandle, _callbackReference);
     }
 
     /// <summary>
@@ -285,6 +298,15 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     /// <param name="nodeId">The node identifier to edit.</param>
     /// <returns>A task that completes when the edit callback has finished.</returns>
     private Task EditNodeAsync(long nodeId) => NodeEditRequested.InvokeAsync(nodeId);
+
+    /// <summary>
+    /// Forwards a selected-element toolbar command to the owning editor.
+    /// </summary>
+    /// <param name="command">The requested editor command.</param>
+    /// <returns>A task that completes after the owner handles the command.</returns>
+    private Task RequestEditorCommandAsync(HtmlEditorCommandKind command) => PreviewMode
+        ? Task.CompletedTask
+        : EditorCommandRequested.InvokeAsync(command);
 
     /// <summary>
     /// Releases the sortable JavaScript integration and its .NET callback reference.

@@ -53,9 +53,18 @@
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="@L["URL"]" Width="220px">
                 <Template Context="item">
-                    @if (_allowPublicUrl)
+                    @if (CanOpenPublishedPage(item))
                     {
-                        <code class="text-xs" style="color: var(--pe-text-muted);">/content/@Alias/@item.Slug</code>
+                        <a href="@BuildPublicContentUrl(item.Slug)"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           @onclick:stopPropagation="true">
+                            <code class="text-xs" style="color: var(--pe-text-muted);">@BuildPublicContentPath(item.Slug)</code>
+                        </a>
+                    }
+                    else if (_allowPublicUrl)
+                    {
+                        <code class="text-xs" style="color: var(--pe-text-muted);">@BuildPublicContentPath(item.Slug)</code>
                     }
                     else
                     {

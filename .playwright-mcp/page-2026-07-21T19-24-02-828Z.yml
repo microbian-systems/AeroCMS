@@ -1,0 +1,149 @@
+- generic [ref=f2e25]:
+  - banner [ref=f2e26]:
+    - generic [ref=f2e27]:
+      - link "Aero CMS AERO" [ref=f2e28] [cursor=pointer]:
+        - /url: /manager
+        - img "Aero CMS" [ref=f2e29]
+        - generic [ref=f2e30]: AERO
+      - button "Aero CMS" [ref=f2e31] [cursor=pointer]
+      - generic [ref=f2e36]: "|"
+      - navigation [ref=f2e37]:
+        - button "Aero CMS | 1528077103668363265" [ref=f2e39] [cursor=pointer]:
+          - generic [ref=f2e40]: Aero CMS
+          - generic [ref=f2e41]: "| 1528077103668363265"
+    - button "AD admin" [ref=f2e46] [cursor=pointer]:
+      - generic [ref=f2e47]: AD
+      - generic [ref=f2e48]: admin
+  - generic [ref=f2e51]:
+    - complementary [ref=f2e52]:
+      - generic [ref=f2e53]:
+        - button "Toggle Sidebar" [ref=f2e54] [cursor=pointer]
+        - generic [ref=f2e57]: Menu
+      - navigation [ref=f2e59]:
+        - link "Dashboard" [ref=f2e62] [cursor=pointer]:
+          - /url: /manager
+        - generic [ref=f2e68]:
+          - link "Sites" [ref=f2e69] [cursor=pointer]:
+            - /url: /manager/sites
+          - button [ref=f2e74] [cursor=pointer]
+        - generic [ref=f2e78]:
+          - link "Aliases" [ref=f2e79] [cursor=pointer]:
+            - /url: /manager/aliases
+          - button [ref=f2e84] [cursor=pointer]
+        - generic [ref=f2e88]:
+          - link "Header" [ref=f2e89] [cursor=pointer]:
+            - /url: /manager/navigations
+          - button [ref=f2e94] [cursor=pointer]
+        - generic [ref=f2e98]:
+          - link "Footer" [ref=f2e99] [cursor=pointer]:
+            - /url: /manager/footers
+          - button [ref=f2e104] [cursor=pointer]
+        - generic [ref=f2e108]:
+          - link "Pages" [ref=f2e109] [cursor=pointer]:
+            - /url: /manager/pages
+          - button [ref=f2e114] [cursor=pointer]
+        - generic [ref=f2e118]:
+          - link "Posts" [ref=f2e119] [cursor=pointer]:
+            - /url: /manager/posts
+          - button [ref=f2e124] [cursor=pointer]
+        - generic [ref=f2e128]:
+          - link "Content" [ref=f2e129] [cursor=pointer]:
+            - /url: /manager/content-types
+          - button [ref=f2e134] [cursor=pointer]
+        - generic [ref=f2e138]:
+          - link "Commerce" [ref=f2e139] [cursor=pointer]:
+            - /url: /manager/commerce
+          - button [ref=f2e144] [cursor=pointer]
+        - generic [ref=f2e148]:
+          - link "Docs" [ref=f2e149] [cursor=pointer]:
+            - /url: /manager/docs
+          - button [ref=f2e154] [cursor=pointer]
+        - generic [ref=f2e158]:
+          - link "Modules" [ref=f2e159] [cursor=pointer]:
+            - /url: /manager/modules
+          - button [ref=f2e164] [cursor=pointer]
+        - generic [ref=f2e168]:
+          - link "Taxonomy" [ref=f2e169] [cursor=pointer]:
+            - /url: /manager/taxonomy
+          - button [ref=f2e174] [cursor=pointer]
+        - generic [ref=f2e178]:
+          - link "Media" [ref=f2e179] [cursor=pointer]:
+            - /url: /manager/media
+          - button [ref=f2e184] [cursor=pointer]
+        - generic [ref=f2e188]:
+          - link "Users" [ref=f2e189] [cursor=pointer]:
+            - /url: /manager/users
+          - button [ref=f2e194] [cursor=pointer]
+        - generic [ref=f2e198]:
+          - link "Themes" [ref=f2e199] [cursor=pointer]:
+            - /url: /manager/themes
+          - button [ref=f2e204] [cursor=pointer]
+        - generic [ref=f2e208]:
+          - link "SEO" [ref=f2e209] [cursor=pointer]:
+            - /url: /manager/seo
+          - button [ref=f2e214] [cursor=pointer]
+        - generic [ref=f2e218]:
+          - link "AI" [ref=f2e219] [cursor=pointer]:
+            - /url: /manager/ai
+          - button [ref=f2e224] [cursor=pointer]
+        - generic [ref=f2e228]:
+          - link "Audit" [ref=f2e229] [cursor=pointer]:
+            - /url: /manager/audit
+          - button [ref=f2e234] [cursor=pointer]
+        - link "Global Settings" [ref=f2e240] [cursor=pointer]:
+          - /url: /manager/settings
+    - generic [ref=f2e246]:
+      - generic [ref=f2e247]:
+        - generic [ref=f2e248]:
+          - paragraph [ref=f2e249]: Content type builder
+          - heading "Test" [level=1] [ref=f2e250]
+          - paragraph [ref=f2e251]: Build a reusable entry form without asking editors to think in database fields.
+        - generic [ref=f2e252]:
+          - button "Cancel" [ref=f2e253] [cursor=pointer]
+          - button "Save Type" [ref=f2e256] [cursor=pointer]:
+            - generic [ref=f2e257]:
+              - generic [ref=f2e258]: save
+              - generic [ref=f2e259]: Save Type
+      - generic [ref=f2e260]:
+        - button "Basics" [ref=f2e261] [cursor=pointer]
+        - button "Fields" [ref=f2e262] [cursor=pointer]
+        - button "Display" [ref=f2e263] [cursor=pointer]
+        - button "Entries" [ref=f2e264] [cursor=pointer]
+      - region "Content type basics" [ref=f2e265]:
+        - generic [ref=f2e266]:
+          - generic [ref=f2e267]:
+            - generic [ref=f2e268]: Name
+            - textbox "Name" [ref=f2e269]:
+              - /placeholder: Testimonial, FAQ, Team Member
+              - text: Test
+          - generic [ref=f2e270]:
+            - generic [ref=f2e271]: Category
+            - textbox "Category" [ref=f2e272]:
+              - /placeholder: Marketing, People, Support
+              - text: Test
+          - generic [ref=f2e273]:
+            - generic [ref=f2e274]: Description
+            - textbox "Description" [ref=f2e275]:
+              - /placeholder: A short note that helps editors understand when to use this type.
+              - text: Test
+        - generic [ref=f2e277]:
+          - generic [ref=f2e278]:
+            - heading "Public pages" [level=2] [ref=f2e279]
+            - paragraph [ref=f2e280]: Keep this off for reusable content that appears inside pages. Turn it on when every entry should have its own public page.
+            - paragraph [ref=f2e281]:
+              - text: "URL pattern:"
+              - code [ref=f2e282]: /content/test/entry-slug
+          - generic [ref=f2e283]:
+            - checkbox "check" [checked] [ref=f2e284]
+            - text: Give each entry its own page
+        - generic [ref=f2e288]:
+          - generic [ref=f2e289]:
+            - heading "Site search" [level=2] [ref=f2e290]
+            - paragraph [ref=f2e291]: Leave this searchable for content visitors should be able to find. Hide private, helper, or reused-only content from site-wide search results.
+          - generic [ref=f2e292]:
+            - checkbox [ref=f2e293]
+            - text: Hide entries from site search
+        - group [ref=f2e295]:
+          - button "Expand" [ref=f2e297]:
+            - generic [ref=f2e298]: add
+            - generic [ref=f2e299]: Advanced

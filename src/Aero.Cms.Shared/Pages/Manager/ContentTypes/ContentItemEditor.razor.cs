@@ -52,6 +52,7 @@ public partial class ContentItemEditor
     private bool _isLoadingTranslations;
     private bool _slugLocked;
     private bool _allowPublicUrl;
+    private bool _showPublishedPagePreview;
     private bool _showMediaSelector;
     private string? _activeMediaField;
     private string _typeName = "Content";
@@ -78,6 +79,18 @@ public partial class ContentItemEditor
     private BadgeStyle StatusBadgeStyle => _publicationState == "Published"
         ? BadgeStyle.Success
         : BadgeStyle.Info;
+
+    private bool CanPreviewPublishedPage =>
+        Id.HasValue &&
+        _allowPublicUrl &&
+        string.Equals(_publicationState, "Published", StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(_slug);
+
+    private string PublicPath => $"/content/{Alias}/{_slug}";
+
+    private string? FrameUrl => CanPreviewPublishedPage
+        ? new Uri(new Uri(Navigation.BaseUri), PublicPath.TrimStart('/')).ToString()
+        : null;
 
         /// <summary>
     /// OnInitializedAsync method.
@@ -565,6 +578,12 @@ protected override async Task OnInitializedAsync()
 
     private void Cancel()
         => Navigation.NavigateTo($"/manager/content/{Alias}");
+
+    private void OpenPublishedPagePreview()
+        => _showPublishedPagePreview = true;
+
+    private void ClosePublishedPagePreview()
+        => _showPublishedPagePreview = false;
 
     private void SwitchTab(string tab)
         => _activeTab = tab;

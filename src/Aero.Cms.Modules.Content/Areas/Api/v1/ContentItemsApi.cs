@@ -32,15 +32,33 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             .WithTags("Admin - Content Items")
             .RequireAuthorization();
 
-        group.MapGet("/", ListContentItems).RequireAuthorization("site:read").WithName("ListContentItems");
-        group.MapGet("/{alias}/{id:long}", GetContentItem).RequireAuthorization("site:read").WithName("GetContentItem");
-        group.MapPost("/{alias}", CreateContentItem).RequireAuthorization("site:create").WithName("CreateContentItem");
-        group.MapPut("/{alias}/{id:long}", UpdateContentItem).RequireAuthorization("site:update").WithName("UpdateContentItem");
-        group.MapDelete("/{alias}/{id:long}", DeleteContentItem).RequireAuthorization("site:delete").WithName("DeleteContentItem");
-        group.MapPost("/{alias}/{id:long}/publish", PublishContentItem).RequireAuthorization("site:update").WithName("PublishContentItem");
-        group.MapPost("/{alias}/{id:long}/unpublish", UnpublishContentItem).RequireAuthorization("site:update").WithName("UnpublishContentItem");
-        group.MapGet("/{alias}/{id:long}/translations", ListContentItemTranslations).RequireAuthorization("site:read").WithName("ListContentItemTranslations");
-        group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture).RequireAuthorization("site:create").WithName("ForkContentItemToCulture");
+        group.MapGet("/", ListContentItems)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentItems");
+        group.MapGet("/{alias}/{id:long}", GetContentItem)
+            .RequireAuthorization("site:read")
+            .WithName("GetContentItem");
+        group.MapPost("/{alias}", CreateContentItem)
+            .RequireAuthorization("site:create")
+            .WithName("CreateContentItem");
+        group.MapPut("/{alias}/{id:long}", UpdateContentItem)
+            .RequireAuthorization("site:update")
+            .WithName("UpdateContentItem");
+        group.MapDelete("/{alias}/{id:long}", DeleteContentItem)
+            .RequireAuthorization("site:delete")
+            .WithName("DeleteContentItem");
+        group.MapPost("/{alias}/{id:long}/publish", PublishContentItem)
+            .RequireAuthorization("site:update")
+            .WithName("PublishContentItem");
+        group.MapPost("/{alias}/{id:long}/unpublish", UnpublishContentItem)
+            .RequireAuthorization("site:update")
+            .WithName("UnpublishContentItem");
+        group.MapGet("/{alias}/{id:long}/translations", ListContentItemTranslations)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentItemTranslations");
+        group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture)
+            .RequireAuthorization("site:create")
+            .WithName("ForkContentItemToCulture");
     }
 
     /// <summary>

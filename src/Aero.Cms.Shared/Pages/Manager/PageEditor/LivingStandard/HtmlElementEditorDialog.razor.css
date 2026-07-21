@@ -1,0 +1,68 @@
+.aero-element-editor-overlay {
+    position: fixed;
+    z-index: 1200;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgb(15 23 42 / 62%);
+    backdrop-filter: blur(4px);
+}
+
+.aero-element-editor-dialog {
+    display: grid;
+    width: min(58rem, 100%);
+    max-height: min(52rem, calc(100vh - 3rem));
+    overflow: hidden;
+    border: 1px solid #dbe3ef;
+    border-radius: 1rem;
+    color: #172033;
+    background: #fff;
+    box-shadow: 0 28px 80px rgb(15 23 42 / 28%);
+}
+
+.aero-element-editor-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.aero-element-editor-dialog__header span {
+    color: #7c3aed;
+    font-size: .7rem;
+    font-weight: 750;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.aero-element-editor-dialog__header h2 {
+    margin: .15rem 0 0;
+    font-size: 1.05rem;
+}
+
+.aero-element-editor-dialog__header code {
+    color: #64748b;
+    font-size: .8rem;
+}
+
+.aero-element-editor-dialog__close {
+    border: 0;
+    color: #64748b;
+    background: transparent;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.aero-element-editor-dialog__body {
+    min-height: 18rem;
+    overflow: auto;
+    background: #f8fafc;
+}
+
+.aero-element-editor-dialog__body ::deep .aero-property-panel {
+    width: 100%;
+    min-height: 100%;
+}
