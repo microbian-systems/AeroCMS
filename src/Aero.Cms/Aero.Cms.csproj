@@ -79,7 +79,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
     <PackageReference Include="Scriban" />
-    <PackageReference Include="SurrealDb.Net" />
     <!-- <PackageReference Include="Serilog" /> -->
     <!-- <PackageReference Include="Serilog.Extensions.Logging" /> -->
     <!-- <PackageReference Include="Serilog.Sinks.Debug" /> -->
@@ -89,6 +88,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+    <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Net\SurrealDb.Net.csproj" />
   </ItemGroup>
 
 </Project>

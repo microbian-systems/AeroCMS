@@ -1,0 +1,27 @@
+@page "/manager/commerce/listings"
+@attribute [Authorize]
+
+<PageTitle>Commerce listings</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div><h1 class="text-2xl font-bold pe-heading">Storefront listings</h1><p class="mt-1 text-sm pe-description">Listings belong only to the currently selected site and culture.</p></div>
+        <RadzenButton Icon="add" Text="New listing" ButtonStyle="ButtonStyle.Primary" Click="CreateListing" />
+    </div>
+    <div class="flex flex-wrap gap-3"><RadzenTextBox @bind-Value="SearchText" Placeholder="Search listing" Style="width: min(24rem, 100%);" /><RadzenTextBox @bind-Value="Culture" Placeholder="Culture (for example en-US)" Style="width: 14rem;" /><RadzenButton Icon="search" Text="Search" Click="SearchAsync" Disabled="IsLoading" /></div>
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="rounded border border-red-500 p-3 text-sm text-red-600">@ErrorMessage</div> }
+    @if (IsLoading) { <p class="pe-description">Loading listings…</p> }
+    else if (ListingRows.Count == 0) { <div class="rounded-lg border p-6 text-center pe-description" style="border-color: var(--pe-border);">No listings found for this site and culture.</div> }
+    else
+    {
+        <div class="overflow-x-auto rounded-lg border" style="border-color: var(--pe-border);">
+            <table class="w-full border-collapse text-sm"><thead><tr style="background: var(--pe-bg-secondary);"><th class="p-3 text-left">Listing</th><th class="p-3 text-left">Culture</th><th class="p-3 text-right">Price</th><th class="p-3 text-left">Publication</th><th class="p-3 text-right">Actions</th></tr></thead><tbody>
+            @foreach (var listing in ListingRows)
+            {
+                <tr class="border-t" style="border-color: var(--pe-border);"><td class="p-3"><div class="font-medium">@listing.Name</div><div class="text-xs pe-description">/@listing.Slug · product @listing.ProductId</div></td><td class="p-3">@listing.Culture</td><td class="p-3 text-right">@listing.Price.ToString("C") @listing.Currency</td><td class="p-3">@(listing.IsPublished ? "Published" : "Draft")</td><td class="p-3 text-right"><RadzenButton Size="ButtonSize.Small" Icon="edit" Text="Edit" Click="@(() => EditListing(listing.Id))" /><RadzenButton class="ml-2" Size="ButtonSize.Small" Icon="delete" Text="Delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteListingAsync(listing))" /></td></tr>
+            }
+            </tbody></table>
+        </div>
+        <div class="flex items-center justify-between text-sm pe-description"><span>Showing @(Skip + 1)–@(Skip + ListingRows.Count) of @TotalCount</span><div class="flex gap-2"><RadzenButton Text="Previous" Disabled="@(Skip == 0 || IsLoading)" Click="PreviousPageAsync" /><RadzenButton Text="Next" Disabled="@(!CanLoadNext || IsLoading)" Click="NextPageAsync" /></div></div>
+    }
+</div>

@@ -1,11 +1,18 @@
-@* Filter sidebar — follows eShop's CatalogSearch.razor pattern *@
 @model CatalogSearchViewModel
 
 <div class="eshop-catalog-search">
     <div class="eshop-catalog-search-header">
-        <img role="presentation" src="~/icons/filters.svg" alt="" />
-        Filters
+        Search and filter
     </div>
+    <form method="get" action="/shop/products" class="eshop-search-form">
+        <label for="catalog-search">Search products</label>
+        <input id="catalog-search" name="search" type="search" value="@Model.Search" maxlength="200" />
+        @if (!string.IsNullOrWhiteSpace(Model.CurrentCategory))
+        {
+            <input type="hidden" name="category" value="@Model.CurrentCategory" />
+        }
+        <button type="submit" class="eshop-button eshop-button-primary">Search</button>
+    </form>
     <div class="eshop-catalog-search-types">
         <div class="eshop-catalog-search-group">
             <h3>Category</h3>

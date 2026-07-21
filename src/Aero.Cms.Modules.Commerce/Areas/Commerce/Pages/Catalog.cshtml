@@ -1,18 +1,27 @@
 @page "/shop/products"
 @model CatalogModel
 @{
-    ViewData["Title"] = "Shop";
-    ViewData["IsHome"] = true;
-    ViewData["HeaderTitle"] = "Ready for a new adventure?";
-    ViewData["HeaderSubtitle"] = "Start the season with the latest in clothing and equipment.";
+    ViewData["Title"] = "Products";
+    ViewData["HeaderTitle"] = "Products";
+    ViewData["HeaderSubtitle"] = "Search and browse this store's published catalog.";
 }
 
 <div class="eshop-catalog">
     <partial name="_CatalogSearchPartial" model="Model.SearchViewModel" />
 
-    @if (Model.Products is null)
+    @if (Model.LoadFailed)
     {
-        <p class="eshop-loading">Loading...</p>
+        <div class="eshop-state eshop-state-error" role="alert">
+            The catalog is temporarily unavailable. Please try again later.
+        </div>
+    }
+    else if (Model.Products.Count == 0)
+    {
+        <div class="eshop-state">
+            <h2>No products found</h2>
+            <p>Try changing your search or category filter.</p>
+            <a href="/shop/products">Clear filters</a>
+        </div>
     }
     else
     {
@@ -26,13 +35,32 @@
 
             @if (Model.TotalPages > 1)
             {
-                <div class="eshop-page-links">
-                    @for (int i = 1; i <= Model.TotalPages; i++)
+                <nav class="eshop-page-links" aria-label="Product pages">
+                    @if (Model.Pagination.HasPrevious)
                     {
-                        <a href="@Url.Page("Catalog", new { page = i == 1 ? null : (int?)i, search = Model.Search, category = Model.Category })"
-                           class="@(i == Model.CurrentPage ? "active-page" : "")">@i</a>
+                        <a rel="prev" href="@Url.Page("Catalog", new { page = Model.CurrentPage - 1 == 1 ? null : (int?)(Model.CurrentPage - 1), search = Model.Search, category = Model.Category })">Previous</a>
                     }
-                </div>
+                    @if (Model.Pagination.Pages[0] > 1)
+                    {
+                        <a href="@Url.Page("Catalog", new { search = Model.Search, category = Model.Category })">1</a>
+                        @if (Model.Pagination.Pages[0] > 2) { <span aria-hidden="true">&hellip;</span> }
+                    }
+                    @foreach (var pageNumber in Model.Pagination.Pages)
+                    {
+                        <a href="@Url.Page("Catalog", new { page = pageNumber == 1 ? null : (int?)pageNumber, search = Model.Search, category = Model.Category })"
+                           aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)"
+                           class="@(pageNumber == Model.CurrentPage ? "active-page" : "")">@pageNumber</a>
+                    }
+                    @if (Model.Pagination.Pages[^1] < Model.TotalPages)
+                    {
+                        @if (Model.Pagination.Pages[^1] < Model.TotalPages - 1) { <span aria-hidden="true">&hellip;</span> }
+                        <a href="@Url.Page("Catalog", new { page = Model.TotalPages, search = Model.Search, category = Model.Category })">@Model.TotalPages</a>
+                    }
+                    @if (Model.Pagination.HasNext)
+                    {
+                        <a rel="next" href="@Url.Page("Catalog", new { page = Model.CurrentPage + 1, search = Model.Search, category = Model.Category })">Next</a>
+                    }
+                </nav>
             }
         </div>
     }

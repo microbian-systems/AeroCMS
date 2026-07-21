@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Commerce.Orders.Domain;
+using Aero.Cms.Modules.Commerce.Payments;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Validation;
@@ -13,9 +14,7 @@ public sealed class CreateOrderValidator : AbstractValidator<OrderEntity>
     /// </summary>
 public CreateOrderValidator()
     {
-        RuleFor(x => x.CustomerId)
-            .NotEmpty()
-            .WithMessage("Customer ID is required");
+        RuleFor(x => x.ExternalMemberId).GreaterThan(0);
 
         RuleFor(x => x.Items)
             .NotEmpty()
@@ -23,5 +22,8 @@ public CreateOrderValidator()
 
         RuleForEach(x => x.Items)
             .SetValidator(new OrderItemValidator());
+
+        RuleFor(x => x.TotalAmount).Must(PaymentAmountLimits.IsValidUsd)
+            .WithMessage("Order total must be a positive USD amount with no more than two decimal places.");
     }
 }

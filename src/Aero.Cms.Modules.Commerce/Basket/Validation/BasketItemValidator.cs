@@ -13,7 +13,7 @@ public sealed class BasketItemValidator : AbstractValidator<BasketItem>
     /// </summary>
 public BasketItemValidator()
     {
-        RuleFor(x => x.ProductId)
+        RuleFor(x => x.ListingId)
             .GreaterThan(0)
             .WithMessage("Product ID must be greater than 0");
 

@@ -1,74 +1,70 @@
-using System.Linq.Expressions;
+using Aero.Cms.Modules.Commerce.Basket.Models;
+using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
+using Aero.Cms.Modules.Commerce.Shared.StateMachine;
 using AeroDB.Sable;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Services;
 
-/// <summary>
-/// Order persistence via AeroDB.Sable document store (ported from EF Core Npgsql).
-/// </summary>
-public sealed class OrderService : IOrderService
+/// <summary>Coordinates stock reservation, order creation, and basket clearing in one save batch.</summary>
+public sealed class OrderService(IDocumentSession session) : IOrderService
 {
-    private readonly IDocumentSession _session;
-    private readonly ILogger<OrderService> _log;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OrderService"/> class.
-    /// </summary>
-    public OrderService(IDocumentSession session, ILogger<OrderService> log)
-    {
-        _session = session;
-        _log = log;
-    }
-
-    /// <inheritdoc />
-    public async Task<OrderEntity?> FindByIdAsync(long id)
-    {
-        return await _session.LoadAsync<OrderEntity>(id);
-    }
-
-    /// <inheritdoc />
-    public async Task<IEnumerable<OrderEntity>> FindAsync(Expression<Func<OrderEntity, bool>> predicate)
-    {
-        return await _session.Query<OrderEntity>().Where(predicate).ToListAsync();
-    }
-
-    /// <inheritdoc />
-    public Task InsertAsync(OrderEntity order)
-    {
-        _session.Store(order);
-        return _session.SaveChangesAsync();
-    }
-
-    /// <inheritdoc />
-    public Task UpdateAsync(OrderEntity order)
-    {
-        _session.Store(order);
-        return _session.SaveChangesAsync();
-    }
-
-    /// <inheritdoc />
-    public async Task<IEnumerable<OrderEntity>> GetAllAsync()
-    {
-        return await _session.Query<OrderEntity>().ToListAsync();
-    }
-
-    /// <inheritdoc />
-    public async Task<Result<OrderEntity?, AeroError>> FindByCustomerAsync(string customerId, CancellationToken ct = default)
+    public async Task<Result<OrderEntity, AeroError>> CheckoutAsync(long tenantId, long siteId, long externalMemberId, Address shippingAddress, Address? billingAddress, string culture, CancellationToken ct = default)
     {
         try
         {
-            var order = await _session.Query<OrderEntity>()
-                .FirstOrDefaultAsync(o => o.CustomerId == customerId, ct);
+            var basket = await session.Query<BasketDocument>().FirstOrDefaultAsync(x => x.TenantId == tenantId && x.SiteId == siteId && x.ExternalMemberId == externalMemberId && x.Currency == "USD", ct);
+            if (basket is null || basket.Items.Count == 0) return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("Basket is empty."));
+            var order = new OrderEntity { Id = Snowflake.NewId(), TenantId = tenantId, SiteId = siteId, ExternalMemberId = externalMemberId, Currency = "USD", Status = OrderStatus.Submitted, ShippingAddress = shippingAddress, BillingAddress = billingAddress ?? shippingAddress, CreatedOn = DateTimeOffset.UtcNow, GracePeriodExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5) };
+            foreach (var item in basket.Items)
+            {
+                var listing = await session.Query<ProductListingDocument>().FirstOrDefaultAsync(x => x.Id == item.ListingId && x.TenantId == tenantId && x.SiteId == siteId && x.Culture == culture && x.IsPublished && x.Currency == "USD", ct);
+                if (listing is null) { session.ClearChanges(); return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("A basket listing is no longer available.")); }
+                var product = await session.Query<ProductDocument>().FirstOrDefaultAsync(x => x.Id == listing.ProductId && x.TenantId == tenantId && x.IsActive, ct);
+                if (product is null || product.StockQuantity < item.Quantity) { session.ClearChanges(); return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("Insufficient stock.")); }
+                product.StockQuantity -= item.Quantity; product.ModifiedOn = DateTimeOffset.UtcNow; session.Store(product);
+                order.Items.Add(new OrderItem { ListingId = listing.Id, ProductId = product.Id, ProductName = listing.Name, Sku = product.Sku, Quantity = item.Quantity, UnitPrice = listing.Price, Currency = "USD" });
+            }
+            basket.Items.Clear(); basket.ModifiedOn = DateTimeOffset.UtcNow; session.Store(basket); session.Store(order);
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<OrderEntity, AeroError>(order);
+        }
+        catch (Exception ex) { session.ClearChanges(); return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError(ex.Message)); }
+    }
 
-            return order is null
-                ? Prelude.Fail<OrderEntity?, AeroError>(AeroError.CreateError($"Order for customer '{customerId}' not found"))
-                : Prelude.Ok<OrderEntity?, AeroError>(order);
-        }
-        catch (Exception ex)
+    public async Task<Result<(IReadOnlyList<OrderEntity> Items, long TotalCount), AeroError>> GetForMemberAsync(long tenantId, long siteId, long externalMemberId, int skip = 0, int take = 20, CancellationToken ct = default)
+    {
+        try { var orders = await session.Query<OrderEntity>().Where(x => x.TenantId == tenantId && x.SiteId == siteId && x.ExternalMemberId == externalMemberId).ToListAsync(ct); var total = orders.Count; return Prelude.Ok<(IReadOnlyList<OrderEntity>, long), AeroError>((orders.OrderByDescending(x => x.CreatedOn).Skip(Math.Max(0, skip)).Take(Math.Clamp(take, 1, 100)).ToList(), total)); }
+        catch (Exception ex) { return Prelude.Fail<(IReadOnlyList<OrderEntity>, long), AeroError>(AeroError.CreateError(ex.Message)); }
+    }
+
+    public async Task<Result<OrderEntity?, AeroError>> GetForMemberAsync(long tenantId, long siteId, long externalMemberId, long orderId, CancellationToken ct = default)
+    { try { return Prelude.Ok<OrderEntity?, AeroError>(await session.Query<OrderEntity>().FirstOrDefaultAsync(x => x.Id == orderId && x.TenantId == tenantId && x.SiteId == siteId && x.ExternalMemberId == externalMemberId, ct)); } catch (Exception ex) { return Prelude.Fail<OrderEntity?, AeroError>(AeroError.CreateError(ex.Message)); } }
+
+    public async Task<Result<OrderEntity, AeroError>> CancelAsync(long tenantId, long siteId, long externalMemberId, long orderId, CancellationToken ct = default)
+    {
+        try
         {
-            return Prelude.Fail<OrderEntity?, AeroError>(AeroError.CreateError(ex.Message));
+            var order = await session.Query<OrderEntity>().FirstOrDefaultAsync(x => x.Id == orderId && x.TenantId == tenantId && x.SiteId == siteId && x.ExternalMemberId == externalMemberId, ct);
+            if (order is null || order.Status is not (OrderStatus.Submitted or OrderStatus.AwaitingValidation)
+                || order.PaymentStatus is not (OrderPaymentStatus.Unpaid or OrderPaymentStatus.Failed or OrderPaymentStatus.Cancelled))
+                return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("Order cannot be cancelled."));
+            foreach (var item in order.Items)
+            {
+                var product = await session.Query<ProductDocument>().FirstOrDefaultAsync(x => x.Id == item.ProductId && x.TenantId == tenantId, ct);
+                if (product is null) { session.ClearChanges(); return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("Order not found.")); }
+                product.StockQuantity += item.Quantity; product.ModifiedOn = DateTimeOffset.UtcNow; session.Store(product);
+            }
+            order.Status = OrderStatus.Cancelled; order.ModifiedOn = DateTimeOffset.UtcNow; session.Store(order); await session.SaveChangesAsync(ct);
+            return Prelude.Ok<OrderEntity, AeroError>(order);
         }
+        catch (Exception ex) { session.ClearChanges(); return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError(ex.Message)); }
+    }
+
+    public async Task<Result<IReadOnlyList<OrderEntity>, AeroError>> GetExpiredSubmittedAsync(DateTimeOffset now, CancellationToken ct = default)
+    { try { return Prelude.Ok<IReadOnlyList<OrderEntity>, AeroError>(await session.Query<OrderEntity>().Where(x => x.Status == OrderStatus.Submitted && x.GracePeriodExpiresAt <= now).ToListAsync(ct)); } catch (Exception ex) { return Prelude.Fail<IReadOnlyList<OrderEntity>, AeroError>(AeroError.CreateError(ex.Message)); } }
+    public async Task<Result<OrderEntity, AeroError>> TransitionAsync(long tenantId, long siteId, long orderId, OrderStatus target, CancellationToken ct = default)
+    {
+        try { var order = await session.Query<OrderEntity>().FirstOrDefaultAsync(x => x.Id == orderId && x.TenantId == tenantId && x.SiteId == siteId, ct); if (order is null) return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError("Order not found.")); var changed = OrderStateMachine.Transition(order, target); if (changed is Result<OrderEntity, AeroError>.Failure failure) return failure; order.ModifiedOn = DateTimeOffset.UtcNow; session.Store(order); await session.SaveChangesAsync(ct); return Prelude.Ok<OrderEntity, AeroError>(order); } catch (Exception ex) { return Prelude.Fail<OrderEntity, AeroError>(AeroError.CreateError(ex.Message)); }
     }
 }

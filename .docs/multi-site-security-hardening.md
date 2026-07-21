@@ -1,8 +1,11 @@
 # Multi-Site Security Hardening
 
-Status: Phase 1 completed; Phase 2 in progress (Pages, Posts, Docs, Aliases, Content, Navigation, and Footer completed); Commerce external-member prerequisite completed; durable Commerce design decisions pending; Phases 3-6 pending
+Status: Phase 1 completed; Phase 2 in progress (Pages, Posts, Docs, Aliases, Content, Navigation, Footer, and the Commerce ownership/pricing/payment foundation completed); Phases 3-6 pending
 Created: 2026-07-19
-Current work unit: Commerce — tenant/site ownership, authoritative basket pricing, and provider-neutral Stripe/PayPal orchestration
+Current work unit: Commerce payment foundation and Sable transaction hardening completed; Commerce production WU-1 is catalog manager contract and persistence safety
+
+Focused Commerce production task:
+[commerce-production-vertical-slice.md](commerce-production-vertical-slice.md).
 
 ## Outcome
 
@@ -242,7 +245,9 @@ Navigation and Footer vertical slice:
 
 ### Commerce multi-site workstream
 
-Status: External-member prerequisite accepted; durable implementation blocked on ownership and checkout decisions
+Status: Tenant/site ownership, authoritative pricing, and the first Stripe/PayPal
+payment orchestration foundation completed; durable messaging, scheduled
+reconciliation, refunds/compensation, and provider integration testing remain pending
 
 Completed prerequisite:
 
@@ -264,53 +269,85 @@ Completed prerequisite:
 - [x] Complete independent deep Oracle correction review with no remaining
       blocking or high-severity finding.
 
-The current Commerce module is not multi-site safe. Endpoint policies alone
-cannot repair it because products, baskets, orders, events, jobs, and seed data
-do not carry a tenant/site ownership model.
+Completed ownership/pricing slice:
 
-Confirmed risks:
+- [x] Split tenant-owned canonical products/SKUs and pooled inventory from
+      site/culture-owned listings, publication, merchandising, and USD pricing.
+- [x] Key baskets by tenant, site, and immutable external-member Snowflake ID.
+- [x] Remove caller-selected customer identifiers and caller-supplied price,
+      title, and SKU from basket and checkout inputs.
+- [x] Scope anonymous catalog reads to published listings for the host-resolved
+      tenant/site/culture and return narrow public DTOs.
+- [x] Apply exact `site:*` policies and tenant/site ownership predicates to
+      manager catalog operations.
+- [ ] Move the current `/api/commerce/catalog/manager/*` routes beneath
+      `/api/v1/admin/commerce/*`; the legacy prefix is not recognized as a
+      manager request by `DefaultSiteContext`, so selected-site derivation is not
+      reliable until this WU-1 correction lands.
+- [x] Require the isolated external-member scheme plus host-site membership for
+      basket, checkout, customer order, cancellation, and payment-status routes.
+- [x] Explicitly authenticate the non-default member cookie on mixed public
+      Razor pages; public badge reads are non-mutating.
+- [x] Re-resolve listing, product, price, SKU, publication, currency, and stock
+      on basket mutation and again at checkout.
+- [x] Commit order creation, pooled-stock reservation, and basket clearing in
+      one Sable save transaction with effective optimistic concurrency.
+- [x] Limit customer cancellation to owned `Submitted` or
+      `AwaitingValidation` orders and atomically release reserved stock.
+- [x] Preserve tenant/site/member scope in active order events and grace-period
+      processing; remove the unsafe simulated stock/payment pipeline.
+- [x] Seed canonical products and listings from the requested site's tenant and
+      site ownership.
+- [x] Treat the durable Sable commit as success even when immediate Wolverine
+      publication fails; log the delivery failure for later reconciliation.
+- [x] Complete deep Oracle review and correction loops with no remaining P0-P2
+      finding.
 
-- authenticated catalog administration is global;
-- the public catalog is global and can expose unpublished products;
-- basket routes accept a caller-selected customer identifier;
-- basket input accepts caller-controlled price, title, and SKU values;
-- order listing and detail expose global order and buyer data;
-- checkout accepts a caller-selected customer and consumes that customer's
-  basket using client-controlled prices;
-- cancellation reports success through an event that currently has no consumer;
-- payment, events, jobs, and seed data are site-blind.
+Completed payment and transaction foundation:
 
-Recommended clean model:
+- [x] Add provider-neutral Strategy/Adapter/registry boundaries for Stripe and
+      PayPal without leaking provider DTOs into Commerce domain contracts.
+- [x] Persist Snowflake-keyed payment attempts and webhook receipts; keep
+      provider references and idempotency values as opaque strings.
+- [x] Bind payment initiation/status to tenant, site, external member, and order;
+      reject provider/key changes on replay.
+- [x] Use stable provider-operation idempotency keys, signed size-limited
+      callbacks, duplicate receipt handling, amount/currency verification, and
+      fail-closed manual-review transitions.
+- [x] Route Sable document writes, deferred patches, queued SQL/storage work,
+      save listeners, and save-pipeline event writes through the same resolved
+      auto or explicit SurrealDB transaction.
+- [x] Correct embedded-provider transaction GUID transport to RFC byte order
+      while retaining Snowflake `long` IDs for every Commerce aggregate.
+- [x] Make repo-local Sable, in-memory tests, and AppServer SurrealKV builds
+      consume the checked-in fixed provider source rather than the unfixed
+      public 0.10.2 embedded binaries.
+- [x] Prove transaction rollback, explicit lifecycle/listener timing, competing
+      versioned writers, payment replay/webhook behavior, and full AeroDB/Aero CMS
+      regressions with executable tests.
 
-- tenant-owned canonical products/SKUs with site-owned listings for publication,
-  localized merchandising, price, and currency;
-- baskets keyed by tenant, site, and immutable authenticated subject, with a
-  protected high-entropy guest token when guest checkout is enabled;
-- basket APIs accepting only listing/product identity and quantity, with
-  authoritative server-side pricing and checkout revalidation;
-- orders retaining tenant, site, and immutable customer identity;
-- current-site manager order selectors and own-order customer selectors;
-- signed, idempotent payment callbacks plus tenant/site-scoped outbox, inbox,
-  jobs, and seed operations;
-- provider-neutral payment orchestration with Stripe and PayPal strategies for
-  the first release; and
-- provider-reported checkout capabilities so Link, Google Pay, and Apple Pay
-  can be enabled as wallet/payment methods without being modeled as independent
-  processors.
+Accepted first-release decisions:
 
-Blocking decisions:
+1. Canonical products/SKUs are tenant-owned and listings are site-owned.
+2. Inventory is tenant-pooled on the canonical product for the first release.
+3. `ExternalMember.PrincipalId` (`long`) is the immutable customer identity.
+4. Checkout is authenticated; guest checkout is not included.
+5. Presentment is USD-only.
+6. Customers may cancel only `Submitted` and `AwaitingValidation`; later states
+   require manager review/refund handling.
+7. Stripe and PayPal are the first payment providers. Link, Google Pay, and
+   Apple Pay are provider-reported payment methods/capabilities unless a future
+   direct integration owns a distinct payment lifecycle.
 
-1. Tenant-shared canonical SKUs with site listings, or wholly site-owned products.
-2. Tenant-pooled, site-allocated, or location-based inventory.
-3. The immutable customer claim and whether guest checkout is required.
-4. First-release providers are Stripe and PayPal; supported presentment and
-   settlement currencies remain to be selected.
-5. Customer-cancellable order states and refund/manager-review behavior.
+Remaining Commerce work:
 
-Until those decisions are made, Commerce must not be marked multi-site complete.
-An optional containment slice may disable global mutation, basket, checkout,
-order, payment, public catalog, and seed paths in multi-site mode, but containment
-does not replace the durable model.
+- scheduled provider reconciliation plus refunds, voids/capture management,
+  compensation automation, and manual-review UI;
+- Stripe/PayPal sandbox/live integration coverage and operational secret setup;
+- durable request idempotency plus transactional outbox/inbox delivery;
+- endpoint/browser coverage for real external cookies, policy matrices,
+  post-commit bus failure, basket-create races, DTO serialization, and
+  pagination totals.
 
 ### Phase 3 — Media isolation and file safety
 
@@ -434,15 +471,26 @@ Status: Not started
 | 2026-07-20 | `dotnet build src/Aero.Cms.Modules.Identity/Aero.Cms.Modules.Identity.csproj --no-restore -p:UseSharedCompilation=false --disable-build-servers --verbosity minimal` | Succeeded: 0 errors; 30 existing dependency warnings |
 | 2026-07-20 | `dotnet build src/Aero.Cms.Web/Aero.Cms.Web.csproj --no-restore -p:UseSharedCompilation=false --disable-build-servers --verbosity minimal` | Succeeded: 0 errors; 338 existing dependency/generated-code warnings |
 | 2026-07-20 | External-member deep Oracle review, correction pass, and recheck | Accepted; no remaining blocking or high-severity finding |
+| 2026-07-20 | Focused Commerce ownership/pricing TUnit run with `--treenode-filter "/*/*/CommerceCheckoutOwnershipTests/*"` | Passed: 5; authoritative checkout/update pricing, scoped cancellation, validation, and non-mutating public basket lookup |
+| 2026-07-20 | Full serialized `Aero.Cms.Core.Tests` run after Commerce corrections | Passed: 558; 0 failed; 0 skipped |
+| 2026-07-20 | `dotnet build src/Aero.Cms.Modules.Commerce/Aero.Cms.Modules.Commerce.csproj --no-restore --disable-build-servers` | Succeeded: 0 errors; existing dependency warnings only |
+| 2026-07-20 | Sequential `dotnet build src/Aero.Cms.Modules.Commerce.Client/Aero.Cms.Modules.Commerce.Client.csproj --no-restore --disable-build-servers` | Succeeded: 0 errors; existing dependency warnings only |
+| 2026-07-20 | Commerce deep Oracle review and two correction rechecks | Accepted; no remaining P0-P2 ownership/pricing or storefront-authentication finding |
 
 ## Residual risks after the completed Phase 2 slices
 
 - Authentication alone does not prevent an authenticated user from exploiting
   identifier-based cross-site operations outside the completed Pages, Posts,
   Docs, Aliases, Content, Navigation, and Footer slices.
-- Commerce remains globally scoped and includes cross-user basket/order IDOR,
-  caller-controlled pricing, global order/PII disclosure, and site-blind
-  workflows until its ownership model and containment strategy are decided.
+- Commerce ownership, public catalog, basket, checkout, customer orders,
+  cancellation, active events, jobs, and seed data are now tenant/site/member
+  scoped, and the Stripe/PayPal provider-neutral payment orchestration foundation
+  is complete. The manager catalog route still needs to move beneath
+  `/api/v1/admin` so `DefaultSiteContext` resolves selected-site scope reliably.
+  Production external-member login, provider sandbox continuation,
+  durable request idempotency, transactional outbox/inbox delivery, scheduled
+  reconciliation, refund/void/capture workflows, and direct concurrent-conflict
+  coverage remain pending.
 - The external-member foundation does not yet issue production member cookies:
   provider identity links, tenant/organization bindings, invitations, Entra and
   WorkOS callbacks, upstream logout, webhooks, and reconciliation remain
@@ -500,12 +548,9 @@ Status: Not started
    deletion, or an explicit export/archive workflow?
 5. Which documents are authoritatively site-owned for deletion and generated
    ownership discovery?
-6. Should Commerce use tenant-shared canonical SKUs with site listings, or
-   wholly site-owned products?
-7. Is Commerce inventory tenant-pooled, site-allocated, or location-based?
-8. Which immutable claim identifies a Commerce customer, and is guest checkout
-   required?
-9. Stripe and PayPal are the first payment providers. Which presentment and
-   settlement currencies are required first?
-10. Which order states may customers cancel, and should cancellation trigger an
-    automatic refund or manager review?
+6. Which settlement currencies and merchant-account ownership model are needed
+   after the USD-only first release?
+7. What manager review, refund, void, and manual-compensation workflow applies
+   after an order leaves `AwaitingValidation`?
+8. When guest checkout is introduced, what protected guest-token ownership and
+   account-merge rules should replace the authenticated-only boundary?

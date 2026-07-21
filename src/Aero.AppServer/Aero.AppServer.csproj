@@ -29,7 +29,6 @@
     <PackageReference Include="Microsoft.Orleans.Transactions" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Logging" />
-    <PackageReference Include="SurrealDb.Embedded.SurrealKv" />
     <PackageReference Include="System.Numerics.Tensors" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Caching.StackExchangeRedis" />
@@ -54,5 +53,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+    <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.SurrealKv\SurrealDb.Embedded.SurrealKv.csproj" />
   </ItemGroup>
 </Project>

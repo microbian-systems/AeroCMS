@@ -1,0 +1,27 @@
+@page "/manager/commerce/products/new"
+@page "/manager/commerce/products/{Id:long}"
+@attribute [Authorize]
+
+<PageTitle>@(IsNew ? "New product" : "Edit product")</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div><h1 class="text-2xl font-bold pe-heading">@(IsNew ? "New product" : "Edit product")</h1><p class="mt-1 text-sm pe-description">Stock changes apply to every site listing for this tenant.</p></div>
+    @if (IsLoading) { <p class="pe-description">Loading product…</p> }
+    else
+    {
+        <EditForm Model="Model" OnSubmit="SaveAsync">
+            <div class="space-y-5 max-w-3xl">
+                @if (ValidationErrors.Count > 0) { <div class="rounded border border-red-500 p-3 text-sm text-red-600"><ul class="list-disc pl-5">@foreach (var error in ValidationErrors) { <li>@error</li> }</ul></div> }
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="rounded border border-red-500 p-3 text-sm text-red-600">@ErrorMessage</div> }
+                <label class="block"><span class="text-sm font-medium">Name</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Name" /></label>
+                <label class="block"><span class="text-sm font-medium">SKU</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Sku" /></label>
+                <label class="block"><span class="text-sm font-medium">Description</span><InputTextArea class="mt-1 w-full rounded border p-2" rows="5" @bind-Value="Model.Description" /></label>
+                <label class="block"><span class="text-sm font-medium">Stock quantity</span><InputNumber class="mt-1 w-full rounded border p-2" @bind-Value="Model.StockQuantity" /></label>
+                <label class="flex items-center gap-2"><InputCheckbox @bind-Value="Model.IsActive" /><span>Active</span></label>
+                <label class="block"><span class="text-sm font-medium">Tags</span><InputTextArea class="mt-1 w-full rounded border p-2" rows="3" @bind-Value="Model.TagsText" /><span class="text-xs pe-description">Separate tags with commas or new lines.</span></label>
+                <label class="block"><span class="text-sm font-medium">Attributes</span><InputTextArea class="mt-1 w-full rounded border p-2 font-mono" rows="5" @bind-Value="Model.AttributesText" /><span class="text-xs pe-description">One key=value pair per line.</span></label>
+                <div class="flex gap-3"><RadzenButton ButtonType="ButtonType.Submit" Icon="save" Text="Save product" Disabled="IsSaving" /><RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="Cancel" /></div>
+            </div>
+        </EditForm>
+    }
+</div>

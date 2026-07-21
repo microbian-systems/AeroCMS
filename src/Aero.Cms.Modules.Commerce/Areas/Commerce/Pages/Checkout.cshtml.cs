@@ -1,99 +1,36 @@
-using Aero.Cms.Modules.Commerce.Basket.Models;
-using Aero.Cms.Modules.Commerce.Basket.Services;
+using System.Globalization;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
-using Aero.Cms.Modules.Commerce.Orders.Handlers;
+using Aero.Cms.Modules.Commerce.Orders.Events;
+using Aero.Cms.Modules.Commerce.Orders.Services;
+using Aero.Core.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Wolverine;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
-/// <summary>
-/// Represents a class for CheckoutModel.
-/// </summary>
-[Microsoft.AspNetCore.Authorization.Authorize]
-public class CheckoutModel : PageModel
+[Authorize(Policy = ExternalMemberAuthenticationDefaults.Policy)]
+[Authorize(Policy = ExternalMemberAuthenticationDefaults.SitePolicy)]
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class CheckoutModel(IOrderService orders, ICurrentPrincipal principal, ISiteContext site, IMessageBus bus, ILogger<CheckoutModel> log) : PageModel
 {
-    private readonly IBasketService _basketService;
-    private readonly IMessageBus _bus;
-
-        /// <summary>
-    /// Initializes a new instance of the <see cref="CheckoutModel"/> class.
-    /// </summary>
-public CheckoutModel(IBasketService basketService, IMessageBus bus)
+    [BindProperty] public string? Street { get; set; }
+    [BindProperty] public string? City { get; set; }
+    [BindProperty] public string? State { get; set; }
+    [BindProperty] public string? ZipCode { get; set; }
+    [BindProperty] public string? Country { get; set; }
+    public void OnGet() { }
+    public async Task<IActionResult> OnPostPlaceOrderAsync()
     {
-        _basketService = basketService;
-        _bus = bus;
-    }
-
-        /// <summary>
-    /// Gets or sets the Street.
-    /// </summary>
-[BindProperty]
-    public string? Street { get; set; }
-        /// <summary>
-    /// Gets or sets the City.
-    /// </summary>
-[BindProperty]
-    public string? City { get; set; }
-        /// <summary>
-    /// Gets or sets the State.
-    /// </summary>
-[BindProperty]
-    public string? State { get; set; }
-        /// <summary>
-    /// Gets or sets the Zip Code.
-    /// </summary>
-[BindProperty]
-    public string? ZipCode { get; set; }
-        /// <summary>
-    /// Gets or sets the Country.
-    /// </summary>
-[BindProperty]
-    public string? Country { get; set; }
-
-        /// <summary>
-    /// OnGet method.
-    /// </summary>
-public void OnGet() { }
-
-        /// <summary>
-    /// OnPostPlaceOrderAsync method.
-    /// </summary>
-public async Task<IActionResult> OnPostPlaceOrderAsync()
-    {
-        if (!ModelState.IsValid) return Page();
-
-        var customerId = User.Identity!.Name!;
-
-        // Validate basket exists
-        var basketResult = await _basketService.GetOrCreateBasketAsync(customerId);
-        if (basketResult is Result<BasketDocument, AeroError>.Failure _)
-        {
-            ModelState.AddModelError("", "Could not load your basket.");
-            return Page();
-        }
-
-        var basket = ((Result<BasketDocument, AeroError>.Ok)basketResult).Value;
-        if (basket.Items.Count == 0)
-        {
-            ModelState.AddModelError("", "Your basket is empty.");
-            return Page();
-        }
-
-        // Send the CreateOrder Wolverine command
-        await _bus.InvokeAsync(new CreateOrder(
-            customerId,
-            new Address
-            {
-                Street = Street ?? "",
-                City = City ?? "",
-                State = State,
-                PostalCode = ZipCode ?? "",
-                Country = Country ?? ""
-            }
-        ));
-
+        var address = new Address { Street = Street ?? "", City = City ?? "", State = State, PostalCode = ZipCode ?? "", Country = Country ?? "" };
+        var result = await orders.CheckoutAsync(site.TenantId, site.SiteId, Member(), address, null, CultureInfo.CurrentUICulture.Name);
+        if (result is not Result<OrderEntity, AeroError>.Ok(var order)) { ModelState.AddModelError("", "Your order could not be placed."); return Page(); }
+        try { await bus.PublishAsync(new OrderStarted(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId)); await bus.PublishAsync(new OrderStatusChangedToSubmitted(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId, order.TotalAmount)); }
+        catch (Exception ex) { log.LogError(ex, "Order {OrderId} committed but follow-up publication failed", order.Id); }
         return Redirect("/shop/orders");
     }
+    private long Member() => principal.PrincipalId ?? throw new InvalidOperationException("External member is required.");
 }

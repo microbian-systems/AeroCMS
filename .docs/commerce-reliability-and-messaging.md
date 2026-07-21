@@ -1,12 +1,33 @@
 # Commerce Reliability, Caching, and Messaging
 
+Focused production delivery task:
+[commerce-production-vertical-slice.md](commerce-production-vertical-slice.md).
+
 ## Status
 
-**Deferred / TODO**
+**Partially implemented**
 
-This document records the intended commerce architecture for future work. It does
-not implement commerce persistence, caching, grains, messaging durability, payment
-processing, or infrastructure.
+The tenant/site ownership, authoritative pricing, and first payment foundation
+were implemented on 2026-07-20. Sable persists tenant-owned canonical products,
+site/culture listings, external-member baskets, scoped order snapshots, payment
+attempts, and verified webhook receipts. Checkout atomically revalidates USD
+pricing, reserves tenant-pooled stock, creates the order, and clears the basket;
+eligible customer cancellation atomically releases that stock.
+
+Stripe and PayPal now sit behind provider-neutral Strategy/Adapter and registry
+boundaries with stable provider idempotency keys, signed callbacks, replay rules,
+amount/currency verification, and manual-review states. Commerce aggregate IDs
+remain server-issued Snowflake `long` values; opaque provider references remain
+strings.
+
+The supporting Sable save pipeline now routes document writes, deferred patches,
+queued SQL/storage operations, save listeners, and save-pipeline event writes
+through the same resolved SurrealDB transaction. The embedded provider transaction
+header uses RFC-order UUID bytes, and repo-local builds consume that fixed source.
+
+Caching, grains, durable request idempotency, transactional outbox/inbox delivery,
+scheduled provider reconciliation, refunds/voids, compensation automation, and
+provider sandbox/live integration remain deferred.
 
 ## Context
 
@@ -245,6 +266,12 @@ discount, or variant information.
 Cross-boundary work is coordinated by commands and events, not by directly mutating
 another boundary's document.
 
+The first ownership/pricing slice keeps tenant-pooled `StockQuantity` on the
+canonical product so checkout and cancellation can establish a correct atomic
+boundary now. A separate reservation/inventory aggregate remains a later
+reliability refactor and must preserve the same order-snapshot and compensation
+invariants.
+
 ### 11. Payment operations require provider idempotency
 
 Each payment authorization, capture, refund, and void uses a stable
@@ -384,24 +411,30 @@ The commerce implementation is not complete until automated tests demonstrate:
 12. Failed workflow steps execute the defined compensation or create an auditable
     manual-review state.
 
-## Deferred Implementation Checklist
+## Implementation Checklist
 
-- [ ] Define commerce aggregate documents and state-transition invariants.
+- [x] Define the first-release product/listing, basket, and order documents and
+      customer-cancellation invariants.
 - [ ] Define entity-keyed product, basket, and order grain interfaces.
 - [ ] Keep grain activation state volatile and implement cache/Sable rehydration.
 - [ ] Configure FusionCache with Garnet as the distributed application cache.
 - [ ] Configure product/catalog Output Cache with isolated Garnet key prefixes.
 - [ ] Define catalog cache keys, variation dimensions, tags, and invalidation rules.
-- [ ] Add server-side Snowflake ID allocation before retryable work.
-- [ ] Add durable request-idempotency records and idempotent create APIs.
+- [x] Add server-side Snowflake ID allocation before persistence work.
+- [x] Add durable payment-attempt and webhook-receipt idempotency records with
+      stable provider-operation keys.
+- [ ] Generalize durable request-idempotency records across non-payment create APIs.
 - [ ] Define immutable canonical commerce event contracts.
 - [ ] Publish non-durable post-commit Wolverine events for initial module subscribers.
-- [ ] Ensure post-commit cache or publication failures do not misreport committed
+- [x] Ensure post-commit publication failures do not misreport committed
       Sable writes.
 - [ ] Design and implement a Sable transactional outbox document and dispatcher.
 - [ ] Explicitly configure Wolverine durable queues and inbox/outbox persistence.
 - [ ] Make every durable handler idempotent.
 - [ ] Define order, payment, inventory, and fulfillment ownership boundaries.
-- [ ] Define payment-provider idempotency, reconciliation, and compensation policies.
+- [x] Define and implement first-release payment-provider idempotency, signed
+      reconciliation callbacks, replay rules, and manual-review transitions.
+- [ ] Add scheduled reconciliation, refund/void/capture operations, and automated
+      compensation policies.
 - [ ] Add the acceptance tests listed above.
 - [ ] Document and test the modular-monolith-to-microservices extraction boundary.

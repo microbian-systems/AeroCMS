@@ -3,35 +3,9 @@
    Ported from eShop Reference Application
    =========================================== */
 
-/* ---- Fonts ---- */
-@font-face {
-    font-family: 'Plus Jakarta Sans';
-    src: url('../fonts/PlusJakartaSans-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Plus Jakarta Sans';
-    src: url('../fonts/PlusJakartaSans-SemiBold.woff2') format('woff2');
-    font-weight: 600;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Plus Jakarta Sans';
-    src: url('../fonts/PlusJakartaSans-Bold.woff2') format('woff2');
-    font-weight: 700;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Open Sans';
-    src: url('../fonts/OpenSans-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-}
-
 /* ---- Base ---- */
 .eshop-body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     margin: 0;
     padding: 0;
 }
@@ -51,7 +25,7 @@
     align-self: stretch;
     border: none;
     text-decoration: none;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: inherit;
     font-size: 1rem;
     cursor: pointer;
 }
@@ -72,6 +46,7 @@
     position: relative;
     max-width: 120rem;
     margin: auto;
+    background: linear-gradient(135deg, #f4f4f5, #e4e4e7);
 }
 .eshop-header-home .eshop-header-container {
     height: 38rem;
@@ -80,18 +55,6 @@
 .eshop-header .eshop-header-container {
     height: 15rem;
     margin-bottom: 4rem;
-}
-.eshop-header-hero {
-    overflow: hidden;
-    position: absolute;
-    max-width: 100%;
-    left: 0;
-    top: 0;
-}
-.eshop-header-hero img {
-    width: 100%;
-    height: auto;
-    display: block;
 }
 .eshop-header-container {
     position: relative;
@@ -134,6 +97,12 @@
     margin-top: 1.25rem;
     gap: 1.5rem;
 }
+.eshop-header-navbar a { color: #111; text-decoration: none; }
+.eshop-header-navbar a:hover { text-decoration: underline; }
+.eshop-brand { margin-right: auto; font-size: 1.25rem; font-weight: 700; }
+.eshop-dropdown-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
+.eshop-account-state { color: #52525b; }
+.eshop-cart-link { position: relative; }
 
 /* ---- Header: Cart Badge ---- */
 .eshop-cart-badge {
@@ -186,7 +155,7 @@
     width: 100%;
     padding: 0;
     text-align: left;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: inherit;
     font-size: 0.875rem;
 }
 
@@ -207,12 +176,7 @@
     justify-content: flex-end;
     align-items: center;
 }
-.eshop-footer .logo-footer {
-    color: white;
-    margin-right: auto;
-    width: 100px;
-    height: auto;
-}
+.eshop-footer-brand { color: #fff; margin-right: auto; font-weight: 700; text-decoration: none; }
 .eshop-footer-row p { margin: 0; }
 
 /* ---- Catalog Page ---- */
@@ -242,6 +206,12 @@
 }
 .eshop-catalog-product { background-color: transparent; padding: 0; margin: 0; border: 0; text-decoration: none; display: block; }
 .eshop-catalog-product-image img { max-width: 100%; display: block; }
+.eshop-catalog-product-image { display: block; aspect-ratio: 4 / 3; background: #e4e4e7; overflow: hidden; }
+.eshop-catalog-product-image img { width: 100%; height: 100%; object-fit: cover; }
+.eshop-image-placeholder {
+    width: 100%; height: 100%; min-height: 12rem; display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box; padding: 1rem; color: #52525b; text-align: center; background: #e4e4e7;
+}
 .eshop-catalog-product-content {
     display: flex;
     padding: 0 0.75rem;
@@ -328,7 +298,7 @@
     gap: 0.25rem;
     border-radius: 1.25rem;
     color: #404040;
-    font-family: 'Open Sans', sans-serif;
+    font-family: inherit;
     font-size: 1rem;
     font-weight: 400;
     line-height: 150%;
@@ -336,6 +306,8 @@
 }
 .eshop-catalog-search-tag:hover { cursor: pointer; background: #ddd; }
 .eshop-catalog-search-tag.active { background: #000; color: #FFF; }
+.eshop-search-form { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; }
+.eshop-search-form input { padding: 0.65rem; border: 1px solid #71717a; font: inherit; }
 
 /* ---- Product Detail ---- */
 .eshop-item-details {
@@ -346,6 +318,7 @@
     line-height: 1.7rem;
 }
 .eshop-item-details img { width: 25rem; max-width: 50%; }
+.eshop-image-placeholder-detail { width: 25rem; max-width: 50%; min-height: 20rem; }
 .eshop-item-details .description { max-width: 30rem; }
 .eshop-add-to-cart {
     display: flex;
@@ -364,12 +337,21 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: inherit;
     font-size: 1rem;
 }
 .eshop-add-to-cart button:hover { background-color: #666; }
 .eshop-add-to-cart button:active { background-color: #333; }
 .eshop-in-cart { margin-top: 1rem; }
+.eshop-account-note { max-width: 24rem; color: #52525b; }
+.eshop-catalog-main { flex: 1; }
+.eshop-welcome { margin-bottom: 2rem; }
+.eshop-welcome h2 { margin-bottom: 0.5rem; }
+.eshop-section-heading { margin-top: 3rem; margin-bottom: 1.5rem; }
+.eshop-home-action { display: flex; justify-content: center; margin: 3rem 0; }
+.eshop-home-action .eshop-button { width: auto; padding: 1rem 3rem; }
+.eshop-state { flex: 1; padding: 3rem; text-align: center; color: #3f3f46; background: #fafafa; }
+.eshop-state-error { color: #991b1b; background: #fef2f2; }
 
 /* ---- Cart Page ---- */
 .eshop-cart {

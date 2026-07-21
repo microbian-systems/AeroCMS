@@ -1,0 +1,27 @@
+@page "/manager/commerce"
+@attribute [Authorize]
+
+<PageTitle>Commerce</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold pe-heading">Commerce</h1>
+        <p class="mt-1 text-sm pe-description">Manage tenant products, shared inventory, and the selected site's storefront listings.</p>
+    </div>
+
+    <div class="rounded-lg border p-4" style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+        <p class="font-semibold" style="color: var(--pe-text-primary);">Shared inventory scope</p>
+        <p class="mt-1 text-sm" style="color: var(--pe-text-secondary);">Product stock is pooled across this tenant. Changing inventory here affects every site listing that uses the product.</p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+        <a class="rounded-lg border p-5 hover:shadow" style="border-color: var(--pe-border);" href="/manager/commerce/products">
+            <h2 class="text-lg font-semibold pe-heading">Products &amp; inventory</h2>
+            <p class="mt-2 text-sm pe-description">Create canonical products, maintain SKUs, and adjust tenant-pooled stock.</p>
+        </a>
+        <a class="rounded-lg border p-5 hover:shadow" style="border-color: var(--pe-border);" href="/manager/commerce/listings">
+            <h2 class="text-lg font-semibold pe-heading">Storefront listings</h2>
+            <p class="mt-2 text-sm pe-description">Control the selected site's culture, pricing, presentation, and publication.</p>
+        </a>
+    </div>
+</div>

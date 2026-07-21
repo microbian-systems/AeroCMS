@@ -7,14 +7,16 @@
 	-->
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
-		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared')">
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
 		<BaseOutputPath>bin\browser\</BaseOutputPath>
 		<BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
 		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
-		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared')">
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
 		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
 	</PropertyGroup>
 	<PropertyGroup>
@@ -69,7 +71,7 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
-	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
+	<ItemGroup Condition="'$(AeroCmsSkipWebCoreReference)' != 'true' AND '$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	</ItemGroup>
 

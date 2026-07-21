@@ -21,7 +21,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
-    <PackageReference Include="SurrealDb.Embedded.InMemory" Version="0.10.2" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+    <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.InMemory\SurrealDb.Embedded.InMemory.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,6 +70,8 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Users\Aero.Cms.Modules.Users.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Theming\Aero.Cms.Modules.Theming.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 

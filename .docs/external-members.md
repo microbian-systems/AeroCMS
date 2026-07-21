@@ -5,6 +5,9 @@ Created: 2026-07-20
 Scope: External member authentication, provisioning, tenant membership, site
 authorization, and session lifecycle
 
+Commerce production integration and delivery order are tracked in
+[commerce-production-vertical-slice.md](commerce-production-vertical-slice.md).
+
 ## Outcome
 
 Prepare AeroCMS to support external customer and partner members through

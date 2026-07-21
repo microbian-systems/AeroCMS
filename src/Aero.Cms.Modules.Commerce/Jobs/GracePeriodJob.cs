@@ -1,6 +1,5 @@
-using System.Linq.Expressions;
-using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Events;
+using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Services;
 using Microsoft.Extensions.Logging;
 using TickerQ.Utilities.Base;
@@ -27,15 +26,12 @@ public sealed class GracePeriodJob(
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        Expression<Func<OrderEntity, bool>> predicate = o =>
-            o.Status == OrderStatus.Submitted &&
-            o.GracePeriodExpiresAt <= now;
-
-        var orders = await orderService.FindAsync(predicate);
+        var result = await orderService.GetExpiredSubmittedAsync(now, cancellationToken);
+        if (result is not Result<IReadOnlyList<OrderEntity>, AeroError>.Ok(var orders)) return;
 
         foreach (var order in orders)
         {
-            await bus.PublishAsync(new GracePeriodConfirmed(order.Id));
+            await bus.PublishAsync(new GracePeriodConfirmed(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId));
             log.LogInformation("Grace period expired for order {OrderId}", order.Id);
         }
 

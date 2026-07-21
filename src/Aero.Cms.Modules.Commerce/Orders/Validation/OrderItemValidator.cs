@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Commerce.Orders.Domain;
+using Aero.Cms.Modules.Commerce.Payments;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Validation;
@@ -25,8 +26,7 @@ public OrderItemValidator()
             .GreaterThan(0)
             .WithMessage("Quantity must be greater than 0");
 
-        RuleFor(x => x.UnitPrice)
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("Unit price must be greater than or equal to 0");
+        RuleFor(x => x.UnitPrice).Must(PaymentAmountLimits.IsValidUsd)
+            .WithMessage("Unit price must be a positive USD amount with no more than two decimal places");
     }
 }

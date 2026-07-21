@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Commerce.Client;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Generated;
@@ -52,9 +53,13 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, Bootstra
         options.ConfigureGrains = GeneratedAeroGrainCatalog.Register;
     });
 
+    builder.Services.AddAeroCommerceClient();
+
     var app = builder.Build();
     await app.RunAeroCmsAsync<App>(
         bootstrapState,
         log,
-        components => components.AddAdditionalAssemblies(typeof(Aero.Cms.Web.Client._Imports).Assembly));
+        components => components
+            .AddAdditionalAssemblies(typeof(Aero.Cms.Web.Client._Imports).Assembly)
+            .AddAdditionalAssemblies(typeof(Aero.Cms.Modules.Commerce.Client._Imports).Assembly));
 }

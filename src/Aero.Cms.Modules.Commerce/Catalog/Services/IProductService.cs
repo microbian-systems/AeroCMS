@@ -1,44 +1,23 @@
-using System.Linq.Expressions;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
-/// <summary>
-/// Provides document-store access to catalog products and culture-aware product reads.
-/// </summary>
-/// <remarks>
-/// Read methods apply translations for the current UI culture when available. Mutating methods commit the current
-/// document session; they do not perform validation, enforce unique slugs or SKUs, scope by tenant or site, or
-/// coordinate concurrent updates.
-/// </remarks>
+/// <summary>Provides tenant-scoped canonical products and site-scoped storefront listings.</summary>
 public interface IProductService
 {
-    /// <summary>Loads a product by document identifier and applies its current-culture translation when available.</summary>
-    Task<Result<ProductDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    /// <summary>Lists all products visible to the session and applies current-culture translations.</summary>
-    Task<Result<IReadOnlyList<ProductDocument>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    /// <summary>Queries products with a provider-translatable predicate and applies current-culture translations.</summary>
-    Task<Result<IReadOnlyList<ProductDocument>, AeroError>> FindAsync(Expression<Func<ProductDocument, bool>> predicate, CancellationToken ct = default);
-    /// <summary>Stores a product and commits the current document session.</summary>
-    Task<Result<ProductDocument, AeroError>> InsertAsync(ProductDocument entity, CancellationToken ct = default);
-    /// <summary>Stores a product and commits the current document session.</summary>
-    Task<Result<ProductDocument, AeroError>> UpdateAsync(ProductDocument entity, CancellationToken ct = default);
-    /// <summary>Deletes the supplied product identifier and commits the current document session.</summary>
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
-    /// <summary>Counts products visible to the current document session.</summary>
-    Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default);
-
-    /// <summary>Finds the first product whose slug exactly matches the supplied value and applies a current-culture translation.</summary>
-    /// <remarks>A missing product is returned as a failed result rather than a successful null value.</remarks>
-    Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default);
-    /// <summary>Searches and pages products using optional textual, category, and inclusive price filters.</summary>
-    /// <remarks>The method does not validate page bounds or currency, and price filters apply to the stored decimal price.</remarks>
-    Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchAsync(
-        string? search = null,
-        string? category = null,
-        decimal? minPrice = null,
-        decimal? maxPrice = null,
-        int skip = 0,
-        int take = 20,
-        CancellationToken ct = default);
+    Task<Result<ProductDocument?, AeroError>> GetProductAsync(long tenantId, long productId, CancellationToken ct = default);
+    Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchProductsAsync(long tenantId, string? search = null, int skip = 0, int take = 20, CancellationToken ct = default);
+    Task<Result<ProductListingDocument?, AeroError>> GetListingAsync(long tenantId, long siteId, long listingId, CancellationToken ct = default);
+    Task<Result<(IReadOnlyList<ProductListingDocument> Items, long TotalCount), AeroError>> SearchListingsAsync(long tenantId, long siteId, string? culture = null, string? search = null, int skip = 0, int take = 20, CancellationToken ct = default);
+    Task<Result<ProductListingDocument?, AeroError>> GetPublishedListingBySlugAsync(long tenantId, long siteId, string culture, string slug, CancellationToken ct = default);
+    Task<Result<ProductListingDocument?, AeroError>> GetPublishedListingAsync(long tenantId, long siteId, string culture, long listingId, CancellationToken ct = default);
+    Task<Result<(IReadOnlyList<ProductListingDocument> Items, long TotalCount), AeroError>> SearchPublishedAsync(long tenantId, long siteId, string culture, string? search = null, string? category = null, int skip = 0, int take = 20, bool featuredOnly = false, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ProductListingDocument>, AeroError>> GetRecentPublishedAsync(long tenantId, long siteId, string culture, int take = 6, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<string>, AeroError>> GetPublishedCategoriesAsync(long tenantId, long siteId, string culture, CancellationToken ct = default);
+    Task<Result<ProductDocument, AeroError>> CreateProductAsync(long tenantId, ProductDocument product, CancellationToken ct = default);
+    Task<Result<ProductDocument, AeroError>> UpdateProductAsync(long tenantId, long productId, ProductDocument product, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteProductAsync(long tenantId, long productId, CancellationToken ct = default);
+    Task<Result<ProductListingDocument, AeroError>> CreateListingAsync(long tenantId, long siteId, ProductListingDocument listing, CancellationToken ct = default);
+    Task<Result<ProductListingDocument, AeroError>> UpdateListingAsync(long tenantId, long siteId, long listingId, ProductListingDocument listing, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteListingAsync(long tenantId, long siteId, long listingId, CancellationToken ct = default);
 }

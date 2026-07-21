@@ -39,7 +39,7 @@
                     <div class="cart-item-quantity">
                         <form method="post" asp-page-handler="UpdateQuantity">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="productId" value="@item.ProductId" />
+                            <input type="hidden" name="listingId" value="@item.ListingId" />
                             <input aria-label="product quantity" type="number"
                                    name="quantity" value="@item.Quantity" min="0" />
                             <button type="submit" class="eshop-button eshop-button-secondary">Update</button>

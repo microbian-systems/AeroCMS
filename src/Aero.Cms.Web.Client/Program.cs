@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
+using Aero.Cms.Modules.Commerce.Client;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Client.Services;
@@ -44,6 +45,7 @@ builder.Services.AddScoped(_ => new HttpClient
 // Register all Aero HTTP clients
 builder.Services.AddLocalStorageServices();
 builder.Services.AddAeroHttpClients(uri);
+builder.Services.AddAeroCommerceClient();
 
 // Client-side state container — replaces per-page HTTP calls for site context
 builder.Services.AddSingleton<IAdminStorage, LocalStorageAdminStorage>();

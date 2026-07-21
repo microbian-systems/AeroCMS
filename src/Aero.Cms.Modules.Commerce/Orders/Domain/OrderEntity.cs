@@ -1,53 +1,27 @@
+using Aero.Core.Data;
+using AeroDB.Sable;
+using System.Text.Json.Serialization;
+
 namespace Aero.Cms.Modules.Commerce.Orders.Domain;
 
-/// <summary>
-/// Order aggregate root persisted by the commerce module through EF Core.
-/// </summary>
-/// <remarks>
-/// Status changes are validated by <see cref="Aero.Cms.Modules.Commerce.Shared.StateMachine.OrderStateMachine"/>;
-/// persistence and related business operations remain the responsibility of the calling workflow.
-/// </remarks>
-public sealed class OrderEntity : Entity
+/// <summary>Immutable customer order snapshot owned by one external member and storefront site.</summary>
+public sealed class OrderEntity : SableDocument, IAuditable, IVersioned
 {
-        /// <summary>
-    /// Gets or sets the Customer Id.
-    /// </summary>
-public string? CustomerId { get; set; }
-        /// <summary>
-    /// Gets or sets the Status.
-    /// </summary>
-public OrderStatus Status { get; set; } = OrderStatus.Submitted;
-        /// <summary>
-    /// Gets or sets the Items.
-    /// </summary>
-public List<OrderItem> Items { get; set; } = [];
-        /// <summary>
-        /// Gets the sum of the current line-item totals.
-/// </summary>
-/// <remarks>This computed value does not add tax, shipping, discounts, currency conversion, or payment fees.</remarks>
-public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
-        /// <summary>
-    /// Gets or sets the Shipping Address.
-    /// </summary>
-public Address? ShippingAddress { get; set; }
-        /// <summary>
-    /// Gets or sets the Billing Address.
-    /// </summary>
-public Address? BillingAddress { get; set; }
-        /// <summary>
-    /// Gets or sets the Buyer Id.
-    /// </summary>
-public long? BuyerId { get; set; }
-        /// <summary>
-    /// Gets or sets the Buyer.
-    /// </summary>
-public Buyer? Buyer { get; set; }
-        /// <summary>
-    /// Gets or sets the Grace Period Expires At.
-    /// </summary>
-public DateTimeOffset? GracePeriodExpiresAt { get; set; }
-        /// <summary>
-    /// Gets or sets the Payment Reference.
-    /// </summary>
-public string? PaymentReference { get; set; }
+    public long TenantId { get; set; }
+    public long SiteId { get; set; }
+    public long ExternalMemberId { get; set; }
+    public string Currency { get; set; } = "USD";
+    public OrderStatus Status { get; set; } = OrderStatus.Submitted;
+    public OrderPaymentStatus PaymentStatus { get; set; } = OrderPaymentStatus.Unpaid;
+    public List<OrderItem> Items { get; set; } = [];
+    [JsonIgnore] public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
+    public Address? ShippingAddress { get; set; }
+    public Address? BillingAddress { get; set; }
+    public Buyer? Buyer { get; set; }
+    public DateTimeOffset? GracePeriodExpiresAt { get; set; }
+    public long Version { get; set; }
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

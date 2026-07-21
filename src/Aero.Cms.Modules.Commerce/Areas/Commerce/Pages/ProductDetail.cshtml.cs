@@ -1,103 +1,56 @@
+using System.Globalization;
 using Aero.Cms.Modules.Commerce.Basket.Models;
 using Aero.Cms.Modules.Commerce.Basket.Services;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
-using Microsoft.AspNetCore.Http;
+using Aero.Cms.Modules.Commerce.Storefront;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
-/// <summary>
-/// Represents a class for ProductDetailModel.
-/// </summary>
-public class ProductDetailModel : PageModel
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class ProductDetailModel(IProductService products, IBasketService baskets, ISiteContext site, IStorefrontMemberAccessor storefrontMember) : PageModel
 {
-    private readonly IProductService _productService;
-    private readonly IBasketService _basketService;
+    public PublicListingResponse? Product { get; private set; }
+    public int ItemCount { get; private set; }
+    public StorefrontMemberStateKind MemberState { get; private set; } = StorefrontMemberStateKind.Unauthenticated;
+    public bool LoadFailed { get; private set; }
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="ProductDetailModel"/> class.
-    /// </summary>
-public ProductDetailModel(IProductService productService, IBasketService basketService)
+    public async Task<IActionResult> OnGetAsync(string slug, CancellationToken ct)
     {
-        _productService = productService;
-        _basketService = basketService;
-    }
-
-        /// <summary>
-    /// Gets or sets the Product.
-    /// </summary>
-public ProductDocument? Product { get; set; }
-        /// <summary>
-    /// Gets or sets the Item Count.
-    /// </summary>
-public int ItemCount { get; set; }
-
-        /// <summary>
-    /// OnGetAsync method.
-    /// </summary>
-public async Task<IActionResult> OnGetAsync(string slug)
-    {
-        var result = await _productService.FindBySlugAsync(slug);
-        if (result is Result<ProductDocument?, AeroError>.Ok(var product) && product is not null)
+        if (!CatalogSlug.IsCanonical(slug)) return NotFound();
+        var result = await products.GetPublishedListingBySlugAsync(site.TenantId, site.SiteId, CultureInfo.CurrentUICulture.Name, slug, ct);
+        if (result is Result<ProductListingDocument?, AeroError>.Failure)
         {
-            Product = product;
-            await LoadItemCount();
+            LoadFailed = true;
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             return Page();
         }
-
-        return NotFound();
+        if (result is not Result<ProductListingDocument?, AeroError>.Ok { Value: { } listing }) return NotFound();
+        Product = PublicListingResponse.From(listing);
+        await LoadMemberStateAndItemCount(ct);
+        return Page();
     }
 
-        /// <summary>
-    /// OnPostAddToCartAsync method.
-    /// </summary>
-public async Task<IActionResult> OnPostAddToCartAsync(long productId)
+    public async Task<IActionResult> OnPostAddToCartAsync(long listingId, CancellationToken ct)
     {
-        var customerId = GetCustomerId();
-        var productResult = await _productService.GetByIdAsync(productId);
-        if (productResult is not Result<ProductDocument?, AeroError>.Ok(var product) || product is null) return NotFound();
-
-        var item = new BasketItem
-        {
-            ProductId = product.Id,
-            ProductName = product.Name,
-            Sku = product.Sku,
-            ImageUrl = product.ImageUrl,
-            Quantity = 1,
-            UnitPrice = product.Price
-        };
-
-        await _basketService.AddItemAsync(customerId, item);
-        return RedirectToPage();
+        var member = await storefrontMember.GetAsync(ct);
+        if (member.Kind == StorefrontMemberStateKind.Unauthenticated) return Unauthorized();
+        if (member.Kind == StorefrontMemberStateKind.NotCurrentSiteMember) return StatusCode(StatusCodes.Status403Forbidden);
+        var memberId = member.MemberId!.Value;
+        var result = await baskets.AddItemAsync(site.TenantId, site.SiteId, memberId, listingId, 1, CultureInfo.CurrentUICulture.Name, ct);
+        return result.IsSuccess ? Redirect("/shop/cart") : NotFound();
     }
 
-    private async Task LoadItemCount()
+    private async Task LoadMemberStateAndItemCount(CancellationToken ct)
     {
-        var customerId = GetCustomerId();
-        var basketResult = await _basketService.GetOrCreateBasketAsync(customerId);
-        if (basketResult is Result<BasketDocument, AeroError>.Ok(var basket))
-        {
-            ItemCount = basket.Items.Sum(i => i.Quantity);
-        }
-    }
-
-    private string GetCustomerId()
-    {
-        if (User.Identity?.IsAuthenticated == true)
-            return User.Identity.Name!;
-
-        if (Request.Cookies.TryGetValue("shop_cart_id", out var cartId) && !string.IsNullOrEmpty(cartId))
-            return cartId;
-
-        cartId = Snowflake.NewId().ToString();
-        Response.Cookies.Append("shop_cart_id", cartId, new CookieOptions
-        {
-            Expires = DateTimeOffset.UtcNow.AddDays(30),
-            HttpOnly = true,
-            SameSite = SameSiteMode.Lax
-        });
-        return cartId;
+        var member = await storefrontMember.GetAsync(ct);
+        MemberState = member.Kind;
+        if (!member.IsAuthorized) return;
+        var basket = await baskets.GetAsync(site.TenantId, site.SiteId, member.MemberId!.Value, ct);
+        if (basket is Result<BasketDocument?, AeroError>.Ok(var value) && value is not null) ItemCount = value.Items.Sum(x => x.Quantity);
     }
 }

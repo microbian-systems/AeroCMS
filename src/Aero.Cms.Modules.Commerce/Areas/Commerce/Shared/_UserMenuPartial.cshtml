@@ -1,13 +1,14 @@
-@* User menu — follows eShop's UserMenu.razor pattern *@
-@if (User.Identity?.IsAuthenticated == true)
+@inject Aero.Cms.Modules.Commerce.Storefront.IStorefrontMemberAccessor StorefrontMember
+@{
+    var storefrontMember = await StorefrontMember.GetAsync();
+}
+@if (storefrontMember.IsAuthorized)
 {
     <div class="eshop-dropdown-menu">
-        <span class="eshop-dropdown-button">
-            <img role="presentation" src="~/icons/user.svg" alt="User" />
-        </span>
+        <button type="button" class="eshop-dropdown-button">Account</button>
         <div class="eshop-dropdown-content">
             <a class="eshop-dropdown-item" href="/shop/orders">My orders</a>
-            <form class="eshop-dropdown-item" method="post" action="/user/logout">
+            <form class="eshop-dropdown-item" method="post" action="/api/v1/member/logout">
                 @Html.AntiForgeryToken()
                 <button type="submit">Log out</button>
             </form>
@@ -16,7 +17,5 @@
 }
 else
 {
-    <a aria-label="Sign in" href="/user/login?returnUrl=@Context.Request.Path">
-        <img role="presentation" src="~/icons/user.svg" alt="Sign in" />
-    </a>
+    <span class="eshop-account-state">Guest</span>
 }

@@ -1,9 +1,11 @@
 @using Aero.Cms.Shared.Services
+@using Aero.Cms.Shared.Routing
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager NavigationManager
 @inject IFormFactor FormFactor
+@inject IEnumerable<IManagerRouteAssemblyProvider> ManagerRouteAssemblies
 
-<Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
+<Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="@AdditionalAssemblies">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)">
             <NotAuthorized>
@@ -39,6 +41,11 @@
 </Router>
 
 @code {
+    private IReadOnlyList<System.Reflection.Assembly> AdditionalAssemblies =>
+        ManagerRouteAssemblies.Select(provider => provider.Assembly)
+            .Distinct()
+            .ToList();
+
     protected override void OnInitialized()
     {
         // On MAUI (non-web), the app starts at / by default.

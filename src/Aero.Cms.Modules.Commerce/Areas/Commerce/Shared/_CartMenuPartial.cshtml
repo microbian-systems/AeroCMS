@@ -1,19 +1,24 @@
-@* Cart badge — follows eShop's CartMenu.razor pattern *@
 @inject IBasketService BasketService
-@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject Aero.Core.Http.ISiteContext SiteContext
+@inject Aero.Cms.Modules.Commerce.Storefront.IStorefrontMemberAccessor StorefrontMember
 @{
-    var customerId = User.Identity?.IsAuthenticated == true
-        ? User.Identity.Name
-        : HttpContextAccessor?.HttpContext?.Request.Cookies["shop_cart_id"];
-    var basketResult = customerId is not null
-        ? await BasketService.GetOrCreateBasketAsync(customerId)
+    var member = await StorefrontMember.GetAsync();
+    var basketResult = member.IsAuthorized
+        ? await BasketService.GetAsync(SiteContext.TenantId, SiteContext.SiteId, member.MemberId!.Value)
         : null;
-    var itemCount = basketResult is Result<BasketDocument, AeroError>.Ok(var b) ? b.Items.Sum(i => i.Quantity) : 0;
+    var itemCount = basketResult is Result<BasketDocument?, AeroError>.Ok(var b) && b is not null ? b.Items.Sum(i => i.Quantity) : 0;
 }
-<a aria-label="cart" href="/shop/cart">
-    <img role="presentation" src="~/icons/cart.svg" alt="Cart" />
+@if (member.IsAuthorized)
+{
+<a class="eshop-cart-link" aria-label="Shopping bag" href="/shop/cart">
+    Bag
     @if (itemCount > 0)
     {
         <span class="eshop-cart-badge">@itemCount</span>
     }
 </a>
+}
+else
+{
+    <span class="eshop-account-state">Bag</span>
+}

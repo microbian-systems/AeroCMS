@@ -23,8 +23,8 @@ public static class OrderStateMachine
     /// </returns>
     /// <remarks>
     /// The allowed forward transitions are Submitted to AwaitingValidation, AwaitingValidation to StockConfirmed,
-    /// StockConfirmed to Paid, and Paid to Shipped. Cancellation is allowed only from Submitted,
-    /// AwaitingValidation, or StockConfirmed.
+    /// StockConfirmed to Paid, and Paid to Shipped. Cancellation is allowed only from Submitted
+    /// or AwaitingValidation, where Commerce can atomically release reserved stock.
     /// </remarks>
     public static Result<OrderEntity, AeroError> Transition(OrderEntity order, OrderStatus newStatus)
     {
@@ -39,8 +39,6 @@ public static class OrderStateMachine
 
             (OrderStatus.Submitted, OrderStatus.Cancelled) => ApplyTransition(order, target),
             (OrderStatus.AwaitingValidation, OrderStatus.Cancelled) => ApplyTransition(order, target),
-            (OrderStatus.StockConfirmed, OrderStatus.Cancelled) => ApplyTransition(order, target),
-
             _ => Prelude.Fail<OrderEntity, AeroError>(
                 AeroError.CreateError($"Invalid order state transition: {order.Status} → {target}"))
         };

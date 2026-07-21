@@ -14,6 +14,8 @@ using Aero.Cms.Modules.Commerce.Orders.Services;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Commerce.Orders.Validation;
 using Aero.Cms.Modules.Commerce.Payments.Api;
+using Aero.Cms.Modules.Commerce.Payments;
+using Aero.Cms.Modules.Commerce.Storefront;
 using Aero.Services.Images;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
@@ -67,19 +69,31 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     {
         // Catalog (AeroDB Sable)
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<ICommerceManagerScopeResolver, CommerceManagerScopeResolver>();
 
         // Basket (AeroDB Sable)
         services.AddScoped<IBasketService, BasketService>();
 
         // Orders (AeroDB Sable — ported from EF Core Npgsql)
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IStorefrontMemberAccessor, StorefrontMemberAccessor>();
+        if (config is not null) services.AddOptions<CommercePaymentOptions>().Bind(config.GetSection(CommercePaymentOptions.SectionName)).ValidateOnStart();
+        else services.AddOptions<CommercePaymentOptions>().ValidateOnStart();
+        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<CommercePaymentOptions>, CommercePaymentOptionsValidator>();
+        services.AddHttpClient(StripePaymentProviderAdapter.HttpClientName);
+        services.AddHttpClient(PayPalPaymentProviderAdapter.HttpClientName);
+        services.AddScoped<IPaymentProviderAdapter, StripePaymentProviderAdapter>();
+        services.AddScoped<IPaymentProviderAdapter, PayPalPaymentProviderAdapter>();
+        services.AddScoped<IPaymentProviderRegistry, PaymentProviderRegistry>();
+        services.AddScoped<IPaymentApplicationService, PaymentApplicationService>();
 
         // Validation
         services.AddScoped<IValidator<ProductDocument>, ProductValidator>();
+        services.AddScoped<IValidator<ProductListingDocument>, ProductListingValidator>();
         services.AddScoped<IValidator<BasketItem>, BasketItemValidator>();
         services.AddScoped<IValidator<OrderEntity>, CreateOrderValidator>();
+        services.AddScoped<IValidator<InitiatePaymentRequest>, InitiatePaymentRequestValidator>();
 
-        // HTTP context accessor (for anonymous cart cookie)
         services.AddHttpContextAccessor();
 
         // Pexels image service (also used by Setup module's SeedDatabaseService).
@@ -108,8 +122,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         /// <summary>
     /// Configure method.
     /// </summary>
-public void Configure(StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
+        // Current Sable sessions consult this store-level flag; mapping flags alone do not activate checks.
+        opts.UseOptimisticConcurrency = true;
         opts.Schema.Analyzers.DefineAnalyzer(
             Search.Analyzer.English,
             filters:
@@ -118,27 +134,45 @@ public void Configure(StoreOptions opts)
                 Search.Filter.SnowballEnglish
             ]);
 
-        // Product document — AeroDB schema
-        // DatabaseSchemaName/DocumentAlias not available in AeroDB
-        opts.Schema.For<ProductDocument>()
-            .Identity(x => x.Id)
-            .Index(x => x.Slug)
-            .Index(x => x.Sku)
-            .Index(x => x.Category)
-            .Index(x => x.Price)
-            .FullTextIndex(x => x.Name, Search.Analyzer.English)
-            .FullTextIndex(x => x.Description, Search.Analyzer.English);
+        var products = opts.Schema.For<ProductDocument>();
+        products.Identity(x => x.Id);
+        products.UseOptimisticConcurrency = true;
+        products.Index(x => x.TenantId);
+        products.UniqueIndex(x => new { x.TenantId, x.Sku });
 
-        opts.Schema.For<ProductTranslation>().Index(x => x.ProductId);
-        opts.Schema.For<ProductTranslation>().Index(x => x.Culture);
-        // Composite unique index on (ProductId, Culture) — AeroDB uses anonymous type expression
-        opts.Schema.For<ProductTranslation>().Index(x => new { x.ProductId, x.Culture }, c => c.IsUnique());
+        var listings = opts.Schema.For<ProductListingDocument>();
+        listings.Identity(x => x.Id);
+        listings.UseOptimisticConcurrency = true;
+        listings.Index(x => x.TenantId);
+        listings.Index(x => x.SiteId);
+        listings.Index(x => x.ProductId);
+        listings.UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
+        listings.UniqueIndex(x => new { x.SiteId, x.Culture, x.ProductId });
 
-        // Basket document — AeroDB schema
-        // DocumentAlias not available in AeroDB
-        opts.Schema.For<BasketDocument>()
-            .Identity(x => x.Id)
-            .Index(x => x.CustomerId);
+        var baskets = opts.Schema.For<BasketDocument>();
+        baskets.Identity(x => x.Id);
+        baskets.UseOptimisticConcurrency = true;
+        baskets.UniqueIndex(x => new { x.TenantId, x.SiteId, x.ExternalMemberId });
+
+        var orders = opts.Schema.For<OrderEntity>();
+        orders.Identity(x => x.Id);
+        orders.UseOptimisticConcurrency = true;
+        orders.Index(x => x.TenantId);
+        orders.Index(x => x.SiteId);
+        orders.Index(x => x.ExternalMemberId);
+        orders.Index(x => x.Status);
+        orders.Index(x => x.CreatedOn);
+        var attempts = opts.Schema.For<PaymentAttemptDocument>();
+        attempts.Identity(x => x.Id);
+        attempts.UseOptimisticConcurrency = true;
+        attempts.Index(x => x.TenantId);
+        attempts.Index(x => x.SiteId);
+        attempts.Index(x => x.OrderId);
+        attempts.UniqueIndex(x => new { x.TenantId, x.SiteId, x.OrderId });
+        var receipts = opts.Schema.For<PaymentWebhookReceiptDocument>();
+        receipts.Identity(x => x.Id);
+        receipts.UseOptimisticConcurrency = true;
+        receipts.UniqueIndex(x => new { x.Provider, x.ProviderAccountKey, x.ProviderEventId });
     }
 
         /// <summary>

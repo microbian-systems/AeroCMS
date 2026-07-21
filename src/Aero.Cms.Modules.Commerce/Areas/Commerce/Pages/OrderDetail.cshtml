@@ -1,5 +1,4 @@
 @page "/shop/orders/{id:long}"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @model OrderDetailModel
 @{
     ViewData["Title"] = $"Order #{Model.Order?.Id}";

@@ -1,93 +1,95 @@
+using System.Globalization;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
-/// <summary>
-/// Represents a class for CatalogModel.
-/// </summary>
-public class CatalogModel : PageModel
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class CatalogModel(IProductService products, ISiteContext site) : PageModel
 {
-    private readonly IProductService _productService;
     private const int PageSize = 9;
+    public IReadOnlyList<PublicListingResponse> Products { get; private set; } = [];
+    public int CurrentPage { get; private set; } = 1;
+    public int TotalPages { get; private set; }
+    public string? Search { get; private set; }
+    public string? Category { get; private set; }
+    public bool LoadFailed { get; private set; }
+    public CatalogPaginationWindow Pagination { get; private set; } = CatalogPaginationWindow.Empty;
+    public CatalogSearchViewModel SearchViewModel { get; private set; } = new([], null, null);
 
-        /// <summary>
-    /// Initializes a new instance of the <see cref="CatalogModel"/> class.
-    /// </summary>
-public CatalogModel(IProductService productService)
+    public async Task<IActionResult> OnGetAsync([FromQuery] string? search, [FromQuery] string? category, [FromQuery] int page = 1, CancellationToken ct = default)
     {
-        _productService = productService;
-    }
+        Search = NormalizeFilter(search);
+        Category = NormalizeFilter(category);
+        if (page < 1)
+            return RedirectToCanonicalPage(1);
 
-        /// <summary>
-    /// Gets or sets the Products.
-    /// </summary>
-public IReadOnlyList<ProductDocument>? Products { get; set; }
-        /// <summary>
-    /// Gets or sets the Current Page.
-    /// </summary>
-public int CurrentPage { get; set; } = 1;
-        /// <summary>
-    /// Gets or sets the Total Pages.
-    /// </summary>
-public int TotalPages { get; set; }
-        /// <summary>
-    /// Gets or sets the Search.
-    /// </summary>
-public string? Search { get; set; }
-        /// <summary>
-    /// Gets or sets the Category.
-    /// </summary>
-public string? Category { get; set; }
-        /// <summary>
-    /// Gets or sets the Search View Model.
-    /// </summary>
-public CatalogSearchViewModel SearchViewModel { get; set; } = new([], null);
-
-        /// <summary>
-    /// OnGetAsync method.
-    /// </summary>
-public async Task<IActionResult> OnGetAsync(
-        [FromQuery] string? search,
-        [FromQuery] string? category,
-        [FromQuery] int page = 1)
-    {
-        Search = search;
-        Category = category;
         CurrentPage = page;
-
-        var result = await _productService.SearchAsync(
-            search, category,
-            skip: (page - 1) * PageSize, take: PageSize);
-
-        if (result is Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>.Ok(var ok))
+        var requestedSkip = Math.Min((long)(page - 1) * PageSize, int.MaxValue);
+        var result = await products.SearchPublishedAsync(site.TenantId, site.SiteId, CultureInfo.CurrentUICulture.Name, Search, Category, (int)requestedSkip, PageSize, ct: ct);
+        if (result is Result<(IReadOnlyList<ProductListingDocument> Items, long TotalCount), AeroError>.Ok(var current))
         {
-            Products = ok.Items;
-            TotalPages = (int)Math.Ceiling((double)ok.TotalCount / PageSize);
+            Products = current.Items.Select(PublicListingResponse.From).ToList();
+            var pageCount = current.TotalCount / PageSize + (current.TotalCount % PageSize == 0 ? 0 : 1);
+            TotalPages = pageCount > int.MaxValue ? int.MaxValue : (int)pageCount;
+            var canonicalPage = TotalPages == 0 ? 1 : Math.Min(CurrentPage, TotalPages);
+            if (CurrentPage != canonicalPage)
+                return RedirectToCanonicalPage(canonicalPage);
+            Pagination = CatalogPaginationWindow.Create(CurrentPage, TotalPages);
 
-            // Get distinct categories for search sidebar
-            var allResult = await _productService.SearchAsync(take: 1000);
-            var categories = allResult is Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>.Ok(var all)
-                ? all.Items.Where(p => p.Category is not null).Select(p => p.Category!).Distinct().OrderBy(c => c).ToList()
-                : [];
-
-            SearchViewModel = new CatalogSearchViewModel(categories, category);
+            var categories = await products.GetPublishedCategoriesAsync(site.TenantId, site.SiteId, CultureInfo.CurrentUICulture.Name, ct);
+            if (categories is Result<IReadOnlyList<string>, AeroError>.Ok(var values))
+                SearchViewModel = new(values, Category, Search);
+            else
+                return CatalogUnavailable();
         }
+        else
+            return CatalogUnavailable();
 
         return Page();
     }
+
+    private IActionResult RedirectToCanonicalPage(int page)
+        => RedirectToPage("Catalog", new { search = Search, category = Category, page = page == 1 ? null : (int?)page });
+
+    private IActionResult CatalogUnavailable()
+    {
+        LoadFailed = true;
+        Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        return Page();
+    }
+
+    private static string? NormalizeFilter(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
-/// <summary>
-/// Represents a record for CatalogSearchViewModel.
-/// </summary>
-public record CatalogSearchViewModel(IReadOnlyList<string> Categories, string? CurrentCategory)
+public sealed record CatalogPaginationWindow(IReadOnlyList<int> Pages, bool HasPrevious, bool HasNext)
 {
-        /// <summary>
-    /// CategoryUri method.
-    /// </summary>
-public string? CategoryUri(string? cat)
-        => $"/shop/products?category={Uri.EscapeDataString(cat ?? "")}";
+    public static CatalogPaginationWindow Empty { get; } = new([], false, false);
+
+    public static CatalogPaginationWindow Create(int currentPage, int totalPages, int windowSize = 5)
+    {
+        if (totalPages <= 0) return Empty;
+        var size = Math.Clamp(windowSize, 1, 21);
+        var current = Math.Clamp(currentPage, 1, totalPages);
+        var start = Math.Max(1, current - size / 2);
+        var end = Math.Min(totalPages, start + size - 1);
+        start = Math.Max(1, end - size + 1);
+        return new(Enumerable.Range(start, end - start + 1).ToList(), current > 1, current < totalPages);
+    }
+}
+
+public sealed record CatalogSearchViewModel(IReadOnlyList<string> Categories, string? CurrentCategory, string? Search)
+{
+    public string CategoryUri(string? category)
+    {
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Search)) query.Add($"search={Uri.EscapeDataString(Search)}");
+        if (!string.IsNullOrWhiteSpace(category)) query.Add($"category={Uri.EscapeDataString(category)}");
+        return query.Count == 0 ? "/shop/products" : $"/shop/products?{string.Join('&', query)}";
+    }
 }
