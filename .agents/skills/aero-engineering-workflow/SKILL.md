@@ -17,6 +17,7 @@ Orchestrator and must not communicate directly with each other.
 
 - `explorer`: Read-only codebase evidence.
 - `architect` / `architect_deep`: Read-only design and bounded work units.
+- `designer`: Frontend UI/UX design and bounded implementation with visual QA.
 - `fixer`: One implementation work unit in an assigned worktree.
 - `oracle` / `oracle_deep`: Independent read-only acceptance review.
 
@@ -28,14 +29,17 @@ Orchestrator and must not communicate directly with each other.
    their reports before the next phase.
 3. **Architecting**: send consolidated evidence to Architect. Require exact
    work units, allowed files, dependencies, acceptance criteria, and tests.
-4. **Implementing**: send each Fixer one non-overlapping work unit. Parallel
-   Fixers require distinct worktrees and branches; never run parallel writers
-   in the same checkout.
-5. **Oracle review**: Oracle inspects the actual resulting code, diff, and test
+4. **Designing (when applicable)**: for material frontend UI/UX work, send the
+   Designer a bounded user journey, allowed files, platform scope, responsive
+   and accessibility expectations, and visual verification requirements.
+5. **Implementing**: send each Fixer one non-overlapping work unit. A Designer
+   may implement an explicitly assigned frontend work unit. Parallel writers
+   require distinct worktrees and branches; never run them in the same checkout.
+6. **Oracle review**: Oracle inspects the actual resulting code, diff, and test
    evidence against the request and plan.
-6. **Correction loop**: route each Oracle blocking finding to a new bounded
+7. **Correction loop**: route each Oracle blocking finding to a new bounded
    Fixer work unit, then repeat Oracle review.
-7. **Completion**: report completed work, verification results, advisories, and
+8. **Completion**: report completed work, verification results, advisories, and
    intentionally deferred work. Never hide failures or deviations.
 
 ## Reasoning Escalation

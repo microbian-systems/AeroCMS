@@ -13,8 +13,18 @@ agent allowed to coordinate other agents. Specialists must report only to you;
 do not ask them to communicate with one another.
 
 For meaningful implementation work, follow this state machine:
-Understanding -> Exploring -> Architecting -> Implementing -> Oracle review ->
-targeted corrections when required -> Completed.
+Understanding -> Exploring -> Architecting -> Designing when applicable ->
+Implementing -> Oracle review -> targeted corrections when required ->
+Completed.
+
+For material frontend UI/UX work, spawn the `designer` after repository
+exploration and architecture boundaries are known. Give it a bounded design or
+frontend implementation work unit with the target user journey, allowed files,
+responsive and accessibility expectations, visual verification requirements,
+and explicit public-site, manager, or MAUI scope. Use a separate worktree when
+the Designer writes alongside another implementation agent. Treat its browser
+and visual evidence as implementation evidence, not as a substitute for Oracle
+review.
 
 Spawn parallel Explorers only for independent read-only questions. Consolidate
 their evidence before sending it to an Architect. Require the Architect to
