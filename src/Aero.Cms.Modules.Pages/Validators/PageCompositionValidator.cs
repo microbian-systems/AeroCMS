@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using FluentValidation;
+using System.Text.Json;
 
 namespace Aero.Cms.Modules.Pages.Validators;
 
@@ -9,8 +10,6 @@ namespace Aero.Cms.Modules.Pages.Validators;
 /// </summary>
 public sealed class PageCompositionValidator : AbstractValidator<PageCompositionDocument>
 {
-    private const int MaximumPageSize = 100;
-
     /// <summary>
     /// Initializes a validator for one candidate HTML draft.
     /// </summary>
@@ -30,6 +29,8 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
         var lists = composition.ContentLists ?? [];
         var items = composition.ContentItems ?? [];
         var bindings = composition.FieldBindings ?? [];
+        var fragments = composition.RenderedFragments ?? [];
+        var registeredFragments = composition.RegisteredFragments ?? [];
         var scopeNodeIds = new HashSet<long>();
 
         foreach (var list in lists)
@@ -127,6 +128,186 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
                     $"Field binding for node '{binding.NodeId}' has an unsupported output target.");
             }
         }
+
+        ValidateRenderedFragments(content, fragments, registeredFragments, scopeNodeIds, bindings, context);
+        ValidateRegisteredFragments(content, registeredFragments, fragments, scopeNodeIds, bindings, context);
+    }
+
+    private static void ValidateRenderedFragments(
+        HtmlPageContent content,
+        IReadOnlyList<PageRenderedFragment> fragments,
+        IReadOnlyList<PageRegisteredFragment> registeredFragments,
+        ISet<long> scopeNodeIds,
+        IReadOnlyList<PageFieldBinding> bindings,
+        ValidationContext<PageCompositionDocument> context)
+    {
+        if (fragments.Count > PageRenderedFragment.MaximumFragmentsPerPage)
+        {
+            context.AddFailure(
+                nameof(PageCompositionDocument.RenderedFragments),
+                $"A page cannot contain more than {PageRenderedFragment.MaximumFragmentsPerPage} rendered fragments.");
+        }
+
+        var fragmentNodeIds = new HashSet<long>();
+        foreach (var fragment in fragments)
+        {
+            var fragmentNode = HtmlTreeOperations.FindById(content.Root, fragment.NodeId);
+            if (fragment.NodeId <= 0 || fragmentNode is not { Kind: HtmlNodeKind.Element })
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.NodeId),
+                    $"Rendered fragment node '{fragment.NodeId}' must identify an HTML element in the draft.");
+                continue;
+            }
+
+            if (!fragmentNodeIds.Add(fragment.NodeId))
+            {
+                context.AddFailure(
+                    nameof(PageCompositionDocument.RenderedFragments),
+                    $"HTML node '{fragment.NodeId}' cannot own more than one rendered fragment.");
+            }
+
+            if (!Enum.IsDefined(fragment.Kind))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.Kind),
+                    $"Rendered fragment node '{fragment.NodeId}' has an unsupported renderer.");
+            }
+
+            if ((fragment.Source?.Length ?? 0) > PageRenderedFragment.MaximumSourceLength)
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.Source),
+                    $"Rendered fragment node '{fragment.NodeId}' cannot exceed " +
+                    $"{PageRenderedFragment.MaximumSourceLength} characters.");
+            }
+
+            if (string.IsNullOrWhiteSpace(fragment.Source))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.Source),
+                    $"Rendered fragment node '{fragment.NodeId}' must provide source content.");
+            }
+
+            if (scopeNodeIds.Contains(fragment.NodeId))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.NodeId),
+                    $"HTML node '{fragment.NodeId}' cannot be both a content scope and a rendered fragment.");
+            }
+
+            if (scopeNodeIds.Any(scopeNodeId => scopeNodeId != fragment.NodeId
+                    && HtmlTreeOperations.FindById(fragmentNode, scopeNodeId) is not null))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.NodeId),
+                    $"Rendered fragment node '{fragment.NodeId}' cannot contain a content scope because its children are replaced during rendering.");
+            }
+
+            if (bindings.Any(binding => HtmlTreeOperations.FindById(fragmentNode, binding.NodeId) is not null))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.NodeId),
+                    $"Rendered fragment node '{fragment.NodeId}' cannot contain a field binding because its children are replaced during rendering.");
+            }
+
+            if (registeredFragments.Any(registered =>
+                    HtmlTreeOperations.FindById(fragmentNode, registered.NodeId) is not null))
+            {
+                context.AddFailure(
+                    nameof(PageRenderedFragment.NodeId),
+                    $"Rendered fragment node '{fragment.NodeId}' cannot contain a registered fragment because its children are replaced during rendering.");
+            }
+        }
+    }
+
+    private static void ValidateRegisteredFragments(
+        HtmlPageContent content,
+        IReadOnlyList<PageRegisteredFragment> registeredFragments,
+        IReadOnlyList<PageRenderedFragment> renderedFragments,
+        ISet<long> scopeNodeIds,
+        IReadOnlyList<PageFieldBinding> bindings,
+        ValidationContext<PageCompositionDocument> context)
+    {
+        if (registeredFragments.Count > PageRegisteredFragment.MaximumFragmentsPerPage)
+        {
+            context.AddFailure(
+                nameof(PageCompositionDocument.RegisteredFragments),
+                $"A page cannot contain more than {PageRegisteredFragment.MaximumFragmentsPerPage} registered fragments.");
+        }
+
+        var nodeIds = new HashSet<long>();
+        foreach (var fragment in registeredFragments)
+        {
+            var node = HtmlTreeOperations.FindById(content.Root, fragment.NodeId);
+            if (fragment.NodeId <= 0 || node is not { Kind: HtmlNodeKind.Element })
+            {
+                context.AddFailure(
+                    nameof(PageRegisteredFragment.NodeId),
+                    $"Registered fragment node '{fragment.NodeId}' must identify an HTML element in the draft.");
+                continue;
+            }
+
+            if (!nodeIds.Add(fragment.NodeId))
+            {
+                context.AddFailure(
+                    nameof(PageCompositionDocument.RegisteredFragments),
+                    $"HTML node '{fragment.NodeId}' cannot own more than one registered fragment.");
+            }
+
+            if (!PageRegisteredFragment.IsValidKey(fragment.Key)
+                || !string.Equals(fragment.Key, PageRegisteredFragment.NormalizeKey(fragment.Key), StringComparison.Ordinal))
+            {
+                context.AddFailure(
+                    nameof(PageRegisteredFragment.Key),
+                    $"Registered fragment node '{fragment.NodeId}' must use a normalized lowercase dotted/kebab key.");
+            }
+
+            var parameters = fragment.Parameters ?? new Dictionary<string, JsonElement>();
+            if (parameters.Count > PageRegisteredFragment.MaximumParameterCount
+                || parameters.Keys.Any(name => string.IsNullOrWhiteSpace(name)
+                    || name.Length > PageRegisteredFragment.MaximumParameterNameLength))
+            {
+                context.AddFailure(
+                    nameof(PageRegisteredFragment.Parameters),
+                    $"Registered fragment node '{fragment.NodeId}' contains invalid parameter names or too many parameters.");
+            }
+
+            int parameterSize;
+            try
+            {
+                parameterSize = JsonSerializer.SerializeToUtf8Bytes(parameters).Length;
+            }
+            catch (Exception)
+            {
+                parameterSize = int.MaxValue;
+            }
+
+            if (parameterSize > PageRegisteredFragment.MaximumParametersUtf8Bytes)
+            {
+                context.AddFailure(
+                    nameof(PageRegisteredFragment.Parameters),
+                    $"Registered fragment node '{fragment.NodeId}' parameters are invalid or exceed the 16 KiB limit.");
+            }
+
+            var collidesWithScope = scopeNodeIds.Contains(fragment.NodeId)
+                || scopeNodeIds.Any(scopeNodeId =>
+                    HtmlTreeOperations.FindById(node, scopeNodeId) is not null);
+            var collidesWithBinding = bindings.Any(binding =>
+                HtmlTreeOperations.FindById(node, binding.NodeId) is not null);
+            var collidesWithSource = renderedFragments.Any(source =>
+                HtmlTreeOperations.FindById(node, source.NodeId) is not null);
+            var containsRegistered = registeredFragments.Any(candidate =>
+                candidate.NodeId != fragment.NodeId
+                && HtmlTreeOperations.FindById(node, candidate.NodeId) is not null);
+
+            if (collidesWithScope || collidesWithBinding || collidesWithSource || containsRegistered)
+            {
+                context.AddFailure(
+                    nameof(PageRegisteredFragment.NodeId),
+                    $"Registered fragment node '{fragment.NodeId}' cannot overlap another composition target because its children are replaced during rendering.");
+            }
+        }
     }
 
     private static void ValidateScopeIdentity(
@@ -179,11 +360,13 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
             return;
         }
 
-        if (query.PageSize is < 1 or > MaximumPageSize)
+        if (query.PageSize is < PageContentListQuery.MinimumPageSize
+            or > PageContentListQuery.MaximumPageSize)
         {
             context.AddFailure(
                 nameof(PageContentListQuery.PageSize),
-                $"Content list scope '{scopeNodeId}' page size must be between 1 and {MaximumPageSize}.");
+                $"Content list scope '{scopeNodeId}' page size must be between " +
+                $"{PageContentListQuery.MinimumPageSize} and {PageContentListQuery.MaximumPageSize}.");
         }
 
         if (!Enum.IsDefined(query.SortDirection))
@@ -193,7 +376,16 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
                 $"Content list scope '{scopeNodeId}' has an unsupported sort direction.");
         }
 
-        foreach (var filter in query.Filters ?? [])
+        var filters = query.Filters ?? [];
+        if (filters.Count > PageContentListQuery.MaximumFilterCount)
+        {
+            context.AddFailure(
+                nameof(PageContentListQuery.Filters),
+                $"Content list scope '{scopeNodeId}' cannot contain more than " +
+                $"{PageContentListQuery.MaximumFilterCount} filters.");
+        }
+
+        foreach (var filter in filters)
         {
             if (string.IsNullOrWhiteSpace(filter.FieldName))
             {

@@ -6,7 +6,12 @@ public enum HtmlPaletteItemKind
 {
     Element,
     Layout,
-    Component
+    Component,
+    ContentList,
+    ContentItem,
+    ContentField,
+    RenderedFragment,
+    RegisteredFragment
 }
 
 /// <summary>

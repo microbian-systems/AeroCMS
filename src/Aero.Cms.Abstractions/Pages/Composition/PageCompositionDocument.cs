@@ -18,6 +18,12 @@ public sealed record PageCompositionDocument
     /// <summary>Gets the field-to-HTML bindings in the page.</summary>
     public IReadOnlyList<PageFieldBinding> FieldBindings { get; init; } = [];
 
+    /// <summary>Gets source-backed fragments rendered into ordinary HTML containers.</summary>
+    public IReadOnlyList<PageRenderedFragment> RenderedFragments { get; init; } = [];
+
+    /// <summary>Gets application fragments resolved only through an explicit provider registry.</summary>
+    public IReadOnlyList<PageRegisteredFragment> RegisteredFragments { get; init; } = [];
+
     /// <summary>
     /// Creates an independent snapshot suitable for draft replacement or publication.
     /// </summary>
@@ -26,6 +32,8 @@ public sealed record PageCompositionDocument
     {
         ContentLists = (ContentLists ?? []).Select(scope => scope.CreateSnapshot()).ToArray(),
         ContentItems = (ContentItems ?? []).ToArray(),
-        FieldBindings = (FieldBindings ?? []).ToArray()
+        FieldBindings = (FieldBindings ?? []).ToArray(),
+        RenderedFragments = (RenderedFragments ?? []).ToArray(),
+        RegisteredFragments = (RegisteredFragments ?? []).Select(fragment => fragment.CreateSnapshot()).ToArray()
     };
 }

@@ -1,7 +1,10 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Html;
+using Aero.Cms.Modules.Pages.Validators;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Railway;
 using Wolverine;
 
@@ -87,7 +90,9 @@ public sealed class PagePublishingWorkflowService(
     IHtmlContentValidator contentValidator,
     IStyleCompiler styleCompiler,
     ISiteStyleProfileResolver styleProfileResolver,
-    ILogger<PagePublishingWorkflowService> logger) : IPagePublishingWorkflowService
+    ILogger<PagePublishingWorkflowService> logger,
+    IContentCompositionReferenceValidator? contentReferenceValidator = null,
+    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null) : IPagePublishingWorkflowService
 {
     /// <inheritdoc />
     public async Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default)
@@ -265,6 +270,18 @@ public sealed class PagePublishingWorkflowService(
         var contentValidation = contentValidator.Validate(page.DraftContent);
         if (contentValidation is Result<bool>.Failure failure)
             return failure.Error;
+
+        var compositionValidation = await PageCompositionValidationPipeline.ValidateAsync(
+            page.SiteId,
+            page.Culture,
+            page.DraftContent,
+            page.DraftComposition,
+            ContentReferenceValidationMode.Publishing,
+            contentReferenceValidator,
+            registeredFragmentRegistry,
+            cancellationToken);
+        if (compositionValidation is Result<bool, AeroError>.Failure compositionFailure)
+            return compositionFailure.Error;
 
         var profileResult = await styleProfileResolver.ResolveAsync(
             page.SiteId,

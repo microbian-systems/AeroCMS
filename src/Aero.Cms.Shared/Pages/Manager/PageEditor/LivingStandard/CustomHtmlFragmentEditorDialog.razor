@@ -1,0 +1,42 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<div class="aero-custom-html-overlay" @onclick="CloseAsync">
+    <section class="aero-custom-html-dialog"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-custom-html-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-custom-html-dialog__header">
+            <div>
+                <span>Rendered content</span>
+                <h2 id="aero-custom-html-title">Edit Custom HTML</h2>
+            </div>
+            <button type="button" class="aero-custom-html-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-custom-html-dialog__body">
+            <p>
+                Supported semantic HTML and safe attributes are accepted. Scripts, event handlers,
+                unsafe URLs, unsupported elements, and parser-repaired markup are rejected.
+            </p>
+            <label for="aero-custom-html-source">HTML fragment</label>
+            <textarea id="aero-custom-html-source"
+                      spellcheck="false"
+                      @bind="_source"
+                      @bind:event="oninput"></textarea>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="aero-custom-html-dialog__error" role="alert">@ErrorMessage</div>
+        }
+
+        <footer class="aero-custom-html-dialog__footer">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveAsync">Apply HTML</button>
+        </footer>
+    </section>
+</div>

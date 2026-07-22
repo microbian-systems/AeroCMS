@@ -1,11 +1,54 @@
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 using Aero.Core.Railway;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Html;
 
 public sealed class HtmlPageEditorSessionTests
 {
+    [Test]
+    public async Task Registered_fragment_parameters_share_history_duplication_and_orphan_reconciliation()
+    {
+        var session = CreateSession();
+        var added = session.AddRegisteredFragment(
+            "CORE.SITE-NOTICE",
+            new Dictionary<string, JsonElement>
+            {
+                ["message"] = JsonSerializer.SerializeToElement("Initial")
+            });
+        var node = ((Result<HtmlNode>.Ok)added).Value;
+        await Assert.That(session.Composition.RegisteredFragments.Single().Key)
+            .IsEqualTo("core.site-notice");
+
+        var updated = session.UpdateRegisteredFragmentParameters(
+            node.NodeId,
+            new Dictionary<string, JsonElement>
+            {
+                ["message"] = JsonSerializer.SerializeToElement("Updated")
+            });
+        await Assert.That(updated).IsTypeOf<Result<PageRegisteredFragment>.Ok>();
+        await Assert.That(session.Composition.RegisteredFragments.Single().Parameters["message"].GetString())
+            .IsEqualTo("Updated");
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.RegisteredFragments.Single().Parameters["message"].GetString())
+            .IsEqualTo("Initial");
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+
+        session.Select(node.NodeId);
+        await Assert.That(session.DuplicateSelected()).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Composition.RegisteredFragments).Count().IsEqualTo(2);
+        await Assert.That(session.Composition.RegisteredFragments.All(fragment =>
+            fragment.Parameters["message"].GetString() == "Updated")).IsTrue();
+
+        await Assert.That(session.RemoveSelected()).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Composition.RegisteredFragments).Count().IsEqualTo(1);
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.RegisteredFragments).Count().IsEqualTo(2);
+    }
+
     [Test]
     public async Task AddElement_SelectsNode_AndSupportsUndoRedo()
     {
@@ -760,7 +803,401 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(session.CanUndo).IsTrue();
     }
 
+    [Test]
+    public async Task RemoveSelected_prunes_orphaned_scope_and_binding_with_aggregate_undo_redo()
+    {
+        var scope = HtmlNode.CreateElement("section");
+        var template = HtmlNode.CreateElement("article");
+        var heading = HtmlNode.CreateElement("h2");
+        template.Children.Add(heading);
+        scope.Children.Add(template);
+
+        var composition = new PageCompositionDocument
+        {
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = scope.NodeId,
+                    TemplateRootNodeId = template.NodeId,
+                    ContentTypeId = 42,
+                    ContentTypeAlias = "article"
+                }
+            ],
+            FieldBindings =
+            [
+                new PageFieldBinding
+                {
+                    NodeId = heading.NodeId,
+                    ScopeNodeId = scope.NodeId,
+                    FieldName = "title",
+                    Target = PageFieldBindingTarget.TextContent
+                }
+            ]
+        };
+        var session = CreateSession(composition, scope);
+        session.Select(scope.NodeId);
+
+        var removed = session.RemoveSelected();
+
+        await Assert.That(removed).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Content.Root.Children).IsEmpty();
+        await Assert.That(session.Composition.ContentLists).IsEmpty();
+        await Assert.That(session.Composition.FieldBindings).IsEmpty();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(HtmlTreeOperations.FindById(session.Content.Root, scope.NodeId)).IsNotNull();
+        await Assert.That(session.Composition.ContentLists).Count().IsEqualTo(1);
+        await Assert.That(session.Composition.FieldBindings).Count().IsEqualTo(1);
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children).IsEmpty();
+        await Assert.That(session.Composition.ContentLists).IsEmpty();
+        await Assert.That(session.Composition.FieldBindings).IsEmpty();
+    }
+
+    [Test]
+    public async Task RemoveSelected_prunes_rendered_fragment_with_aggregate_undo_redo()
+    {
+        var container = HtmlNode.CreateElement("section");
+        var composition = new PageCompositionDocument
+        {
+            RenderedFragments =
+            [
+                new PageRenderedFragment
+                {
+                    NodeId = container.NodeId,
+                    Kind = PageRenderedFragmentKind.Markdown,
+                    Source = "# Reversible"
+                }
+            ]
+        };
+        var session = CreateSession(composition, container);
+        session.Select(container.NodeId);
+
+        await Assert.That(session.RemoveSelected()).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(session.Composition.RenderedFragments).IsEmpty();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.RenderedFragments.Single().Source).IsEqualTo("# Reversible");
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.RenderedFragments).IsEmpty();
+    }
+
+    [Test]
+    public async Task Loaded_composition_is_snapshotted_without_silent_cleanup()
+    {
+        var composition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = 987654321,
+                    ContentTypeId = 42,
+                    ContentTypeAlias = "article",
+                    ContentItemId = 73
+                }
+            ]
+        };
+
+        var session = CreateSession(composition);
+
+        await Assert.That(session.Composition.ContentItems).Count().IsEqualTo(1);
+        await Assert.That(session.Composition.ContentItems.Single().NodeId).IsEqualTo(987654321);
+        await Assert.That(session.CanUndo).IsFalse();
+    }
+
+    [Test]
+    public async Task ReplaceComposition_is_undoable_without_changing_the_html_tree()
+    {
+        var scope = HtmlNode.CreateElement("section");
+        var template = HtmlNode.CreateElement("article");
+        scope.Children.Add(template);
+        var session = CreateSession(scope);
+        var rootNodeId = session.Content.Root.NodeId;
+
+        var replaced = session.ReplaceComposition(new PageCompositionDocument
+        {
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = scope.NodeId,
+                    TemplateRootNodeId = template.NodeId,
+                    ContentTypeId = 42,
+                    ContentTypeAlias = "article"
+                }
+            ]
+        });
+
+        await Assert.That(replaced).IsTypeOf<Result<PageCompositionDocument>.Ok>();
+        await Assert.That(session.Composition.ContentLists).Count().IsEqualTo(1);
+        await Assert.That(session.Content.Root.NodeId).IsEqualTo(rootNodeId);
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.ContentLists).IsEmpty();
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scope.NodeId);
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.ContentLists).Count().IsEqualTo(1);
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scope.NodeId);
+    }
+
+    [Test]
+    public async Task AddContentList_creates_pageable_scope_and_undoes_html_with_composition()
+    {
+        var session = CreateSession();
+
+        var added = session.AddContentList(42, "article") as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        await Assert.That(added!.Value.TagName).IsEqualTo("section");
+        var scope = session.Composition.ContentLists.Single();
+        await Assert.That(scope.NodeId).IsEqualTo(added.Value.NodeId);
+        await Assert.That(scope.ContentTypeId).IsEqualTo(42);
+        await Assert.That(scope.ContentTypeAlias).IsEqualTo("article");
+        await Assert.That(scope.Query.PageSize).IsEqualTo(10);
+        await Assert.That(HtmlTreeOperations.FindById(added.Value, scope.TemplateRootNodeId)?.TagName)
+            .IsEqualTo("article");
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children).IsEmpty();
+        await Assert.That(session.Composition.ContentLists).IsEmpty();
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scope.NodeId);
+        await Assert.That(session.Composition.ContentLists.Single().NodeId).IsEqualTo(scope.NodeId);
+    }
+
+    [Test]
+    public async Task Add_update_and_duplicate_rendered_fragment_share_aggregate_history()
+    {
+        var session = CreateSession();
+
+        var added = session.AddRenderedFragment(
+            PageRenderedFragmentKind.Markdown,
+            "# Initial") as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        var fragment = session.Composition.RenderedFragments.Single();
+        await Assert.That(fragment.NodeId).IsEqualTo(added!.Value.NodeId);
+        await Assert.That(fragment.Source).IsEqualTo("# Initial");
+
+        var updated = session.UpdateRenderedFragmentSource(fragment.NodeId, "## Updated");
+        await Assert.That(updated).IsTypeOf<Result<PageRenderedFragment>.Ok>();
+        await Assert.That(session.Composition.RenderedFragments.Single().Source).IsEqualTo("## Updated");
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.RenderedFragments.Single().Source).IsEqualTo("# Initial");
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+
+        session.Select(fragment.NodeId);
+        var duplicate = session.DuplicateSelected() as Result<HtmlNode>.Ok;
+        await Assert.That(duplicate).IsNotNull();
+        await Assert.That(session.Composition.RenderedFragments).Count().IsEqualTo(2);
+        await Assert.That(session.Composition.RenderedFragments.Any(candidate =>
+            candidate.NodeId == duplicate!.Value.NodeId
+            && candidate.Source == "## Updated")).IsTrue();
+    }
+
+    [Test]
+    public async Task AddContentItem_persists_stable_identity_with_slug_metadata()
+    {
+        var session = CreateSession();
+
+        var added = session.AddContentItem(
+            42,
+            "article",
+            73,
+            "hello-world",
+            "Hello world");
+
+        await Assert.That(added).IsTypeOf<Result<HtmlNode>.Ok>();
+        var scope = session.Composition.ContentItems.Single();
+        await Assert.That(scope.ContentTypeId).IsEqualTo(42);
+        await Assert.That(scope.LookupMode).IsEqualTo(PageContentItemLookupMode.StableId);
+        await Assert.That(scope.ContentItemId).IsEqualTo(73);
+        await Assert.That(scope.Slug).IsEqualTo("hello-world");
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scope.NodeId);
+    }
+
+    [Test]
+    public async Task AddContentField_inside_matching_list_template_creates_atomic_binding()
+    {
+        var session = CreateSession();
+        var addedList = session.AddContentList(42, "article") as Result<HtmlNode>.Ok;
+        var listScope = session.Composition.ContentLists.Single();
+
+        var addedField = session.AddContentField(42, "link", "url", "Read more") as Result<HtmlNode>.Ok;
+
+        await Assert.That(addedList).IsNotNull();
+        await Assert.That(addedField).IsNotNull();
+        await Assert.That(addedField!.Value.TagName).IsEqualTo("a");
+        var binding = session.Composition.FieldBindings.Single();
+        await Assert.That(binding.NodeId).IsEqualTo(addedField.Value.NodeId);
+        await Assert.That(binding.ScopeNodeId).IsEqualTo(listScope.NodeId);
+        await Assert.That(binding.FieldName).IsEqualTo("link");
+        await Assert.That(binding.Target).IsEqualTo(PageFieldBindingTarget.Hyperlink);
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.ContentLists).Count().IsEqualTo(1);
+        await Assert.That(session.Composition.FieldBindings).IsEmpty();
+        await Assert.That(HtmlTreeOperations.FindById(session.Content.Root, addedField.Value.NodeId)).IsNull();
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.FieldBindings.Single().NodeId)
+            .IsEqualTo(addedField.Value.NodeId);
+    }
+
+    [Test]
+    public async Task AddContentField_rejects_a_mismatched_or_missing_scope_without_mutation()
+    {
+        var session = CreateSession();
+        session.AddContentList(42, "article");
+        var listScope = session.Composition.ContentLists.Single();
+        var template = HtmlTreeOperations.FindById(session.Content.Root, listScope.TemplateRootNodeId)!;
+        var originalChildCount = template.Children.Count;
+        session.Select(template.NodeId);
+
+        var mismatched = session.AddContentField(99, "title", "text", "Title");
+
+        await Assert.That(mismatched).IsTypeOf<Result<HtmlNode>.Failure>();
+        await Assert.That(session.Composition.FieldBindings).IsEmpty();
+        await Assert.That(template.Children).Count().IsEqualTo(originalChildCount);
+
+        var outsideSession = CreateSession();
+        var outside = outsideSession.AddContentField(42, "title", "text", "Title");
+        await Assert.That(outside).IsTypeOf<Result<HtmlNode>.Failure>();
+        await Assert.That(outsideSession.Content.Root.Children).IsEmpty();
+        await Assert.That(outsideSession.CanUndo).IsFalse();
+    }
+
+    [Test]
+    public async Task UpdateContentListSettings_changes_only_the_sidecar_and_supports_undo_redo()
+    {
+        var session = CreateSession();
+        session.AddContentList(42, "article");
+        var initialScope = session.Composition.ContentLists.Single();
+        var rootNodeId = session.Content.Root.NodeId;
+        var scopeNodeId = session.Content.Root.Children.Single().NodeId;
+
+        var updated = session.UpdateContentListSettings(
+            initialScope.NodeId,
+            new PageContentListQuery
+            {
+                PageSize = 24,
+                SortField = " publishedOn ",
+                SortDirection = PageContentSortDirection.Descending,
+                Filters =
+                [
+                    new PageContentFilter
+                    {
+                        FieldName = " category ",
+                        Operator = PageContentFilterOperator.Equals,
+                        Value = " news "
+                    }
+                ]
+            },
+            PageContentEmptyStateBehavior.RenderTemplate);
+
+        await Assert.That(updated).IsTypeOf<Result<PageContentListScope>.Ok>();
+        var updatedScope = session.Composition.ContentLists.Single();
+        await Assert.That(updatedScope.Query.PageSize).IsEqualTo(24);
+        await Assert.That(updatedScope.Query.SortField).IsEqualTo("publishedOn");
+        await Assert.That(updatedScope.Query.SortDirection).IsEqualTo(PageContentSortDirection.Descending);
+        await Assert.That(updatedScope.Query.Filters.Single().FieldName).IsEqualTo("category");
+        await Assert.That(updatedScope.Query.Filters.Single().Value).IsEqualTo("news");
+        await Assert.That(updatedScope.EmptyState).IsEqualTo(PageContentEmptyStateBehavior.RenderTemplate);
+        await Assert.That(session.Content.Root.NodeId).IsEqualTo(rootNodeId);
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scopeNodeId);
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.ContentLists.Single().Query.PageSize).IsEqualTo(10);
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scopeNodeId);
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Composition.ContentLists.Single().Query.PageSize).IsEqualTo(24);
+        await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scopeNodeId);
+    }
+
+    [Test]
+    public async Task UpdateContentListSettings_rejects_unbounded_queries_without_history()
+    {
+        var scope = HtmlNode.CreateElement("section");
+        var template = HtmlNode.CreateElement("article");
+        scope.Children.Add(template);
+        var composition = new PageCompositionDocument
+        {
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = scope.NodeId,
+                    TemplateRootNodeId = template.NodeId,
+                    ContentTypeId = 42,
+                    ContentTypeAlias = "article"
+                }
+            ]
+        };
+        var session = CreateSession(composition, scope);
+
+        var updated = session.UpdateContentListSettings(
+            scope.NodeId,
+            new PageContentListQuery
+            {
+                PageSize = PageContentListQuery.MaximumPageSize + 1,
+                Filters = Enumerable.Range(0, PageContentListQuery.MaximumFilterCount + 1)
+                    .Select(index => new PageContentFilter
+                    {
+                        FieldName = $"field{index}",
+                        Operator = PageContentFilterOperator.IsNotEmpty
+                    })
+                    .ToArray()
+            },
+            PageContentEmptyStateBehavior.RenderNothing);
+
+        await Assert.That(updated).IsTypeOf<Result<PageContentListScope>.Failure>();
+        await Assert.That(session.Composition.ContentLists.Single().Query.PageSize).IsEqualTo(10);
+        await Assert.That(session.CanUndo).IsFalse();
+    }
+
+    [Test]
+    public async Task ContentPaletteToken_round_trips_escaped_field_metadata()
+    {
+        var request = new HtmlContentPaletteRequest
+        {
+            ItemKind = HtmlPaletteItemKind.ContentField,
+            ContentTypeId = 42,
+            ContentTypeAlias = "news|stories",
+            FieldName = "hero|title",
+            FieldType = "text",
+            FieldLabel = "Héरो title"
+        };
+
+        var parsed = HtmlContentPaletteRequest.TryParse(
+            request.ItemKind,
+            request.ToToken(),
+            out var roundTripped);
+
+        await Assert.That(parsed).IsTrue();
+        await Assert.That(roundTripped).IsNotNull();
+        await Assert.That(roundTripped!.ContentTypeAlias).IsEqualTo(request.ContentTypeAlias);
+        await Assert.That(roundTripped.FieldName).IsEqualTo(request.FieldName);
+        await Assert.That(roundTripped.FieldLabel).IsEqualTo(request.FieldLabel);
+    }
+
     private static HtmlPageEditorSession CreateSession(params HtmlNode[] children)
+        => CreateSessionCore(null, children);
+
+    private static HtmlPageEditorSession CreateSession(
+        PageCompositionDocument composition,
+        params HtmlNode[] children) => CreateSessionCore(composition, children);
+
+    private static HtmlPageEditorSession CreateSessionCore(
+        PageCompositionDocument? composition,
+        params HtmlNode[] children)
     {
         var catalog = HtmlElementCatalog.CreateDefault();
         var content = new HtmlPageContent();
@@ -777,7 +1214,8 @@ public sealed class HtmlPageEditorSessionTests
             new HtmlLayoutStarterFactory(catalog),
             new HtmlComponentTemplateFactory(catalog),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile());
+            new NativeStyleProfile(),
+            composition);
     }
 
     private static IEnumerable<HtmlNode> Flatten(HtmlNode root)

@@ -28,7 +28,7 @@ namespace Aero.Cms.Modules.OutputCache;
 /// <c>content-public</c>, <c>docs-index</c>, and <c>docs-index</c>.
 /// </para>
 /// <para>
-/// <c>PagesPolicy</c> additionally configures query variation for <c>slug</c>;
+/// <c>PagesPolicy</c> retains the output-cache default of varying by every query key;
 /// <c>BlogPolicy</c> for <c>p</c> and <c>slug</c>; and <c>BlogPartialPolicy</c> for <c>p</c>.
 /// The remaining policies retain the custom policy's all-query variation. Every policy also
 /// varies by the origin, request path, and current UI culture established by
@@ -151,8 +151,7 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
             options.AddPolicy("PagesPolicy", builder =>
                 builder.AddPolicy<CmsOutputCachePolicy>()
                        .Expire(TimeSpan.FromMinutes(5))
-                       .Tag("pages-list")
-                       .SetVaryByQuery("slug"),
+                       .Tag("pages-list"),
                 excludeDefaultPolicy: true);
 
             // ── Blog module ───────────────────────────────────────────────

@@ -1,10 +1,12 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Content.Caching;
+using Aero.Cms.Modules.Content.Composition;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
 using Aero.Cms.Modules.Content.Events;
 using Aero.Cms.Modules.Content.Rendering;
@@ -66,6 +68,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ContentEventPublisher>();
         services.Replace(ServiceDescriptor.Scoped<IContentTypeService, CachedContentTypeService>());
         services.Replace(ServiceDescriptor.Scoped<IContentService, CachedContentService>());
+        services.AddScoped<IContentCompositionReferenceValidator, ContentCompositionReferenceValidator>();
+        services.AddScoped<IContentCompositionResolver, ContentCompositionResolver>();
 
         // Public URL rendering for content types
         services.AddScoped<ContentTypeUrlRenderer>();

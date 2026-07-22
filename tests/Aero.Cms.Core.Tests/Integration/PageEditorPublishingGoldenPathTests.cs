@@ -6,6 +6,8 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
+using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
@@ -201,15 +203,19 @@ public sealed class PageEditorPublishingGoldenPathTests
         var catalog = HtmlElementCatalog.CreateDefault();
         var contentPolicy = new HtmlContentModelPolicy(catalog);
         var attributePolicy = new HtmlAttributePolicy();
+        var contentValidator = new HtmlContentValidator(catalog, contentPolicy, attributePolicy);
         var model = new DynamicPageModel(
             actor,
             siteContext,
             harness.Store,
+            new PageCompositionExpander(
+                Substitute.For<IContentCompositionResolver>(),
+                contentValidator),
             new HtmlStaticRenderer(
                 catalog,
                 contentPolicy,
                 attributePolicy,
-                new HtmlContentValidator(catalog, contentPolicy, attributePolicy)),
+                contentValidator),
             new NativeCssStyleCompiler(),
             styleProfileResolver ?? CreateStyleProfileResolver(),
             NullLogger<DynamicPageModel>.Instance)

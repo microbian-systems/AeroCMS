@@ -127,6 +127,60 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task TypedContentPalettePagesItemsAndEditsListQueryWithUndoRedo()
+    {
+        var alias = $"page-editor-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+        await Fixture.SeedContentPaletteAsync(alias, itemCount: 15);
+        var page = await OpenNewEditorAsync();
+
+        await page.GetByRole(AriaRole.Tab, new() { Name = "Content", Exact = true }).ClickAsync();
+        var palette = page.Locator(".aero-content-type-palette");
+        await palette.WaitForAsync(Visible());
+        await palette.Locator("label").Filter(new() { HasText = "Content type" })
+            .Locator("select").SelectOptionAsync(alias);
+
+        await Assertions.Expect(palette.Locator(".aero-content-type-palette__pager"))
+            .ToContainTextAsync("15 total");
+        await Assertions.Expect(palette.Locator("label").Filter(new() { HasText = "Content item" })
+            .Locator("option")).ToHaveCountAsync(10);
+
+        await palette.Locator(".aero-content-type-palette__pager")
+            .GetByRole(AriaRole.Button, new() { Name = "Next", Exact = true }).ClickAsync();
+        await Assertions.Expect(palette.Locator(".aero-content-type-palette__pager"))
+            .ToContainTextAsync("Page 2 of 2");
+        await Assertions.Expect(palette.Locator("label").Filter(new() { HasText = "Content item" })
+            .Locator("option")).ToHaveCountAsync(5);
+
+        await palette.Locator("[data-aero-palette-kind='contentlist']").ClickAsync();
+        var listScope = page.Locator(".aero-page-canvas__surface > section[data-aero-node-id]");
+        await Assertions.Expect(listScope).ToHaveCountAsync(1);
+        await Assertions.Expect(listScope.Locator(":scope > article[data-aero-node-id]"))
+            .ToHaveCountAsync(1);
+
+        await page.GetByRole(AriaRole.Tab, new() { Name = "Inspector", Exact = true }).ClickAsync();
+        var queryEditor = page.Locator(".aero-content-query");
+        await queryEditor.WaitForAsync(Visible());
+        var pageSize = queryEditor.Locator("label").Filter(new() { HasText = "Page size" }).Locator("input");
+        await pageSize.FillAsync("25");
+        await queryEditor.Locator("label").Filter(new() { HasText = "Sort field" })
+            .Locator("select").SelectOptionAsync("headline");
+        await queryEditor.GetByRole(AriaRole.Button, new() { Name = "Add filter", Exact = true }).ClickAsync();
+        var filter = queryEditor.Locator(".aero-content-query__filter");
+        await filter.Locator("select").Nth(0).SelectOptionAsync("score");
+        await filter.Locator("select").Nth(1).SelectOptionAsync("GreaterThanOrEqual");
+        await filter.Locator("input").FillAsync("5");
+        await queryEditor.GetByRole(AriaRole.Button, new() { Name = "Apply list settings", Exact = true })
+            .ClickAsync();
+        await page.GetByText("Content list settings updated.", new() { Exact = true }).WaitForAsync(Visible());
+        await Assertions.Expect(pageSize).ToHaveValueAsync("25");
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Undo", Exact = true }).ClickAsync();
+        await Assertions.Expect(pageSize).ToHaveValueAsync("10");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Redo", Exact = true }).ClickAsync();
+        await Assertions.Expect(pageSize).ToHaveValueAsync("25");
+    }
+
+    [Test]
     public async Task ClickInsertionSupportsUndoAndRedo()
     {
         var page = await OpenNewEditorAsync();

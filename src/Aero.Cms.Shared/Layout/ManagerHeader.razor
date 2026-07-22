@@ -15,6 +15,7 @@
 @inject AdminStateContainer AdminState
 @inject ISitesHttpClient SitesClient
 @inject AppState AppState
+@inject ManagerAssistantState AssistantState
 @inject IJSRuntime JS
 @inject ILogger<ManagerHeader> Logger
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
@@ -85,6 +86,17 @@
     </div>
 
     <div class="pe-header-right">
+        <button type="button"
+                class="pe-btn pe-btn-ghost pe-btn-sm flex items-center gap-2"
+                @onclick="AssistantState.Toggle"
+                aria-label="Open Aero assistant"
+                aria-expanded="@AssistantState.IsOpen">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+                <path d="M8 9h8M8 13h5"></path>
+            </svg>
+            <span class="hidden md:inline">Assistant</span>
+        </button>
         <div class="relative" @onclick:stopPropagation>
             <button class="pe-btn pe-btn-ghost pe-btn-sm flex items-center gap-2"
                     @onclick="ToggleUserDropdown">

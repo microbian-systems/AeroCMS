@@ -3,6 +3,7 @@
 @attribute [Authorize]
 
 @using Aero.Cms.Abstractions.Enums
+@using Aero.Cms.Abstractions.Pages.Composition
 @using Aero.Cms.Shared.Pages.Manager.PageTree
 @using Microsoft.AspNetCore.Components.Sections
 @using Aero.Cms.Shared.Components
@@ -456,17 +457,78 @@ else if (ActiveTab == "translations")
                     break;
                 case HtmlPageEditorSidebarTab.Content:
                     <HtmlContentTypePalette ContentTypes="ContentTypeOptions"
-                                            SelectedAlias="SelectedContentTypeAlias"
-                                            SelectedContentType="SelectedContentType"
-                                            IsLoading="IsContentPaletteLoading"
-                                            ErrorMessage="ContentPaletteError"
-                                            SelectedAliasChanged="SelectContentTypeAsync"
-                                            RefreshRequested="RefreshContentTypesAsync" />
+                                             SelectedAlias="SelectedContentTypeAlias"
+                                             SelectedContentType="SelectedContentType"
+                                             ContentItems="ContentItemOptions"
+                                             SelectedContentItemId="SelectedContentItemId"
+                                             ItemSearchText="ContentItemSearchText"
+                                             ContentItemSkip="ContentItemSkip"
+                                             ContentItemTake="ContentItemTake"
+                                             ContentItemTotalCount="ContentItemTotalCount"
+                                             IsLoading="IsContentPaletteLoading"
+                                             IsItemsLoading="IsContentItemsLoading"
+                                             ErrorMessage="ContentPaletteError"
+                                             SelectedAliasChanged="SelectContentTypeAsync"
+                                             SelectedContentItemIdChanged="SelectContentItemAsync"
+                                             ItemSearchRequested="SearchContentItemsAsync"
+                                             PreviousItemsRequested="LoadPreviousContentItemsAsync"
+                                             NextItemsRequested="LoadNextContentItemsAsync"
+                                             ItemRequested="AddContentPaletteItemAsync"
+                                             RefreshRequested="RefreshContentTypesAsync" />
                     break;
                 case HtmlPageEditorSidebarTab.Inspector:
                     @if (HtmlEditor.SelectedNode is { } selectedNode
                         && SelectedHtmlDefinition is { } selectedDefinition)
                     {
+                        @if (SelectedContentListScope is { } selectedContentList)
+                        {
+                            <HtmlContentListQueryEditor Scope="selectedContentList"
+                                                        Fields="SelectedContentListFields"
+                                                        ErrorMessage="ContentListSettingsError"
+                                                        SettingsChanged="UpdateContentListSettingsAsync" />
+                        }
+
+                        @if (SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Markdown })
+                        {
+                            <div class="p-4 border-b" style="border-color: var(--pe-border);">
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary pe-btn-sm"
+                                        @onclick="() => OpenRenderedFragmentEditorForNodeAsync(selectedNode.NodeId)">
+                                    Edit Markdown
+                                </button>
+                            </div>
+                        }
+                        else if (SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.CustomHtml })
+                        {
+                            <div class="p-4 border-b" style="border-color: var(--pe-border);">
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary pe-btn-sm"
+                                        @onclick="() => OpenRenderedFragmentEditorForNodeAsync(selectedNode.NodeId)">
+                                    Edit Custom HTML
+                                </button>
+                            </div>
+                        }
+                        else if (SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Scriban })
+                        {
+                            <div class="p-4 border-b" style="border-color: var(--pe-border);">
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary pe-btn-sm"
+                                        @onclick="() => OpenRenderedFragmentEditorForNodeAsync(selectedNode.NodeId)">
+                                    Edit Scriban
+                                </button>
+                            </div>
+                        }
+                        else if (SelectedRegisteredFragment is not null)
+                        {
+                            <div class="p-4 border-b" style="border-color: var(--pe-border);">
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary pe-btn-sm"
+                                        @onclick="() => OpenRegisteredFragmentEditorForNodeAsync(selectedNode.NodeId)">
+                                    Edit @(SelectedRegisteredFragmentDescriptor?.DisplayName ?? "registered fragment")
+                                </button>
+                            </div>
+                        }
+
                         <HtmlElementPropertyPanel Node="selectedNode"
                                                   Definition="selectedDefinition"
                                                   ErrorMessage="HtmlPropertyError"
@@ -487,9 +549,12 @@ else if (ActiveTab == "translations")
                     break;
                 default:
                     <HtmlElementPalette Elements="HtmlElementDefinitions"
+                                        RegisteredFragments="RegisteredFragmentDescriptors"
                                         ElementRequested="AddHtmlElementAsync"
                                         LayoutRequested="AddHtmlLayoutAsync"
                                         ComponentRequested="AddHtmlComponentAsync"
+                                        RenderedFragmentRequested="AddRenderedFragmentAsync"
+                                        RegisteredFragmentRequested="AddRegisteredFragmentAsync"
                                         ImportRequested="OpenHtmlFragmentImportAsync" />
                     break;
             }
@@ -538,6 +603,46 @@ else if (ActiveTab == "translations")
                                  ErrorMessage="MarkdownInterchangeError"
                                  ImportRequested="ImportMarkdownAsync"
                                  Closed="CloseMarkdownInterchangeAsync" />
+}
+
+@if (MarkdownFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Markdown } markdownFragment)
+{
+    <MarkdownFragmentEditorDialog @key="markdownFragment.NodeId"
+                                  InitialHtml="MarkdownFragmentInitialHtml"
+                                  ErrorMessage="MarkdownFragmentError"
+                                  HtmlSaved="ApplyMarkdownFragmentHtmlAsync"
+                                  Closed="CloseMarkdownFragmentEditorAsync" />
+}
+
+@if (CustomHtmlFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.CustomHtml } customHtmlFragment)
+{
+    <CustomHtmlFragmentEditorDialog @key="customHtmlFragment.NodeId"
+                                    InitialSource="CustomHtmlFragmentInitialSource"
+                                    ErrorMessage="CustomHtmlFragmentError"
+                                    SourceSaved="ApplyCustomHtmlFragmentSourceAsync"
+                                    Closed="CloseCustomHtmlFragmentEditorAsync" />
+}
+
+@if (ScribanFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Scriban } scribanFragment)
+{
+    <ScribanFragmentEditorDialog @key="scribanFragment.NodeId"
+                                 NodeId="scribanFragment.NodeId"
+                                 InitialSource="ScribanFragmentInitialSource"
+                                 ErrorMessage="ScribanFragmentError"
+                                 SourceSaved="ApplyScribanFragmentSourceAsync"
+                                 Closed="CloseScribanFragmentEditorAsync" />
+}
+
+@if (RegisteredFragmentEditorOpen
+    && SelectedRegisteredFragment is { } registeredFragment
+    && SelectedRegisteredFragmentDescriptor is { } registeredDescriptor)
+{
+    <RegisteredFragmentEditorDialog @key="registeredFragment.NodeId"
+                                    Descriptor="registeredDescriptor"
+                                    Fragment="registeredFragment"
+                                    ErrorMessage="RegisteredFragmentError"
+                                    ParametersSaved="ApplyRegisteredFragmentParametersAsync"
+                                    Closed="CloseRegisteredFragmentEditorAsync" />
 }
 
 <MediaSelectorModal Show="HtmlMediaSelectorOpen"

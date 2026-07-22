@@ -54,6 +54,7 @@ builder.Services.AddSingleton<AppState>();
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
+builder.Services.AddScoped<ManagerAssistantState>();
 builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddNeoUIPrimitives();

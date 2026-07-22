@@ -1,4 +1,5 @@
 using Aero.Cms.Html;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
@@ -29,6 +30,15 @@ public interface IPreviewHttpClient
     /// </summary>
     Task<Result<string, AeroError>> RenderPageFragmentAsync(
         HtmlPageContent content,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders an unsaved page document and its optional typed-content composition.
+    /// </summary>
+    Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        HtmlPageContent content,
+        PageCompositionDocument? composition,
+        string? culture,
         CancellationToken ct = default);
 
     /// <summary>
@@ -63,10 +73,18 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
     public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
         HtmlPageContent content,
         CancellationToken ct = default)
+        => await RenderPageFragmentAsync(content, composition: null, culture: null, ct);
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        HtmlPageContent content,
+        PageCompositionDocument? composition,
+        string? culture,
+        CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
             "pages/render-fragment",
-            new PreviewPageFragmentRequest(content),
+            new PreviewPageFragmentRequest(content, composition, culture),
             ct);
 
         if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)

@@ -71,6 +71,7 @@ public static MauiApp CreateMauiApp()
         
         // Legacy registrations (ensure both class and interface work for transition)
         builder.Services.AddScoped<ManagerThemeService>();
+        builder.Services.AddScoped<ManagerAssistantState>();
 
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddRadzenComponents();

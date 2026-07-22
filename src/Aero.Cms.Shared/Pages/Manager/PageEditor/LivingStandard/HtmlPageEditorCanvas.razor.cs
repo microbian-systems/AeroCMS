@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -199,6 +200,18 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
                 => Catalog.CreateElement("section"),
             HtmlPaletteItemKind.Component when Enum.TryParse<HtmlComponentTemplateKind>(itemValue, true, out _)
                 => Catalog.CreateElement("section"),
+            HtmlPaletteItemKind.ContentList or HtmlPaletteItemKind.ContentItem
+                when HtmlContentPaletteRequest.TryParse(parsedKind, itemValue, out _)
+                => Catalog.CreateElement("section"),
+            HtmlPaletteItemKind.ContentField
+                when HtmlContentPaletteRequest.TryParse(parsedKind, itemValue, out var contentRequest)
+                => CreateContentFieldDragNode(contentRequest!),
+            HtmlPaletteItemKind.RenderedFragment
+                when Enum.TryParse<PageRenderedFragmentKind>(itemValue, true, out _)
+                => Catalog.CreateElement("section"),
+            HtmlPaletteItemKind.RegisteredFragment
+                when PageRegisteredFragment.IsValidKey(itemValue)
+                => Catalog.CreateElement("section"),
             _ => null
         };
 
@@ -209,6 +222,28 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
 
         await InvokeAsync(StateHasChanged);
         return true;
+    }
+
+    private HtmlNode CreateContentFieldDragNode(HtmlContentPaletteRequest request)
+    {
+        var tagName = request.FieldType?.ToLowerInvariant() switch
+        {
+            "image" or "media" => "img",
+            "url" => "a",
+            "richtext" => "div",
+            _ => "p"
+        };
+        var node = Catalog.CreateElement(tagName);
+        if (tagName == "img")
+        {
+            node.Attributes["alt"] = request.FieldLabel ?? request.FieldName ?? string.Empty;
+        }
+        else if (tagName == "a")
+        {
+            node.Attributes["href"] = "#";
+        }
+
+        return node;
     }
 
     /// <summary>

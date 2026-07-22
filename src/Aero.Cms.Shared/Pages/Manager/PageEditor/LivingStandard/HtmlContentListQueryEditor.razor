@@ -1,0 +1,110 @@
+@using Aero.Cms.Abstractions.Pages.Composition
+@using Microsoft.AspNetCore.Components.Forms
+
+<section class="aero-content-query" aria-label="Content list query">
+    <div class="aero-content-query__heading">
+        <div>
+            <h3>Content list</h3>
+            <p>Configure public paging, ordering, filtering, and empty results.</p>
+        </div>
+        <code>@Scope.ContentTypeAlias</code>
+    </div>
+
+    <EditForm Model="Form"
+              OnValidSubmit="SaveAsync"
+              FormName="@($"content-list-settings-{Scope.NodeId}")">
+        <DataAnnotationsValidator />
+
+        <div class="aero-content-query__grid">
+            <label>
+                <span>Page size</span>
+                <InputNumber @bind-Value="Form.PageSize" min="1" max="100" />
+            </label>
+
+            <label>
+                <span>Sort field</span>
+                <InputSelect @bind-Value="Form.SortField">
+                    <option value="">Default ordering</option>
+                    @foreach (var field in Fields)
+                    {
+                        <option @key="field.Name" value="@field.Name">@FieldDisplayName(field)</option>
+                    }
+                </InputSelect>
+            </label>
+
+            <label>
+                <span>Direction</span>
+                <InputSelect @bind-Value="Form.SortDirection">
+                    @foreach (var direction in Enum.GetValues<PageContentSortDirection>())
+                    {
+                        <option value="@direction">@direction</option>
+                    }
+                </InputSelect>
+            </label>
+
+            <label>
+                <span>Empty results</span>
+                <InputSelect @bind-Value="Form.EmptyState">
+                    <option value="@PageContentEmptyStateBehavior.RenderNothing">Render nothing</option>
+                    <option value="@PageContentEmptyStateBehavior.RenderTemplate">Render template once</option>
+                </InputSelect>
+            </label>
+        </div>
+
+        <ValidationMessage For="() => Form.PageSize" />
+
+        <div class="aero-content-query__filters-heading">
+            <div>
+                <h4>Filters</h4>
+                <span>All filters must match.</span>
+            </div>
+            <button type="button"
+                    disabled="@(Fields.Count == 0 || Form.Filters.Count >= PageContentListQuery.MaximumFilterCount)"
+                    @onclick="AddFilter">
+                Add filter
+            </button>
+        </div>
+
+        @if (Fields.Count == 0)
+        {
+            <p class="aero-content-query__notice">Select or reload this scope's content type to configure fields.</p>
+        }
+
+        @foreach (var filter in Form.Filters)
+        {
+            <div @key="filter.Key" class="aero-content-query__filter">
+                <InputSelect @bind-Value="filter.FieldName" aria-label="Filter field">
+                    @foreach (var field in Fields)
+                    {
+                        <option @key="field.Name" value="@field.Name">@FieldDisplayName(field)</option>
+                    }
+                </InputSelect>
+
+                <InputSelect @bind-Value="filter.Operator" aria-label="Filter operator">
+                    @foreach (var filterOperator in Enum.GetValues<PageContentFilterOperator>())
+                    {
+                        <option value="@filterOperator">@FilterOperatorLabel(filterOperator)</option>
+                    }
+                </InputSelect>
+
+                @if (FilterRequiresValue(filter.Operator))
+                {
+                    <InputText @bind-Value="filter.Value" placeholder="Comparison value" aria-label="Filter value" />
+                }
+
+                <button type="button" class="aero-content-query__remove" @onclick="() => RemoveFilter(filter.Key)">
+                    Remove
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(DisplayError))
+        {
+            <p class="aero-content-query__error" role="alert">@DisplayError</p>
+        }
+
+        <button type="submit" class="aero-content-query__save" disabled="@IsSubmitting">
+            @(IsSubmitting ? "Saving…" : "Apply list settings")
+        </button>
+    </EditForm>
+</section>

@@ -1,10 +1,12 @@
 
 using Aero.Cms.Modules.Pages.Validators;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Requests;
 using PageRouteChangeImpact = Aero.Cms.Abstractions.Http.Clients.PageRouteChangeImpact;
@@ -185,7 +187,9 @@ public sealed class AeroPageContentService(
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null,
-    IPageRouteAliasWriter? aliasWriter = null) : IPageContentService
+    IPageRouteAliasWriter? aliasWriter = null,
+    IContentCompositionReferenceValidator? contentReferenceValidator = null,
+    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
@@ -569,6 +573,10 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             var oldPath = page.Path;
             var oldParentId = page.ParentId;
             PageRouteChangeImpact? routeImpact = null;
+            var candidateDraftContent = page.DraftContent;
+            var candidateDraftComposition = page.DraftComposition;
+            var draftChanged = request.DraftContentJson is not null
+                || request.DraftCompositionJson is not null;
 
             if (!string.Equals(oldSlug, request.Slug, StringComparison.Ordinal)
                 || oldParentId != request.ParentId)
@@ -598,7 +606,7 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 }
             }
 
-            if (request.DraftContentJson is not null || request.DraftCompositionJson is not null)
+            if (draftChanged)
             {
                 var draftContentResult = request.DraftContentJson is null
                     ? Prelude.Ok<HtmlPageContent, AeroError>(page.DraftContent)
@@ -616,10 +624,10 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                     return Prelude.Fail<PageDocument, AeroError>(compositionFailure.Error);
                 }
 
-                page.ReplaceDraftContent(
-                    ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value,
-                    ((Result<PageCompositionDocument, AeroError>.Ok)draftCompositionResult).Value,
-                    DateTimeOffset.UtcNow);
+                candidateDraftContent =
+                    ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value;
+                candidateDraftComposition =
+                    ((Result<PageCompositionDocument, AeroError>.Ok)draftCompositionResult).Value;
             }
 
             // Apply metadata update to the document
@@ -658,10 +666,23 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            var htmlValidation = await ValidateHtmlDraftAsync(page, cancellationToken);
+            var htmlValidation = await ValidateHtmlDraftAsync(
+                page.SiteId,
+                page.Culture,
+                candidateDraftContent,
+                candidateDraftComposition,
+                cancellationToken);
             if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
             {
                 return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
+            }
+
+            if (draftChanged)
+            {
+                page.ReplaceDraftContent(
+                    candidateDraftContent,
+                    candidateDraftComposition,
+                    DateTimeOffset.UtcNow);
             }
 
             // Reserve the new slug path (if changed) — uses full Path so
@@ -1083,24 +1104,42 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
 
     private async Task<Result<bool, AeroError>> ValidateHtmlDraftAsync(
         PageDocument page,
+        CancellationToken cancellationToken) => await ValidateHtmlDraftAsync(
+            page.SiteId,
+            page.Culture,
+            page.DraftContent,
+            page.DraftComposition,
+            cancellationToken);
+
+    private async Task<Result<bool, AeroError>> ValidateHtmlDraftAsync(
+        long siteId,
+        string culture,
+        HtmlPageContent draftContent,
+        PageCompositionDocument draftComposition,
         CancellationToken cancellationToken)
     {
-        var contentValidation = contentValidator.Validate(page.DraftContent);
+        var contentValidation = contentValidator.Validate(draftContent);
         if (contentValidation is Result<bool>.Failure contentFailure)
         {
             return Prelude.Fail<bool, AeroError>(contentFailure.Error);
         }
 
-        var compositionValidation = await new PageCompositionValidator(page.DraftContent)
-            .ValidateAsync(page.DraftComposition, cancellationToken);
-        if (!compositionValidation.IsValid)
+        var compositionValidation = await PageCompositionValidationPipeline.ValidateAsync(
+            siteId,
+            culture,
+            draftContent,
+            draftComposition,
+            ContentReferenceValidationMode.Authoring,
+            contentReferenceValidator,
+            registeredFragmentRegistry,
+            cancellationToken);
+        if (compositionValidation is Result<bool, AeroError>.Failure compositionFailure)
         {
-            return Prelude.Fail<bool, AeroError>(
-                AeroError.ValidationError(compositionValidation.Errors.Select(error => error.ErrorMessage)));
+            return Prelude.Fail<bool, AeroError>(compositionFailure.Error);
         }
 
         var profileResult = await styleProfileResolver.ResolveAsync(
-            page.SiteId,
+            siteId,
             cancellationToken);
         if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
         {
@@ -1108,7 +1147,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         }
 
         var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-        var styleCompilation = styleCompiler.Compile(page.DraftContent, styleProfile);
+        var styleCompilation = styleCompiler.Compile(draftContent, styleProfile);
         return styleCompilation is Result<CompiledPageStyles>.Failure styleFailure
             ? Prelude.Fail<bool, AeroError>(styleFailure.Error)
             : Prelude.Ok<bool, AeroError>(true);

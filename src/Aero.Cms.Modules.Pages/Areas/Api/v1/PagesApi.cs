@@ -1,4 +1,5 @@
 using System.Text.Encodings.Web;
+using System.Globalization;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
@@ -9,6 +10,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
@@ -54,6 +56,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         
         group.MapGet("/drafts/{id:long}", PreviewDraftPage)
             .WithName("PreviewDraftPage")
+            .RequireAuthorization("site:read");
+
+        group.MapGet("/registered-fragments", ListRegisteredFragments)
+            .WithName("ListRegisteredPageFragments")
             .RequireAuthorization("site:read");
         
         group.MapPost("/", CreatePage)
@@ -125,6 +131,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     }
 
     // ── Grain-backed handlers ─────────────────────────────────────────
+
+    private static IResult ListRegisteredFragments(
+        [FromServices] IPageRegisteredFragmentRegistry registry)
+        => TypedResults.Ok(registry.Descriptors);
 
     private static async Task<IResult> ListPages(
         [FromServices] IAeroPageActor pagesActor,
@@ -977,6 +987,7 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromServices] ISiteContext siteContext,
         [FromServices] ISiteStyleProfileResolver styleProfileResolver,
         [FromServices] IStyleCompiler styleCompiler,
+        [FromServices] PageCompositionExpander compositionExpander,
         [FromServices] HtmlStaticRenderer renderer,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -984,17 +995,31 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
+            var culture = string.IsNullOrWhiteSpace(request.Culture)
+                ? CultureInfo.CurrentUICulture.Name
+                : request.Culture;
+            var expandedResult = await compositionExpander.ExpandAsync(
+                siteContext.SiteId,
+                culture,
+                request.Content,
+                request.Composition,
+                pageNumbers: null,
+                ct);
+            if (expandedResult is Result<PageCompositionExpansion, AeroError>.Failure expansionFailure)
+                return TypedResults.BadRequest(new { error = expansionFailure.Error.ToString() });
+
+            var expandedContent = ((Result<PageCompositionExpansion, AeroError>.Ok)expandedResult).Value.Content;
             var profileResult = await styleProfileResolver.ResolveAsync(siteContext.SiteId, ct);
             if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
                 return TypedResults.BadRequest(new { error = profileFailure.Error.ToString() });
 
             var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-            var styles = styleCompiler.Compile(request.Content, styleProfile);
+            var styles = styleCompiler.Compile(expandedContent, styleProfile);
             if (styles is Result<CompiledPageStyles>.Failure styleFailure)
                 return TypedResults.BadRequest(new { error = styleFailure.Error.ToString() });
 
             var rendered = renderer.RenderPage(
-                request.Content,
+                expandedContent,
                 ((Result<CompiledPageStyles>.Ok)styles).Value);
             if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
                 return TypedResults.BadRequest(new { error = renderFailure.Error.ToString() });

@@ -1,0 +1,41 @@
+.aero-custom-html-overlay {
+    position: fixed;
+    z-index: 1200;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgb(15 23 42 / 62%);
+    backdrop-filter: blur(4px);
+}
+
+.aero-custom-html-dialog {
+    width: min(62rem, 100%);
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
+    border: 1px solid #dbe3ef;
+    border-radius: 1rem;
+    color: #172033;
+    background: #fff;
+    box-shadow: 0 28px 80px rgb(15 23 42 / 28%);
+}
+
+.aero-custom-html-dialog__header,
+.aero-custom-html-dialog__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+.aero-custom-html-dialog__header { border-bottom: 1px solid #e2e8f0; }
+.aero-custom-html-dialog__header span { color: #7c3aed; font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.aero-custom-html-dialog__header h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.aero-custom-html-dialog__close { border: 0; color: #64748b; background: transparent; font-size: 1.5rem; cursor: pointer; }
+.aero-custom-html-dialog__body { padding: 1.25rem; }
+.aero-custom-html-dialog__body p { margin: 0 0 1rem; color: #64748b; font-size: .82rem; }
+.aero-custom-html-dialog__body label { display: block; margin-bottom: .45rem; font-size: .8rem; font-weight: 700; }
+.aero-custom-html-dialog__body textarea { width: 100%; min-height: 24rem; resize: vertical; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .9rem; color: #e2e8f0; background: #0f172a; font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; tab-size: 2; }
+.aero-custom-html-dialog__error { margin: 0 1.25rem .75rem; border-radius: .5rem; padding: .75rem; color: #991b1b; background: #fef2f2; font-size: .8rem; }
+.aero-custom-html-dialog__footer { justify-content: flex-end; border-top: 1px solid #e2e8f0; }

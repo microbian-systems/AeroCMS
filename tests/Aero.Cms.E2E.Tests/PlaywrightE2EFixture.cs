@@ -1,6 +1,8 @@
 using Aero.AppServer;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
@@ -10,6 +12,7 @@ using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Infrastructure;
 using Aero.Core;
+using Aero.Core.Railway;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -32,6 +35,7 @@ using Serilog;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.Extensions.Options;
 using SurrealDb.Embedded.InMemory;
@@ -865,6 +869,72 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         session.Store(page);
         await session.SaveChangesAsync();
         Console.WriteLine("[Fixture] Home page reset to empty state");
+    }
+
+    /// <summary>
+    /// Seeds one disposable structured-content palette fixture for PageEditor browser tests.
+    /// </summary>
+    public async Task SeedContentPaletteAsync(string alias, int itemCount)
+    {
+        if (_app is null)
+        {
+            throw new InvalidOperationException("The E2E application has not been initialized.");
+        }
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var contentTypes = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+        var contentItems = scope.ServiceProvider.GetRequiredService<IContentService>();
+        var typeResult = await contentTypes.SaveAsync(new ContentTypeDefinition
+        {
+            Id = 0,
+            SiteId = SiteId,
+            Alias = alias,
+            Name = "Page Editor Articles",
+            Description = "Disposable typed-content PageEditor fixture",
+            Fields =
+            [
+                new ContentFieldDefinition
+                {
+                    Name = "headline",
+                    Label = "Headline",
+                    FieldType = "text",
+                    Required = true
+                },
+                new ContentFieldDefinition
+                {
+                    Name = "score",
+                    Label = "Score",
+                    FieldType = "number"
+                }
+            ]
+        });
+        if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure typeFailure)
+        {
+            throw new InvalidOperationException(typeFailure.Error.ToString());
+        }
+
+        for (var index = 1; index <= itemCount; index++)
+        {
+            var itemResult = await contentItems.SaveAsync(new ContentItem
+            {
+                Id = 0,
+                SiteId = SiteId,
+                ContentTypeAlias = alias,
+                Title = $"Page Editor Item {index:00}",
+                Slug = $"page-editor-item-{index:00}",
+                Culture = "en-US",
+                VersionNumber = 1,
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["headline"] = JsonSerializer.SerializeToElement($"Headline {index:00}"),
+                    ["score"] = JsonSerializer.SerializeToElement(index)
+                }
+            });
+            if (itemResult is Result<ContentItem, AeroError>.Failure itemFailure)
+            {
+                throw new InvalidOperationException(itemFailure.Error.ToString());
+            }
+        }
     }
 
     private static HtmlPageContent CreateTestPageContent(

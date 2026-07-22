@@ -5,6 +5,8 @@ using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Components;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
+using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -24,6 +26,7 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 /// <param name="pageActor">The actor used for page and culture-variant lookups.</param>
 /// <param name="siteContext">The current site scope.</param>
 /// <param name="documentStore">The store used to load the selected HTML snapshot.</param>
+/// <param name="compositionExpander">Expands typed-content scopes into an ephemeral HTML tree.</param>
 /// <param name="htmlRenderer">Renders the validated HTML tree.</param>
 /// <param name="styleCompiler">Compiles page-scoped styles against the site profile.</param>
 /// <param name="styleProfileResolver">Resolves the site's allowed style profile.</param>
@@ -38,6 +41,7 @@ public class DynamicPageModel(
     IAeroPageActor pageActor,
     ISiteContext siteContext,
     IDocumentStore documentStore,
+    PageCompositionExpander compositionExpander,
     HtmlStaticRenderer htmlRenderer,
     IStyleCompiler styleCompiler,
     ISiteStyleProfileResolver styleProfileResolver,
@@ -195,6 +199,9 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             var content = DraftId is not null
                 ? document.DraftContent
                 : document.PublishedContent;
+            var composition = DraftId is not null
+                ? document.DraftComposition
+                : document.PublishedComposition;
 
             if (content is null)
             {
@@ -204,6 +211,39 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                     DraftId is not null ? "draft" : "published",
                     requestedSlug);
                 return NotFound();
+            }
+
+            var expansionResult = await compositionExpander.ExpandAsync(
+                document.SiteId,
+                vm.Culture,
+                content,
+                composition,
+                ResolveContentPageNumbers(composition),
+                cancellationToken,
+                new PageFragmentRenderContext
+                {
+                    SiteId = document.SiteId,
+                    Culture = vm.Culture,
+                    PageId = document.Id,
+                    Title = document.Title,
+                    Slug = document.Slug,
+                    Path = document.Path
+                });
+            if (expansionResult is Result<PageCompositionExpansion, AeroError>.Failure expansionFailure)
+            {
+                logger.LogError(
+                    "Typed content expansion failed for page {PageId} on site {SiteId}: {Error}",
+                    vm.Id,
+                    document.SiteId,
+                    expansionFailure.Error);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
+            var expansion = ((Result<PageCompositionExpansion, AeroError>.Ok)expansionResult).Value;
+            var expandedContent = expansion.Content;
+            if (expansion.ContentTypeAliases.Count > 0)
+            {
+                HttpContext.Items["AeroCms.ContentTypeAliases"] = expansion.ContentTypeAliases;
             }
 
             var profileResult = await styleProfileResolver.ResolveAsync(
@@ -220,7 +260,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             }
 
             var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-            var compiled = styleCompiler.Compile(content, styleProfile);
+            var compiled = styleCompiler.Compile(expandedContent, styleProfile);
             if (compiled is Result<CompiledPageStyles>.Failure styleFailure)
             {
                 logger.LogError(
@@ -231,7 +271,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             }
 
             var rendered = htmlRenderer.RenderPage(
-                content,
+                expandedContent,
                 ((Result<CompiledPageStyles>.Ok)compiled).Value);
             if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
             {
@@ -262,6 +302,36 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         ApplyResponseCacheHeaders();
         return Page();
     }
+
+    private IReadOnlyDictionary<long, int> ResolveContentPageNumbers(PageCompositionDocument? composition)
+    {
+        var lists = composition?.ContentLists ?? [];
+        if (lists.Count == 0)
+        {
+            return new Dictionary<long, int>();
+        }
+
+        var pages = new Dictionary<long, int>();
+        var sharedPage = lists.Count == 1 && TryGetPositivePage("contentPage", out var parsedSharedPage)
+            ? parsedSharedPage
+            : 1;
+        foreach (var list in lists)
+        {
+            pages[list.NodeId] = TryGetPositivePage($"contentPage-{list.NodeId}", out var pageNumber)
+                ? pageNumber
+                : sharedPage;
+        }
+
+        return pages;
+    }
+
+    private bool TryGetPositivePage(string queryKey, out int pageNumber)
+        => int.TryParse(
+               Request.Query[queryKey].ToString(),
+               NumberStyles.None,
+               CultureInfo.InvariantCulture,
+               out pageNumber)
+           && pageNumber > 0;
 
     private async Task<IReadOnlyList<AlternatePageLink>> BuildAlternateLinksAsync(
         PageViewModel page,

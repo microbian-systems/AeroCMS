@@ -33,6 +33,52 @@
         </p>
     </div>
 
+    @if (FilteredRenderedFragmentOptions.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Rendered content</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var option in FilteredRenderedFragmentOptions)
+                {
+                    <button @key="option.Kind"
+                            type="button"
+                            class="aero-element-palette__item aero-element-palette__item--component"
+                            title="@($"{option.Description}. Click to add or drag onto the page.")"
+                            data-aero-palette-kind="renderedfragment"
+                            data-aero-palette-value="@option.Kind"
+                            data-aero-palette-label="@option.Label"
+                            @onclick="() => RequestRenderedFragmentAsync(option.Kind)">
+                        <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
+                        <span>@option.Label</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (FilteredRegisteredFragments.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Registered application fragments</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var descriptor in FilteredRegisteredFragments)
+                {
+                    <button @key="descriptor.Key"
+                            type="button"
+                            class="aero-element-palette__item aero-element-palette__item--component"
+                            title="@($"{descriptor.Description ?? descriptor.DisplayName}. Click to add or drag onto the page.")"
+                            data-aero-palette-kind="registeredfragment"
+                            data-aero-palette-value="@descriptor.Key"
+                            data-aero-palette-label="@descriptor.DisplayName"
+                            @onclick="() => RequestRegisteredFragmentAsync(descriptor.Key)">
+                        <span class="aero-element-palette__component-icon" aria-hidden="true">◈</span>
+                        <span>@descriptor.DisplayName</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
     @if (FilteredComponentGroups.Count > 0)
     {
         @foreach (var group in FilteredComponentGroups)

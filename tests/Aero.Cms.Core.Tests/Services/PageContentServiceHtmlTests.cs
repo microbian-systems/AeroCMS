@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
@@ -105,6 +106,45 @@ public sealed class PageContentServiceHtmlTests
     }
 
     [Test]
+    public async Task SaveAsync_rejects_invalid_content_references_before_mutating_the_stored_draft()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentSlugDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+
+        var page = CreatePage(9_304, CreateContent("Stored draft"));
+        page.ContentRevision = 3;
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+
+        var referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
+        referenceValidator.ValidateAsync(
+                page.SiteId,
+                Arg.Any<string>(),
+                Arg.Any<PageCompositionDocument>(),
+                ContentReferenceValidationMode.Authoring,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Failure(
+                    AeroError.ValidationError(["The selected content item no longer exists."]))));
+        await using var editSession = await harness.OpenSessionAsync();
+        var service = CreateService(editSession, page.SiteId, referenceValidator);
+        var invalidEdit = CreatePage(page.Id, CreateContent("Rejected draft"));
+        invalidEdit.DraftComposition = CreateItemComposition(invalidEdit.DraftContent, 7_002);
+
+        var result = await service.SaveAsync(invalidEdit);
+
+        result.IsFailure.ShouldBeTrue();
+        await using var verificationSession = await harness.OpenSessionAsync();
+        var restored = await verificationSession.LoadAsync<PageDocument>(page.Id);
+        restored.ShouldNotBeNull();
+        restored!.DraftContent.Root.Children[0].Children[0].Children[0].Text
+            .ShouldBe("Stored draft");
+        restored.ContentRevision.ShouldBe(3);
+    }
+
+    [Test]
     public async Task UpdateAsync_rehydrates_source_generated_draft_content_transport()
     {
         await using var harness = new SableTestHarness()
@@ -148,6 +188,64 @@ public sealed class PageContentServiceHtmlTests
             .ShouldBe("Typed HTTP content");
         restored.DraftComposition.ContentItems[0].ContentItemId.ShouldBe(8_001);
         restored.ContentRevision.ShouldBe(1);
+    }
+
+    [Test]
+    public async Task UpdateAsync_rejects_the_candidate_composition_before_replacing_the_tracked_draft()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentSlugDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+
+        var page = CreatePage(9_305, CreateContent("Stored transport draft"));
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+
+        var replacement = CreateContent("Rejected transport draft");
+        var scope = replacement.Root.Children[0];
+        var invalidComposition = new PageCompositionDocument
+        {
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = scope.NodeId,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    TemplateRootNodeId = scope.Children[0].NodeId,
+                    Query = null!
+                }
+            ]
+        };
+        var contentJson = JsonSerializer.Serialize(
+            replacement,
+            HtmlJsonContext.Default.HtmlPageContent);
+        var compositionJson = JsonSerializer.Serialize(
+            invalidComposition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        await using var editSession = await harness.OpenSessionAsync();
+        var service = CreateService(editSession, page.SiteId);
+        var request = new Aero.Cms.Abstractions.Requests.UpdatePageRequest(
+            page.Id,
+            page.Title,
+            page.Slug,
+            page.Summary,
+            page.SeoTitle,
+            page.SeoDescription,
+            page.PublicationState,
+            DraftContentJson: contentJson,
+            DraftCompositionJson: compositionJson);
+
+        var result = await service.UpdateAsync(page.Id, request);
+
+        result.IsFailure.ShouldBeTrue();
+        await using var verificationSession = await harness.OpenSessionAsync();
+        var restored = await verificationSession.LoadAsync<PageDocument>(page.Id);
+        restored.ShouldNotBeNull();
+        restored!.DraftContent.Root.Children[0].Children[0].Children[0].Text
+            .ShouldBe("Stored transport draft");
+        restored.ContentRevision.ShouldBe(0);
     }
 
     [Test]
@@ -195,11 +293,26 @@ public sealed class PageContentServiceHtmlTests
         result.IsFailure.ShouldBeTrue();
     }
 
-    private static AeroPageContentService CreateService(IDocumentSession session, long siteId)
+    private static AeroPageContentService CreateService(
+        IDocumentSession session,
+        long siteId,
+        IContentCompositionReferenceValidator? referenceValidator = null)
     {
         var catalog = HtmlElementCatalog.CreateDefault();
         var siteContext = Substitute.For<ISiteContext>();
         siteContext.SiteId.Returns(siteId);
+        if (referenceValidator is null)
+        {
+            referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
+            referenceValidator.ValidateAsync(
+                    Arg.Any<long>(),
+                    Arg.Any<string>(),
+                    Arg.Any<PageCompositionDocument>(),
+                    Arg.Any<ContentReferenceValidationMode>(),
+                    Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult<Result<bool, AeroError>>(
+                    new Result<bool, AeroError>.Ok(true)));
+        }
 
         return new AeroPageContentService(
             session,
@@ -211,7 +324,8 @@ public sealed class PageContentServiceHtmlTests
                 new HtmlContentModelPolicy(catalog),
                 new HtmlAttributePolicy()),
             new NativeCssStyleCompiler(),
-            CreateStyleProfileResolver());
+            CreateStyleProfileResolver(),
+            contentReferenceValidator: referenceValidator);
     }
 
     private static ISiteStyleProfileResolver CreateStyleProfileResolver()

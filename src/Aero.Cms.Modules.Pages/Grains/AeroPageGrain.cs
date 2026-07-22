@@ -1,11 +1,13 @@
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
 using Aero.Cms.Services;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
@@ -60,6 +62,8 @@ public AeroPageGrain(
         var styleCompiler = _services.GetRequiredService<IStyleCompiler>();
         var styleProfileResolver = _services.GetRequiredService<ISiteStyleProfileResolver>();
         var aliasWriter = _services.GetService<IPageRouteAliasWriter>();
+        var contentReferenceValidator = _services.GetService<IContentCompositionReferenceValidator>();
+        var registeredFragmentRegistry = _services.GetService<IPageRegisteredFragmentRegistry>();
         var fixedSiteContext = new FixedSiteContext(siteId);
         var pageTreeService = new PageTreeService(
             session,
@@ -78,7 +82,9 @@ public AeroPageGrain(
             "system",
             cache,
             pageTreeService,
-            aliasWriter);
+            aliasWriter,
+            contentReferenceValidator,
+            registeredFragmentRegistry);
     }
 
     // ── IHaveState<PageViewModel> ────────────────────────────────────

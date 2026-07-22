@@ -1,66 +1,100 @@
+using Aero.Cms.Abstractions.Ai.Assistant;
 using Aero.Cms.Core;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ModelContextProtocol.Server;
 
 namespace Aero.Cms.Modules.Mcp;
 
-/// <summary>
-/// Declares MCP-related metadata for Aero CMS module discovery.
-/// </summary>
-/// <remarks>
-/// The current implementation registers no MCP server, transport, tools, prompts, resources, endpoints, or request
-/// handlers. It also establishes no authentication, authorization, tenant/user scope, schema validation, sandbox,
-/// logging, data-access boundary, or read-only guarantee. Referencing MCP packages and advertising module metadata
-/// does not make an MCP service available.
-/// </remarks>
+/// <summary>Hosts the authenticated Streamable HTTP MCP server and assistant HTTP boundary.</summary>
 [Module(nameof(AeroMcpModule))]
-public class AeroMcpModule : AeroModuleBase
+public sealed class AeroMcpModule : AeroWebModule
 {
-        /// <summary>
-    /// Gets the fixed name used to discover this module.
-    /// </summary>
-public override string Name => nameof(AeroMcpModule);
-        /// <summary>
-    /// Gets the Aero CMS version reported by this module.
-    /// </summary>
-public override string Version => AeroConstants.Version;
-        /// <summary>
-    /// Gets the Aero CMS author metadata reported by this module.
-    /// </summary>
-public override string Author => AeroConstants.Author;
+    public override string Name => nameof(AeroMcpModule);
+    public override string Version => AeroConstants.Version;
+    public override string Author => AeroConstants.Author;
+    public override string Description => "Authenticated, site-scoped read-only MCP tools and assistant transport.";
+    public override IReadOnlyList<string> Dependencies =>
+        ["AiAssistantModule", "SitesModule", "PagesModule"];
+    public override IReadOnlyList<string> Category => ["ai", "tools"];
+    public override IReadOnlyList<string> Tags => ["ai", "mcp", "manager"];
 
-        /// <summary>
-    /// Gets descriptive discovery text expressing the intended MCP feature; it is not a runtime capability contract.
-    /// </summary>
-public override string Description =>
-        "an MCP server for your aero instance. it can answer questions based on what you allow it to";
-        /// <summary>
-    /// Gets an empty module dependency list.
-    /// </summary>
-public override IReadOnlyList<string> Dependencies => [];
-        /// <summary>
-    /// Gets the AI and tools discovery categories.
-    /// </summary>
-public override IReadOnlyList<string> Category => ["ai", "tools"];
-        /// <summary>
-    /// Gets the AI and MCP discovery tags.
-    /// </summary>
-public override IReadOnlyList<string> Tags => ["ai", "mcp"];
-
-        /// <summary>
-    /// Performs no service registration.
-    /// </summary>
-    /// <param name="services">The service collection, which this implementation leaves unchanged.</param>
-    /// <param name="config">Unused configuration.</param>
-    /// <param name="env">Unused host environment.</param>
-    /// <remarks>
-    /// The method is synchronous, has no cancellation or failure mapping, and does not call MCP registration
-    /// extensions. Any server lifecycle, transport failures, or tool execution behavior must be provided elsewhere.
-    /// </remarks>
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    public override void ConfigureServices(
+        IServiceCollection services,
+        IConfiguration? config = null,
+        IHostEnvironment? env = null)
     {
+        services.AddHttpContextAccessor();
+        services.AddScoped<AeroCmsMcpInvocationContextFactory>();
+        services.AddScoped<IAeroCmsReadOnlyToolExecutor, AeroCmsReadOnlyToolExecutor>();
 
+        var tools = CreateTools();
+        services.AddMcpServer()
+            .WithHttpTransport(options =>
+            {
+                options.Stateless = true;
+            })
+            .WithTools(tools);
     }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapMcp("/mcp")
+            .RequireAuthorization()
+            .RequireAuthorization("site:read");
+        builder.MapAeroCmsAssistantEndpoints();
+        return Task.CompletedTask;
+    }
+
+    private static IReadOnlyList<McpServerTool> CreateTools()
+    {
+        return
+        [
+            McpServerTool.Create(
+                (CurrentSiteToolDelegate)AeroCmsMcpToolBridge.CurrentSiteAsync,
+                ToolOptions(
+                    AeroCmsReadOnlyToolExecutor.CurrentSiteTool,
+                    "Returns the authenticated manager's currently selected AeroCMS site.")),
+            McpServerTool.Create(
+                (ListPagesToolDelegate)AeroCmsMcpToolBridge.ListPagesAsync,
+                ToolOptions(
+                    AeroCmsReadOnlyToolExecutor.PagesListTool,
+                    "Lists at most 25 page summaries from the authenticated manager's selected site.")),
+            McpServerTool.Create(
+                (GetPageToolDelegate)AeroCmsMcpToolBridge.GetPageAsync,
+                ToolOptions(
+                    AeroCmsReadOnlyToolExecutor.PageGetTool,
+                    "Gets one positive page identifier from the authenticated manager's selected site."))
+        ];
+    }
+
+    private static McpServerToolCreateOptions ToolOptions(string name, string description) => new()
+    {
+        Name = name,
+        Description = description,
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false
+    };
+
+    private delegate Task<string> CurrentSiteToolDelegate(
+        IServiceProvider services,
+        CancellationToken cancellationToken = default);
+
+    private delegate Task<string> ListPagesToolDelegate(
+        IServiceProvider services,
+        int take = 10,
+        int skip = 0,
+        CancellationToken cancellationToken = default);
+
+    private delegate Task<string> GetPageToolDelegate(
+        IServiceProvider services,
+        long id,
+        CancellationToken cancellationToken = default);
 }
