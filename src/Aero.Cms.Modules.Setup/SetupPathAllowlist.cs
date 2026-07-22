@@ -36,6 +36,9 @@ private static readonly string[] PrefixPaths =
         "/_blazor",  // Blazor Server SignalR
         "/css",
         "/js",
+        "/lib",
+        "/assets",
+        "/media",
         "/images",
         "/img",
         "/hydro"

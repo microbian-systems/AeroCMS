@@ -175,6 +175,90 @@ public sealed class BlogPostContentServiceTests
     }
 
     [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsSuppliedMismatch()
+    {
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Foreign",
+            Slug = "foreign-explicit"
+        };
+
+        var result = await _service.SaveAsync(post, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PostDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        (await _session.LoadAsync<PostDocument>(post.Id)).ShouldBeNull();
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsPersistedForeignPost()
+    {
+        var postId = Snowflake.NewId();
+        _session.Store(new PostDocument
+        {
+            Id = postId,
+            SiteId = 99,
+            Title = "Foreign original",
+            Slug = "foreign-original-explicit"
+        });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new PostDocument
+        {
+            Id = postId,
+            SiteId = 42,
+            Title = "Attempted overwrite",
+            Slug = "attempted-overwrite-explicit"
+        }, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PostDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        var persisted = await _session.LoadAsync<PostDocument>(postId);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(99);
+        persisted.Title.ShouldBe("Foreign original");
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_ValidatesSameSiteTaxonomyWithoutAmbientSite()
+    {
+        const long authorizedSiteId = 77;
+        var seriesId = Snowflake.NewId();
+        var tagId = Snowflake.NewId();
+        var categoryId = Snowflake.NewId();
+        _session.Store(new Series { Id = seriesId, SiteId = authorizedSiteId, Name = "Series", Slug = "series" });
+        _session.Store(new Tag { Id = tagId, SiteId = authorizedSiteId, Name = "Tag", Slug = "tag" });
+        _session.Store(new Category { Id = categoryId, SiteId = authorizedSiteId, Name = "Category", Slug = "category" });
+        await _session.SaveChangesAsync();
+
+        var contextWithoutSite = Substitute.For<ISiteContext>();
+        contextWithoutSite.SiteId.Returns(0);
+        var service = new PostContentService(_session, contextWithoutSite);
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            Title = "Setup post",
+            Slug = "setup-post",
+            SeriesId = seriesId,
+            TagIds = [tagId],
+            CategoryIds = [categoryId]
+        };
+
+        var result = await service.SaveAsync(post, authorizedSiteId, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        post.SiteId.ShouldBe(authorizedSiteId);
+        var persisted = await _session.LoadAsync<PostDocument>(post.Id);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(authorizedSiteId);
+        persisted.SeriesId.ShouldBe(seriesId);
+        persisted.TagIds.ShouldBe([tagId]);
+        persisted.CategoryIds.ShouldBe([categoryId]);
+    }
+
+    [Test]
     public async Task SaveAsync_ExistingForeignPost_IsRejectedWithoutMutation()
     {
         var postId = Snowflake.NewId();

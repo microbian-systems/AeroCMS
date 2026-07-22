@@ -7,7 +7,7 @@ namespace Aero.Cms.Shared.Services;
 /// </summary>
 public class ManagerThemeService(IJSRuntime jsRuntime)
 {
-    private bool _isDarkMode = true;
+    private bool _isDarkMode;
     private bool _isInitialized;
         /// <summary>
     /// Gets or sets the Is Dark Mode.

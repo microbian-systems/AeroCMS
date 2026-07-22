@@ -81,6 +81,18 @@ Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId,
     /// </remarks>
 Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Creates or updates a post for an explicitly authorized site.
+    /// </summary>
+    /// <param name="post">The document to persist.</param>
+    /// <param name="authorizedSiteId">The positive site identifier already authorized by the caller.</param>
+    /// <param name="cancellationToken">A token used to cancel lookup, validation, persistence, or publication work.</param>
+    /// <returns>The persisted document, or a failure describing validation or operational errors.</returns>
+Task<Result<PostDocument, AeroError>> SaveAsync(
+        PostDocument post,
+        long authorizedSiteId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Changes one current-site post's publication state and commits once.</summary>
 Task<Result<PostDocument, AeroError>> SetPublicationStateAsync(
         long id,
@@ -387,24 +399,38 @@ public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPosts
         }
     }
 
+/// <inheritdoc />
+public Task<Result<PostDocument, AeroError>> SaveAsync(
+        PostDocument post,
+        CancellationToken cancellationToken = default)
+        => SaveAsync(post, _siteContext.SiteId, cancellationToken);
+
     /// <inheritdoc />
-public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default)
+public async Task<Result<PostDocument, AeroError>> SaveAsync(
+        PostDocument post,
+        long authorizedSiteId,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(post);
             ValidateId(post.Id);
+            if (authorizedSiteId <= 0)
+            {
+                return Prelude.Fail<PostDocument, AeroError>(
+                    AeroError.ValidationError(["The authorized site identifier must be positive."]));
+            }
 
             var existingPost = await session.LoadAsync<PostDocument>(post.Id, cancellationToken);
-            if ((post.SiteId != 0 && post.SiteId != _siteContext.SiteId)
-                || (existingPost is not null && existingPost.SiteId != _siteContext.SiteId))
+            if ((post.SiteId != 0 && post.SiteId != authorizedSiteId)
+                || (existingPost is not null && existingPost.SiteId != authorizedSiteId))
             {
                 return Prelude.Fail<PostDocument, AeroError>(
                     AeroError.NotFoundError($"Blog post with id '{post.Id}' not found or access denied"));
             }
 
-            post.SiteId = _siteContext.SiteId;
-            var relationshipError = await ValidateRelationshipsAsync(post, cancellationToken);
+            post.SiteId = authorizedSiteId;
+            var relationshipError = await ValidateRelationshipsAsync(post, authorizedSiteId, cancellationToken);
             if (relationshipError is not null)
             {
                 return Prelude.Fail<PostDocument, AeroError>(relationshipError);
@@ -417,7 +443,7 @@ public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, 
                 post.Id,
                 ContentSlugOwnerType.BlogPost,
                 post.Slug,
-                post.SiteId,
+                authorizedSiteId,
                 post.Culture,
                 existingPost?.Slug,
                 cancellationToken);
@@ -579,6 +605,7 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
     /// </summary>
     private async Task<AeroError?> ValidateRelationshipsAsync(
         PostDocument post,
+        long authorizedSiteId,
         CancellationToken cancellationToken)
     {
         var errors = new List<string>();
@@ -596,7 +623,7 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
             else
             {
                 var series = await session.LoadAsync<Series>(seriesId, cancellationToken);
-                if (series is null || series.SiteId != _siteContext.SiteId)
+                if (series is null || series.SiteId != authorizedSiteId)
                     errors.Add("The selected series is not valid for the current site.");
             }
         }
@@ -608,7 +635,7 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
         else if (tagIds.Count > 0)
         {
             var tags = await session.Query<Tag>()
-                .Where(x => x.SiteId == _siteContext.SiteId && tagIds.Contains(x.Id))
+                .Where(x => x.SiteId == authorizedSiteId && tagIds.Contains(x.Id))
                 .ToListAsync(cancellationToken);
             if (tags.Count != tagIds.Count)
                 errors.Add("One or more selected tags are not valid for the current site.");
@@ -621,7 +648,7 @@ public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, 
         else if (categoryIds.Count > 0)
         {
             var categories = await session.Query<Category>()
-                .Where(x => x.SiteId == _siteContext.SiteId && categoryIds.Contains(x.Id))
+                .Where(x => x.SiteId == authorizedSiteId && categoryIds.Contains(x.Id))
                 .ToListAsync(cancellationToken);
             if (categories.Count != categoryIds.Count)
                 errors.Add("One or more selected categories are not valid for the current site.");

@@ -7,6 +7,11 @@
 @source "../ts";
 @source "../../Aero.Cms.Shared/{Components,Layout,Pages,ts}";
 @source "../../Aero.Cms.Modules.*/{Areas,Components,Pages,Views}";
+@source "../../Aero.Cms.Modules.Navigation/Views";
+@source "../../Aero.Cms.Modules.Footer/Views";
+@source "../../Aero.Cms.Modules.Footer/Rendering";
+/* Setup owns bootstrap-only utilities, so keep its pre-runtime wizard source explicit. */
+@source "../../Aero.Cms.Modules.Setup/Areas/Setup/Pages";
 
 /*
   Aero CMS Web Client Theme

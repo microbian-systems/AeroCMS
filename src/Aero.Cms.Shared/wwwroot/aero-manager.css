@@ -2159,7 +2159,11 @@ textarea.pe-inline-hero-summary:focus {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--pe-bg-primary, #f1f5f9);
+    padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    overflow-y: auto;
+    background:
+        radial-gradient(circle at 85% 10%, rgba(109, 40, 217, 0.12), transparent 34rem),
+        var(--pe-bg-primary, #f1f5f9);
     transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 .app-splash.hidden {
@@ -2171,14 +2175,69 @@ textarea.pe-inline-hero-summary:focus {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: 18px;
     text-align: center;
+    width: min(100%, 28rem);
+    padding: clamp(28px, 6vw, 44px);
+    border: 1px solid var(--pe-border, #e2e8f0);
+    border-radius: 24px;
+    background: var(--pe-bg-secondary, #fff);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
 }
-.app-splash-spinner {
-    width: 120px;
-    height: 120px;
-    transform-origin: center;
-    animation: pe-spin 1s linear infinite;
+.app-splash-mark {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+}
+.app-splash-logo {
+    width: 68px;
+    height: 68px;
+    object-fit: contain;
+}
+.app-splash-orbit {
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(109, 40, 217, 0.14);
+    border-top-color: #6d28d9;
+    border-radius: 9999px;
+    animation: pe-spin 1.4s linear infinite;
+}
+.app-splash-status {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+}
+.app-splash-eyebrow {
+    margin: 0;
+    color: #6d28d9;
+    font-size: 0.75rem;
+    font-weight: 750;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.app-splash-title {
+    margin: 0;
+    color: var(--pe-text-primary, #0f172a);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: clamp(1.5rem, 5vw, 1.75rem);
+    line-height: 1.2;
+}
+.app-splash-retry {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: #6d28d9;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.app-splash-retry:focus-visible {
+    outline: 3px solid rgba(109, 40, 217, 0.35);
+    outline-offset: 3px;
 }
 
 .pe-property-panel,
@@ -2509,6 +2568,16 @@ textarea.pe-inline-hero-summary:focus {
     font-weight: 500;
     color: var(--pe-text-muted, #64748b);
     letter-spacing: 0.02em;
+    margin: 0;
+    max-width: 34ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-splash,
+    .app-splash-orbit {
+        animation: none;
+        transition: none;
+    }
 }
 
 .login-submit-spinner {

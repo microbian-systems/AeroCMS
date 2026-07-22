@@ -25,8 +25,9 @@ public static class SetupStatusEndpoints
     /// </remarks>
 public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/setup/status", async (IServiceProvider sp, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/setup/status", async (HttpContext httpContext, IServiceProvider sp, CancellationToken cancellationToken) =>
         {
+            httpContext.Response.Headers.CacheControl = "no-store";
             var setup = sp.GetRequiredService<ISetupInitializationService>();
             var bootstrap = setup.GetBootstrapState();
             var readiness = sp.GetService<IInfrastructureReadinessSnapshot>();

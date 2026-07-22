@@ -207,6 +207,85 @@ public sealed class PageContentServiceTests
     }
 
     [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_SucceedsWithoutAmbientSite()
+    {
+        var contextWithoutSite = CreateSiteContext(0);
+        var service = new AeroPageContentService(
+            _harness.Session,
+            _bus,
+            contextWithoutSite,
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            CreateStyleProfileResolver());
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Title = "Setup homepage",
+            Slug = "home",
+            Path = "/"
+        };
+
+        var result = await service.SaveAsync(page, authorizedSiteId: 77, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        page.SiteId.ShouldBe(77);
+        var stored = await _harness.Session.LoadAsync<PageDocument>(page.Id);
+        stored.ShouldNotBeNull();
+        stored.SiteId.ShouldBe(77);
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsSuppliedMismatch()
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Wrong site",
+            Slug = "wrong-site",
+            Path = "/wrong-site"
+        };
+
+        var result = await _service.SaveAsync(page, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PageDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        (await _harness.Session.LoadAsync<PageDocument>(page.Id)).ShouldBeNull();
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsPersistedForeignPage()
+    {
+        var pageId = Snowflake.NewId();
+        _harness.Session.Store(new PageDocument
+        {
+            Id = pageId,
+            SiteId = 99,
+            Title = "Foreign original",
+            Slug = "foreign-original",
+            Path = "/foreign-original"
+        });
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new PageDocument
+        {
+            Id = pageId,
+            SiteId = 42,
+            Title = "Attempted overwrite",
+            Slug = "attempted-overwrite",
+            Path = "/attempted-overwrite"
+        }, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PageDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        var persisted = await _harness.Session.LoadAsync<PageDocument>(pageId);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(99);
+        persisted.Title.ShouldBe("Foreign original");
+    }
+
+    [Test]
     public async Task CreateAsync_CrossSiteParent_IsRejectedWithoutPersistingChild()
     {
         var parent = new PageDocument

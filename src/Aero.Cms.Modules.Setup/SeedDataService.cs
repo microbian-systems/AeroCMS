@@ -161,7 +161,7 @@ public interface ISetupCompletionService : ISeedDatabaseService { }
 /// complete, this service repairs the file-based completion flags and skips all seeding.
 /// The workflow spans multiple stores and is not transactional as a whole: Identity,
 /// tenant/site, content, module, and settings changes may commit at different points.
-/// Individual page-save failures are logged and do not fail the overall starter-content stage.
+/// Required starter-page and starter-post failures prevent the setup completion marker from being written.
 /// </remarks>
 public sealed class SeedDatabaseService(
     IDocumentSession session,
@@ -249,7 +249,17 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
 
         try
         {
-            await SeedStarterContentAsync(request, site.Id, cultureSettings.DefaultCulture, cultureSettings.SupportedCultures, ct);
+            var starterContentResult = await SeedStarterContentAsync(
+                request,
+                site.Id,
+                cultureSettings.DefaultCulture,
+                cultureSettings.SupportedCultures,
+                ct);
+            if (starterContentResult is Result<bool, AeroError>.Failure starterContentFailure)
+            {
+                session.ClearChanges();
+                return SeedDatabaseResult.Failure(GetErrorMessages(starterContentFailure.Error));
+            }
         }
         catch (Exception ex)
         {
@@ -506,7 +516,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     /// Spanish (Mexico) variants are added only when <c>es-MX</c> is supported but is not
     /// the default culture. Several collaborators persist independently during this method.
     /// </remarks>
-    private async Task SeedStarterContentAsync(
+    private async Task<Result<bool, AeroError>> SeedStarterContentAsync(
         SeedDatabaseRequest request,
         long siteId,
         string defaultCulture,
@@ -579,38 +589,58 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         StampPageCulture(privacyPage, defaultCulture);
         StampPageCulture(termsPage, defaultCulture);
         StampPageCulture(cookiesPage, defaultCulture);
+        PageDocument[] defaultPages =
+        [
+            homepage,
+            blogListing,
+            aboutPage,
+            contactPage,
+            privacyPage,
+            termsPage,
+            cookiesPage
+        ];
+        foreach (var page in defaultPages)
+        {
+            page.SiteId = siteId;
+        }
+        await ReconcilePageIdentitiesAsync(defaultPages, siteId, cancellationToken);
+
         // Store Living Standard pages.
-        homepage.SiteId = siteId;
-        var homeR = await SavePublishedPageAsync(homepage, cancellationToken);
-        if (homeR.IsFailure) Log.Warning("Failed to seed homepage: {Error}", ErrMsg(homeR));
+        var homeR = await SavePublishedPageAsync(homepage, siteId, cancellationToken);
+        if (homeR is Result<PageDocument, AeroError>.Failure homeFailure)
+            return StarterContentFailure("homepage", homeFailure.Error);
 
-        blogListing.SiteId = siteId;
-        var blogR = await SavePublishedPageAsync(blogListing, cancellationToken);
-        if (blogR.IsFailure) Log.Warning("Failed to seed blog listing page: {Error}", ErrMsg(blogR));
+        var blogR = await SavePublishedPageAsync(blogListing, siteId, cancellationToken);
+        if (blogR is Result<PageDocument, AeroError>.Failure blogFailure)
+            return StarterContentFailure("blog listing page", blogFailure.Error);
 
-        aboutPage.SiteId = siteId;
-        var aboutR = await SavePublishedPageAsync(aboutPage, cancellationToken);
-        if (aboutR.IsFailure) Log.Warning("Failed to seed about page: {Error}", ErrMsg(aboutR));
+        var aboutR = await SavePublishedPageAsync(aboutPage, siteId, cancellationToken);
+        if (aboutR is Result<PageDocument, AeroError>.Failure aboutFailure)
+            return StarterContentFailure("about page", aboutFailure.Error);
 
-        contactPage.SiteId = siteId;
-        var contactR = await SavePublishedPageAsync(contactPage, cancellationToken);
-        if (contactR.IsFailure) Log.Warning("Failed to seed contact page: {Error}", ErrMsg(contactR));
+        var contactR = await SavePublishedPageAsync(contactPage, siteId, cancellationToken);
+        if (contactR is Result<PageDocument, AeroError>.Failure contactFailure)
+            return StarterContentFailure("contact page", contactFailure.Error);
 
-        privacyPage.SiteId = siteId;
-        var privacyR = await SavePublishedPageAsync(privacyPage, cancellationToken);
-        if (privacyR.IsFailure) Log.Warning("Failed to seed privacy page: {Error}", ErrMsg(privacyR));
+        var privacyR = await SavePublishedPageAsync(privacyPage, siteId, cancellationToken);
+        if (privacyR is Result<PageDocument, AeroError>.Failure privacyFailure)
+            return StarterContentFailure("privacy page", privacyFailure.Error);
 
-        termsPage.SiteId = siteId;
-        var termsR = await SavePublishedPageAsync(termsPage, cancellationToken);
-        if (termsR.IsFailure) Log.Warning("Failed to seed terms page: {Error}", ErrMsg(termsR));
+        var termsR = await SavePublishedPageAsync(termsPage, siteId, cancellationToken);
+        if (termsR is Result<PageDocument, AeroError>.Failure termsFailure)
+            return StarterContentFailure("terms page", termsFailure.Error);
 
-        cookiesPage.SiteId = siteId;
-        var cookiesR = await SavePublishedPageAsync(cookiesPage, cancellationToken);
-        if (cookiesR.IsFailure) Log.Warning("Failed to seed cookies page: {Error}", ErrMsg(cookiesR));
+        var cookiesR = await SavePublishedPageAsync(cookiesPage, siteId, cancellationToken);
+        if (cookiesR is Result<PageDocument, AeroError>.Failure cookiesFailure)
+            return StarterContentFailure("cookies page", cookiesFailure.Error);
         
         foreach (var doc in docs)
         {
             doc.SiteId = siteId;
+        }
+        await ReconcileDocsPageIdentitiesAsync(docs, siteId, cancellationToken);
+        foreach (var doc in docs)
+        {
             session.Store(doc);
         }
 
@@ -619,7 +649,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
 
         if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
         {
-            await SeedSpanishMexicoStarterContentAsync(
+            var spanishResult = await SeedSpanishMexicoStarterContentAsync(
                 request,
                 siteId,
                 homepage.Id,
@@ -629,6 +659,8 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
                 navMenuTranslationGroupId,
                 footerTranslationGroupId,
                 cancellationToken);
+            if (spanishResult is Result<bool, AeroError>.Failure spanishFailure)
+                return spanishFailure;
         }
 
         // Seed starter media assets from wwwroot/media
@@ -637,38 +669,62 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request);
 
+        var tagIdMap = await ReconcileTagIdentitiesAsync(tags, siteId, cancellationToken);
+        foreach (var post in posts)
+        {
+            post.TagIds = post.TagIds
+                .Select(tagId => tagIdMap.TryGetValue(tagId, out var existingId) ? existingId : tagId)
+                .ToList();
+        }
+
         // Store tags first
         foreach (var tag in tags)
         {
-            tag.SiteId = siteId;
             session.Store(tag);
         }
 
         if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
         {
-            foreach (var translation in BuildSpanishMexicoTagTranslations(tags))
+            var translations = BuildSpanishMexicoTagTranslations(tags);
+            await ReconcileTagTranslationIdentitiesAsync(translations, cancellationToken);
+            foreach (var translation in translations)
             {
                 session.Store(translation);
             }
         }
 
-        // Save blog posts (blocks are stored inline in Content)
+        // Relationship validation in PostContentService queries persisted taxonomy.
+        // Commit the complete staged tag/translation set once before saving posts.
+        await session.SaveChangesAsync(cancellationToken);
+
         foreach (var post in posts)
         {
             post.SiteId = siteId;
             post.Culture = defaultCulture;
+        }
+        await ReconcilePostIdentitiesAsync(posts, siteId, cancellationToken);
+
+        // Save blog posts (blocks are stored inline in Content)
+        foreach (var post in posts)
+        {
             post.TranslationGroupId ??= post.Id;
-            await blogPostContentService.SaveAsync(post, cancellationToken);
+            var postResult = await blogPostContentService.SaveAsync(post, siteId, cancellationToken);
+            if (postResult is Result<PostDocument, AeroError>.Failure postFailure)
+                return StarterContentFailure($"blog post '{post.Title}'", postFailure.Error);
         }
 
         // Seed /oops 404 page with alias
-        await SeedOopsPageAsync(siteId, defaultCulture, cancellationToken);
+        var oopsResult = await SeedOopsPageAsync(siteId, defaultCulture, cancellationToken);
+        if (oopsResult is Result<PageDocument, AeroError>.Failure oopsFailure)
+            return StarterContentFailure("/oops page", oopsFailure.Error);
 
         // Seed commerce products
         await commerceSeedService.SeedAsync(siteId, cancellationToken);
 
         // Seed default global settings
         SeedDefaultSettings(defaultCulture);
+
+        return Prelude.Ok<bool, AeroError>(true);
     }
 
     /// <summary>
@@ -856,7 +912,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     /// <summary>
     /// Seeds the supported Spanish (Mexico) page, navigation, and footer variants.
     /// </summary>
-    private async Task SeedSpanishMexicoStarterContentAsync(
+    private async Task<Result<bool, AeroError>> SeedSpanishMexicoStarterContentAsync(
         SeedDatabaseRequest request,
         long siteId,
         long homepageTranslationGroupId,
@@ -893,21 +949,28 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             [("Comunicate", "Envianos un mensaje y te responderemos a la brevedad.")],
             callToAction: ("Enviar un mensaje", "mailto:hello@example.com"));
 
-        homepage.SiteId = siteId;
-        var homeR = await SavePublishedPageAsync(homepage, cancellationToken);
-        if (homeR.IsFailure) Log.Warning("Failed to seed es-MX homepage: {Error}", ErrMsg(homeR));
+        PageDocument[] spanishPages = [homepage, blogListing, aboutPage, contactPage];
+        foreach (var page in spanishPages)
+        {
+            page.SiteId = siteId;
+        }
+        await ReconcilePageIdentitiesAsync(spanishPages, siteId, cancellationToken);
 
-        blogListing.SiteId = siteId;
-        var blogR = await SavePublishedPageAsync(blogListing, cancellationToken);
-        if (blogR.IsFailure) Log.Warning("Failed to seed es-MX blog listing page: {Error}", ErrMsg(blogR));
+        var homeR = await SavePublishedPageAsync(homepage, siteId, cancellationToken);
+        if (homeR is Result<PageDocument, AeroError>.Failure homeFailure)
+            return StarterContentFailure("es-MX homepage", homeFailure.Error);
 
-        aboutPage.SiteId = siteId;
-        var aboutR = await SavePublishedPageAsync(aboutPage, cancellationToken);
-        if (aboutR.IsFailure) Log.Warning("Failed to seed es-MX about page: {Error}", ErrMsg(aboutR));
+        var blogR = await SavePublishedPageAsync(blogListing, siteId, cancellationToken);
+        if (blogR is Result<PageDocument, AeroError>.Failure blogFailure)
+            return StarterContentFailure("es-MX blog listing page", blogFailure.Error);
 
-        contactPage.SiteId = siteId;
-        var contactR = await SavePublishedPageAsync(contactPage, cancellationToken);
-        if (contactR.IsFailure) Log.Warning("Failed to seed es-MX contact page: {Error}", ErrMsg(contactR));
+        var aboutR = await SavePublishedPageAsync(aboutPage, siteId, cancellationToken);
+        if (aboutR is Result<PageDocument, AeroError>.Failure aboutFailure)
+            return StarterContentFailure("es-MX about page", aboutFailure.Error);
+
+        var contactR = await SavePublishedPageAsync(contactPage, siteId, cancellationToken);
+        if (contactR is Result<PageDocument, AeroError>.Failure contactFailure)
+            return StarterContentFailure("es-MX contact page", contactFailure.Error);
 
         await SeedSpanishMexicoNavMenuAsync(
             siteId,
@@ -925,6 +988,8 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             blogListing.Id,
             footerTranslationGroupId,
             cancellationToken);
+
+        return Prelude.Ok<bool, AeroError>(true);
     }
 
     /// <summary>
@@ -1179,7 +1244,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     /// <summary>
     /// Publishes the fallback page and stores aliases for 404, 500, and the retired setup route.
     /// </summary>
-    private async Task SeedOopsPageAsync(long siteId, string defaultCulture, CancellationToken ct)
+    private async Task<Result<PageDocument, AeroError>> SeedOopsPageAsync(
+        long siteId,
+        string defaultCulture,
+        CancellationToken ct)
     {
         var oopsPage = new PageDocument
         {
@@ -1206,51 +1274,55 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         // Stamp siteId on the oopsPage before storing
         oopsPage.SiteId = siteId;
         oopsPage.TranslationGroupId = oopsPage.Id;
+        await ReconcilePageIdentitiesAsync([oopsPage], siteId, ct);
 
         // Use SaveAsync for proper slug reservation
-        await SavePublishedPageAsync(oopsPage, ct);
+        var pageResult = await SavePublishedPageAsync(oopsPage, siteId, ct);
+        if (pageResult is Result<PageDocument, AeroError>.Failure pageFailure)
+            return pageFailure;
 
-        // Create alias /404 → /oops
-        var alias404 = new AliasDocument
+        AliasDocument[] aliases =
+        [
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/404",
+                NormalizedOldPath = AliasDocument.NormalizePath("/404"),
+                NewPath = "/oops",
+                Notes = "Auto-seeded 404 redirect"
+            },
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/500",
+                NormalizedOldPath = AliasDocument.NormalizePath("/500"),
+                NewPath = "/oops",
+                Notes = "Auto-seeded 500 redirect"
+            },
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/setup",
+                NormalizedOldPath = AliasDocument.NormalizePath("/setup"),
+                NewPath = "/",
+                Notes = "Auto-seeded setup redirect"
+            }
+        ];
+        await ReconcileAliasIdentitiesAsync(aliases, siteId, defaultCulture, ct);
+        foreach (var alias in aliases)
         {
-            Id = Snowflake.NewId(),
-            SiteId = siteId,
-            Culture = defaultCulture,
-            OldPath = "/404",
-            NormalizedOldPath = AliasDocument.NormalizePath("/404"),
-            NewPath = "/oops",
-            Notes = "Auto-seeded 404 redirect"
-        };
-        session.Store(alias404);
-
-        // Create alias /500 → /oops
-        var alias500 = new AliasDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = siteId,
-            Culture = defaultCulture,
-            OldPath = "/500",
-            NormalizedOldPath = AliasDocument.NormalizePath("/500"),
-            NewPath = "/oops",
-            Notes = "Auto-seeded 500 redirect"
-        };
-        session.Store(alias500);
-
-        // Create alias /setup → /
-        var aliasSetup = new AliasDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = siteId,
-            Culture = defaultCulture,
-            OldPath = "/setup",
-            NormalizedOldPath = AliasDocument.NormalizePath("/setup"),
-            NewPath = "/",
-            Notes = "Auto-seeded setup redirect"
-        };
-        session.Store(aliasSetup);
+            session.Store(alias);
+        }
 
         await session.SaveChangesAsync(ct);
         Log.Information("Seeded /oops error page with /404 → /oops, /500 → /oops, /setup → / aliases");
+        return pageResult;
     }
 
 
@@ -1736,25 +1808,283 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         => value.Trim();
 
     /// <summary>
-    /// Extracts a page workflow error message for seed logging.
+    /// Wraps a required starter-content failure with the failed artifact's name.
     /// </summary>
-    private static string ErrMsg(Result<PageDocument, AeroError> r) =>
-        r is Result<PageDocument, AeroError>.Failure f && f.Error is AeroError.Error e ? e.msg : "seed save failed";
+    private static Result<bool, AeroError> StarterContentFailure(string artifact, AeroError error)
+    {
+        var detail = GetErrorMessages(error).FirstOrDefault() ?? "Starter content seeding failed.";
+        return Prelude.Fail<bool, AeroError>(
+            AeroError.CreateError($"Failed to seed {artifact}: {detail}"));
+    }
+
+    /// <summary>
+    /// Converts railway errors into user-facing setup failure messages.
+    /// </summary>
+    private static IReadOnlyList<string> GetErrorMessages(AeroError error)
+        => error switch
+        {
+            AeroError.Validation validation => validation.Errors,
+            AeroError.Error generic => [generic.msg],
+            AeroError.Cancelled cancelled => [cancelled.msg],
+            AeroError.NotAllowed notAllowed => [notAllowed.msg],
+            AeroError.NotFound notFound => [notFound.msg],
+            AeroError.Conflict conflict => [conflict.msg],
+            AeroError.Database database => [database.msg],
+            AeroError.Unauthorized unauthorized => [unauthorized.msg],
+            AeroError.Forbidden forbidden => [forbidden.msg],
+            AeroError.Timeout timeout => [timeout.msg],
+            AeroError.InvalidRequest invalidRequest => [invalidRequest.msg],
+            AeroError.BadRequest badRequest => [badRequest.msg],
+            AeroError.Exists exists => [exists.msg],
+            AeroError.NullReferro nullReference => [nullReference.msg],
+            AeroError.HttpRequest httpRequest => [httpRequest.msg ?? $"HTTP request failed with status {(int)httpRequest.code}."],
+            AeroError.Configuration configuration => [configuration.msg],
+            _ => ["Starter content seeding failed."]
+        };
+
+    private async Task ReconcilePageIdentitiesAsync(
+        IReadOnlyList<PageDocument> pages,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingPages = await session.Query<PageDocument>()
+            .Where(page => page.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = pages
+            .Select(page => new
+            {
+                Page = page,
+                OriginalId = page.Id,
+                page.ParentId,
+                page.TranslationGroupId,
+                page.SourcePageId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+
+        foreach (var reference in references)
+        {
+            var page = reference.Page;
+            page.SiteId = siteId;
+            page.Culture = NormalizeCultureName(page.Culture);
+            page.Path = AliasDocument.NormalizePath(page.Path);
+            var existing = existingPages.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), page.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(AliasDocument.NormalizePath(candidate.Path), page.Path, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            if (existing is not null)
+            {
+                page.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Page.ParentId = RemapReference(reference.ParentId, idMap);
+            reference.Page.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap);
+            reference.Page.SourcePageId = RemapReference(reference.SourcePageId, idMap);
+        }
+    }
+
+    private async Task ReconcileDocsPageIdentitiesAsync(
+        IReadOnlyList<DocsPage> docs,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingDocs = await session.Query<DocsPage>()
+            .Where(doc => doc.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = docs
+            .Select(doc => new
+            {
+                Doc = doc,
+                OriginalId = doc.Id,
+                doc.ParentId,
+                doc.TranslationGroupId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+        var preservedTranslationGroups = new Dictionary<DocsPage, long?>();
+
+        foreach (var reference in references)
+        {
+            var doc = reference.Doc;
+            doc.SiteId = siteId;
+            doc.Culture = NormalizeCultureName(doc.Culture);
+            doc.Slug = NormalizeSeedSlug(doc.Slug);
+            var existing = existingDocs.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), doc.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormalizeSeedSlug(candidate.Slug), doc.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            preservedTranslationGroups[doc] = existing?.TranslationGroupId;
+            if (existing is not null)
+            {
+                doc.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Doc.ParentId = RemapReference(reference.ParentId, idMap);
+            reference.Doc.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap)
+                ?? preservedTranslationGroups[reference.Doc];
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<long, long>> ReconcileTagIdentitiesAsync(
+        IReadOnlyList<Tag> tags,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingTags = await session.Query<Tag>()
+            .Where(tag => tag.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var idMap = new Dictionary<long, long>();
+
+        foreach (var tag in tags)
+        {
+            var originalId = tag.Id;
+            tag.SiteId = siteId;
+            tag.Slug = NormalizeSeedSlug(tag.Slug);
+            var existing = existingTags.FirstOrDefault(candidate =>
+                string.Equals(NormalizeSeedSlug(candidate.Slug), tag.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[originalId] = existing?.Id ?? originalId;
+            if (existing is not null)
+            {
+                tag.Id = existing.Id;
+            }
+        }
+
+        return idMap;
+    }
+
+    private async Task ReconcileTagTranslationIdentitiesAsync(
+        IReadOnlyList<TagTranslation> translations,
+        CancellationToken cancellationToken)
+    {
+        var tagIds = translations.Select(translation => translation.TagId).ToHashSet();
+        var existingTranslations = (await session.Query<TagTranslation>()
+                .ToListAsync(cancellationToken))
+            .Where(translation => tagIds.Contains(translation.TagId))
+            .ToList();
+
+        foreach (var translation in translations)
+        {
+            translation.Culture = NormalizeCultureName(translation.Culture);
+            var existing = existingTranslations.FirstOrDefault(candidate =>
+                candidate.TagId == translation.TagId
+                && string.Equals(
+                    NormalizeCultureName(candidate.Culture),
+                    translation.Culture,
+                    StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                translation.Id = existing.Id;
+            }
+        }
+    }
+
+    private async Task ReconcilePostIdentitiesAsync(
+        IReadOnlyList<PostDocument> posts,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingPosts = await session.Query<PostDocument>()
+            .Where(post => post.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = posts
+            .Select(post => new
+            {
+                Post = post,
+                OriginalId = post.Id,
+                post.TranslationGroupId,
+                post.SourcePostId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+        var preservedTranslationGroups = new Dictionary<PostDocument, long?>();
+
+        foreach (var reference in references)
+        {
+            var post = reference.Post;
+            post.SiteId = siteId;
+            post.Culture = NormalizeCultureName(post.Culture);
+            post.Slug = NormalizeSeedSlug(post.Slug);
+            var existing = existingPosts.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), post.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormalizeSeedSlug(candidate.Slug), post.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            preservedTranslationGroups[post] = existing?.TranslationGroupId;
+            if (existing is not null)
+            {
+                post.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Post.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap)
+                ?? preservedTranslationGroups[reference.Post];
+            reference.Post.SourcePostId = RemapReference(reference.SourcePostId, idMap);
+        }
+    }
+
+    private async Task ReconcileAliasIdentitiesAsync(
+        IReadOnlyList<AliasDocument> aliases,
+        long siteId,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCulture = NormalizeCultureName(culture);
+        var existingAliases = await session.Query<AliasDocument>()
+            .Where(alias => alias.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var alias in aliases)
+        {
+            alias.SiteId = siteId;
+            alias.Culture = normalizedCulture;
+            alias.NormalizedOldPath = AliasDocument.NormalizePath(alias.OldPath);
+            var existing = existingAliases.FirstOrDefault(candidate =>
+                string.Equals(
+                    NormalizeCultureName(candidate.Culture),
+                    normalizedCulture,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    AliasDocument.NormalizePath(candidate.NormalizedOldPath),
+                    alias.NormalizedOldPath,
+                    StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                alias.Id = existing.Id;
+            }
+        }
+    }
+
+    private static long? RemapReference(long? id, IReadOnlyDictionary<long, long> idMap)
+        => id is { } value && idMap.TryGetValue(value, out var remapped) ? remapped : id;
+
+    private static string NormalizeSeedSlug(string? slug)
+        => (slug ?? string.Empty).Trim().Trim('/').ToLowerInvariant();
 
     /// <summary>
     /// Saves a page draft and immediately publishes it when the save succeeds.
     /// </summary>
     private async Task<Result<PageDocument, AeroError>> SavePublishedPageAsync(
         PageDocument page,
+        long authorizedSiteId,
         CancellationToken cancellationToken)
     {
-        var saved = await pageContentService.SaveAsync(page, cancellationToken);
+        var saved = await pageContentService.SaveAsync(page, authorizedSiteId, cancellationToken);
         if (saved is Result<PageDocument, AeroError>.Failure saveFailure)
         {
             return saveFailure;
         }
 
-        var published = await pagePublishingWorkflowService.PublishNowAsync(page.Id, cancellationToken);
+        var published = await pagePublishingWorkflowService.PublishNowAsync(
+            page.Id,
+            authorizedSiteId,
+            cancellationToken);
         return published is Result<bool, AeroError>.Failure publishFailure
             ? Prelude.Fail<PageDocument, AeroError>(publishFailure.Error)
             : saved;

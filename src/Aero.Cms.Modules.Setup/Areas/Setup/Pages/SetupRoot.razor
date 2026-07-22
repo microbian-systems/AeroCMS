@@ -10,6 +10,7 @@
     <base href="/" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Modules.Setup/setup-handoff.css" />
     <link rel="stylesheet" href="/css/aero.generated.css" />
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
     <link rel="icon" type="image/x-icon" href="_content/Aero.Cms.Shared/images/brand/favicon.ico" sizes="any" />
@@ -21,7 +22,28 @@
 </head>
 
 <body>
-    <SetupRoutes @rendermode="InteractiveServer" />
+    <div id="setup-interactive-content">
+        <SetupRoutes @rendermode="InteractiveServer" />
+    </div>
+    <section id="setup-handoff" class="setup-handoff" role="dialog" aria-modal="true" aria-labelledby="setup-handoff-title" hidden>
+        <div class="setup-handoff__panel">
+            <div class="setup-handoff__mark" aria-hidden="true">
+                <img src="/img/aero-logo-new.png" alt="" class="setup-handoff__logo" />
+                <span class="setup-handoff__orbit"></span>
+            </div>
+            <div id="setup-handoff-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+                <p class="setup-handoff__eyebrow">Setup complete</p>
+                <h2 id="setup-handoff-title" tabindex="-1">Starting Aero CMS</h2>
+                <p id="setup-handoff-detail">Saving your configuration and handing off to the main application.</p>
+            </div>
+            <p id="setup-handoff-error" class="setup-handoff__error" role="alert" hidden></p>
+            <div id="setup-handoff-actions" class="setup-handoff__actions" hidden>
+                <button id="setup-handoff-check" type="button">Check again</button>
+                <button id="setup-handoff-return" type="button" class="secondary">Return to setup</button>
+            </div>
+        </div>
+    </section>
+    <script src="_content/Aero.Cms.Modules.Setup/setup-handoff.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

@@ -6,6 +6,7 @@ using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Cms.Shared.Localization;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Pages.Composition;
 using System.Text.Json;
@@ -26,6 +27,129 @@ namespace Aero.Cms.Core.Tests.Integration;
 
 public class DynamicPageModelStatusCodeTests
 {
+    [Test]
+    public async Task MissingRootHomepage_RedirectsToNoSite()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_396);
+        var actor = CreateFailedActor();
+        var model = CreateModel(harness, page, actor);
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>()
+            .Which.Url.Should().Be("/nosite");
+        await actor.Received(1).GetBySlugAsync(
+            page.SiteId,
+            "/",
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task MissingCultureOnlyRootHomepage_RedirectsToNoSite()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_397);
+        var actor = CreateFailedActor();
+        var model = CreateModel(harness, page, actor);
+        model.Slug = "es-mx";
+        model.HttpContext.Items[AeroCultureRoute.CulturePrefixItemKey] = "es-MX";
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>()
+            .Which.Url.Should().Be("/nosite");
+        await actor.Received(1).GetBySlugAsync(
+            page.SiteId,
+            string.Empty,
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task UnsupportedCultureLikeSlug_RemainsNotFound()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_397_1);
+        var actor = CreateFailedActor();
+        var model = CreateModel(harness, page, actor);
+        model.Slug = "fr-fr";
+        model.HttpContext.Items[AeroCultureRoute.CulturePrefixItemKey] = "es-MX";
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        await actor.Received(1).GetBySlugAsync(
+            page.SiteId,
+            "fr-fr",
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task PublishedRootHomepage_ActorFailure_ReturnsInternalServerError()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_397_2);
+        var model = CreateModel(harness, page, CreateFailedActor());
+        page.Kind = Aero.Cms.Abstractions.Enums.PageKind.Homepage;
+        page.Slug = "/";
+        page.Path = "/";
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.StatusCodeResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+    }
+
+    [Test]
+    public async Task MissingOrdinarySlug_RemainsNotFound()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_398);
+        var model = CreateModel(harness, page, CreateFailedActor());
+        model.Slug = "missing-page";
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+    }
+
+    [Test]
+    public async Task MissingRootDuringStatusCodeReexecution_RemainsNotFound()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_399);
+        var model = CreateModel(harness, page, CreateFailedActor());
+        model.PageContext.HttpContext.Features.Set<IStatusCodeReExecuteFeature>(
+            new TestStatusCodeReExecuteFeature(404, "/missing-page"));
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+    }
+
     [Test]
     public async Task ReExecutedStatusCodePage_preserves_original_status_code()
     {
@@ -250,6 +374,20 @@ public class DynamicPageModelStatusCodeTests
                 ShowHeaderNavigation = true
             },
             new PageErrorViewModel());
+
+    private static IAeroPageActor CreateFailedActor()
+    {
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetBySlugAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<PageViewModel>(
+                new PageViewModel(),
+                new PageErrorViewModel { Message = "Page not found." }));
+        return actor;
+    }
 
     private static ISiteStyleProfileResolver CreateStyleProfileResolver()
     {

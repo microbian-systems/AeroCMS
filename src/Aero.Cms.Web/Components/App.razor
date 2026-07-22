@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject PersistentComponentState PersistentState
 @inject AuthenticationStateProvider AuthProvider
+@inject IHttpContextAccessor HttpContextAccessor
 
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.Name" dir="@(CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr")">
@@ -28,7 +29,7 @@
                 }
             }
 
-            theme = theme || localStorage.getItem('manager-theme') || 'dark';
+            theme = theme || localStorage.getItem('manager-theme') || 'light';
             theme = theme === 'light' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             document.addEventListener('DOMContentLoaded', function () {
@@ -61,20 +62,28 @@
     <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/primary/blue.css" />
     @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script> *@
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
-    <HeadOutlet @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: true))" />
+    <HeadOutlet @rendermode="@_interactiveRenderMode" />
 </head>
 
 <body>
     <!-- Boot splash — covers page until Blazor's interactive renderer is ready -->
-    <div id="app-splash" class="app-splash">
+    <main id="app-splash" class="app-splash" aria-labelledby="app-splash-title">
         <div class="app-splash-inner">
-            <img src="_content/Aero.Cms.Shared/aero-spinner.svg" alt="Loading…" class="app-splash-spinner" />
-            <p class="app-splash-text">Loading AeroCMS…</p>
+            <div class="app-splash-mark" aria-hidden="true">
+                <img src="/img/aero-logo-new.png" alt="" class="app-splash-logo" />
+                <span class="app-splash-orbit"></span>
+            </div>
+            <div class="app-splash-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+                <p class="app-splash-eyebrow">Aero Manager</p>
+                <h1 id="app-splash-title" class="app-splash-title">Starting Aero Manager</h1>
+                <p class="app-splash-text">Loading the manager workspace.</p>
+            </div>
+            <button type="button" class="app-splash-retry" hidden onclick="location.reload()">Reload manager</button>
         </div>
-    </div>
+    </main>
 
     <CascadingValue Value="@AppState">
-        <Routes @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: true))" />
+        <Routes @rendermode="@_interactiveRenderMode" />
     </CascadingValue>
     <ReconnectModal />
     <script src="/lib/popperjs-core/dist/umd/popper.min.js"></script>
@@ -85,27 +94,29 @@
     <script src="@Assets["_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"]"></script>
     <script src="@Assets["_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"]"></script>
     <script src="_content/NeoUI.Blazor/js/theme.js"></script>
-    <script src="_content/Aero.Cms.Shared/splash.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
-    <script>
-        // Manual Blazor start so we can hide the splash after FULL initialization
-        // (WASM runtime + assemblies downloaded + DOM hydrated)
-        Blazor.start().then(function () {
-            hideAppSplash();
-        });
-        // Safety timeout: hide splash after 20s no matter what
-        setTimeout(hideAppSplash, 20000);
-    </script>
+    <script src="@Assets["_content/Aero.Cms.Shared/splash.js"]"></script>
 </body>
 </html>
 
 @code {
     private PersistingComponentStateSubscription _subscription;
+    private InteractiveWebAssemblyRenderMode _interactiveRenderMode = new(prerender: true);
 
     [Inject] public Aero.Cms.Contracts.Services.AppState AppState { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var httpContext = HttpContextAccessor.HttpContext;
+        var isAuthenticatedManagerRequest = httpContext?.Request.Path.StartsWithSegments("/manager") == true
+            && httpContext.User.Identity?.IsAuthenticated == true;
+        _interactiveRenderMode = new InteractiveWebAssemblyRenderMode(prerender: !isAuthenticatedManagerRequest);
+
+        if (isAuthenticatedManagerRequest)
+        {
+            return;
+        }
+
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
@@ -120,7 +131,7 @@
                     user.FindFirstValue(ClaimTypes.Email),
                     roles));
                 return Task.CompletedTask;
-            }, new InteractiveWebAssemblyRenderMode(prerender: true));
+            }, _interactiveRenderMode);
         }
     }
 

@@ -13,12 +13,39 @@ namespace Aero.Cms.Modules.Setup;
 /// </remarks>
 public sealed class SetupGateMiddleware(
     ISetupInitializationService setupInitializationService,
-    SetupPathAllowlist allowlist) : IMiddleware
+    SetupPathAllowlist allowlist,
+    Bootstrap.RuntimeBootstrapReadinessGate readinessGate) : IMiddleware
 {
     /// <inheritdoc />
 public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
-        if (allowlist.IsAllowed(context.Request.Path) || await setupInitializationService.IsSetupCompleteAsync(context.RequestAborted))
+        if (allowlist.IsAllowed(context.Request.Path))
+        {
+            await next(context);
+            return;
+        }
+
+        if (readinessGate.RequiresReadiness)
+        {
+            if (await readinessGate.WaitAsync(context.RequestAborted))
+            {
+                await next(context);
+                return;
+            }
+
+            var statusCodePages = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodePagesFeature>();
+            if (statusCodePages is not null)
+            {
+                statusCodePages.Enabled = false;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = "text/plain";
+            await context.Response.WriteAsync("Service Unavailable", context.RequestAborted);
+            return;
+        }
+
+        if (await setupInitializationService.IsSetupCompleteAsync(context.RequestAborted))
         {
             await next(context);
             return;

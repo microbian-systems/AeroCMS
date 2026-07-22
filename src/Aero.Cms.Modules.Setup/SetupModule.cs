@@ -84,9 +84,12 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
         services.TryAddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
         services.TryAddSingleton<SetupPathAllowlist>();
+        services.TryAddSingleton(_ => new RuntimeBootstrapReadinessGate(bootstrapState.IsConfiguredMode));
         services.TryAddTransient<SetupGateMiddleware>();
+        services.TryAddTransient<RuntimeBootstrapReadinessMiddleware>();
         services.TryAddSingleton<ISecretManager>(sp => DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
 
+        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, RuntimeBootstrapReadinessStartupFilter>());
         services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
 
         if (runtimeMode)

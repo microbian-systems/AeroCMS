@@ -74,9 +74,9 @@ public static class AeroCmsExtensions
     /// runtime services; those operations are performed by <see cref="RunAeroCmsAsync{TRootComponent}"/>.
     /// Hydro services are registered only when <see cref="AeroCmsOptions.EnableHydro"/> is enabled.
     /// <para>
-    /// Authentication defaults to <c>Identity.Application</c>
-    /// (<see cref="IdentityConstants.ApplicationScheme"/>) for the general, authenticate, challenge,
-    /// and sign-in schemes. Its cookie defaults to <c>.AeroCms.Auth</c>,
+    /// Authentication defaults to the <c>AeroCms.Manager</c> policy scheme for the general,
+    /// authenticate, and challenge schemes, while sign-in defaults to <c>Identity.Application</c>
+    /// (<see cref="IdentityConstants.ApplicationScheme"/>). The application cookie defaults to <c>.AeroCms.Auth</c>,
     /// <see cref="CookieOptions.HttpOnly"/> enabled, <see cref="CookieSecurePolicy.Always"/>,
     /// <see cref="SameSiteMode.Lax"/>, seven-day sliding expiration, and <c>/manager/login</c> for
     /// both login and access-denied redirects. <see cref="AeroCmsOptions.ConfigureApplicationCookie"/>
@@ -138,14 +138,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 authentication.DefaultChallengeScheme = ManagerRecoveryDefaults.ManagerScheme;
                 authentication.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
             })
-            .AddPolicyScheme(ManagerRecoveryDefaults.ManagerScheme, null, policyScheme =>
-            {
-                policyScheme.ForwardDefaultSelector = context =>
-                    context.Request.Cookies.ContainsKey(ManagerRecoveryDefaults.CookieName)
-                    && !context.Request.Cookies.ContainsKey(".AeroCms.Auth")
-                        ? ManagerRecoveryDefaults.Scheme
-                        : IdentityConstants.ApplicationScheme;
-            })
+            .AddPolicyScheme(ManagerRecoveryDefaults.ManagerScheme, null, ManagerAuthenticationSchemeRouting.Configure)
             .AddCookie(IdentityConstants.ApplicationScheme, cookie =>
             {
                 cookie.Cookie.Name = ".AeroCms.Auth";
@@ -201,8 +194,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         services.AddAuthorization(authorization =>
         {
             var managerPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(
-                    IdentityConstants.ApplicationScheme,
-                    ManagerRecoveryDefaults.Scheme)
+                    ManagerRecoveryDefaults.ManagerScheme)
                 .RequireAuthenticatedUser()
                 .Build();
             authorization.AddPolicy(ManagerRecoveryDefaults.ManagerPolicy, managerPolicy);
@@ -210,9 +202,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
 
             authorization.AddPolicy("AeroAdmin", policy =>
             {
-                policy.AddAuthenticationSchemes(
-                    IdentityConstants.ApplicationScheme,
-                    ManagerRecoveryDefaults.Scheme);
+                policy.AddAuthenticationSchemes(ManagerRecoveryDefaults.ManagerScheme);
                 policy.RequireAuthenticatedUser();
                 policy.RequireRole("Admin");
             });
@@ -306,6 +296,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
             options.ModuleDescriptors,
             configureResolvedInfrastructure: runtimeConfig =>
                 PublishResolvedInfrastructure(runtimeConfig, resolvedInfrastructure));
+        RuntimeBootstrapReadinessStartupFilterOrdering.MoveReadinessFilterToStart(services);
         services.AddSingleton(options.ModuleDescriptors);
         services.AddSingleton(options);
 
@@ -556,6 +547,11 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
                 log.Information("Initializing runtime services...");
                 await app.InitializeAeroAppAsync();
 
+                if (bootstrapState.IsConfiguredMode)
+                {
+                    app.Services.GetRequiredService<RuntimeBootstrapReadinessGate>().SignalReady();
+                }
+
                 startupStage = "application lifetime";
                 await app.WaitForShutdownAsync();
             }
@@ -581,6 +577,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
                         rootCause.Message);
                 }
 
+                app.Services.GetRequiredService<RuntimeBootstrapReadinessGate>().SignalFailure();
                 await AeroStartupPipeline.TryMarkBootstrapFailedAsync(app, log);
                 throw;
             }

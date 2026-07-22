@@ -36,8 +36,8 @@ public static class IdentityApi
     /// <list type="bullet">
     /// <item>
     /// <description>
-    /// <c>GET /config</c> returns <c>AeroCms:Bootstrap:AuthenticationMode</c> verbatim,
-    /// or <c>Local</c> when the setting is absent.
+    /// <c>GET /config</c> returns the freshly resolved requested and effective manager
+    /// authentication providers, activation status, and non-secret authority binding identifier.
     /// </description>
     /// </item>
     /// <item>
@@ -365,13 +365,15 @@ public static class IdentityApi
         return Results.NoContent();
     }
 
-    private static async Task<IResult> GetAuthenticationConfigAsync(
+    internal static async Task<IResult> GetAuthenticationConfigAsync(
+        HttpContext httpContext,
         [FromServices] IManagerAuthenticationModeResolver modeResolver,
         CancellationToken cancellationToken)
     {
+        httpContext.Response.Headers.CacheControl = "no-store";
         var result = await modeResolver.ResolveAsync(cancellationToken);
         return result is Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode)
-            ? Results.Ok(new AuthenticationConfigResponse(mode.EffectiveProvider))
+            ? Results.Ok(mode)
             : Results.Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "Manager authentication mode is unavailable.");
@@ -399,18 +401,6 @@ public static class IdentityApi
             && !returnUrl.StartsWith("//", StringComparison.Ordinal)
             && !returnUrl.Contains('\\')
             && returnUrl.All(character => !char.IsControl(character));
-
-    /// <summary>
-    /// Describes the authentication mode exposed to the administrative client.
-    /// </summary>
-    /// <param name="AuthenticationMode">
-    /// The raw configured mode, or <c>Local</c> when the setting was absent.
-    /// </param>
-    /// <remarks>
-    /// The value is informational and is not normalized or validated before being
-    /// returned.
-    /// </remarks>
-    public sealed record AuthenticationConfigResponse(string AuthenticationMode);
 
     /// <summary>
     /// Describes the Identity user resolved for the current request.

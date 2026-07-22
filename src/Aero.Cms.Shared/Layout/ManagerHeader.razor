@@ -46,7 +46,9 @@
         <nav class="pe-nav">
             <div class="relative" @onclick:stopPropagation>
                 <button class="flex items-center gap-2 pe-btn pe-btn-ghost pe-btn-sm font-semibold"
-                        @onclick="ToggleNavDropdown">
+                        @onclick="HandleHeaderSiteControlAsync"
+                        aria-label="@(currentSite is null ? L["Select Site"] : L["Open manager navigation"])"
+                        aria-expanded="@(currentSite is null ? _showSitePicker : _showNavDropdown)">
                     @if (currentSite is not null)
                     {
                         <span>@currentSite.Name</span>
@@ -57,7 +59,7 @@
                         <span class="text-gray-400">@L["No site selected"]</span>
                     }
                     <svg class="w-4 h-4 transition-transform duration-150" 
-                         style="transform: @(_showNavDropdown ? "rotate(180deg)" : "rotate(0deg)")"
+                         style="transform: @((currentSite is null ? _showSitePicker : _showNavDropdown) ? "rotate(180deg)" : "rotate(0deg)")"
                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
@@ -329,6 +331,17 @@
     private void ToggleNavDropdown()
     {
         _showNavDropdown = !_showNavDropdown;
+    }
+
+    private async Task HandleHeaderSiteControlAsync()
+    {
+        if (currentSite is null)
+        {
+            await ShowSitePickerAsync();
+            return;
+        }
+
+        ToggleNavDropdown();
     }
 
     private void DismissNavDropdown()

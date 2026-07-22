@@ -6,6 +6,7 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
@@ -33,6 +34,9 @@ public partial class Setup : ComponentBase
 
     [Inject]
     private IStringLocalizer<SetupResource> L { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
 
     /// <summary>
     /// Gets or sets an optional return URL supplied by the route or parent component.
@@ -399,6 +403,19 @@ protected async Task HandleSubmit()
         // Force UI update to show the message before the async operation
         await InvokeAsync(StateHasChanged);
 
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("AeroSetupHandoff.begin");
+        }
+        catch (JSException exception)
+        {
+            IsSubmitting = false;
+            HasValidationErrors = true;
+            StatusMessage = "Setup could not start the application handoff. Please try again.";
+            Logger.LogError(exception, "Setup handoff screen could not be started.");
+            return;
+        }
+
         // Create the seed request with all setup configuration
         var seedRequest = new SeedDatabaseRequest(
             databaseMode,
@@ -438,6 +455,7 @@ protected async Task HandleSubmit()
             HasValidationErrors = true;
             StatusMessage = $"Setup failed: {string.Join("; ", result.Errors)}";
             Logger.LogError("Setup bootstrap handoff failed: {Errors}", string.Join("; ", result.Errors));
+            await JSRuntime.InvokeVoidAsync("AeroSetupHandoff.fail", StatusMessage);
         }
         // If successful, the app will shut down and the main app will start automatically
         // The user will see the "Setup complete! Starting main application..." message

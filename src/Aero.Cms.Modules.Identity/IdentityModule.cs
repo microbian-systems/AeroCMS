@@ -13,6 +13,8 @@ using AeroDB.Sable;
 using Microsoft.AspNetCore.Authorization;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -147,6 +149,9 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
         services.AddScoped<IManagerIdentityProviderStrategyFactory, ManagerIdentityProviderStrategyFactory>();
         services.AddScoped<IManagerFederationCoordinator, ManagerFederationCoordinator>();
         services.TryAddScoped<IManagerAuthenticationModeResolver, UnavailableManagerAuthenticationModeResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IPostConfigureOptions<CookieAuthenticationOptions>,
+            ManagerApiCookieRedirectPostConfigureOptions>());
 
         var developmentSecretsEnabled = env?.IsDevelopment() == true &&
             config?.GetValue<bool>(DevelopmentManagerProviderSecretSource.EnabledConfigurationKey) == true;

@@ -99,6 +99,17 @@ Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(long sourcePageId,
     /// <returns>The persisted page, or a validation, not-found, or database error.</returns>
 Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
     /// <summary>
+    /// Validates and saves draft content for an explicitly authorized site.
+    /// </summary>
+    /// <param name="page">The page state and draft content to save.</param>
+    /// <param name="authorizedSiteId">The positive site identifier already authorized by the caller.</param>
+    /// <param name="cancellationToken">The token used through the document commit.</param>
+    /// <returns>The persisted page, or a validation, not-found, or database error.</returns>
+Task<Result<PageDocument, AeroError>> SaveAsync(
+        PageDocument page,
+        long authorizedSiteId,
+        CancellationToken cancellationToken = default);
+    /// <summary>
     /// Creates a validated draft page and reserves its full route.
     /// </summary>
     /// <param name="request">The page creation request.</param>
@@ -987,17 +998,32 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
         }
     }
 
+/// <inheritdoc />
+public Task<Result<PageDocument, AeroError>> SaveAsync(
+        PageDocument page,
+        CancellationToken cancellationToken = default)
+        => SaveAsync(page, _siteContext.SiteId, cancellationToken);
+
     /// <inheritdoc />
-public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default)
+public async Task<Result<PageDocument, AeroError>> SaveAsync(
+        PageDocument page,
+        long authorizedSiteId,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(page);
+            if (authorizedSiteId <= 0)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ValidationError(["The authorized site identifier must be positive."]));
+            }
+
             if (page.SiteId == 0)
             {
-                page.SiteId = _siteContext.SiteId;
+                page.SiteId = authorizedSiteId;
             }
-            else if (page.SiteId != _siteContext.SiteId)
+            else if (page.SiteId != authorizedSiteId)
             {
                 return Prelude.Fail<PageDocument, AeroError>(
                     AeroError.NotFoundError($"Page with id '{page.Id}' not found or access denied"));
@@ -1018,7 +1044,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             }
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
-            if (existingPage is not null && existingPage.SiteId != _siteContext.SiteId)
+            if (existingPage is not null && existingPage.SiteId != authorizedSiteId)
             {
                 return Prelude.Fail<PageDocument, AeroError>(AeroError.NotFoundError($"Page with id '{page.Id}' not found or access denied"));
             }
@@ -1042,7 +1068,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
                 targetPage.Id,
                 ContentSlugOwnerType.Page,
                 targetPublicSlug,
-                targetPage.SiteId,
+                authorizedSiteId,
                 targetPage.Culture,
                 oldSlug,  // oldSlug is the leaf; reservation handles full-path matching
                 cancellationToken);

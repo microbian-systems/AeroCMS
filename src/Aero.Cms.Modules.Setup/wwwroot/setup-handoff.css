@@ -1,0 +1,82 @@
+.setup-handoff {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    overflow-y: auto;
+    background:
+        radial-gradient(circle at 85% 10%, rgba(109, 40, 217, 0.14), transparent 34rem),
+        #f1f5f9;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #0f172a;
+}
+
+.setup-handoff[hidden] { display: none; }
+
+.setup-handoff__panel {
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+    width: min(100%, 28rem);
+    padding: clamp(28px, 6vw, 44px);
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+    text-align: center;
+}
+
+.setup-handoff__mark {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+}
+
+.setup-handoff__logo { width: 68px; height: 68px; object-fit: contain; }
+
+.setup-handoff__orbit {
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(109, 40, 217, 0.14);
+    border-top-color: #6d28d9;
+    border-radius: 9999px;
+    animation: setup-handoff-spin 1.4s linear infinite;
+}
+
+.setup-handoff__eyebrow {
+    margin: 0 0 8px;
+    color: #6d28d9;
+    font-size: .75rem;
+    font-weight: 750;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.setup-handoff h2 { margin: 0; font-size: clamp(1.5rem, 5vw, 1.75rem); line-height: 1.2; }
+.setup-handoff p { margin: 8px 0 0; color: #64748b; line-height: 1.55; }
+.setup-handoff__error { color: #b91c1c !important; }
+.setup-handoff__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.setup-handoff__actions[hidden] { display: none; }
+.setup-handoff button {
+    min-height: 44px;
+    padding: .75rem 1.15rem;
+    border: 1px solid #6d28d9;
+    border-radius: .75rem;
+    background: #6d28d9;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.setup-handoff button.secondary { background: #fff; color: #4c1d95; }
+.setup-handoff button:focus-visible { outline: 3px solid rgba(109, 40, 217, .35); outline-offset: 3px; }
+
+@keyframes setup-handoff-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .setup-handoff__orbit { animation: none; }
+}

@@ -146,7 +146,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         }
         else
         {
-            var normalizedSlug = AeroCultureRoute.StripLeadingCulture(requestedSlug);
+            var normalizedSlug = StripConfirmedCulturePrefix(requestedSlug);
             result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
 
@@ -158,6 +158,11 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                 requestedSlug,
                 CultureInfo.CurrentUICulture.Name,
                 result?.error?.Message ?? "No actor response");
+            if (IsRootHomepageRequest(requestedSlug))
+            {
+                return await ResolveMissingRootHomepageAsync(cancellationToken);
+            }
+
             return NotFound();
         }
 
@@ -169,7 +174,9 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                 siteContext.SiteId,
                 requestedSlug,
                 CultureInfo.CurrentUICulture.Name);
-            return NotFound();
+            return IsRootHomepageRequest(requestedSlug)
+                ? await ResolveMissingRootHomepageAsync(cancellationToken)
+                : NotFound();
         }
 
         SeoTitle = vm.SeoTitle ?? vm.Title;
@@ -394,6 +401,70 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             : $"/{culture.ToLowerInvariant()}/{normalizedSlug}";
 
         return UriHelper.BuildAbsolute(Request.Scheme, Request.Host, Request.PathBase, path);
+    }
+
+    private bool IsRootHomepageRequest(string? requestedSlug)
+    {
+        if (DraftId is not null || HttpContext.Features.Get<IStatusCodeReExecuteFeature>() is not null)
+        {
+            return false;
+        }
+
+        var normalizedSlug = (requestedSlug ?? string.Empty).Trim().Trim('/');
+        if (normalizedSlug.Length == 0)
+        {
+            return true;
+        }
+
+        if (normalizedSlug.Contains('/'))
+        {
+            return false;
+        }
+
+        var culturePrefix = HttpContext.Items[AeroCultureRoute.CulturePrefixItemKey]?.ToString();
+        var normalizedPrefix = AeroCultureRoute.NormalizeCultureOrDefault(culturePrefix, string.Empty);
+        var normalizedSegment = AeroCultureRoute.NormalizeCultureOrDefault(normalizedSlug, string.Empty);
+        return normalizedPrefix.Length > 0
+               && string.Equals(normalizedSegment, normalizedPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string StripConfirmedCulturePrefix(string requestedSlug)
+    {
+        var normalizedSlug = requestedSlug.Trim().Trim('/');
+        var slashIndex = normalizedSlug.IndexOf('/');
+        var firstSegment = slashIndex < 0 ? normalizedSlug : normalizedSlug[..slashIndex];
+        var culturePrefix = HttpContext.Items[AeroCultureRoute.CulturePrefixItemKey]?.ToString();
+        var normalizedPrefix = AeroCultureRoute.NormalizeCultureOrDefault(culturePrefix, string.Empty);
+        var normalizedSegment = AeroCultureRoute.NormalizeCultureOrDefault(firstSegment, string.Empty);
+        if (normalizedPrefix.Length == 0
+            || !string.Equals(normalizedSegment, normalizedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalizedSlug;
+        }
+
+        return slashIndex < 0 ? string.Empty : normalizedSlug[(slashIndex + 1)..];
+    }
+
+    private async Task<IActionResult> ResolveMissingRootHomepageAsync(CancellationToken cancellationToken)
+    {
+        await using var session = await documentStore.QuerySessionAsync();
+        var hasPublishedHomepage = await session.Query<PageDocument>()
+            .Where(page =>
+                page.SiteId == siteContext.SiteId
+                && page.Path == "/"
+                && page.PublicationState == Aero.Cms.Abstractions.Enums.ContentPublicationState.Published
+                && !page.Deleted)
+            .AnyAsync(cancellationToken);
+
+        if (!hasPublishedHomepage)
+        {
+            return Redirect("/nosite");
+        }
+
+        logger.LogError(
+            "Public homepage actor lookup failed although a published root PageDocument exists for SiteId={SiteId}",
+            siteContext.SiteId);
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     private void PreserveReExecutedStatusCode()

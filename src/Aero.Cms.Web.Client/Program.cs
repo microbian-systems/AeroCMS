@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Core.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -41,6 +42,7 @@ builder.Services.AddScoped(_ => new HttpClient
 {
     BaseAddress = uri
 });
+builder.Services.AddScoped<IManagerAuthenticationModeResolver, HttpManagerAuthenticationModeResolver>();
 
 // Register all Aero HTTP clients
 builder.Services.AddLocalStorageServices();

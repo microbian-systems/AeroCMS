@@ -5,6 +5,8 @@ using Aero.Core;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Identity;
@@ -35,6 +37,28 @@ public static class ManagerRecoveryDefaults
 
     /// <summary>The maximum lifetime of a recovery session.</summary>
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromMinutes(15);
+}
+
+/// <summary>
+/// Configures manager authentication routing between normal and recovery sessions.
+/// </summary>
+public static class ManagerAuthenticationSchemeRouting
+{
+    /// <summary>
+    /// Selects the recovery handler only for authentication requests carrying only its cookie,
+    /// while always challenging through the normal manager application cookie.
+    /// </summary>
+    public static void Configure(PolicySchemeOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        options.ForwardDefaultSelector = context =>
+            context.Request.Cookies.ContainsKey(ManagerRecoveryDefaults.CookieName)
+            && !context.Request.Cookies.ContainsKey(".AeroCms.Auth")
+                ? ManagerRecoveryDefaults.Scheme
+                : IdentityConstants.ApplicationScheme;
+        options.ForwardChallenge = IdentityConstants.ApplicationScheme;
+    }
 }
 
 /// <summary>Records a durable manager-recovery authentication attempt.</summary>
