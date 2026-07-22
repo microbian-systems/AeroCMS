@@ -181,14 +181,14 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
     /// site-scoped.
     /// </para>
     /// <para>
-/// When a positive site ID is accompanied by a non-blank <c>AeroCms.ContentTypeAlias</c>,
-/// the method adds <c>content-public:{siteId}</c> and
-/// <c>content-type:{siteId}:{typeAlias}</c>. A positive <c>AeroCms.ContentItemId</c> adds
-/// <c>content-item:{siteId}:{itemId}</c>. Non-blank <c>AeroCms.ContentItemSlug</c> and
-/// <c>AeroCms.ContentCulture</c> values together add
-/// <c>content-item-slug:{siteId}:{typeAlias}:{culture}:{slug}</c>.
-/// A string collection in <c>AeroCms.ContentTypeAliases</c> adds the public and
-/// type-specific tags for every content type used by a composed page.
+    /// When a positive site ID is accompanied by a non-blank <c>AeroCms.ContentTypeAlias</c>,
+    /// the method adds <c>content-public:{siteId}</c> and
+    /// <c>content-type:{siteId}:{typeAlias}</c>. A positive <c>AeroCms.ContentItemId</c> adds
+    /// <c>content-item:{siteId}:{itemId}</c>. Non-blank <c>AeroCms.ContentItemSlug</c> and
+    /// <c>AeroCms.ContentCulture</c> values together add
+    /// <c>content-item-slug:{siteId}:{typeAlias}:{culture}:{slug}</c>.
+    /// A string collection in <c>AeroCms.ContentTypeAliases</c> adds the public and
+    /// type-specific tags for every content type used by a composed page.
     /// </para>
     /// Missing, blank, non-positive, or differently typed item values are ignored. Tags make
     /// entries addressable by <see cref="IOutputCacheStore.EvictByTagAsync(string, CancellationToken)"/>;
