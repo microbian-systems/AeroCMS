@@ -6,24 +6,59 @@ This document extends the implemented [HTML Living Standard page editor](page-ed
 It does not replace its HTML tree, validation pipeline, static renderer, sortable
 interop, inspector, rich-text editor, or draft/published behavior.
 
-The first two implementation slices are complete. The selected-element action
-toolbar and full element-properties dialog are additive to the existing editor.
+The implemented slices now establish the editor interaction, sidebar,
+persistence, validation, typed-content authoring, and first public rendering
+path. The
+selected-element action toolbar and full element-properties dialog are additive
+to the existing editor.
 The right sidebar now composes the existing outline, palette, and inspector as
 Document, Elements, and Inspector tabs, and a Content tab reads content types
 and field definitions through `IContentTypesHttpClient` in
-`Aero.Cms.Abstractions`. Content scopes and fields are intentionally shown as
-read-only until authoring commands attach them to the composition sidecar.
+`Aero.Cms.Abstractions`. Selecting a content type now enables draggable and
+click-to-add list scopes, selected-item scopes, and field bindings.
 
 The persistence foundation is also implemented. `PageCompositionDocument` in
 `Aero.Cms.Abstractions` defines content-list scopes, content-item scopes,
-bounded list queries, and explicit field-binding targets. `PageDocument` now
+bounded list queries, explicit field-binding targets, and bounded
+`PageRenderedFragment` sidecars for Markdown, Custom HTML, and Scriban.
+`PageDocument` now
 stores independent `DraftComposition` and `PublishedComposition` snapshots;
 draft replacement, publication, culture forks, Orleans view-model transport,
 HTTP DTOs, and PageEditor save/load mapping keep those snapshots paired with
 their corresponding HTML trees. Pages validates node ownership, scope
-uniqueness, lookup shape, paging bounds, and binding containment. Content-type,
-content-item, and field existence validation remains owned by the Content
-module and is the next cross-module contract slice.
+uniqueness, lookup shape, paging bounds, and binding containment.
+
+The Content-owned reference boundary is now implemented through
+`IContentCompositionReferenceValidator` in `Aero.Cms.Abstractions`. The Content
+module resolves content types by stable ID and validates item ownership,
+slug-and-culture lookup, list sort/filter fields, and field bindings. Draft
+saves use authoring validation; publication additionally requires explicitly
+selected content items to be published. Pages consumes only the abstraction and
+fails closed when structured content exists but the Content implementation is
+unavailable.
+
+Published typed-content resolution is also implemented without merging the
+modules. `IContentCompositionResolver` is owned by `Aero.Cms.Abstractions` and
+implemented by Content using its existing type, item, and query services. It
+returns copied published projections after enforcing site, culture, type, and
+publication boundaries. Pages owns `PageCompositionExpander`, which clones the
+saved HTML, expands list templates with fresh node IDs, applies allowlisted field
+targets, validates the expanded tree, and then hands it to the existing style
+compiler and static renderer. The same expander is used by public Razor Pages,
+saved draft previews, and the unsaved PageEditor fragment-preview endpoint.
+
+The three source-backed fragment strategies are now implemented additively.
+Each palette item creates an ordinary `<section>` in `HtmlPageContent` and stores
+its authoring source beside that node ID. Markdown uses block-capable Tiptap,
+persists Markdown, disables raw HTML in Markdig, and imports generated HTML
+through the existing strict importer. Custom HTML retains its source but is not
+a bypass: scripts, event handlers, unsafe URLs, unsupported elements, invalid
+nesting, and parser recovery fail closed. Scriban uses Monaco and the existing
+`SecureScribanRenderer`, exposing only explicit `page` and `site` metadata before
+sanitization and strict HTML import. Fragment insertion, source edits, removal,
+duplication, and orphan reconciliation share the aggregate HTML/composition
+undo-redo history. Public pages and preview endpoints resolve all three through
+`PageCompositionExpander` without mutating the saved tree.
 
 ## Goals
 
@@ -72,6 +107,11 @@ registered by the Content module. Orleans grains may implement the contracts,
 but PageEditor and public rendering consume the abstractions rather than taking
 a project reference on `Aero.Cms.Modules.Content`.
 
+The implemented validation path uses a scoped Content-module implementation so
+Pages does not open Content persistence or depend on the Content assembly.
+Existing HTTP and Orleans surfaces remain the transport boundaries for manager
+UI and distributed callers; the domain validation contract is transport-neutral.
+
 The initial contract should expose read-only authoring and rendering operations:
 
 - list available content types for the current site;
@@ -116,9 +156,21 @@ the saved HTML tree into a template language.
   Authoring uses the existing Blazor Monaco integration already used by Content
   Types. Template execution is time/size bounded and exposes no arbitrary .NET
   object access.
-- Registered partial/view/slot entries store a registry key and typed
-  parameters. Discovery is generated or explicitly registered; it does not scan
-  folders at runtime and does not use reflection-based module discovery.
+- Registered application-fragment entries use a distinct `PageRegisteredFragment`
+  sidecar. Persisted pages store only a normalized provider key and typed scalar
+  JSON parameters; they never store view paths, CLR type names, or rendered markup.
+  Providers are added explicitly with `AddPageRegisteredFragment<TProvider>()`.
+  Registration rejects invalid or duplicate normalized keys and never scans
+  assemblies or folders at runtime.
+- The implemented schema supports string, integer, decimal, boolean, and enum
+  parameters with required/default, length, range, and choice constraints. Both
+  save/publication validation and rendering fail closed when a provider is
+  missing or its parameter schema no longer matches.
+- Provider output is size-bounded, imported through the existing strict HTML
+  fragment importer, and checked again by final page validation. The initial
+  vertical includes the code-backed `core.site-notice` slot. A fixed Razor
+  partial/view adapter is intentionally deferred until it can preserve the same
+  explicit registration and bounded-output contract cleanly.
 
 ## Rendering Pipeline
 
@@ -139,6 +191,18 @@ Missing types, items, fields, registry keys, or rejected fragment output produce
 an observable render error or an explicitly configured empty state. They never
 fall back to executing raw input.
 
+The implemented typed-content portion resolves nested scopes deepest-first,
+defaults every list to page 1, accepts `contentPage` for a page with one list,
+and accepts `contentPage-{scopeNodeId}` for independent list paging. Output-cache
+entries vary by all query keys and carry every authoritative content-type tag
+reported by the expansion, so existing Content invalidation evicts composed
+pages when an item of a referenced type changes.
+
+Dynamic JSON sort and filter expressions currently run in Content over a
+maximum of 1,000 site/type candidates. A larger candidate set fails closed with
+an observable validation error. This is an explicit initial bound until the
+Sable query provider offers safe, allowlisted dynamic JSON predicate pushdown.
+
 ## PageEditor Experience
 
 The right sidebar becomes a tab set while retaining the existing components:
@@ -157,6 +221,32 @@ plus list-scope metadata; dropping `ContentTypeItem` creates an ordinary
 container plus item-scope metadata. The canvas therefore remains an HTML tree,
 not a parallel component tree.
 
+The initial list command creates a validated `<section>` with an `<article>`
+template and a bounded query whose default page size is 10. Selecting the list
+scope exposes additive Inspector controls for a public page size from 1 through
+100, an optional sort field and direction, up to ten AND filters, and empty
+results behavior. These settings update only the composition sidecar and share
+the aggregate undo/redo history; they do not rewrite the HTML template.
+
+The content-item picker loads authoring summaries through
+`IContentItemsHttpClient` in searchable ten-item pages rather than loading an
+unbounded selector. The saved item scope uses the stable content-item ID and
+retains the slug as routing metadata. Field buttons create a compatible
+ordinary HTML node inside the nearest matching scope and add an explicit field
+binding. Fields are rejected when there is no matching scope or when a list
+drop is outside its template subtree. Palette drag payloads and query settings
+are treated as untrusted hints and revalidated against the currently loaded
+content type, fields, and item summaries before mutation.
+
+The composite editor Memento gate is complete. `HtmlPageEditorSession` owns both
+`HtmlPageContent` and `PageCompositionDocument`, captures them as one atomic
+undo/redo snapshot, and removes structurally orphaned scopes and bindings after
+successful HTML mutations. `PageEditor` now loads and saves the sidecar through
+that session. List, item, and field commands update HTML and composition as one
+atomic history entry. Bound-value preview and public resolution now use the
+shared server-side expansion pipeline; the persisted editor HTML remains the
+unchanged authoring template.
+
 Selected canvas elements expose an additive floating toolbar:
 
 - drag handle (existing behavior);
@@ -172,16 +262,26 @@ Memento history.
 
 ## AI Assistant Boundary
 
-The manager navbar may open a persistent assistant drawer, but the manager UI
-must not depend directly on the MCP module implementation. A client contract in
-`Aero.Cms.Abstractions` should own conversation creation, REST request/response,
-SSE streaming, cancellation, authentication failures, and correlation IDs.
+The manager navbar opens a shell-owned assistant drawer without coupling the
+manager UI to the MCP module implementation. Contracts and the typed client in
+`Aero.Cms.Abstractions` own bounded conversations, REST responses, POST-SSE
+streaming, cancellation, authentication failures, correlation IDs, and the
+capability-only REST fallback policy.
 
-The current MCP module must first gain authenticated endpoints, an SSE transport,
-tool registration, site/user authorization context, and tests. Until those exist,
-the assistant button may be designed but must not imply a functioning backend.
-Assistant tools use the same application services and authorization rules as the
-manager UI; MCP is a transport boundary, not an authorization bypass.
+`Aero.Cms.Modules.AiAssistant` owns stateless provider conversation
+orchestration and reuses the existing AI settings and provider factory.
+`Aero.Cms.Modules.Mcp` owns the authenticated manager endpoints and the
+standards Streamable HTTP endpoint at `/mcp`. Its initial read-only tools expose
+the current site, bounded page listings, and bounded page detail. Every tool
+independently rebuilds its user/site context and reauthorizes `site:read` for the
+exact selected site before reading data; MCP is a transport boundary, not an
+authorization bypass.
+
+The drawer keeps history only in its manager-shell scope, clears it when the
+authenticated user or selected site changes, streams incremental output, and
+cancels in-flight work. Model-driven invocation of the MCP tools from within the
+provider conversation loop is intentionally deferred; provider chat and direct
+authenticated MCP tool calls are available in this slice.
 
 ## Industry Alignment
 
@@ -207,18 +307,33 @@ localization, permissions, and publication state and is therefore rejected.
 2. **Sidebar organization (complete):** Document, Elements, Content, and
    Inspector tabs composed from the existing outline, palette, property panel,
    and content-type read client.
-3. **Contracts and sidecars (in progress):** source-defined composition models,
+3. **Contracts and sidecars (complete):** source-defined composition models,
    structural validation, persistence, publication/culture cloning, Orleans
-   transport, and HTTP/PageEditor mapping are complete. Content-module read
-   contracts and referenced type/item/field validation remain.
-4. **Typed content authoring:** type selector, list/item scopes, compatible field
-   draggables, paging configuration, undo/redo, and preview resolution.
-5. **Fragment strategies:** Markdown/Markdig, validated Custom HTML,
-   Scriban/Monaco, and explicit registered partial/view/slot registry.
-6. **Public rendering:** published resolution pipeline, cache keys, pagination,
-   observability, failure policy, and integration tests.
-7. **Manager assistant:** MCP endpoints and tools first, then the authenticated
-   REST/SSE client and manager-wide assistant drawer.
+   transport, HTTP/PageEditor mapping, stable content-type lookup, and
+   Content-owned type/item/query/field reference validation.
+4. **Typed content authoring (complete):** composite
+   HTML/composition Memento, orphan reconciliation, validated drag tokens,
+   list/item scope creation, compatible field-binding commands, searchable
+   item-picker pagination, bounded list-query configuration, and shared
+   bound-value preview.
+5. **Fragment strategies (complete for source-backed and registered code-backed
+   providers):** bounded fragment
+   sidecars, Markdown/Markdig with block-capable Tiptap, validated Custom HTML,
+   Scriban/Monaco through the secure runtime, public/preview expansion, and
+   aggregate history. Registered application fragments add an authenticated
+   catalog, explicit generic provider registration, schema-driven scalar editing,
+   and one code-backed slot. A Razor partial/view adapter remains deferred.
+6. **Public rendering (typed-content and fragment portions complete):** Content-owned
+   published projections, Pages-owned cloned-tree expansion, public and editor
+   preview integration, independent list pagination, content dependency cache
+   tags, bounded query failure policy, source-backed fragment expansion, and
+   focused integration tests. Registered application fragments share the same
+   cloned-tree public and unsaved-preview expansion path and fail closed.
+7. **Manager assistant (complete for provider chat and MCP transport):** bounded
+   stateless provider chat, authenticated REST/POST-SSE endpoints, explicit
+   read-only site/page tools, standards Streamable HTTP at `/mcp`, and a
+   manager-wide streaming/cancellable drawer. Model-driven tool invocation from
+   the provider conversation loop remains deferred.
 
 Each slice must preserve the existing PageEditor and add focused TUnit and, when
 the browser interaction changes, Microsoft Playwright coverage before proceeding.

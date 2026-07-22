@@ -21,6 +21,29 @@ internal sealed class CachedContentTypeService(
     ILogger<CachedContentTypeService> logger) : IContentTypeService
 {
     /// <inheritdoc />
+    public async Task<Result<ContentTypeDefinition, AeroError>> GetByIdAsync(
+        long siteId,
+        long id,
+        CancellationToken ct = default)
+    {
+        var key = ContentCacheKeys.TypeById(siteId, id);
+        var cached = await cache.TryGetAsync<ContentTypeDefinition>(key, token: ct);
+        if (cached.HasValue && cached.Value.SiteId == siteId && cached.Value.Id == id)
+        {
+            return Prelude.Ok<ContentTypeDefinition, AeroError>(
+                ContentCacheSnapshot.Clone(cached.Value));
+        }
+
+        var result = await inner.GetByIdAsync(siteId, id, ct);
+        if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
+        {
+            await SetAsync(ok.Value, ct);
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(
         long siteId,
         string alias,

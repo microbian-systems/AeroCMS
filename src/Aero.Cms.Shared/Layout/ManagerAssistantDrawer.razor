@@ -1,0 +1,64 @@
+@namespace Aero.Cms.Shared.Layout
+@using Aero.Cms.Abstractions.Ai.Assistant
+
+@if (State.IsOpen)
+{
+    <div class="manager-assistant-backdrop" @onclick="Close" aria-hidden="true"></div>
+    <aside class="manager-assistant-drawer"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="manager-assistant-title">
+        <header class="manager-assistant-header">
+            <div>
+                <h2 id="manager-assistant-title">Aero assistant</h2>
+                <p>Answers use the configured server-side AI provider.</p>
+            </div>
+            <div class="manager-assistant-header-actions">
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Reset" disabled="@State.IsSending">Reset</button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Close" aria-label="Close assistant">✕</button>
+            </div>
+        </header>
+
+        <div class="manager-assistant-messages" aria-live="polite" aria-busy="@State.IsSending">
+            @if (State.Messages.Count == 0)
+            {
+                <div class="manager-assistant-empty">
+                    Ask about the current AeroCMS site, page composition, or manager workflow.
+                </div>
+            }
+            @foreach (var message in State.Messages)
+            {
+                <article class="manager-assistant-message @(message.Role == AeroCmsAssistantRole.User ? "is-user" : "is-assistant") @(message.IsError ? "is-error" : null)">
+                    <strong>@(message.Role == AeroCmsAssistantRole.User ? "You" : "Aero")</strong>
+                    <div>@message.Text</div>
+                    @if (message.IsStreaming)
+                    {
+                        <span class="manager-assistant-cursor" aria-label="Generating response">●</span>
+                    }
+                </article>
+            }
+            <div @ref="_messageEnd"></div>
+        </div>
+
+        <form class="manager-assistant-composer" @onsubmit="SendAsync" @onsubmit:preventDefault>
+            <label for="manager-assistant-input" class="sr-only">Message Aero assistant</label>
+            <textarea id="manager-assistant-input"
+                      @bind="_draft"
+                      maxlength="@AeroCmsAssistantLimits.MaxUserMessageCharacters"
+                      rows="3"
+                      disabled="@State.IsSending"
+                      placeholder="Ask AeroCMS…"></textarea>
+            <div class="manager-assistant-composer-actions">
+                <span>@_draft.Length / @AeroCmsAssistantLimits.MaxUserMessageCharacters</span>
+                @if (State.IsSending)
+                {
+                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="Cancel">Cancel</button>
+                }
+                else
+                {
+                    <button type="submit" class="pe-btn pe-btn-primary pe-btn-sm" disabled="@string.IsNullOrWhiteSpace(_draft)">Send</button>
+                }
+            </div>
+        </form>
+    </aside>
+}

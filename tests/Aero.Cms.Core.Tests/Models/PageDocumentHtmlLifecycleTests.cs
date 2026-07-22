@@ -58,6 +58,15 @@ public sealed class PageDocumentHtmlLifecycleTests
                     TemplateRootNodeId = targetNodeId,
                     Query = new PageContentListQuery { Filters = filters }
                 }
+            ],
+            RenderedFragments =
+            [
+                new PageRenderedFragment
+                {
+                    NodeId = targetNodeId,
+                    Kind = PageRenderedFragmentKind.Markdown,
+                    Source = "# Bound draft"
+                }
             ]
         };
         var page = new PageDocument();
@@ -69,6 +78,8 @@ public sealed class PageDocumentHtmlLifecycleTests
         await Assert.That(page.DraftComposition.ContentLists).IsNotSameReferenceAs(composition.ContentLists);
         await Assert.That(page.DraftComposition.ContentLists[0].Query.Filters[0].Value)
             .IsEqualTo("news");
+        await Assert.That(page.DraftComposition.RenderedFragments).IsNotSameReferenceAs(composition.RenderedFragments);
+        await Assert.That(page.DraftComposition.RenderedFragments[0].Source).IsEqualTo("# Bound draft");
     }
 
     [Test]
@@ -89,6 +100,15 @@ public sealed class PageDocumentHtmlLifecycleTests
                         ContentTypeAlias = "people",
                         ContentItemId = 30
                     }
+                ],
+                RenderedFragments =
+                [
+                    new PageRenderedFragment
+                    {
+                        NodeId = 40,
+                        Kind = PageRenderedFragmentKind.Markdown,
+                        Source = "**Published**"
+                    }
                 ]
             },
             ContentRevision = 7,
@@ -106,6 +126,7 @@ public sealed class PageDocumentHtmlLifecycleTests
         await Assert.That(page.PublishedContent).IsNotSameReferenceAs(page.DraftContent);
         await Assert.That(page.PublishedComposition).IsNotNull();
         await Assert.That(page.PublishedComposition!.ContentItems[0].ContentItemId).IsEqualTo(30);
+        await Assert.That(page.PublishedComposition.RenderedFragments[0].Source).IsEqualTo("**Published**");
         await Assert.That(page.PublishedComposition).IsNotSameReferenceAs(page.DraftComposition);
         await Assert.That(page.ContentRevision).IsEqualTo(7);
         await Assert.That(page.PublishedVersion).IsEqualTo(4);

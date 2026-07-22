@@ -1,0 +1,17 @@
+.aero-registered-fragment-overlay { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgb(15 23 42 / 62%); backdrop-filter: blur(4px); }
+.aero-registered-fragment-dialog { width: min(38rem, 100%); max-height: calc(100vh - 3rem); overflow: auto; border: 1px solid #dbe3ef; border-radius: 1rem; color: #172033; background: #fff; box-shadow: 0 28px 80px rgb(15 23 42 / 28%); }
+.aero-registered-fragment-dialog__header, .aero-registered-fragment-dialog__footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; }
+.aero-registered-fragment-dialog__header { border-bottom: 1px solid #e2e8f0; }
+.aero-registered-fragment-dialog__header span { color: #7c3aed; font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.aero-registered-fragment-dialog__header h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.aero-registered-fragment-dialog__header button { border: 0; color: #64748b; background: transparent; font-size: 1.5rem; cursor: pointer; }
+.aero-registered-fragment-dialog__body { display: grid; gap: 1rem; padding: 1.25rem; }
+.aero-registered-fragment-dialog__body > p { margin: 0; color: #64748b; font-size: .82rem; }
+.aero-registered-fragment-dialog__field { display: grid; gap: .35rem; }
+.aero-registered-fragment-dialog__field label { font-size: .8rem; font-weight: 700; }
+.aero-registered-fragment-dialog__field label span { color: #dc2626; }
+.aero-registered-fragment-dialog__field small { color: #64748b; }
+.aero-registered-fragment-dialog__field input:not([type="checkbox"]), .aero-registered-fragment-dialog__field select { width: 100%; border: 1px solid #cbd5e1; border-radius: .5rem; padding: .65rem .75rem; background: #fff; }
+.aero-registered-fragment-dialog__field input[type="checkbox"] { width: 1.1rem; height: 1.1rem; }
+.aero-registered-fragment-dialog__error { margin: 0 1.25rem .75rem; border-radius: .5rem; padding: .75rem; color: #991b1b; background: #fef2f2; font-size: .8rem; }
+.aero-registered-fragment-dialog__footer { justify-content: flex-end; border-top: 1px solid #e2e8f0; }

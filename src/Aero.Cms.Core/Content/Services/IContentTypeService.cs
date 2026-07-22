@@ -13,6 +13,11 @@ namespace Aero.Cms.Core.Content.Services;
 /// </remarks>
 public interface IContentTypeService
 {
+    /// <summary>Loads a content type by its stable identifier within a site.</summary>
+    /// <param name="siteId">The owning site identifier.</param><param name="id">The stable content-type identifier.</param><param name="ct">A token that can cancel the operation.</param>
+    /// <returns>The definition, or a failed result when the identifier is not found for the site.</returns>
+    Task<Result<ContentTypeDefinition, AeroError>> GetByIdAsync(long siteId, long id, CancellationToken ct = default);
+
     /// <summary>Loads a content type by its site-scoped alias.</summary>
     /// <param name="siteId">The owning site identifier.</param><param name="alias">The content type alias.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns>The definition, or a failed result when the alias is not found for the site.</returns>

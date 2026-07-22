@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
@@ -64,6 +66,60 @@ public sealed class PagePublishingWorkflowHtmlTests
     }
 
     [Test]
+    public async Task PublishNowAsync_rejects_stale_content_references_before_snapshotting()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var page = CreatePage(9_205, CreateValidContent("Do not publish stale content"));
+        var scope = page.DraftContent.Root.Children[0];
+        var target = scope.Children[0];
+        page.DraftComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = scope.NodeId,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    ContentItemId = 7_001
+                }
+            ],
+            FieldBindings =
+            [
+                new PageFieldBinding
+                {
+                    NodeId = target.NodeId,
+                    ScopeNodeId = scope.NodeId,
+                    FieldName = "title"
+                }
+            ]
+        };
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
+        referenceValidator.ValidateAsync(
+                page.SiteId,
+                Arg.Any<string>(),
+                Arg.Any<PageCompositionDocument>(),
+                ContentReferenceValidationMode.Publishing,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Failure(
+                    AeroError.ValidationError(["A referenced content item is not published."]))));
+        var service = CreateService(harness.Session, referenceValidator);
+
+        var result = await service.PublishNowAsync(page.Id);
+
+        result.IsFailure.ShouldBeTrue();
+        page.PublicationState.ShouldBe(ContentPublicationState.Draft);
+        page.PublishedVersion.ShouldBe(0);
+        page.PublishedContent.ShouldBeNull();
+        page.PublishedComposition.ShouldBeNull();
+    }
+
+    [Test]
     public async Task PublishNowAsync_WithAuthorizedSite_RejectsCrossSitePageWithoutMutation()
     {
         await using var harness = new SableTestHarness()
@@ -108,7 +164,9 @@ public sealed class PagePublishingWorkflowHtmlTests
         restored.PublishedContent.ShouldBeNull();
     }
 
-    private static PagePublishingWorkflowService CreateService(IDocumentSession session)
+    private static PagePublishingWorkflowService CreateService(
+        IDocumentSession session,
+        IContentCompositionReferenceValidator? referenceValidator = null)
     {
         var catalog = HtmlElementCatalog.CreateDefault();
         var contentPolicy = new HtmlContentModelPolicy(catalog);
@@ -119,7 +177,8 @@ public sealed class PagePublishingWorkflowHtmlTests
             new HtmlContentValidator(catalog, contentPolicy, attributePolicy),
             new NativeCssStyleCompiler(),
             CreateStyleProfileResolver(),
-            NullLogger<PagePublishingWorkflowService>.Instance);
+            NullLogger<PagePublishingWorkflowService>.Instance,
+            referenceValidator);
     }
 
     private static ISiteStyleProfileResolver CreateStyleProfileResolver()

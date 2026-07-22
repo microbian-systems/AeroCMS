@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Microsoft.AspNetCore.Components;
 
@@ -63,6 +64,25 @@ public partial class HtmlElementPalette
         new(HtmlLayoutStarterKind.CardGrid, "Cards", "A responsive three-card grid", "▦")
     ];
 
+    private static readonly IReadOnlyList<RenderedFragmentOption> RenderedFragmentOptions =
+    [
+        new(
+            PageRenderedFragmentKind.Markdown,
+            "Markdown",
+            "A Markdown block rendered safely through Markdig",
+            "M↓"),
+        new(
+            PageRenderedFragmentKind.CustomHtml,
+            "Custom HTML",
+            "A validated HTML fragment restricted to supported elements and safe attributes",
+            "</>"),
+        new(
+            PageRenderedFragmentKind.Scriban,
+            "Scriban",
+            "A bounded server-rendered template with explicit page and site context",
+            "{{ }}")
+    ];
+
     private IReadOnlyList<ElementGroup> _groups = [];
     private string _searchText = string.Empty;
     private bool _showAdvanced;
@@ -97,6 +117,20 @@ public partial class HtmlElementPalette
     public EventCallback<HtmlComponentTemplateKind> ComponentRequested { get; set; }
 
     /// <summary>
+    /// Gets or sets the callback invoked with the selected source-rendered fragment strategy.
+    /// </summary>
+    [Parameter]
+    public EventCallback<PageRenderedFragmentKind> RenderedFragmentRequested { get; set; }
+
+    /// <summary>Gets the server-supplied registered application-fragment catalog.</summary>
+    [Parameter]
+    public IReadOnlyList<PageRegisteredFragmentDescriptor> RegisteredFragments { get; set; } = [];
+
+    /// <summary>Gets or sets the callback for a registered application-fragment key.</summary>
+    [Parameter]
+    public EventCallback<string> RegisteredFragmentRequested { get; set; }
+
+    /// <summary>
     /// Gets or sets the callback that requests the HTML-fragment import workflow.
     /// </summary>
     [Parameter]
@@ -129,6 +163,16 @@ public partial class HtmlElementPalette
         .Where(option => MatchesSearch(option.Label, option.Description))
         .ToArray();
 
+    private IReadOnlyList<RenderedFragmentOption> FilteredRenderedFragmentOptions => RenderedFragmentOptions
+        .Where(option => MatchesSearch(option.Label, option.Description))
+        .ToArray();
+
+    private IReadOnlyList<PageRegisteredFragmentDescriptor> FilteredRegisteredFragments => RegisteredFragments
+        .Where(descriptor => MatchesSearch(descriptor.DisplayName, descriptor.Description ?? descriptor.Key))
+        .OrderBy(descriptor => descriptor.Category, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(descriptor => descriptor.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
     private IReadOnlyList<ElementGroup> FilteredGroups => _groups
         .Select(group => new ElementGroup(
             group.Category,
@@ -141,10 +185,14 @@ public partial class HtmlElementPalette
 
     private bool HasNoMatches => !string.IsNullOrWhiteSpace(SearchText)
         && FilteredComponentOptions.Count == 0
+        && FilteredRenderedFragmentOptions.Count == 0
+        && FilteredRegisteredFragments.Count == 0
         && FilteredLayoutOptions.Count == 0
         && FilteredGroups.Count == 0;
 
     private int VisibleItemCount => FilteredComponentOptions.Count
+        + FilteredRenderedFragmentOptions.Count
+        + FilteredRegisteredFragments.Count
         + FilteredLayoutOptions.Count
         + FilteredGroups.Sum(group => group.Elements.Count);
 
@@ -209,6 +257,13 @@ public partial class HtmlElementPalette
     /// <param name="kind">The selected component template.</param>
     /// <returns>A task that completes when the callback has finished.</returns>
     private Task RequestComponentAsync(HtmlComponentTemplateKind kind) => ComponentRequested.InvokeAsync(kind);
+
+    /// <summary>Forwards a source-rendered fragment request to the owning editor.</summary>
+    private Task RequestRenderedFragmentAsync(PageRenderedFragmentKind kind) =>
+        RenderedFragmentRequested.InvokeAsync(kind);
+
+    private Task RequestRegisteredFragmentAsync(string key) =>
+        RegisteredFragmentRequested.InvokeAsync(key);
 
     /// <summary>
     /// Requests the fragment import workflow from the owning editor.
@@ -281,4 +336,11 @@ public partial class HtmlElementPalette
         string Description,
         string Icon,
         string Category);
+
+    /// <summary>Describes one source-backed fragment presented by the palette.</summary>
+    private sealed record RenderedFragmentOption(
+        PageRenderedFragmentKind Kind,
+        string Label,
+        string Description,
+        string Icon);
 }

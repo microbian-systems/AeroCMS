@@ -5,6 +5,15 @@ namespace Aero.Cms.Abstractions.Pages.Composition;
 /// </summary>
 public sealed record PageContentListQuery
 {
+    /// <summary>Gets the smallest supported public page size.</summary>
+    public const int MinimumPageSize = 1;
+
+    /// <summary>Gets the largest supported public page size.</summary>
+    public const int MaximumPageSize = 100;
+
+    /// <summary>Gets the largest supported number of AND filters.</summary>
+    public const int MaximumFilterCount = 10;
+
     /// <summary>Gets the number of entries requested per public page.</summary>
     public int PageSize { get; init; } = 10;
 

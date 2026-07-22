@@ -1,0 +1,49 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using BlazorMonaco.Editor
+
+<div class="aero-scriban-fragment-overlay" @onclick="CloseAsync">
+    <section class="aero-scriban-fragment-dialog"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-scriban-fragment-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-scriban-fragment-dialog__header">
+            <div>
+                <span>Rendered content</span>
+                <h2 id="aero-scriban-fragment-title">Edit Scriban template</h2>
+            </div>
+            <button type="button" class="aero-scriban-fragment-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-scriban-fragment-dialog__context">
+            Available scopes: <code>page.id</code>, <code>page.title</code>, <code>page.slug</code>,
+            <code>page.path</code>, <code>page.culture</code>, and <code>site.id</code>.
+        </div>
+
+        <div class="aero-scriban-fragment-dialog__body">
+            <StandaloneCodeEditor @ref="_editor"
+                                  Id="@EditorId"
+                                  ConstructionOptions="EditorConstructionOptions"
+                                  OnDidChangeModelContent="OnEditorContentChangedAsync" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="aero-scriban-fragment-dialog__error" role="alert">@ErrorMessage</div>
+        }
+
+        <footer class="aero-scriban-fragment-dialog__footer">
+            <span>Validation and rendering run on the server through the bounded Scriban runtime.</span>
+            <div>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm"
+                        disabled="@_isSaving" @onclick="SaveAsync">
+                    @(_isSaving ? "Validating…" : "Apply Scriban")
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>

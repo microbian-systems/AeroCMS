@@ -1,0 +1,68 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@implements IAsyncDisposable
+
+<div class="aero-markdown-fragment-overlay" @onclick="CloseAsync">
+    <section class="aero-markdown-fragment-dialog"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-markdown-fragment-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-markdown-fragment-dialog__header">
+            <div>
+                <span>Markdown block</span>
+                <h2 id="aero-markdown-fragment-title">Edit rendered Markdown</h2>
+            </div>
+            <button type="button" class="aero-markdown-fragment-dialog__close" @ref="_closeButton" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-markdown-fragment-toolbar" role="toolbar" aria-label="Markdown formatting">
+            <button type="button" disabled="@(!_isReady)" title="Undo" @onclick='() => ExecuteAsync("undo")'>↶</button>
+            <button type="button" disabled="@(!_isReady)" title="Redo" @onclick='() => ExecuteAsync("redo")'>↷</button>
+            <button type="button" disabled="@(!_isReady)" @onclick='() => ExecuteAsync("paragraph")'>Text</button>
+            <button type="button" disabled="@(!_isReady)" @onclick='() => ExecuteAsync("heading2")'>H2</button>
+            <button type="button" disabled="@(!_isReady)" @onclick='() => ExecuteAsync("heading3")'>H3</button>
+            <button type="button" disabled="@(!_isReady)" title="Bulleted list" @onclick='() => ExecuteAsync("bulletList")'>• List</button>
+            <button type="button" disabled="@(!_isReady)" title="Numbered list" @onclick='() => ExecuteAsync("orderedList")'>1. List</button>
+            <button type="button" disabled="@(!_isReady)" title="Block quote" @onclick='() => ExecuteAsync("blockquote")'>“”</button>
+            <button type="button" disabled="@(!_isReady)" title="Code block" @onclick='() => ExecuteAsync("codeBlock")'>{ }</button>
+            <button type="button" disabled="@(!_isReady)" title="Horizontal rule" @onclick='() => ExecuteAsync("horizontalRule")'>—</button>
+            <button type="button" disabled="@(!_isReady)" title="Bold" @onclick='() => ExecuteAsync("bold")'><strong>B</strong></button>
+            <button type="button" disabled="@(!_isReady)" title="Italic" @onclick='() => ExecuteAsync("italic")'><em>I</em></button>
+            <button type="button" disabled="@(!_isReady)" title="Strikethrough" @onclick='() => ExecuteAsync("strike")'><s>S</s></button>
+            <button type="button" disabled="@(!_isReady)" title="Inline code" @onclick='() => ExecuteAsync("code")'>&lt;/&gt;</button>
+            <label>
+                <span class="sr-only">Link destination</span>
+                <input type="url" placeholder="Link URL" @bind="_linkUrl" @bind:event="oninput" />
+            </label>
+            <button type="button" disabled="@(!_isReady)" @onclick='() => ExecuteAsync("link", _linkUrl)'>Link</button>
+            <button type="button" disabled="@(!_isReady)" @onclick='() => ExecuteAsync("unlink")'>Unlink</button>
+        </div>
+
+        <div class="aero-markdown-fragment-dialog__body">
+            @if (!_isReady && string.IsNullOrWhiteSpace(EffectiveError))
+            {
+                <div class="aero-markdown-fragment-dialog__loading">Loading Markdown editor…</div>
+            }
+            <div @ref="_editorElement" class="aero-markdown-fragment-editor"></div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(EffectiveError))
+        {
+            <div class="aero-markdown-fragment-dialog__error" role="alert">@EffectiveError</div>
+        }
+
+        <footer class="aero-markdown-fragment-dialog__footer">
+            <span>Saved as Markdown; public rendering uses Markdig with raw HTML disabled.</span>
+            <div>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm"
+                        disabled="@(!_isReady || _isSaving)" @onclick="SaveAsync">
+                    @(_isSaving ? "Applying…" : "Apply Markdown")
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>

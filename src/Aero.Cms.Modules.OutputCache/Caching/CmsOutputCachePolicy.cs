@@ -181,12 +181,14 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
     /// site-scoped.
     /// </para>
     /// <para>
-    /// When a positive site ID is accompanied by a non-blank <c>AeroCms.ContentTypeAlias</c>,
-    /// the method adds <c>content-public:{siteId}</c> and
-    /// <c>content-type:{siteId}:{typeAlias}</c>. A positive <c>AeroCms.ContentItemId</c> adds
-    /// <c>content-item:{siteId}:{itemId}</c>. Non-blank <c>AeroCms.ContentItemSlug</c> and
-    /// <c>AeroCms.ContentCulture</c> values together add
-    /// <c>content-item-slug:{siteId}:{typeAlias}:{culture}:{slug}</c>.
+/// When a positive site ID is accompanied by a non-blank <c>AeroCms.ContentTypeAlias</c>,
+/// the method adds <c>content-public:{siteId}</c> and
+/// <c>content-type:{siteId}:{typeAlias}</c>. A positive <c>AeroCms.ContentItemId</c> adds
+/// <c>content-item:{siteId}:{itemId}</c>. Non-blank <c>AeroCms.ContentItemSlug</c> and
+/// <c>AeroCms.ContentCulture</c> values together add
+/// <c>content-item-slug:{siteId}:{typeAlias}:{culture}:{slug}</c>.
+/// A string collection in <c>AeroCms.ContentTypeAliases</c> adds the public and
+/// type-specific tags for every content type used by a composed page.
     /// </para>
     /// Missing, blank, non-positive, or differently typed item values are ignored. Tags make
     /// entries addressable by <see cref="IOutputCacheStore.EvictByTagAsync(string, CancellationToken)"/>;
@@ -218,13 +220,34 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
                 context.Tags.Add($"site-pages-{siteId}");
             }
 
-            if (items["AeroCms.ContentTypeAlias"] is string contentTypeAlias &&
-                !string.IsNullOrWhiteSpace(contentTypeAlias))
+            var contentTypeAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (items["AeroCms.ContentTypeAliases"] is IEnumerable<string> composedAliases)
             {
-                var normalizedType = contentTypeAlias.Trim().ToLowerInvariant();
-                context.Tags.Add($"content-public:{siteId}");
-                context.Tags.Add($"content-type:{siteId}:{normalizedType}");
+                foreach (var alias in composedAliases.Where(alias => !string.IsNullOrWhiteSpace(alias)))
+                {
+                    contentTypeAliases.Add(alias.Trim());
+                }
+            }
 
+            if (items["AeroCms.ContentTypeAlias"] is string contentTypeAlias
+                && !string.IsNullOrWhiteSpace(contentTypeAlias))
+            {
+                contentTypeAliases.Add(contentTypeAlias.Trim());
+            }
+
+            if (contentTypeAliases.Count > 0)
+            {
+                context.Tags.Add($"content-public:{siteId}");
+                foreach (var alias in contentTypeAliases)
+                {
+                    context.Tags.Add($"content-type:{siteId}:{alias.ToLowerInvariant()}");
+                }
+            }
+
+            if (items["AeroCms.ContentTypeAlias"] is string itemTypeAlias
+                && !string.IsNullOrWhiteSpace(itemTypeAlias))
+            {
+                var normalizedType = itemTypeAlias.Trim().ToLowerInvariant();
                 if (items["AeroCms.ContentItemId"] is long contentItemId and > 0)
                 {
                     context.Tags.Add($"content-item:{siteId}:{contentItemId}");

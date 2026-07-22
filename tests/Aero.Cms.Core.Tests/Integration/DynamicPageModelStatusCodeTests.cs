@@ -5,6 +5,10 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
+using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Pages.Composition;
+using System.Text.Json;
 using Aero.Core;
 using Aero.Core.Railway;
 using FluentAssertions;
@@ -111,10 +115,76 @@ public class DynamicPageModelStatusCodeTests
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
     }
 
+    [Test]
+    public async Task PublicPage_expands_published_typed_content_before_static_rendering()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_405);
+        var section = HtmlNode.CreateElement("section");
+        var paragraph = HtmlNode.CreateElement("p");
+        paragraph.Children.Add(HtmlNode.CreateText("Placeholder"));
+        section.Children.Add(paragraph);
+        page.PublishedContent = new HtmlPageContent();
+        page.PublishedContent.Root.Children.Add(section);
+        page.PublishedComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = section.NodeId,
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    ContentItemId = 7_001
+                }
+            ],
+            FieldBindings =
+            [
+                new PageFieldBinding
+                {
+                    NodeId = paragraph.NodeId,
+                    ScopeNodeId = section.NodeId,
+                    FieldName = "title",
+                    Target = PageFieldBindingTarget.TextContent
+                }
+            ]
+        };
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var resolver = Substitute.For<IContentCompositionResolver>();
+        resolver.ResolveItemAsync(1, "en-US", Arg.Any<PageContentItemScope>(), Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<PublishedContentItemProjection, AeroError>(new PublishedContentItemProjection
+            {
+                Id = 7_001,
+                ContentTypeAlias = "articles",
+                Slug = "aero",
+                Culture = "en-US",
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["title"] = JsonSerializer.SerializeToElement("Resolved & encoded")
+                }
+            }));
+        var model = CreateModel(harness, page, contentResolver: resolver);
+        model.Slug = page.Slug;
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<PageResult>();
+        model.RenderedMarkup.Should().Contain("Resolved &amp; encoded");
+        model.RenderedMarkup.Should().NotContain("Placeholder");
+        model.HttpContext.Items["AeroCms.ContentTypeAliases"]
+            .Should().BeAssignableTo<IReadOnlyList<string>>()
+            .Which.Should().Contain("articles");
+    }
+
     private static DynamicPageModel CreateModel(
         SableTestHarness harness,
         PageDocument page,
-        IAeroPageActor? actor = null)
+        IAeroPageActor? actor = null,
+        IContentCompositionResolver? contentResolver = null)
     {
         var vm = new PageViewModel
         {
@@ -149,6 +219,9 @@ public class DynamicPageModelStatusCodeTests
             pageActor,
             siteContext,
             harness.Store,
+            new PageCompositionExpander(
+                contentResolver ?? Substitute.For<IContentCompositionResolver>(),
+                validator),
             renderer,
             new NativeCssStyleCompiler(),
             CreateStyleProfileResolver(),

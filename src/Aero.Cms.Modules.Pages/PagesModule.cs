@@ -1,22 +1,27 @@
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Content.Templating;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Core.Http;
+using Aero.Core.Security;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using FluentValidation;
 using Aero.Cms.Html;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Cms.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Pages;
@@ -69,6 +74,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
             var aliasWriter = sp.GetService<IPageRouteAliasWriter>();
+            var contentReferenceValidator = sp.GetService<IContentCompositionReferenceValidator>();
+            var registeredFragmentRegistry = sp.GetService<IPageRegisteredFragmentRegistry>();
             var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
             var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
             var styleProfileResolver = sp.GetRequiredService<ISiteStyleProfileResolver>();
@@ -84,7 +91,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 actor,
                 cache,
                 pageTreeService,
-                aliasWriter);
+                aliasWriter,
+                contentReferenceValidator,
+                registeredFragmentRegistry);
         });
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroPageActor>(sp =>
@@ -105,8 +114,20 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             sp.GetRequiredService<HtmlElementCatalog>(),
             sp.GetRequiredService<IHtmlContentModelPolicy>(),
             sp.GetRequiredService<IHtmlAttributePolicy>()));
+        services.AddSingleton<IHtmlFragmentImporter, HtmlFragmentImporter>();
+        services.AddSingleton<IMarkdownInterchangeAdapter, MarkdownInterchangeAdapter>();
         services.AddSingleton<IStyleCompiler, NativeCssStyleCompiler>();
         services.AddSingleton<HtmlStaticRenderer>();
+        services.AddSingleton<IPageFragmentRenderer, MarkdownPageFragmentRenderer>();
+        services.AddSingleton<IPageFragmentRenderer, CustomHtmlPageFragmentRenderer>();
+        services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizer>();
+        services.TryAddSingleton<SecureScribanTemplateOptions>();
+        services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
+        services.AddSingleton<IPageFragmentRenderer, ScribanPageFragmentRenderer>();
+        services.AddPageRegisteredFragment<SiteNoticePageRegisteredFragmentProvider>();
+        services.AddSingleton<IPageRegisteredFragmentRegistry, PageRegisteredFragmentRegistry>();
+        services.TryAddScoped<IContentCompositionResolver, UnavailableContentCompositionResolver>();
+        services.AddScoped<PageCompositionExpander>();
 
         // FluentValidation
         services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();

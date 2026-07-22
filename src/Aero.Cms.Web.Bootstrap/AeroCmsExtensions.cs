@@ -211,6 +211,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
 
         services.AddAeroHttpClients(baseUri);
         services.AddScoped<ManagerThemeService>();
+        services.AddScoped<ManagerAssistantState>();
         services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
         services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
         services.AddScoped<AppState>();

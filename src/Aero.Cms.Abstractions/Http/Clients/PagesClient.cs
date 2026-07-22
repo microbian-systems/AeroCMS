@@ -39,6 +39,10 @@ public interface IPagesHttpClient
     /// <returns>The page detail or an error.</returns>
     Task<Result<PageDetail, AeroError>> GetBySlugAsync(string slug, CancellationToken ct = default);
 
+    /// <summary>Gets the explicitly registered application-fragment catalog.</summary>
+    Task<Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>> GetRegisteredFragmentsAsync(
+        CancellationToken ct = default);
+
     /// <summary>
     /// Gets published pages with pagination.
     /// </summary>
@@ -207,6 +211,11 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     {
         return PutAsync<UpdatePageRequest, PageDetail>(id.ToString(), request, ct);
     }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>> GetRegisteredFragmentsAsync(
+        CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<PageRegisteredFragmentDescriptor>>("registered-fragments", ct);
 
     /// <inheritdoc />
     public Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(

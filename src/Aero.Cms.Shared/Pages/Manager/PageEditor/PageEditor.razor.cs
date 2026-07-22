@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using Microsoft.Extensions.Localization;
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
@@ -17,6 +18,7 @@ using Radzen;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 using Aero.Cms.Abstractions.Media;
+using Aero.Cms.Abstractions.Pages.Composition;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -36,6 +38,8 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable
     /// Gets or sets the Pages Client.
     /// </summary>
 [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
+    /// <summary>Gets or sets the server-side preview client.</summary>
+    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
         /// <summary>
     /// Gets or sets the Sites Client.
     /// </summary>
@@ -119,6 +123,48 @@ protected string Author       { get; set; } = "Admin";
 
     protected string? MarkdownInterchangeError { get; private set; }
 
+    protected bool MarkdownFragmentEditorOpen { get; private set; }
+
+    protected string MarkdownFragmentInitialHtml { get; private set; } = string.Empty;
+
+    protected string? MarkdownFragmentError { get; private set; }
+
+    protected bool CustomHtmlFragmentEditorOpen { get; private set; }
+
+    protected string CustomHtmlFragmentInitialSource { get; private set; } = string.Empty;
+
+    protected string? CustomHtmlFragmentError { get; private set; }
+
+    protected bool ScribanFragmentEditorOpen { get; private set; }
+
+    protected string ScribanFragmentInitialSource { get; private set; } = string.Empty;
+
+    protected string? ScribanFragmentError { get; private set; }
+
+    protected PageRenderedFragment? SelectedRenderedFragment =>
+        HtmlEditor.SelectedNodeId is { } nodeId
+            ? (HtmlEditor.Composition.RenderedFragments ?? [])
+                .FirstOrDefault(fragment => fragment.NodeId == nodeId)
+            : null;
+
+    protected IReadOnlyList<PageRegisteredFragmentDescriptor> RegisteredFragmentDescriptors { get; private set; } = [];
+
+    protected PageRegisteredFragment? SelectedRegisteredFragment =>
+        HtmlEditor.SelectedNodeId is { } nodeId
+            ? (HtmlEditor.Composition.RegisteredFragments ?? [])
+                .FirstOrDefault(fragment => fragment.NodeId == nodeId)
+            : null;
+
+    protected PageRegisteredFragmentDescriptor? SelectedRegisteredFragmentDescriptor =>
+        SelectedRegisteredFragment is { } fragment
+            ? RegisteredFragmentDescriptors.FirstOrDefault(descriptor =>
+                string.Equals(descriptor.Key, fragment.Key, StringComparison.Ordinal))
+            : null;
+
+    protected bool RegisteredFragmentEditorOpen { get; private set; }
+
+    protected string? RegisteredFragmentError { get; private set; }
+
     private HtmlMediaTargetKind? _htmlMediaTarget;
 
     private IStyleProfile? _siteStyleProfile;
@@ -126,7 +172,8 @@ protected string Author       { get; set; } = "Admin";
 
     private static HtmlPageEditorSession CreateHtmlEditorSession(
         HtmlPageContent content,
-        IStyleProfile styleProfile) => new(
+        IStyleProfile styleProfile,
+        PageCompositionDocument? composition = null) => new(
         content,
         HtmlCatalog,
         HtmlContentPolicy,
@@ -137,7 +184,8 @@ protected string Author       { get; set; } = "Admin";
         new HtmlLayoutStarterFactory(HtmlCatalog),
         new HtmlComponentTemplateFactory(HtmlCatalog),
         new NativeCssStyleCompiler(),
-        styleProfile);
+        styleProfile,
+        composition);
 
     private static IHtmlFragmentImporter CreateHtmlFragmentImporter() => new HtmlFragmentImporter(
         HtmlCatalog,
@@ -149,6 +197,12 @@ protected string Author       { get; set; } = "Admin";
         new MarkdownInterchangeAdapter(
             CreateHtmlFragmentImporter(),
             new HtmlContentValidator(HtmlCatalog, HtmlContentPolicy, new HtmlAttributePolicy()));
+
+    private static HtmlStaticRenderer CreateHtmlStaticRenderer() => new(
+        HtmlCatalog,
+        HtmlContentPolicy,
+        new HtmlAttributePolicy(),
+        new HtmlContentValidator(HtmlCatalog, HtmlContentPolicy, new HtmlAttributePolicy()));
 
     // UI state
         /// <summary>
@@ -378,6 +432,7 @@ protected override async Task OnInitializedAsync()
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
         await EnsureSiteStyleProfileAsync();
+        await LoadRegisteredFragmentCatalogAsync();
 
         if (!Id.HasValue)
         {
@@ -390,6 +445,21 @@ protected override async Task OnInitializedAsync()
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
+    }
+
+    private async Task LoadRegisteredFragmentCatalogAsync()
+    {
+        var result = await PagesClient.GetRegisteredFragmentsAsync();
+        switch (result)
+        {
+            case Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>.Ok ok:
+                RegisteredFragmentDescriptors = ok.Value;
+                break;
+            case Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>.Failure failure:
+                RegisteredFragmentDescriptors = [];
+                ShowToast($"Registered fragments unavailable: {FormatError(failure.Error)}", "error");
+                break;
+        }
     }
 
     private async Task LoadPageAsync(long id)
@@ -421,8 +491,8 @@ protected override async Task OnInitializedAsync()
             
             HtmlEditor = CreateHtmlEditorSession(
                 page.DraftContent ?? new HtmlPageContent(),
-                _siteStyleProfile!);
-            DraftComposition = page.DraftComposition?.CreateSnapshot() ?? new();
+                _siteStyleProfile!,
+                page.DraftComposition);
 
             UpdateLastSaved();
             _pageState = PageState.Clean;
@@ -529,21 +599,22 @@ protected async Task TogglePreview()
         await InvokeAsync(StateHasChanged);
     }
 
-    protected Task SelectHtmlNodeAsync(long? nodeId)
+    protected async Task SelectHtmlNodeAsync(long? nodeId)
     {
         HtmlEditor.Select(nodeId);
         HtmlPropertyError = null;
+        ContentListSettingsError = null;
         if (nodeId is not null)
         {
             RightSidebarCollapsed = false;
             RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+            await EnsureSelectedContentScopeMetadataAsync();
         }
         else if (RightSidebarTab == HtmlPageEditorSidebarTab.Inspector)
         {
             RightSidebarTab = HtmlPageEditorSidebarTab.Elements;
         }
 
-        return Task.CompletedTask;
     }
 
     protected Task ClearHtmlSelectionAsync() => SelectHtmlNodeAsync(null);
@@ -567,6 +638,32 @@ protected async Task TogglePreview()
         var result = HtmlEditor.AddComponent(kind);
         HandleHtmlEditorResult(result, "Component added.");
         return Task.CompletedTask;
+    }
+
+    protected Task AddRenderedFragmentAsync(PageRenderedFragmentKind kind)
+    {
+        var result = HtmlEditor.AddRenderedFragment(kind, DefaultRenderedFragmentSource(kind));
+        HandleHtmlEditorResult(result, $"{RenderedFragmentDisplayName(kind)} block added.");
+        return result is Result<HtmlNode>.Ok ok
+            ? OpenRenderedFragmentEditorForNodeAsync(ok.Value.NodeId)
+            : Task.CompletedTask;
+    }
+
+    protected Task AddRegisteredFragmentAsync(string key)
+    {
+        var descriptor = RegisteredFragmentDescriptors.FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, key, StringComparison.Ordinal));
+        if (descriptor is null)
+        {
+            ShowToast("The selected registered fragment is no longer available.", "error");
+            return Task.CompletedTask;
+        }
+
+        var result = HtmlEditor.AddRegisteredFragment(key, CreateDefaultParameters(descriptor));
+        HandleHtmlEditorResult(result, $"{descriptor.DisplayName} added.");
+        return result is Result<HtmlNode>.Ok ok
+            ? OpenRegisteredFragmentEditorForNodeAsync(ok.Value.NodeId)
+            : Task.CompletedTask;
     }
 
     protected Task OpenHtmlFragmentImportAsync()
@@ -717,6 +814,32 @@ protected async Task TogglePreview()
                     componentKind,
                     intent.TargetNodeId,
                     intent.Placement),
+            HtmlPaletteItemKind.ContentList
+                or HtmlPaletteItemKind.ContentItem
+                or HtmlPaletteItemKind.ContentField
+                when HtmlContentPaletteRequest.TryParse(
+                    intent.ItemKind,
+                    intent.ItemValue,
+                    out var contentRequest) => InsertContentPaletteItemRelative(
+                        contentRequest!,
+                    intent.TargetNodeId,
+                    intent.Placement),
+            HtmlPaletteItemKind.RenderedFragment when Enum.TryParse<PageRenderedFragmentKind>(
+                intent.ItemValue,
+                true,
+                out var fragmentKind) => HtmlEditor.AddRenderedFragmentRelative(
+                    fragmentKind,
+                    DefaultRenderedFragmentSource(fragmentKind),
+                    intent.TargetNodeId,
+                    intent.Placement),
+            HtmlPaletteItemKind.RegisteredFragment
+                when RegisteredFragmentDescriptors.FirstOrDefault(descriptor =>
+                    string.Equals(descriptor.Key, intent.ItemValue, StringComparison.Ordinal)) is { } descriptor
+                => HtmlEditor.AddRegisteredFragmentRelative(
+                    descriptor.Key,
+                    CreateDefaultParameters(descriptor),
+                    intent.TargetNodeId,
+                    intent.Placement),
             _ => AeroError.ValidationError(["The dragged palette item is not supported."])
         };
 
@@ -724,10 +847,25 @@ protected async Task TogglePreview()
         {
             HtmlPaletteItemKind.Layout => "Layout added.",
             HtmlPaletteItemKind.Component => "Component added.",
+            HtmlPaletteItemKind.ContentList
+                or HtmlPaletteItemKind.ContentItem
+                or HtmlPaletteItemKind.ContentField => ContentPaletteSuccessMessage(intent.ItemKind),
+            HtmlPaletteItemKind.RenderedFragment when Enum.TryParse<PageRenderedFragmentKind>(
+                intent.ItemValue,
+                true,
+                out var insertedFragmentKind) => $"{RenderedFragmentDisplayName(insertedFragmentKind)} block added.",
+            HtmlPaletteItemKind.RegisteredFragment => $"{RegisteredFragmentDisplayName(intent.ItemValue)} added.",
             _ => $"Added <{intent.ItemValue}>."
         };
         HandleHtmlEditorResult(result, successMessage);
-        return Task.CompletedTask;
+        return result is Result<HtmlNode>.Ok inserted
+            ? intent.ItemKind switch
+            {
+                HtmlPaletteItemKind.RenderedFragment => OpenRenderedFragmentEditorForNodeAsync(inserted.Value.NodeId),
+                HtmlPaletteItemKind.RegisteredFragment => OpenRegisteredFragmentEditorForNodeAsync(inserted.Value.NodeId),
+                _ => Task.CompletedTask
+            }
+            : Task.CompletedTask;
     }
 
     protected Task RemoveSelectedHtmlNodeAsync()
@@ -838,6 +976,16 @@ protected async Task TogglePreview()
     protected Task OpenHtmlElementEditorForNodeAsync(long nodeId)
     {
         HtmlEditor.Select(nodeId);
+        if (SelectedRenderedFragment is not null)
+        {
+            return OpenRenderedFragmentEditorForNodeAsync(nodeId);
+        }
+
+        if (SelectedRegisteredFragment is not null)
+        {
+            return OpenRegisteredFragmentEditorForNodeAsync(nodeId);
+        }
+
         HtmlPropertyError = null;
         HtmlRichTextEditorOpen = false;
         RightSidebarCollapsed = false;
@@ -850,6 +998,98 @@ protected async Task TogglePreview()
     protected Task OpenSelectedHtmlElementEditorAsync() => HtmlEditor.SelectedNodeId is { } nodeId
         ? OpenHtmlElementEditorForNodeAsync(nodeId)
         : Task.CompletedTask;
+
+    protected Task OpenRegisteredFragmentEditorForNodeAsync(long nodeId)
+    {
+        HtmlEditor.Select(nodeId);
+        HtmlElementEditorOpen = false;
+        HtmlRichTextEditorOpen = false;
+        MarkdownFragmentEditorOpen = false;
+        CustomHtmlFragmentEditorOpen = false;
+        ScribanFragmentEditorOpen = false;
+        RegisteredFragmentEditorOpen = false;
+        RegisteredFragmentError = null;
+
+        if (SelectedRegisteredFragment is null || SelectedRegisteredFragmentDescriptor is null)
+        {
+            RegisteredFragmentError = "The selected registered fragment or its provider is unavailable.";
+            RegisteredFragmentEditorOpen = false;
+            return Task.CompletedTask;
+        }
+
+        RegisteredFragmentEditorOpen = true;
+        RightSidebarCollapsed = false;
+        RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseRegisteredFragmentEditorAsync()
+    {
+        RegisteredFragmentEditorOpen = false;
+        RegisteredFragmentError = null;
+        return Task.CompletedTask;
+    }
+
+    protected async Task ApplyRegisteredFragmentParametersAsync(
+        IReadOnlyDictionary<string, JsonElement> parameters)
+    {
+        if (SelectedRegisteredFragment is not { } fragment)
+        {
+            RegisteredFragmentError = "The selected registered fragment no longer exists.";
+            return;
+        }
+
+        var updated = fragment with
+        {
+            Parameters = parameters.ToDictionary(
+                parameter => parameter.Key,
+                parameter => parameter.Value.Clone(),
+                StringComparer.Ordinal)
+        };
+        var fragments = (HtmlEditor.Composition.RegisteredFragments ?? [])
+            .Select(candidate => candidate.NodeId == fragment.NodeId ? updated : candidate)
+            .ToArray();
+        var candidateComposition = HtmlEditor.Composition with { RegisteredFragments = fragments };
+        var culture = LoadedPage?.Culture
+            ?? CurrentSite?.DefaultCulture
+            ?? CultureInfo.CurrentUICulture.Name;
+        var preview = await PreviewClient.RenderPageFragmentAsync(
+            HtmlEditor.Content,
+            candidateComposition,
+            culture);
+        if (preview is Result<string, AeroError>.Failure previewFailure)
+        {
+            RegisteredFragmentError = FormatError(previewFailure.Error);
+            return;
+        }
+
+        var result = HtmlEditor.UpdateRegisteredFragmentParameters(fragment.NodeId, parameters);
+        switch (result)
+        {
+            case Result<PageRegisteredFragment>.Ok:
+                RegisteredFragmentEditorOpen = false;
+                RegisteredFragmentError = null;
+                MarkDirty();
+                ShowToast("Registered fragment updated.", "success");
+                break;
+            case Result<PageRegisteredFragment>.Failure failure:
+                RegisteredFragmentError = FormatError(failure.Error);
+                break;
+        }
+    }
+
+    private static IReadOnlyDictionary<string, JsonElement> CreateDefaultParameters(
+        PageRegisteredFragmentDescriptor descriptor) => descriptor.Parameters
+        .Where(parameter => parameter.DefaultValue.HasValue)
+        .ToDictionary(
+            parameter => parameter.Name,
+            parameter => parameter.DefaultValue!.Value.Clone(),
+            StringComparer.Ordinal);
+
+    private string RegisteredFragmentDisplayName(string key) =>
+        RegisteredFragmentDescriptors.FirstOrDefault(descriptor =>
+            string.Equals(descriptor.Key, key, StringComparison.Ordinal))?.DisplayName
+        ?? key;
 
     protected Task CloseHtmlElementEditorAsync()
     {
@@ -864,6 +1104,239 @@ protected async Task TogglePreview()
         HtmlRichTextError = null;
         return Task.CompletedTask;
     }
+
+    protected Task OpenRenderedFragmentEditorForNodeAsync(long nodeId)
+    {
+        HtmlEditor.Select(nodeId);
+        HtmlElementEditorOpen = false;
+        HtmlRichTextEditorOpen = false;
+        MarkdownFragmentEditorOpen = false;
+        CustomHtmlFragmentEditorOpen = false;
+        ScribanFragmentEditorOpen = false;
+        RegisteredFragmentEditorOpen = false;
+        MarkdownFragmentError = null;
+        MarkdownFragmentInitialHtml = string.Empty;
+
+        var fragment = SelectedRenderedFragment;
+        if (fragment is null)
+        {
+            MarkdownFragmentError = "The selected rendered fragment does not have an available editor.";
+            return Task.CompletedTask;
+        }
+
+        if (fragment.Kind == PageRenderedFragmentKind.CustomHtml)
+        {
+            CustomHtmlFragmentInitialSource = fragment.Source;
+            CustomHtmlFragmentError = null;
+            CustomHtmlFragmentEditorOpen = true;
+            RightSidebarCollapsed = false;
+            RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+            return Task.CompletedTask;
+        }
+
+        if (fragment.Kind == PageRenderedFragmentKind.Scriban)
+        {
+            ScribanFragmentInitialSource = fragment.Source;
+            ScribanFragmentError = null;
+            ScribanFragmentEditorOpen = true;
+            RightSidebarCollapsed = false;
+            RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+            return Task.CompletedTask;
+        }
+
+        if (fragment.Kind != PageRenderedFragmentKind.Markdown)
+        {
+            MarkdownFragmentError = "The selected rendered fragment does not have an available editor.";
+            return Task.CompletedTask;
+        }
+
+        var imported = CreateMarkdownInterchangeAdapter().Import(fragment.Source);
+        if (imported is Result<HtmlPageContent>.Failure importFailure)
+        {
+            MarkdownFragmentError = FormatError(importFailure.Error);
+            return Task.CompletedTask;
+        }
+
+        var rendered = CreateHtmlStaticRenderer().Render(
+            ((Result<HtmlPageContent>.Ok)imported).Value);
+        if (rendered is Result<string>.Failure renderFailure)
+        {
+            MarkdownFragmentError = FormatError(renderFailure.Error);
+            return Task.CompletedTask;
+        }
+
+        MarkdownFragmentInitialHtml = ((Result<string>.Ok)rendered).Value;
+        MarkdownFragmentEditorOpen = true;
+        RightSidebarCollapsed = false;
+        RightSidebarTab = HtmlPageEditorSidebarTab.Inspector;
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseMarkdownFragmentEditorAsync()
+    {
+        MarkdownFragmentEditorOpen = false;
+        MarkdownFragmentInitialHtml = string.Empty;
+        MarkdownFragmentError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyMarkdownFragmentHtmlAsync(string html)
+    {
+        if (SelectedRenderedFragment is not { Kind: PageRenderedFragmentKind.Markdown } fragment)
+        {
+            MarkdownFragmentError = "The selected Markdown fragment no longer exists.";
+            return Task.CompletedTask;
+        }
+
+        var imported = CreateHtmlFragmentImporter().Import(html);
+        if (imported is Result<HtmlPageContent>.Failure importFailure)
+        {
+            MarkdownFragmentError = FormatError(importFailure.Error);
+            return Task.CompletedTask;
+        }
+
+        var exported = CreateMarkdownInterchangeAdapter().Export(
+            ((Result<HtmlPageContent>.Ok)imported).Value);
+        if (exported is Result<string>.Failure exportFailure)
+        {
+            MarkdownFragmentError = FormatError(exportFailure.Error);
+            return Task.CompletedTask;
+        }
+
+        var updated = HtmlEditor.UpdateRenderedFragmentSource(
+            fragment.NodeId,
+            ((Result<string>.Ok)exported).Value);
+        switch (updated)
+        {
+            case Result<PageRenderedFragment>.Ok:
+                MarkdownFragmentEditorOpen = false;
+                MarkdownFragmentInitialHtml = string.Empty;
+                MarkdownFragmentError = null;
+                MarkDirty();
+                ShowToast("Markdown block updated.", "success");
+                break;
+            case Result<PageRenderedFragment>.Failure failure:
+                MarkdownFragmentError = FormatError(failure.Error);
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseCustomHtmlFragmentEditorAsync()
+    {
+        CustomHtmlFragmentEditorOpen = false;
+        CustomHtmlFragmentInitialSource = string.Empty;
+        CustomHtmlFragmentError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyCustomHtmlFragmentSourceAsync(string source)
+    {
+        if (SelectedRenderedFragment is not { Kind: PageRenderedFragmentKind.CustomHtml } fragment)
+        {
+            CustomHtmlFragmentError = "The selected Custom HTML fragment no longer exists.";
+            return Task.CompletedTask;
+        }
+
+        var imported = CreateHtmlFragmentImporter().Import(source);
+        if (imported is Result<HtmlPageContent>.Failure importFailure)
+        {
+            CustomHtmlFragmentError = FormatError(importFailure.Error);
+            return Task.CompletedTask;
+        }
+
+        var updated = HtmlEditor.UpdateRenderedFragmentSource(fragment.NodeId, source);
+        switch (updated)
+        {
+            case Result<PageRenderedFragment>.Ok:
+                CustomHtmlFragmentEditorOpen = false;
+                CustomHtmlFragmentInitialSource = string.Empty;
+                CustomHtmlFragmentError = null;
+                MarkDirty();
+                ShowToast("Custom HTML block updated.", "success");
+                break;
+            case Result<PageRenderedFragment>.Failure failure:
+                CustomHtmlFragmentError = FormatError(failure.Error);
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseScribanFragmentEditorAsync()
+    {
+        ScribanFragmentEditorOpen = false;
+        ScribanFragmentInitialSource = string.Empty;
+        ScribanFragmentError = null;
+        return Task.CompletedTask;
+    }
+
+    protected async Task ApplyScribanFragmentSourceAsync(string source)
+    {
+        if (SelectedRenderedFragment is not { Kind: PageRenderedFragmentKind.Scriban } fragment)
+        {
+            ScribanFragmentError = "The selected Scriban fragment no longer exists.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(source)
+            || source.Length > PageRenderedFragment.MaximumSourceLength)
+        {
+            ScribanFragmentError = string.IsNullOrWhiteSpace(source)
+                ? "Scriban source cannot be empty."
+                : $"Scriban source cannot exceed {PageRenderedFragment.MaximumSourceLength} characters.";
+            return;
+        }
+
+        var fragments = (HtmlEditor.Composition.RenderedFragments ?? [])
+            .Select(candidate => candidate.NodeId == fragment.NodeId
+                ? candidate with { Source = source }
+                : candidate)
+            .ToArray();
+        var candidateComposition = HtmlEditor.Composition with { RenderedFragments = fragments };
+        var culture = LoadedPage?.Culture
+            ?? CurrentSite?.DefaultCulture
+            ?? CultureInfo.CurrentUICulture.Name;
+        var preview = await PreviewClient.RenderPageFragmentAsync(
+            HtmlEditor.Content,
+            candidateComposition,
+            culture);
+        if (preview is Result<string, AeroError>.Failure previewFailure)
+        {
+            ScribanFragmentError = FormatError(previewFailure.Error);
+            return;
+        }
+
+        var updated = HtmlEditor.UpdateRenderedFragmentSource(fragment.NodeId, source);
+        switch (updated)
+        {
+            case Result<PageRenderedFragment>.Ok:
+                ScribanFragmentEditorOpen = false;
+                ScribanFragmentInitialSource = string.Empty;
+                ScribanFragmentError = null;
+                MarkDirty();
+                ShowToast("Scriban block updated.", "success");
+                break;
+            case Result<PageRenderedFragment>.Failure failure:
+                ScribanFragmentError = FormatError(failure.Error);
+                break;
+        }
+    }
+
+    private static string DefaultRenderedFragmentSource(PageRenderedFragmentKind kind) => kind switch
+    {
+        PageRenderedFragmentKind.Markdown => "## Markdown block\n\nStart writing here.",
+        PageRenderedFragmentKind.CustomHtml => "<p>Custom HTML block</p>",
+        PageRenderedFragmentKind.Scriban => "<p>Site {{ site.id }} · {{ page.culture }}</p>",
+        _ => "Rendered block"
+    };
+
+    private static string RenderedFragmentDisplayName(PageRenderedFragmentKind kind) => kind switch
+    {
+        PageRenderedFragmentKind.CustomHtml => "Custom HTML",
+        _ => kind.ToString()
+    };
 
     protected Task ApplyHtmlRichTextAsync(IReadOnlyList<HtmlNode> children)
     {
@@ -1045,7 +1518,10 @@ protected async Task TogglePreview()
         }
 
         _siteStyleProfile = ((Result<NativeStyleProfile, AeroError>.Ok)profileResult).Value;
-        HtmlEditor = CreateHtmlEditorSession(HtmlEditor.Content, _siteStyleProfile);
+        HtmlEditor = CreateHtmlEditorSession(
+            HtmlEditor.Content,
+            _siteStyleProfile,
+            HtmlEditor.Composition);
         HtmlPropertyError = null;
         return true;
     }
@@ -1122,32 +1598,20 @@ protected async Task TogglePreview()
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (HtmlEditor.CompiledStyles is not { } compiledStyles)
-            {
-                PreviewHtml = null;
-                PreviewError = HtmlEditor.StyleCompilationError is { } styleError
-                    ? FormatError(styleError)
-                    : "The page styles could not be compiled.";
-                return;
-            }
-
-            var renderer = new HtmlStaticRenderer(
-                HtmlCatalog,
-                HtmlContentPolicy,
-                new HtmlAttributePolicy(),
-                new HtmlContentValidator(
-                    HtmlCatalog,
-                    HtmlContentPolicy,
-                    new HtmlAttributePolicy()));
-            var result = renderer.RenderPage(HtmlEditor.Content, compiledStyles);
+            var culture = LoadedPage?.Culture
+                ?? CurrentSite?.DefaultCulture
+                ?? CultureInfo.CurrentUICulture.Name;
+            var result = await PreviewClient.RenderPageFragmentAsync(
+                HtmlEditor.Content,
+                HtmlEditor.Composition,
+                culture,
+                cancellationToken);
             switch (result)
             {
-                case Result<RenderedHtmlPage>.Ok ok:
-                    PreviewHtml = string.IsNullOrWhiteSpace(ok.Value.CssText)
-                        ? ok.Value.Markup
-                        : $"<style>{ok.Value.CssText}</style>{ok.Value.Markup}";
+                case Result<string, AeroError>.Ok ok:
+                    PreviewHtml = ok.Value;
                     break;
-                case Result<RenderedHtmlPage>.Failure failure:
+                case Result<string, AeroError>.Failure failure:
                     PreviewHtml = null;
                     PreviewError = FormatError(failure.Error);
                     break;

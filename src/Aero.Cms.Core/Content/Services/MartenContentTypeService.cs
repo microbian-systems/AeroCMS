@@ -15,6 +15,19 @@ public sealed class AeroContentTypeService(
     ScribanTemplateValidator templateValidator) : IContentTypeService
 {
     /// <inheritdoc />
+    public async Task<Result<ContentTypeDefinition, AeroError>> GetByIdAsync(
+        long siteId,
+        long id,
+        CancellationToken ct = default)
+    {
+        var doc = await session.LoadAsync<ContentTypeDocument>(id, ct);
+        return doc is null || doc.SiteId != siteId
+            ? Prelude.Fail<ContentTypeDefinition, AeroError>(
+                AeroError.NotFoundError($"Content type '{id}' not found."))
+            : Prelude.Ok<ContentTypeDefinition, AeroError>(Map(doc));
+    }
+
+    /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
     {
         var doc = await session.Query<ContentTypeDocument>()

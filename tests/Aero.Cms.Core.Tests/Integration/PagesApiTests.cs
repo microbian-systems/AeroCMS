@@ -55,6 +55,7 @@ public sealed class PagesApiTests
             ("GET", "/api/v1/admin/pages/{id:long}", "site:read"),
             ("GET", "/api/v1/admin/pages/slug/{*slug}", "site:read"),
             ("GET", "/api/v1/admin/pages/drafts/{id:long}", "site:read"),
+            ("GET", "/api/v1/admin/pages/registered-fragments", "site:read"),
             ("POST", "/api/v1/admin/pages/", "site:create"),
             ("GET", "/api/v1/admin/pages/{id:long}/translations", "site:read"),
             ("POST", "/api/v1/admin/pages/{id:long}/translations", "site:create"),

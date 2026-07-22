@@ -50,6 +50,7 @@
 }
 
 .aero-content-type-palette__selector,
+.aero-content-type-palette__item-picker,
 .aero-content-type-palette__section,
 .aero-content-type-palette__summary {
     display: grid;
@@ -63,6 +64,53 @@
     padding: 0.65rem 0.75rem;
     color: #172033;
     background: #fff;
+}
+
+.aero-content-type-palette__search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
+}
+
+.aero-content-type-palette__search input {
+    min-width: 0;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.625rem;
+    padding: 0.6rem 0.7rem;
+    color: #172033;
+    background: #fff;
+    font-size: 0.75rem;
+}
+
+.aero-content-type-palette__search button,
+.aero-content-type-palette__pager button {
+    border: 1px solid #dbe3ef;
+    border-radius: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    color: #475569;
+    background: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aero-content-type-palette__search button:disabled,
+.aero-content-type-palette__pager button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.aero-content-type-palette__pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.aero-content-type-palette__pager span {
+    color: #64748b;
+    font-size: 0.68rem;
+    text-align: center;
 }
 
 .aero-content-type-palette__selector select:focus {
@@ -97,6 +145,24 @@
     color: #475569;
     background: #f8fafc;
     text-align: left;
+}
+
+.aero-content-type-palette__scope-grid button:not(:disabled),
+.aero-content-type-palette__fields button:not(:disabled) {
+    color: #334155;
+    background: #fff;
+    cursor: grab;
+}
+
+.aero-content-type-palette__scope-grid button:not(:disabled):hover,
+.aero-content-type-palette__fields button:not(:disabled):hover {
+    border-color: #8b5cf6;
+    background: #f5f3ff;
+}
+
+.aero-content-type-palette__scope-grid button:disabled,
+.aero-content-type-palette__fields button:disabled {
+    opacity: 0.55;
 }
 
 .aero-content-type-palette__scope-grid button {

@@ -41,6 +41,9 @@
 
     @if (SelectedContentType is { } selectedType)
     {
+        var listRequest = CreateListRequest(selectedType);
+        var selectedItem = SelectedContentItem;
+
         <div class="aero-content-type-palette__summary">
             <strong>@selectedType.Name</strong>
             <code>@selectedType.Alias</code>
@@ -50,17 +53,84 @@
             }
         </div>
 
+        <div class="aero-content-type-palette__item-picker">
+            <label class="aero-content-type-palette__selector">
+                <span>Content item</span>
+                <select value="@SelectedContentItemId"
+                        disabled="@(IsItemsLoading || ContentItems.Count == 0)"
+                        @onchange="OnItemChangedAsync">
+                    @if (ContentItems.Count == 0)
+                    {
+                        <option value="">@(IsItemsLoading ? "Loading content items…" : "No content items available")</option>
+                    }
+                    else
+                    {
+                        @foreach (var itemOption in ContentItems)
+                        {
+                            <option @key="itemOption.Id" value="@itemOption.Id">
+                                @itemOption.Title — /@itemOption.Slug (@itemOption.Culture)
+                            </option>
+                        }
+                    }
+                </select>
+            </label>
+
+            <div class="aero-content-type-palette__search">
+                <input type="search"
+                       value="@PendingItemSearchText"
+                       placeholder="Search content items"
+                       disabled="@IsItemsLoading"
+                       @oninput="OnItemSearchInput" />
+                <button type="button" disabled="@IsItemsLoading" @onclick="SearchItemsAsync">Search</button>
+            </div>
+
+            <div class="aero-content-type-palette__pager">
+                <button type="button"
+                        disabled="@(IsItemsLoading || !CanLoadPreviousItems)"
+                        @onclick="LoadPreviousItemsAsync">
+                    Previous
+                </button>
+                <span>Page @CurrentItemPage of @TotalItemPages · @ContentItemTotalCount total</span>
+                <button type="button"
+                        disabled="@(IsItemsLoading || !CanLoadNextItems)"
+                        @onclick="LoadNextItemsAsync">
+                    Next
+                </button>
+            </div>
+        </div>
+
         <div class="aero-content-type-palette__section">
             <h3>Content scopes</h3>
             <div class="aero-content-type-palette__scope-grid" aria-label="Content scope types">
-                <button type="button" disabled title="Available after page composition bindings are persisted">
+                <button type="button"
+                        disabled="@(selectedType.Id <= 0)"
+                        title="Click to add or drag a pageable content list onto the page"
+                        data-aero-palette-kind="contentlist"
+                        data-aero-palette-value="@listRequest.ToToken()"
+                        @onclick="() => RequestAsync(listRequest)">
                     <strong>Content list</strong>
                     <span>Pageable entries</span>
                 </button>
-                <button type="button" disabled title="Available after page composition bindings are persisted">
-                    <strong>Content item</strong>
-                    <span>Resolve one entry</span>
-                </button>
+                @if (selectedItem is { } selectedScopeItem)
+                {
+                    var itemRequest = CreateItemRequest(selectedType, selectedScopeItem);
+                    <button type="button"
+                            disabled="@(selectedType.Id <= 0)"
+                            title="Click to add or drag the selected content item onto the page"
+                            data-aero-palette-kind="contentitem"
+                            data-aero-palette-value="@itemRequest.ToToken()"
+                            @onclick="() => RequestAsync(itemRequest)">
+                        <strong>Content item</strong>
+                        <span>Resolve @selectedScopeItem.Title</span>
+                    </button>
+                }
+                else
+                {
+                    <button type="button" disabled title="Select a content item first">
+                        <strong>Content item</strong>
+                        <span>Select one entry</span>
+                    </button>
+                }
             </div>
         </div>
 
@@ -79,10 +149,14 @@
                 <div class="aero-content-type-palette__fields">
                     @foreach (var field in selectedType.Fields)
                     {
+                        var fieldRequest = CreateFieldRequest(selectedType, field);
                         <button @key="field.Name"
                                 type="button"
-                                disabled
-                                title="Field dragging will be enabled with persisted content bindings">
+                                disabled="@(selectedType.Id <= 0)"
+                                title="Click to add or drag this field inside a matching content scope"
+                                data-aero-palette-kind="contentfield"
+                                data-aero-palette-value="@fieldRequest.ToToken()"
+                                @onclick="() => RequestAsync(fieldRequest)">
                             <span>
                                 <strong>@(string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label)</strong>
                                 <code>@field.Name</code>
@@ -94,7 +168,7 @@
             }
 
             <p class="aero-content-type-palette__guidance">
-                Content scopes and field dragging will activate with the composition sidecar; the page HTML remains unchanged in this slice.
+                Lists repeat their article template with paging. Fields can only be placed inside the nearest scope of the same content type.
             </p>
         </div>
     }

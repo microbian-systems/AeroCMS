@@ -1,12 +1,14 @@
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
+using System.Text.Json;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
 /// <summary>
-/// Owns the editable HTML document, selection, derived styles, and Memento history
-/// for one page-editor session.
+/// Owns the editable HTML document, typed-content composition, selection, derived
+/// styles, and aggregate Memento history for one page-editor session.
 /// </summary>
 public sealed class HtmlPageEditorSession
 {
@@ -17,7 +19,8 @@ public sealed class HtmlPageEditorSession
     private readonly IHtmlLayoutStarterFactory _layoutFactory;
     private readonly IStyleCompiler _styleCompiler;
     private readonly IStyleProfile _styleProfile;
-    private readonly HtmlTreeEditor _treeEditor;
+    private readonly PageEditorDocumentHistory _history = new();
+    private HtmlTreeEditor _treeEditor;
 
     public HtmlPageEditorSession(
         HtmlPageContent content,
@@ -27,7 +30,8 @@ public sealed class HtmlPageEditorSession
         IHtmlLayoutStarterFactory layoutFactory,
         IHtmlComponentTemplateFactory componentFactory,
         IStyleCompiler styleCompiler,
-        IStyleProfile styleProfile)
+        IStyleProfile styleProfile,
+        PageCompositionDocument? composition = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -38,11 +42,17 @@ public sealed class HtmlPageEditorSession
         _styleCompiler = styleCompiler ?? throw new ArgumentNullException(nameof(styleCompiler));
         _styleProfile = styleProfile ?? throw new ArgumentNullException(nameof(styleProfile));
         _treeEditor = new HtmlTreeEditor(content, contentPolicy, validateCandidate: ValidateCandidate);
+        Composition = (composition ?? new PageCompositionDocument()).CreateSnapshot();
 
         RefreshCompiledStyles();
     }
 
     public HtmlPageContent Content => _treeEditor.Content;
+
+    /// <summary>
+    /// Gets the typed-content sidecar that shares this session's undo/redo history.
+    /// </summary>
+    public PageCompositionDocument Composition { get; private set; }
 
     public long? SelectedNodeId { get; private set; }
 
@@ -54,9 +64,9 @@ public sealed class HtmlPageEditorSession
 
     public AeroError? StyleCompilationError { get; private set; }
 
-    public bool CanUndo => _treeEditor.History.CanUndo;
+    public bool CanUndo => _history.CanUndo;
 
-    public bool CanRedo => _treeEditor.History.CanRedo;
+    public bool CanRedo => _history.CanRedo;
 
     /// <summary>
     /// Gets whether the selected node has a preceding sibling in its current parent.
@@ -74,6 +84,22 @@ public sealed class HtmlPageEditorSession
             && HtmlTreeOperations.FindById(Content.Root, value) is not null
                 ? value
                 : null;
+    }
+
+    /// <summary>
+    /// Replaces the typed-content sidecar as one undoable editor command.
+    /// Structurally orphaned entries are removed against the current HTML tree.
+    /// </summary>
+    /// <param name="composition">The candidate composition document.</param>
+    /// <returns>The independent composition snapshot owned by this session.</returns>
+    public Result<PageCompositionDocument> ReplaceComposition(PageCompositionDocument composition)
+    {
+        ArgumentNullException.ThrowIfNull(composition);
+
+        var memento = PageEditorDocumentMemento.Capture(Content, Composition);
+        Composition = PageCompositionReconciler.RemoveOrphans(Content, composition);
+        _history.CaptureBeforeChange(memento);
+        return Composition;
     }
 
     public Result<HtmlNode> AddElement(string tagName, long? parentNodeId = null)
@@ -153,6 +179,452 @@ public sealed class HtmlPageEditorSession
     }
 
     /// <summary>
+    /// Adds an ordinary HTML container backed by one source-rendered fragment.
+    /// </summary>
+    public Result<HtmlNode> AddRenderedFragment(
+        PageRenderedFragmentKind kind,
+        string source,
+        long? parentNodeId = null)
+    {
+        var validation = ValidateRenderedFragment(kind, source);
+        if (validation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var node = CreateRenderedFragmentNode(kind);
+        return Insert(
+            node,
+            parentNodeId,
+            (inserted, composition) => AddRenderedFragmentEntry(
+                composition,
+                inserted.NodeId,
+                kind,
+                source));
+    }
+
+    /// <summary>
+    /// Adds a source-rendered fragment at an explicit canvas drop location.
+    /// </summary>
+    public Result<HtmlNode> AddRenderedFragmentRelative(
+        PageRenderedFragmentKind kind,
+        string source,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var validation = ValidateRenderedFragment(kind, source);
+        if (validation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var node = CreateRenderedFragmentNode(kind);
+        return InsertRelative(
+            node,
+            targetNodeId,
+            placement,
+            (inserted, composition) => AddRenderedFragmentEntry(
+                composition,
+                inserted.NodeId,
+                kind,
+                source));
+    }
+
+    /// <summary>Adds an ordinary HTML container backed by an explicit application-fragment key.</summary>
+    public Result<HtmlNode> AddRegisteredFragment(
+        string key,
+        IReadOnlyDictionary<string, JsonElement>? parameters = null,
+        long? parentNodeId = null)
+    {
+        if ((Composition.RegisteredFragments?.Count ?? 0)
+            >= PageRegisteredFragment.MaximumFragmentsPerPage)
+        {
+            return AeroError.ValidationError(
+                [$"A page cannot contain more than {PageRegisteredFragment.MaximumFragmentsPerPage} registered fragments."]);
+        }
+
+        var validation = ValidateRegisteredFragment(key, parameters);
+        if (validation is Result<string>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var normalizedKey = ((Result<string>.Ok)validation).Value;
+        return Insert(
+            CreateRegisteredFragmentNode(normalizedKey),
+            parentNodeId,
+            (inserted, composition) => AddRegisteredFragmentEntry(
+                composition,
+                inserted.NodeId,
+                normalizedKey,
+                parameters));
+    }
+
+    /// <summary>Adds a registered fragment at an explicit canvas drop location.</summary>
+    public Result<HtmlNode> AddRegisteredFragmentRelative(
+        string key,
+        IReadOnlyDictionary<string, JsonElement>? parameters,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        if ((Composition.RegisteredFragments?.Count ?? 0)
+            >= PageRegisteredFragment.MaximumFragmentsPerPage)
+        {
+            return AeroError.ValidationError(
+                [$"A page cannot contain more than {PageRegisteredFragment.MaximumFragmentsPerPage} registered fragments."]);
+        }
+
+        var validation = ValidateRegisteredFragment(key, parameters);
+        if (validation is Result<string>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var normalizedKey = ((Result<string>.Ok)validation).Value;
+        return InsertRelative(
+            CreateRegisteredFragmentNode(normalizedKey),
+            targetNodeId,
+            placement,
+            (inserted, composition) => AddRegisteredFragmentEntry(
+                composition,
+                inserted.NodeId,
+                normalizedKey,
+                parameters));
+    }
+
+    /// <summary>
+    /// Adds a pageable typed-content scope using an ordinary HTML template subtree.
+    /// </summary>
+    public Result<HtmlNode> AddContentList(
+        long contentTypeId,
+        string contentTypeAlias,
+        long? parentNodeId = null)
+    {
+        var identityValidation = ValidateContentTypeIdentity(contentTypeId, contentTypeAlias);
+        if (identityValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var scopeNode = CreateContentListScopeNode(out var templateRootNodeId);
+        return Insert(
+            scopeNode,
+            parentNodeId,
+            (inserted, composition) => AddContentListScope(
+                composition,
+                inserted.NodeId,
+                templateRootNodeId,
+                contentTypeId,
+                contentTypeAlias));
+    }
+
+    /// <summary>
+    /// Adds a pageable typed-content scope at an explicit canvas drop location.
+    /// </summary>
+    public Result<HtmlNode> AddContentListRelative(
+        long contentTypeId,
+        string contentTypeAlias,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var identityValidation = ValidateContentTypeIdentity(contentTypeId, contentTypeAlias);
+        if (identityValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var scopeNode = CreateContentListScopeNode(out var templateRootNodeId);
+        return InsertRelative(
+            scopeNode,
+            targetNodeId,
+            placement,
+            (inserted, composition) => AddContentListScope(
+                composition,
+                inserted.NodeId,
+                templateRootNodeId,
+                contentTypeId,
+                contentTypeAlias));
+    }
+
+    /// <summary>
+    /// Adds a stable typed-content item scope using an ordinary HTML container.
+    /// </summary>
+    public Result<HtmlNode> AddContentItem(
+        long contentTypeId,
+        string contentTypeAlias,
+        long contentItemId,
+        string? contentItemSlug,
+        string? contentItemTitle,
+        long? parentNodeId = null)
+    {
+        var identityValidation = ValidateContentItemIdentity(
+            contentTypeId,
+            contentTypeAlias,
+            contentItemId);
+        if (identityValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var scopeNode = CreateContentItemScopeNode();
+        return Insert(
+            scopeNode,
+            parentNodeId,
+            (inserted, composition) => AddContentItemScope(
+                composition,
+                inserted.NodeId,
+                contentTypeId,
+                contentTypeAlias,
+                contentItemId,
+                contentItemSlug));
+    }
+
+    /// <summary>
+    /// Adds a stable typed-content item scope at an explicit canvas drop location.
+    /// </summary>
+    public Result<HtmlNode> AddContentItemRelative(
+        long contentTypeId,
+        string contentTypeAlias,
+        long contentItemId,
+        string? contentItemSlug,
+        string? contentItemTitle,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var identityValidation = ValidateContentItemIdentity(
+            contentTypeId,
+            contentTypeAlias,
+            contentItemId);
+        if (identityValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var scopeNode = CreateContentItemScopeNode();
+        return InsertRelative(
+            scopeNode,
+            targetNodeId,
+            placement,
+            (inserted, composition) => AddContentItemScope(
+                composition,
+                inserted.NodeId,
+                contentTypeId,
+                contentTypeAlias,
+                contentItemId,
+                contentItemSlug));
+    }
+
+    /// <summary>
+    /// Adds a field output target inside the nearest matching content scope.
+    /// </summary>
+    public Result<HtmlNode> AddContentField(
+        long contentTypeId,
+        string fieldName,
+        string fieldType,
+        string? fieldLabel,
+        long? parentNodeId = null)
+    {
+        var fieldValidation = ValidateContentField(contentTypeId, fieldName, fieldType);
+        if (fieldValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var fieldNode = CreateContentFieldNode(fieldName, fieldType, fieldLabel, out var bindingTarget);
+        var effectiveParentNodeId = ResolveContentFieldParent(
+            contentTypeId,
+            parentNodeId ?? SelectedNodeId);
+        var insertionParentNodeId = FindInsertionParent(fieldNode, effectiveParentNodeId);
+        if (insertionParentNodeId is null)
+        {
+            return AeroError.NotAllowedError("This field cannot be added at the selected location.");
+        }
+
+        var scopeResult = FindCompatibleContentScope(insertionParentNodeId.Value, contentTypeId);
+        if (scopeResult is Result<ContentScopeMatch>.Failure scopeFailure)
+        {
+            return scopeFailure.Error;
+        }
+
+        var scope = ((Result<ContentScopeMatch>.Ok)scopeResult).Value;
+        return Insert(
+            fieldNode,
+            insertionParentNodeId,
+            (inserted, composition) => AddFieldBinding(
+                composition,
+                inserted.NodeId,
+                scope.ScopeNodeId,
+                fieldName,
+                bindingTarget));
+    }
+
+    /// <summary>
+    /// Adds a field output target at an explicit drop location inside a matching content scope.
+    /// </summary>
+    public Result<HtmlNode> AddContentFieldRelative(
+        long contentTypeId,
+        string fieldName,
+        string fieldType,
+        string? fieldLabel,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var fieldValidation = ValidateContentField(contentTypeId, fieldName, fieldType);
+        if (fieldValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var effectiveTargetNodeId = ResolveContentFieldDropTarget(
+            contentTypeId,
+            targetNodeId,
+            placement);
+        var insertionParentNodeId = FindRelativeInsertionParent(effectiveTargetNodeId, placement);
+        if (insertionParentNodeId is null)
+        {
+            return AeroError.NotAllowedError("This field cannot be added at the requested location.");
+        }
+
+        var scopeResult = FindCompatibleContentScope(insertionParentNodeId.Value, contentTypeId);
+        if (scopeResult is Result<ContentScopeMatch>.Failure scopeFailure)
+        {
+            return scopeFailure.Error;
+        }
+
+        var scope = ((Result<ContentScopeMatch>.Ok)scopeResult).Value;
+        var fieldNode = CreateContentFieldNode(fieldName, fieldType, fieldLabel, out var bindingTarget);
+        return InsertRelative(
+            fieldNode,
+            effectiveTargetNodeId,
+            placement,
+            (inserted, composition) => AddFieldBinding(
+                composition,
+                inserted.NodeId,
+                scope.ScopeNodeId,
+                fieldName,
+                bindingTarget));
+    }
+
+    /// <summary>
+    /// Updates one pageable content-list scope without rewriting its HTML template.
+    /// </summary>
+    public Result<PageContentListScope> UpdateContentListSettings(
+        long scopeNodeId,
+        PageContentListQuery query,
+        PageContentEmptyStateBehavior emptyState)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var scope = (Composition.ContentLists ?? [])
+            .FirstOrDefault(candidate => candidate.NodeId == scopeNodeId);
+        var scopeNode = scope is null
+            ? null
+            : HtmlTreeOperations.FindById(Content.Root, scope.NodeId);
+        if (scope is null
+            || scopeNode is null
+            || HtmlTreeOperations.FindById(scopeNode, scope.TemplateRootNodeId) is null)
+        {
+            return AeroError.NotFoundError("The selected content-list scope no longer exists.");
+        }
+
+        if (!Enum.IsDefined(emptyState))
+        {
+            return AeroError.ValidationError(["The selected empty-state behavior is not supported."]);
+        }
+
+        var queryResult = NormalizeContentListQuery(query);
+        if (queryResult is Result<PageContentListQuery>.Failure queryFailure)
+        {
+            return queryFailure.Error;
+        }
+
+        var normalizedQuery = ((Result<PageContentListQuery>.Ok)queryResult).Value;
+        var updatedScope = scope with
+        {
+            Query = normalizedQuery,
+            EmptyState = emptyState
+        };
+        var updatedLists = (Composition.ContentLists ?? [])
+            .Select(candidate => candidate.NodeId == scopeNodeId ? updatedScope : candidate)
+            .ToArray();
+        var memento = PageEditorDocumentMemento.Capture(Content, Composition);
+        Composition = PageCompositionReconciler.RemoveOrphans(
+            Content,
+            Composition with { ContentLists = updatedLists });
+        _history.CaptureBeforeChange(memento);
+        return updatedScope;
+    }
+
+    /// <summary>
+    /// Replaces the authoring source for one rendered fragment as an undoable change.
+    /// </summary>
+    public Result<PageRenderedFragment> UpdateRenderedFragmentSource(
+        long nodeId,
+        string source)
+    {
+        var fragment = (Composition.RenderedFragments ?? [])
+            .FirstOrDefault(candidate => candidate.NodeId == nodeId);
+        if (fragment is null || HtmlTreeOperations.FindById(Content.Root, nodeId) is null)
+        {
+            return AeroError.NotFoundError("The selected rendered fragment no longer exists.");
+        }
+
+        var validation = ValidateRenderedFragment(fragment.Kind, source);
+        if (validation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var updated = fragment with { Source = source };
+        var fragments = (Composition.RenderedFragments ?? [])
+            .Select(candidate => candidate.NodeId == nodeId ? updated : candidate)
+            .ToArray();
+        var memento = PageEditorDocumentMemento.Capture(Content, Composition);
+        Composition = PageCompositionReconciler.RemoveOrphans(
+            Content,
+            Composition with { RenderedFragments = fragments });
+        _history.CaptureBeforeChange(memento);
+        return updated;
+    }
+
+    /// <summary>Replaces registered-fragment parameters as one aggregate history command.</summary>
+    public Result<PageRegisteredFragment> UpdateRegisteredFragmentParameters(
+        long nodeId,
+        IReadOnlyDictionary<string, JsonElement> parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+        var fragment = (Composition.RegisteredFragments ?? [])
+            .FirstOrDefault(candidate => candidate.NodeId == nodeId);
+        if (fragment is null || HtmlTreeOperations.FindById(Content.Root, nodeId) is null)
+        {
+            return AeroError.NotFoundError("The selected registered fragment no longer exists.");
+        }
+
+        var validation = ValidateRegisteredFragment(fragment.Key, parameters);
+        if (validation is Result<string>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        var updated = fragment with
+        {
+            Parameters = parameters.ToDictionary(
+                parameter => parameter.Key,
+                parameter => parameter.Value.Clone(),
+                StringComparer.Ordinal)
+        };
+        var fragments = (Composition.RegisteredFragments ?? [])
+            .Select(candidate => candidate.NodeId == nodeId ? updated : candidate)
+            .ToArray();
+        var memento = PageEditorDocumentMemento.Capture(Content, Composition);
+        Composition = PageCompositionReconciler.RemoveOrphans(
+            Content,
+            Composition with { RegisteredFragments = fragments });
+        _history.CaptureBeforeChange(memento);
+        return updated;
+    }
+
+    /// <summary>
     /// Inserts a validated static fragment at the page root as one undoable mutation.
     /// The fragment importer owns parsing and validation; this session owns editor state.
     /// </summary>
@@ -161,26 +633,24 @@ public sealed class HtmlPageEditorSession
         ArgumentNullException.ThrowIfNull(fragment);
 
         var importedNodes = fragment.Root.Children;
-        var result = _treeEditor.InsertChildren(Content.Root.NodeId, importedNodes);
-        if (result is Result<IReadOnlyList<HtmlNode>>.Ok ok)
-        {
-            SelectedNodeId = ok.Value[0].NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.InsertChildren(Content.Root.NodeId, importedNodes),
+            insertedNodes =>
+            {
+                SelectedNodeId = insertedNodes[0].NodeId;
+                RefreshCompiledStyles();
+            });
     }
 
     public Result<HtmlNode> Move(long nodeId, long destinationParentNodeId, int destinationIndex)
     {
-        var result = _treeEditor.Move(nodeId, destinationParentNodeId, destinationIndex);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = nodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.Move(nodeId, destinationParentNodeId, destinationIndex),
+            _ =>
+            {
+                SelectedNodeId = nodeId;
+                RefreshCompiledStyles();
+            });
     }
 
     public Result<HtmlNode> MoveRelative(
@@ -188,14 +658,13 @@ public sealed class HtmlPageEditorSession
         long targetNodeId,
         HtmlRelativePlacement placement)
     {
-        var result = _treeEditor.MoveRelative(nodeId, targetNodeId, placement);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = nodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.MoveRelative(nodeId, targetNodeId, placement),
+            _ =>
+            {
+                SelectedNodeId = nodeId;
+                RefreshCompiledStyles();
+            });
     }
 
     /// <summary>
@@ -218,14 +687,13 @@ public sealed class HtmlPageEditorSession
         }
 
         var fallbackSelectionId = FindRemovalFallbackSelection(nodeId);
-        var result = _treeEditor.Remove(nodeId);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = fallbackSelectionId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.Remove(nodeId),
+            _ =>
+            {
+                SelectedNodeId = fallbackSelectionId;
+                RefreshCompiledStyles();
+            });
     }
 
     private long? FindRemovalFallbackSelection(long nodeId)
@@ -312,15 +780,16 @@ public sealed class HtmlPageEditorSession
         }
 
         var sourceIndex = parent.Children.FindIndex(child => child.NodeId == nodeId);
-        var duplicate = HtmlTreeOperations.CloneWithFreshNodeIds(source);
-        var result = _treeEditor.InsertChild(parent.NodeId, duplicate, sourceIndex + 1);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = duplicate.NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        var nodeMap = new Dictionary<long, HtmlNode>();
+        var duplicate = CloneWithFreshNodeIds(source, nodeMap);
+        return ExecuteDocumentMutation(
+            () => _treeEditor.InsertChild(parent.NodeId, duplicate, sourceIndex + 1),
+            _ =>
+            {
+                SelectedNodeId = duplicate.NodeId;
+                RefreshCompiledStyles();
+            },
+            (_, composition) => DuplicateCompositionFragments(composition, source, nodeMap));
     }
 
     public Result<HtmlNode> UpdateSelectedProperties(HtmlNodeProperties properties)
@@ -330,13 +799,9 @@ public sealed class HtmlPageEditorSession
             return AeroError.NotAllowedError("Select an element before editing its properties.");
         }
 
-        var result = _treeEditor.UpdateProperties(nodeId, properties, ValidateCandidate);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.UpdateProperties(nodeId, properties, ValidateCandidate),
+            _ => RefreshCompiledStyles());
     }
 
     public Result<HtmlNode> UpdateSelectedChildren(IReadOnlyList<HtmlNode> children)
@@ -346,13 +811,9 @@ public sealed class HtmlPageEditorSession
             return AeroError.NotAllowedError("Select an element before editing its content.");
         }
 
-        var result = _treeEditor.UpdateChildren(nodeId, children, ValidateCandidate);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.UpdateChildren(nodeId, children, ValidateCandidate),
+            _ => RefreshCompiledStyles());
     }
 
     public Result<HtmlNode> ApplySelectedCollectionAction(HtmlCollectionActionKind action)
@@ -380,29 +841,65 @@ public sealed class HtmlPageEditorSession
 
     public Result<HtmlPageContent> Undo()
     {
-        var result = _treeEditor.Undo();
-        if (result is Result<HtmlPageContent>.Ok)
+        var result = _history.Undo(Content, Composition);
+        if (result is Result<PageEditorDocumentState>.Ok restored)
         {
+            Restore(restored.Value);
             ClearMissingSelection();
             RefreshCompiledStyles();
+            return Content;
         }
 
-        return result;
+        return ((Result<PageEditorDocumentState>.Failure)result).Error;
     }
 
     public Result<HtmlPageContent> Redo()
     {
-        var result = _treeEditor.Redo();
-        if (result is Result<HtmlPageContent>.Ok)
+        var result = _history.Redo(Content, Composition);
+        if (result is Result<PageEditorDocumentState>.Ok restored)
         {
+            Restore(restored.Value);
             ClearMissingSelection();
             RefreshCompiledStyles();
+            return Content;
+        }
+
+        return ((Result<PageEditorDocumentState>.Failure)result).Error;
+    }
+
+    private Result<T> ExecuteDocumentMutation<T>(
+        Func<Result<T>> mutation,
+        Action<T>? onSuccess = null,
+        Func<T, PageCompositionDocument, PageCompositionDocument>? updateComposition = null)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+
+        var memento = PageEditorDocumentMemento.Capture(Content, Composition);
+        var result = mutation();
+        if (result is Result<T>.Ok ok)
+        {
+            var candidateComposition = updateComposition?.Invoke(ok.Value, Composition) ?? Composition;
+            Composition = PageCompositionReconciler.RemoveOrphans(Content, candidateComposition);
+            _history.CaptureBeforeChange(memento);
+            onSuccess?.Invoke(ok.Value);
         }
 
         return result;
     }
 
-    private Result<HtmlNode> Insert(HtmlNode node, long? requestedParentNodeId)
+    private void Restore(PageEditorDocumentState state)
+    {
+        _treeEditor = new HtmlTreeEditor(
+            state.Content,
+            _contentPolicy,
+            validateCandidate: ValidateCandidate);
+        Composition = state.Composition;
+    }
+
+    private Result<HtmlNode> Insert(
+        HtmlNode node,
+        long? requestedParentNodeId,
+        Func<HtmlNode, PageCompositionDocument, PageCompositionDocument>? updateComposition = null)
     {
         var parentNodeId = FindInsertionParent(node, requestedParentNodeId);
         if (parentNodeId is null)
@@ -410,29 +907,30 @@ public sealed class HtmlPageEditorSession
             return AeroError.NotAllowedError($"<{node.TagName}> cannot be added at the selected location.");
         }
 
-        var result = _treeEditor.InsertChild(parentNodeId.Value, node);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = node.NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.InsertChild(parentNodeId.Value, node),
+            _ =>
+            {
+                SelectedNodeId = node.NodeId;
+                RefreshCompiledStyles();
+            },
+            updateComposition);
     }
 
     private Result<HtmlNode> InsertRelative(
         HtmlNode node,
         long targetNodeId,
-        HtmlRelativePlacement placement)
+        HtmlRelativePlacement placement,
+        Func<HtmlNode, PageCompositionDocument, PageCompositionDocument>? updateComposition = null)
     {
-        var result = _treeEditor.InsertRelative(node, targetNodeId, placement);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = node.NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.InsertRelative(node, targetNodeId, placement),
+            _ =>
+            {
+                SelectedNodeId = node.NodeId;
+                RefreshCompiledStyles();
+            },
+            updateComposition);
     }
 
     private Result<HtmlNode> AddListItem(long selectedNodeId)
@@ -509,17 +1007,16 @@ public sealed class HtmlPageEditorSession
             return AeroError.NotAllowedError("Add a table row before adding a column.");
         }
 
-        var result = _treeEditor.UpdateStructure(
-            table.NodeId,
-            candidate => AppendTableColumn(candidate, insideTableHead: false),
-            ValidateCandidate);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = table.NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.UpdateStructure(
+                table.NodeId,
+                candidate => AppendTableColumn(candidate, insideTableHead: false),
+                ValidateCandidate),
+            _ =>
+            {
+                SelectedNodeId = table.NodeId;
+                RefreshCompiledStyles();
+            });
     }
 
     private Result<HtmlNode> AddMediaSource(long selectedNodeId)
@@ -627,11 +1124,15 @@ public sealed class HtmlPageEditorSession
         field.Children.Add(label);
         field.Children.Add(control);
 
-        var result = _treeEditor.InsertChild(form.NodeId, field);
+        var result = ExecuteDocumentMutation(
+            () => _treeEditor.InsertChild(form.NodeId, field),
+            _ =>
+            {
+                SelectedNodeId = control.NodeId;
+                RefreshCompiledStyles();
+            });
         if (result is Result<HtmlNode>.Ok)
         {
-            SelectedNodeId = control.NodeId;
-            RefreshCompiledStyles();
             return control;
         }
 
@@ -671,14 +1172,13 @@ public sealed class HtmlPageEditorSession
 
     private Result<HtmlNode> InsertGuidedChild(long parentNodeId, HtmlNode child, int? index = null)
     {
-        var result = _treeEditor.InsertChild(parentNodeId, child, index);
-        if (result is Result<HtmlNode>.Ok)
-        {
-            SelectedNodeId = child.NodeId;
-            RefreshCompiledStyles();
-        }
-
-        return result;
+        return ExecuteDocumentMutation(
+            () => _treeEditor.InsertChild(parentNodeId, child, index),
+            _ =>
+            {
+                SelectedNodeId = child.NodeId;
+                RefreshCompiledStyles();
+            });
     }
 
     private HtmlNode? FindAncestorOrSelf(long nodeId, Func<HtmlNode, bool> predicate)
@@ -732,6 +1232,522 @@ public sealed class HtmlPageEditorSession
                 yield return descendant;
             }
         }
+    }
+
+    private static Result<bool> ValidateContentTypeIdentity(
+        long contentTypeId,
+        string contentTypeAlias)
+    {
+        var errors = new List<string>();
+        if (contentTypeId <= 0)
+        {
+            errors.Add("Select a persisted content type before adding a content scope.");
+        }
+
+        if (string.IsNullOrWhiteSpace(contentTypeAlias))
+        {
+            errors.Add("The selected content type does not have a stable alias.");
+        }
+
+        return errors.Count == 0
+            ? true
+            : AeroError.ValidationError(errors);
+    }
+
+    private static Result<bool> ValidateContentItemIdentity(
+        long contentTypeId,
+        string contentTypeAlias,
+        long contentItemId)
+    {
+        var contentTypeValidation = ValidateContentTypeIdentity(contentTypeId, contentTypeAlias);
+        if (contentTypeValidation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        return contentItemId > 0
+            ? true
+            : AeroError.ValidationError(["Select a persisted content item before adding an item scope."]);
+    }
+
+    private static Result<bool> ValidateContentField(
+        long contentTypeId,
+        string fieldName,
+        string fieldType)
+    {
+        var errors = new List<string>();
+        if (contentTypeId <= 0)
+        {
+            errors.Add("Select a persisted content type before adding a field binding.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fieldName))
+        {
+            errors.Add("The selected content field does not have a stable name.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fieldType))
+        {
+            errors.Add("The selected content field does not have a field type.");
+        }
+
+        return errors.Count == 0
+            ? true
+            : AeroError.ValidationError(errors);
+    }
+
+    private static Result<PageContentListQuery> NormalizeContentListQuery(
+        PageContentListQuery query)
+    {
+        var errors = new List<string>();
+        if (query.PageSize is < PageContentListQuery.MinimumPageSize
+            or > PageContentListQuery.MaximumPageSize)
+        {
+            errors.Add(
+                $"Page size must be between {PageContentListQuery.MinimumPageSize} " +
+                $"and {PageContentListQuery.MaximumPageSize}.");
+        }
+
+        if (!Enum.IsDefined(query.SortDirection))
+        {
+            errors.Add("The selected sort direction is not supported.");
+        }
+
+        var filters = query.Filters ?? [];
+        if (filters.Count > PageContentListQuery.MaximumFilterCount)
+        {
+            errors.Add($"A content list can contain at most {PageContentListQuery.MaximumFilterCount} filters.");
+        }
+
+        var normalizedFilters = new List<PageContentFilter>(filters.Count);
+        foreach (var filter in filters)
+        {
+            if (filter is null || string.IsNullOrWhiteSpace(filter.FieldName))
+            {
+                errors.Add("Every content filter must select a field.");
+                continue;
+            }
+
+            if (!Enum.IsDefined(filter.Operator))
+            {
+                errors.Add($"The filter on '{filter.FieldName}' has an unsupported operator.");
+                continue;
+            }
+
+            var requiresValue = filter.Operator is not PageContentFilterOperator.IsEmpty
+                and not PageContentFilterOperator.IsNotEmpty;
+            if (requiresValue && string.IsNullOrWhiteSpace(filter.Value))
+            {
+                errors.Add($"The filter on '{filter.FieldName}' requires a comparison value.");
+                continue;
+            }
+
+            normalizedFilters.Add(filter with
+            {
+                FieldName = filter.FieldName.Trim(),
+                Value = requiresValue ? filter.Value!.Trim() : null
+            });
+        }
+
+        if (errors.Count > 0)
+        {
+            return AeroError.ValidationError(errors);
+        }
+
+        return query with
+        {
+            SortField = string.IsNullOrWhiteSpace(query.SortField) ? null : query.SortField.Trim(),
+            Filters = normalizedFilters.ToArray()
+        };
+    }
+
+    private HtmlNode CreateContentListScopeNode(out long templateRootNodeId)
+    {
+        var scope = _catalog.CreateElement("section");
+        var template = _catalog.CreateElement("article");
+        scope.Children.Add(template);
+        templateRootNodeId = template.NodeId;
+        return scope;
+    }
+
+    private HtmlNode CreateContentItemScopeNode() => _catalog.CreateElement("section");
+
+    private HtmlNode CreateRenderedFragmentNode(PageRenderedFragmentKind kind)
+    {
+        var container = _catalog.CreateElement("section");
+        var placeholder = _catalog.CreateElement("p");
+        placeholder.Children.Add(HtmlNode.CreateText(kind switch
+        {
+            PageRenderedFragmentKind.Markdown => "Markdown block — double-click to edit",
+            PageRenderedFragmentKind.CustomHtml => "Custom HTML block — double-click to edit",
+            PageRenderedFragmentKind.Scriban => "Scriban block — double-click to edit",
+            _ => "Rendered block — double-click to edit"
+        }));
+        container.Children.Add(placeholder);
+        return container;
+    }
+
+    private HtmlNode CreateRegisteredFragmentNode(string key)
+    {
+        var container = _catalog.CreateElement("section");
+        var placeholder = _catalog.CreateElement("p");
+        placeholder.Children.Add(HtmlNode.CreateText(
+            $"{key} application fragment — double-click to edit"));
+        container.Children.Add(placeholder);
+        return container;
+    }
+
+    private HtmlNode CreateContentFieldNode(
+        string fieldName,
+        string fieldType,
+        string? fieldLabel,
+        out PageFieldBindingTarget bindingTarget)
+    {
+        var label = string.IsNullOrWhiteSpace(fieldLabel) ? fieldName : fieldLabel;
+        switch (fieldType.Trim().ToLowerInvariant())
+        {
+            case "image":
+            case "media":
+            {
+                var image = _catalog.CreateElement("img");
+                image.Attributes["src"] = "/media/image.jpg";
+                image.Attributes["alt"] = label;
+                bindingTarget = PageFieldBindingTarget.Source;
+                return image;
+            }
+            case "url":
+            {
+                var link = _catalog.CreateElement("a");
+                link.Attributes["href"] = "#";
+                link.Children.Add(HtmlNode.CreateText(label));
+                bindingTarget = PageFieldBindingTarget.Hyperlink;
+                return link;
+            }
+            case "richtext":
+            {
+                var container = _catalog.CreateElement("div");
+                container.Children.Add(HtmlNode.CreateText(label));
+                bindingTarget = PageFieldBindingTarget.TextContent;
+                return container;
+            }
+            default:
+            {
+                var paragraph = _catalog.CreateElement("p");
+                paragraph.Children.Add(HtmlNode.CreateText(label));
+                bindingTarget = PageFieldBindingTarget.TextContent;
+                return paragraph;
+            }
+        }
+    }
+
+    private static PageCompositionDocument AddContentListScope(
+        PageCompositionDocument composition,
+        long scopeNodeId,
+        long templateRootNodeId,
+        long contentTypeId,
+        string contentTypeAlias) => composition with
+    {
+        ContentLists =
+        [
+            .. (composition.ContentLists ?? []),
+            new PageContentListScope
+            {
+                NodeId = scopeNodeId,
+                TemplateRootNodeId = templateRootNodeId,
+                ContentTypeId = contentTypeId,
+                ContentTypeAlias = contentTypeAlias,
+                Query = new PageContentListQuery { PageSize = 10 },
+                EmptyState = PageContentEmptyStateBehavior.RenderNothing
+            }
+        ]
+    };
+
+    private static PageCompositionDocument AddRenderedFragmentEntry(
+        PageCompositionDocument composition,
+        long nodeId,
+        PageRenderedFragmentKind kind,
+        string source) => composition with
+    {
+        RenderedFragments =
+        [
+            .. (composition.RenderedFragments ?? []),
+            new PageRenderedFragment
+            {
+                NodeId = nodeId,
+                Kind = kind,
+                Source = source
+            }
+        ]
+    };
+
+    private static Result<bool> ValidateRenderedFragment(
+        PageRenderedFragmentKind kind,
+        string source)
+    {
+        if (!Enum.IsDefined(kind))
+        {
+            return AeroError.ValidationError(["The rendered-fragment type is not supported."]);
+        }
+
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return AeroError.ValidationError(["Rendered-fragment source cannot be empty."]);
+        }
+
+        if (source.Length > PageRenderedFragment.MaximumSourceLength)
+        {
+            return AeroError.ValidationError(
+                [$"Rendered-fragment source cannot exceed {PageRenderedFragment.MaximumSourceLength} characters."]);
+        }
+
+        return true;
+    }
+
+    private Result<string> ValidateRegisteredFragment(
+        string key,
+        IReadOnlyDictionary<string, JsonElement>? parameters)
+    {
+        var normalizedKey = PageRegisteredFragment.NormalizeKey(key);
+        if (!PageRegisteredFragment.IsValidKey(normalizedKey))
+        {
+            return AeroError.ValidationError(["The registered-fragment key is invalid."]);
+        }
+
+        var values = parameters ?? new Dictionary<string, JsonElement>();
+        int parameterSize;
+        try
+        {
+            parameterSize = JsonSerializer.SerializeToUtf8Bytes(values).Length;
+        }
+        catch (Exception)
+        {
+            parameterSize = int.MaxValue;
+        }
+
+        if (values.Count > PageRegisteredFragment.MaximumParameterCount
+            || values.Keys.Any(name => string.IsNullOrWhiteSpace(name)
+                || name.Length > PageRegisteredFragment.MaximumParameterNameLength)
+            || parameterSize > PageRegisteredFragment.MaximumParametersUtf8Bytes)
+        {
+            return AeroError.ValidationError(["The registered-fragment parameters exceed their bounds."]);
+        }
+
+        return normalizedKey;
+    }
+
+    private static PageCompositionDocument AddRegisteredFragmentEntry(
+        PageCompositionDocument composition,
+        long nodeId,
+        string key,
+        IReadOnlyDictionary<string, JsonElement>? parameters) => composition with
+    {
+        RegisteredFragments =
+        [
+            .. (composition.RegisteredFragments ?? []),
+            new PageRegisteredFragment
+            {
+                NodeId = nodeId,
+                Key = key,
+                Parameters = (parameters ?? new Dictionary<string, JsonElement>())
+                    .ToDictionary(
+                        parameter => parameter.Key,
+                        parameter => parameter.Value.Clone(),
+                        StringComparer.Ordinal)
+            }
+        ]
+    };
+
+    private static PageCompositionDocument DuplicateCompositionFragments(
+        PageCompositionDocument composition,
+        HtmlNode source,
+        IReadOnlyDictionary<long, HtmlNode> nodeMap)
+    {
+        composition = DuplicateRenderedFragments(composition, source, nodeMap);
+        var duplicated = (composition.RegisteredFragments ?? [])
+            .Where(fragment => HtmlTreeOperations.FindById(source, fragment.NodeId) is not null)
+            .Where(fragment => nodeMap.ContainsKey(fragment.NodeId))
+            .Select(fragment => fragment.CreateSnapshot() with
+            {
+                NodeId = nodeMap[fragment.NodeId].NodeId
+            })
+            .ToArray();
+        return duplicated.Length == 0
+            ? composition
+            : composition with
+            {
+                RegisteredFragments = [.. (composition.RegisteredFragments ?? []), .. duplicated]
+            };
+    }
+
+    private static PageCompositionDocument DuplicateRenderedFragments(
+        PageCompositionDocument composition,
+        HtmlNode source,
+        IReadOnlyDictionary<long, HtmlNode> nodeMap)
+    {
+        var duplicated = (composition.RenderedFragments ?? [])
+            .Where(fragment => HtmlTreeOperations.FindById(source, fragment.NodeId) is not null)
+            .Where(fragment => nodeMap.ContainsKey(fragment.NodeId))
+            .Select(fragment => fragment with { NodeId = nodeMap[fragment.NodeId].NodeId })
+            .ToArray();
+        return duplicated.Length == 0
+            ? composition
+            : composition with
+            {
+                RenderedFragments = [.. (composition.RenderedFragments ?? []), .. duplicated]
+            };
+    }
+
+    private static HtmlNode CloneWithFreshNodeIds(
+        HtmlNode source,
+        IDictionary<long, HtmlNode> nodeMap)
+    {
+        var clone = new HtmlNode
+        {
+            NodeId = Snowflake.NewId(),
+            Kind = source.Kind,
+            TagName = source.TagName,
+            Text = source.Text,
+            Attributes = new Dictionary<string, string>(source.Attributes, StringComparer.Ordinal),
+            ThemeClasses = [.. source.ThemeClasses],
+            Style = HtmlTreeOperations.CloneStyle(source.Style)
+        };
+        nodeMap[source.NodeId] = clone;
+        clone.Children = source.Children
+            .Select(child => CloneWithFreshNodeIds(child, nodeMap))
+            .ToList();
+        return clone;
+    }
+
+    private static PageCompositionDocument AddContentItemScope(
+        PageCompositionDocument composition,
+        long scopeNodeId,
+        long contentTypeId,
+        string contentTypeAlias,
+        long contentItemId,
+        string? contentItemSlug) => composition with
+    {
+        ContentItems =
+        [
+            .. (composition.ContentItems ?? []),
+            new PageContentItemScope
+            {
+                NodeId = scopeNodeId,
+                ContentTypeId = contentTypeId,
+                ContentTypeAlias = contentTypeAlias,
+                LookupMode = PageContentItemLookupMode.StableId,
+                ContentItemId = contentItemId,
+                Slug = contentItemSlug
+            }
+        ]
+    };
+
+    private static PageCompositionDocument AddFieldBinding(
+        PageCompositionDocument composition,
+        long nodeId,
+        long scopeNodeId,
+        string fieldName,
+        PageFieldBindingTarget target) => composition with
+    {
+        FieldBindings =
+        [
+            .. (composition.FieldBindings ?? []),
+            new PageFieldBinding
+            {
+                NodeId = nodeId,
+                ScopeNodeId = scopeNodeId,
+                FieldName = fieldName,
+                Target = target
+            }
+        ]
+    };
+
+    private long? FindRelativeInsertionParent(
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var target = HtmlTreeOperations.FindById(Content.Root, targetNodeId);
+        if (target is null)
+        {
+            return null;
+        }
+
+        return placement == HtmlRelativePlacement.Inside
+            ? target.NodeId
+            : HtmlTreeOperations.FindParentById(Content.Root, targetNodeId)?.NodeId;
+    }
+
+    private long? ResolveContentFieldParent(long contentTypeId, long? requestedParentNodeId)
+    {
+        if (requestedParentNodeId is not { } parentNodeId)
+        {
+            return null;
+        }
+
+        var selectedList = (Composition.ContentLists ?? []).FirstOrDefault(scope =>
+            scope.NodeId == parentNodeId
+            && scope.ContentTypeId == contentTypeId);
+        return selectedList?.TemplateRootNodeId ?? parentNodeId;
+    }
+
+    private long ResolveContentFieldDropTarget(
+        long contentTypeId,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        if (placement != HtmlRelativePlacement.Inside)
+        {
+            return targetNodeId;
+        }
+
+        var targetList = (Composition.ContentLists ?? []).FirstOrDefault(scope =>
+            scope.NodeId == targetNodeId
+            && scope.ContentTypeId == contentTypeId);
+        return targetList?.TemplateRootNodeId ?? targetNodeId;
+    }
+
+    private Result<ContentScopeMatch> FindCompatibleContentScope(
+        long insertionParentNodeId,
+        long contentTypeId)
+    {
+        var current = HtmlTreeOperations.FindById(Content.Root, insertionParentNodeId);
+        while (current is not null)
+        {
+            var listScope = (Composition.ContentLists ?? [])
+                .FirstOrDefault(scope => scope.NodeId == current.NodeId);
+            if (listScope is not null)
+            {
+                if (listScope.ContentTypeId != contentTypeId)
+                {
+                    return AeroError.NotAllowedError(
+                        "This field belongs to a different content type than the nearest content scope.");
+                }
+
+                var templateRoot = HtmlTreeOperations.FindById(current, listScope.TemplateRootNodeId);
+                if (templateRoot is null
+                    || HtmlTreeOperations.FindById(templateRoot, insertionParentNodeId) is null)
+                {
+                    return AeroError.NotAllowedError(
+                        "List fields must be placed inside the repeatable template.");
+                }
+
+                return new ContentScopeMatch(listScope.NodeId);
+            }
+
+            var itemScope = (Composition.ContentItems ?? [])
+                .FirstOrDefault(scope => scope.NodeId == current.NodeId);
+            if (itemScope is not null)
+            {
+                return itemScope.ContentTypeId == contentTypeId
+                    ? new ContentScopeMatch(itemScope.NodeId)
+                    : AeroError.NotAllowedError(
+                        "This field belongs to a different content type than the nearest content scope.");
+            }
+
+            current = HtmlTreeOperations.FindParentById(Content.Root, current.NodeId);
+        }
+
+        return AeroError.NotAllowedError(
+            "Drag this field inside a content list template or content item of the same type.");
     }
 
     private long? FindInsertionParent(HtmlNode child, long? requestedParentNodeId)
@@ -1102,4 +2118,6 @@ public sealed class HtmlPageEditorSession
             _ => AeroError.CreateError("Style compilation returned an unknown result state.")
         };
     }
+
+    private sealed record ContentScopeMatch(long ScopeNodeId);
 }
