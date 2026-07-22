@@ -53,6 +53,7 @@
     <Project Path="Aero.Cms.Modules.Content/Aero.Cms.Modules.Content.csproj" />
     <Project Path="Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj" Id="f0a088cb-18fe-4ef2-9318-744abdbee4a9" />
     <Project Path="Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj" Id="7a333011-7319-49e2-8229-cbbd89599c77" />
+    <Project Path="Aero.Cms.Modules.EntraExternalId/Aero.Cms.Modules.EntraExternalId.csproj" />
     <Project Path="Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj" Id="beeaf44c-2bf2-4029-8c00-e2a91a6384f4" />
     <Project Path="Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj" />
     <Project Path="Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj" Id="39ddd553-2b71-4b37-8290-22685fcbda29" />

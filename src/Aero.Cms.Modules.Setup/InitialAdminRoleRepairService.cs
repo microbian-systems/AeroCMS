@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -28,7 +29,10 @@ public sealed class InitialAdminRoleRepairService(
 
         var result = await scope.ServiceProvider
             .GetRequiredService<ISetupIdentityBootstrapper>()
-            .EnsureInitialAdminRoleAsync(setupState.AdminEmail, cancellationToken);
+            .EnsureRecoveryAdministratorAsync(
+                setupState.RecoveryAdministratorUserId,
+                setupState.AdminEmail,
+                cancellationToken);
 
         if (!result.Succeeded)
         {
@@ -38,7 +42,15 @@ public sealed class InitialAdminRoleRepairService(
             return;
         }
 
-        logger.LogInformation("Verified CMS role membership for the setup administrator.");
+        if (setupState.RecoveryAdministratorUserId is null && result.AdminUser is not null)
+        {
+            setupState.RecoveryAdministratorUserId = result.AdminUser.Id;
+            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            session.Store(setupState);
+            await session.SaveChangesAsync(cancellationToken);
+        }
+
+        logger.LogInformation("Verified the manager recovery administrator invariant.");
     }
 
     /// <inheritdoc />

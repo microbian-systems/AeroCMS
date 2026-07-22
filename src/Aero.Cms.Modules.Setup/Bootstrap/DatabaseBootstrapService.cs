@@ -36,7 +36,9 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         bootstrap["State"] = BootstrapStates.Configured;
         bootstrap["DatabaseMode"] = model.DatabaseMode;
         bootstrap["SecretProvider"] = model.SecretProvider;
-        bootstrap["AuthenticationMode"] = model.AuthenticationMode;
+        bootstrap["RequestedManagerAuthenticationProvider"] = model.RequestedManagerAuthenticationProvider;
+        bootstrap["RequestedMemberAuthenticationProvider"] = model.RequestedMemberAuthenticationProvider;
+        bootstrap.Remove("AuthenticationMode");
         bootstrap["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;

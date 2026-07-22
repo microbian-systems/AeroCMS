@@ -1,3 +1,5 @@
+using AeroDB.Sable;
+
 namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Aero.Cms.Modules.Setup;
 /// This document is separate from the file-based bootstrap lifecycle. It must not contain
 /// administrator passwords, database credentials, or secret-provider credentials.
 /// </remarks>
-public sealed class SetupStateDocument
+public sealed class SetupStateDocument : SableDocumentString, IVersioned
 {
     /// <summary>
     /// Identifies the singleton setup-state document.
@@ -39,9 +41,25 @@ public string CacheMode { get; set; } = string.Empty;
     /// </summary>
 public string SecretProvider { get; set; } = string.Empty;
     /// <summary>
+    /// Gets or sets the canonical authentication provider selected for CMS managers.
+    /// </summary>
+public string RequestedManagerAuthenticationProvider { get; set; } = "local";
+    /// <summary>
+    /// Gets or sets the canonical authentication provider selected for storefront members.
+    /// </summary>
+public string RequestedMemberAuthenticationProvider { get; set; } = "disabled";
+    /// <summary>
     /// Gets or sets the email address of the initial administrator.
     /// </summary>
 public string AdminEmail { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the exact locally authenticated administrator reserved for manager recovery.
+    /// </summary>
+    /// <remarks>
+    /// This Snowflake identifier is non-secret. The corresponding Identity account remains the
+    /// authority for the password hash, lockout state, and administrator role membership.
+    /// </remarks>
+public long? RecoveryAdministratorUserId { get; set; }
     /// <summary>
     /// Gets or sets the seeded site name.
     /// </summary>
@@ -76,4 +94,6 @@ public string? DefaultCulture { get; set; }
     /// Gets the culture names enabled during setup.
     /// </summary>
 public List<string> SupportedCultures { get; set; } = [];
+    /// <summary>Gets or sets the optimistic-concurrency version.</summary>
+public long Version { get; set; }
 }

@@ -32,6 +32,9 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
     /// </summary>
     private static readonly PathString NoSitePathPrefix = "/nosite";
 
+    /// <summary>Identifies the local member logout route that must remain clearable without a live site.</summary>
+    private static readonly PathString MemberLogoutPath = "/api/v1/member/logout";
+
     /// <summary>
     /// Resolves the request host or bypasses resolution for infrastructure and manager paths.
     /// </summary>
@@ -57,6 +60,29 @@ public async Task InvokeAsync(HttpContext context)
             return;
         }
 
+        if (context.Request.Path.Equals(MemberLogoutPath, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var logoutHost = HostNormalizer.Normalize(context.Request.Host.Host);
+                var logoutLookup = context.RequestServices.GetRequiredService<ISiteLookupService>();
+                var logoutSite = await logoutLookup.ResolveByHostAsync(logoutHost, context.RequestAborted);
+                if (logoutSite is { IsEnabled: true })
+                    AttachSite(context, logoutSite);
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                // Cookie clearing is still allowed to run with no resolved site feature.
+            }
+            catch
+            {
+                // Logout deliberately degrades to local session revocation and cookie clearing.
+            }
+
+            await next(context);
+            return;
+        }
+
         var host = context.Request.Host.Host;
         var normalized = HostNormalizer.Normalize(host);
         var siteLookup = context.RequestServices.GetRequiredService<ISiteLookupService>();
@@ -70,6 +96,13 @@ public async Task InvokeAsync(HttpContext context)
         }
 
         // Attach site context to features for downstream consumption
+        AttachSite(context, site);
+
+        await next(context);
+    }
+
+    private static void AttachSite(HttpContext context, Aero.Cms.Abstractions.Models.SiteViewModel site)
+    {
         context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice
         {
             SiteId = site.Id,
@@ -77,8 +110,6 @@ public async Task InvokeAsync(HttpContext context)
             DefaultCulture = site.DefaultCulture,
             SupportedCultures = site.SupportedCultures
         });
-
-        await next(context);
     }
 
     /// <summary>

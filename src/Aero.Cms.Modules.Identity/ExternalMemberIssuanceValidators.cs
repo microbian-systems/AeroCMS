@@ -15,8 +15,9 @@ public sealed class CreateExternalMemberInvitationRequestValidator
             .WithMessage("Provider must be canonical lower_snake_case.");
         RuleFor(request => request.Email).NotEmpty().MaximumLength(320).EmailAddress();
         RuleFor(request => request.ExpiresAt)
-            .Must(expiresAt => expiresAt > timeProvider.GetUtcNow())
-            .WithMessage("Invitation expiry must be in the future.");
+            .Must(expiresAt => expiresAt > timeProvider.GetUtcNow() &&
+                expiresAt <= timeProvider.GetUtcNow().AddDays(7))
+            .WithMessage("Invitation expiry must be in the future and no more than seven days away.");
     }
 }
 
@@ -36,6 +37,8 @@ public sealed class BeginExternalMemberSignInRequestValidator
             .WithMessage("Provider must be canonical lower_snake_case.");
         RuleFor(request => request.ReturnPath).Must(ExternalMemberIssuanceRules.IsSafeLocalReturnPath)
             .WithMessage("Return path must be a safe local absolute path.");
+        RuleFor(request => request.ProtectedProviderCorrelation).Must(ExternalMemberIssuanceRules.IsProtectedProviderCorrelation)
+            .WithMessage("Protected provider correlation is invalid.");
     }
 }
 
@@ -80,9 +83,12 @@ internal static class ExternalMemberIssuanceRules
         new("^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     public static bool IsCanonicalProvider(string? value) =>
-        value is { Length: >= 2 and <= 64 } &&
-        !string.Equals(value, "local_identity", StringComparison.Ordinal) &&
-        ProviderPattern.IsMatch(value);
+        value is { Length: >= 2 and <= 64 } && ProviderPattern.IsMatch(value) &&
+        ExternalMemberProviders.IsSupported(value);
+
+    public static bool IsProtectedProviderCorrelation(string? value) =>
+        value is { Length: > 0 and <= 2048 } && string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+        !value.Any(char.IsControl);
 
     public static bool IsExactHttpsIssuer(string? value) =>
         value is { Length: > 0 and <= 2048 } &&

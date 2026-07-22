@@ -27,6 +27,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -39,6 +40,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System.Globalization;
+using System.Threading.RateLimiting;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -131,10 +133,18 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         services.AddControllersWithViews();
         services.AddAuthentication(authentication =>
             {
-                authentication.DefaultScheme = IdentityConstants.ApplicationScheme;
-                authentication.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
-                authentication.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+                authentication.DefaultScheme = ManagerRecoveryDefaults.ManagerScheme;
+                authentication.DefaultAuthenticateScheme = ManagerRecoveryDefaults.ManagerScheme;
+                authentication.DefaultChallengeScheme = ManagerRecoveryDefaults.ManagerScheme;
                 authentication.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
+            })
+            .AddPolicyScheme(ManagerRecoveryDefaults.ManagerScheme, null, policyScheme =>
+            {
+                policyScheme.ForwardDefaultSelector = context =>
+                    context.Request.Cookies.ContainsKey(ManagerRecoveryDefaults.CookieName)
+                    && !context.Request.Cookies.ContainsKey(".AeroCms.Auth")
+                        ? ManagerRecoveryDefaults.Scheme
+                        : IdentityConstants.ApplicationScheme;
             })
             .AddCookie(IdentityConstants.ApplicationScheme, cookie =>
             {
@@ -147,6 +157,23 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 cookie.SlidingExpiration = true;
                 cookie.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.ConfigureApplicationCookie?.Invoke(cookie);
+                var existingValidator = cookie.Events.OnValidatePrincipal;
+                cookie.Events.OnValidatePrincipal = async context =>
+                {
+                    await SecurityStampValidator.ValidatePrincipalAsync(context);
+                    if (context.Principal is null)
+                        return;
+
+                    if (existingValidator is not null)
+                        await existingValidator(context);
+
+                    if (context.Principal is null)
+                        return;
+
+                    await context.HttpContext.RequestServices
+                        .GetRequiredService<ManagerFederationCookieValidator>()
+                        .ValidateAsync(context);
+                };
             })
             .AddCookie(ExternalMemberAuthenticationDefaults.Scheme, cookie =>
             {
@@ -159,11 +186,36 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                     context.HttpContext.RequestServices
                         .GetRequiredService<ExternalMemberCookieValidator>()
                         .ValidateAsync(context);
+            })
+            .AddCookie(ManagerRecoveryDefaults.Scheme, cookie =>
+            {
+                cookie.Cookie.Name = ManagerRecoveryDefaults.CookieName;
+                cookie.Cookie.HttpOnly = true;
+                cookie.Cookie.SameSite = SameSiteMode.Strict;
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.SlidingExpiration = false;
+                cookie.ExpireTimeSpan = ManagerRecoveryDefaults.SessionLifetime;
+                cookie.LoginPath = "/manager/recovery";
             });
 
         services.AddAuthorization(authorization =>
         {
-            authorization.AddPolicy("AeroAdmin", policy => policy.RequireRole("Admin"));
+            var managerPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(
+                    IdentityConstants.ApplicationScheme,
+                    ManagerRecoveryDefaults.Scheme)
+                .RequireAuthenticatedUser()
+                .Build();
+            authorization.AddPolicy(ManagerRecoveryDefaults.ManagerPolicy, managerPolicy);
+            authorization.DefaultPolicy = managerPolicy;
+
+            authorization.AddPolicy("AeroAdmin", policy =>
+            {
+                policy.AddAuthenticationSchemes(
+                    IdentityConstants.ApplicationScheme,
+                    ManagerRecoveryDefaults.Scheme);
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole("Admin");
+            });
             authorization.AddPolicy(ExternalMemberAuthenticationDefaults.Policy, policy =>
             {
                 policy.AddAuthenticationSchemes(ExternalMemberAuthenticationDefaults.Scheme);
@@ -177,6 +229,28 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 policy.AddRequirements(new ExternalMemberSiteRequirement());
             });
             options.ConfigureAuthorization?.Invoke(authorization);
+        });
+
+        services.AddRateLimiter(rateLimiting =>
+        {
+            rateLimiting.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            rateLimiting.AddPolicy(ManagerRecoveryDefaults.RateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    static _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(15),
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        AutoReplenishment = true
+                    }));
+            AddLocalMemberFixedWindowPolicy(rateLimiting,
+                LocalExternalMemberAuthentication.LoginRateLimitPolicy, 5);
+            AddLocalMemberFixedWindowPolicy(rateLimiting,
+                LocalExternalMemberAuthentication.PasswordResetRateLimitPolicy, 5);
+            AddLocalMemberFixedWindowPolicy(rateLimiting,
+                LocalExternalMemberAuthentication.ActivationRateLimitPolicy, 10);
         });
 
         services.AddHttpContextAccessor();
@@ -242,6 +316,28 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         }
 
         return (builder, log);
+    }
+
+    private static void AddLocalMemberFixedWindowPolicy(
+        RateLimiterOptions options, string policyName, int permitLimit)
+    {
+        options.AddPolicy(policyName, httpContext =>
+        {
+            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var siteContext = httpContext.RequestServices.GetService<ISiteContext>();
+            var scope = siteContext is { TenantId: > 0, SiteId: > 0 }
+                ? $"{siteContext.TenantId}:{siteContext.SiteId}"
+                : "unresolved";
+            return RateLimitPartition.GetFixedWindowLimiter($"{ip}|{scope}", _ =>
+                new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromMinutes(15),
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    AutoReplenishment = true
+                });
+        });
     }
 
     private static void PublishResolvedInfrastructure(
@@ -363,6 +459,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
             options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
         });
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseCmsSetupGate();
@@ -393,6 +490,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
 
         app.MapIdentityApi();
         app.MapExternalMemberApi();
+        app.MapExternalMemberLocalApi();
         app.MapAeroCmsEndpoints();
 
         if (options.EnableOpenApi)

@@ -1,0 +1,36 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ExternalMembers
+
+<section class="rounded-lg border border-slate-700 bg-slate-900 p-6">
+    <h2 class="text-lg font-semibold text-slate-100">External identity authority</h2>
+    <p class="mt-1 text-sm text-slate-400">This authority applies tenant-wide. Provider credentials remain in Aero.Vault and are never entered here.</p>
+    <EditForm Model="Form" OnValidSubmit="SubmitAsync" FormName="external-authority" class="mt-5 space-y-4">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-sm text-red-400" />
+        <label class="block text-sm text-slate-300">Provider
+            <InputSelect @bind-Value="Form.Provider" disabled="@IdentityLocked" class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2">
+                <option value="workos">WorkOS</option>
+                <option value="entra_external_id">Microsoft Entra External ID</option>
+            </InputSelect>
+        </label>
+        <label class="block text-sm text-slate-300">Organization identifier
+            <InputText @bind-Value="Form.OrganizationId" disabled="@IdentityLocked" class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+        </label>
+        <label class="block text-sm text-slate-300">Authority
+            <InputText @bind-Value="Form.Authority" disabled="@(Form.Provider == "workos")" class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+        </label>
+        <div class="grid gap-4 md:grid-cols-2">
+            <label class="block text-sm text-slate-300">Aero.Vault ID
+                <InputNumber @bind-Value="Form.VaultId" class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+            </label>
+            <label class="block text-sm text-slate-300">Vault environment
+                <InputText @bind-Value="Form.VaultEnvironment" class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+            </label>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+            <InputCheckbox @bind-Value="Form.Enabled" /> Enabled
+        </label>
+        <button type="submit" disabled="@IsBusy" class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            @(IsBusy ? "Saving…" : "Save authority")
+        </button>
+    </EditForm>
+</section>

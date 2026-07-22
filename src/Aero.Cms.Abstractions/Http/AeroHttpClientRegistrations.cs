@@ -85,6 +85,7 @@ public static IServiceCollection AddAeroHttpClients(
         services.AddHttpClient<ISitesHttpClient, SitesHttpClient>();
         services.AddHttpClient<IAliasHttpClient, AliasesHttpClient>();
         services.AddHttpClient<IAiHttpClient, AiHttpClient>();
+        services.AddHttpClient<IExternalIdentityAdminClient, ExternalIdentityAdminClient>();
 
         // Register WASM-safe Contracts interface — resolves via cast to shared implementation
         services.AddScoped<Aero.Cms.Contracts.Abstractions.ISitesHttpClient>(sp =>

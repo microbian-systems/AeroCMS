@@ -132,6 +132,30 @@ public sealed class ExternalMemberBoundaryTests
     }
 
     [Test]
+    [Arguments(999, 303)]
+    [Arguments(404, 999)]
+    public async Task Cookie_validator_rejects_session_from_another_tenant_or_site(
+        long tenantId,
+        long siteId)
+    {
+        var externalSession = ActiveSession();
+        externalSession.TenantId = tenantId;
+        externalSession.SiteId = siteId;
+        var (context, authenticationService, services) = CreateValidationContext(
+            ActiveMember(), externalSession, ActiveLink());
+        using (services)
+        {
+            await new ExternalMemberCookieValidator().ValidateAsync(context);
+
+            await Assert.That(context.Principal).IsNull();
+            await authenticationService.Received(1).SignOutAsync(
+                context.HttpContext,
+                ExternalMemberAuthenticationDefaults.Scheme,
+                Arg.Any<AuthenticationProperties?>());
+        }
+    }
+
+    [Test]
     public async Task Host_site_assignment_authorizes_without_manager_selected_site_state()
     {
         await using var harness = await CreateSiteHarnessAsync(
@@ -224,6 +248,8 @@ public sealed class ExternalMemberBoundaryTests
     {
         Id = SessionId,
         ExternalMemberId = MemberId,
+        TenantId = TenantId,
+        SiteId = SiteId,
         AuthenticationProvider = "workos",
         ExternalIdentityLinkId = LinkId,
         SecurityVersion = 3,
@@ -264,9 +290,11 @@ public sealed class ExternalMemberBoundaryTests
         CreateValidationContext(IQuerySession querySession)
     {
         var authenticationService = Substitute.For<IAuthenticationService>();
+        var siteContext = CreateSiteContext();
         var services = new ServiceCollection()
             .AddSingleton(querySession)
             .AddSingleton(authenticationService)
+            .AddSingleton(siteContext)
             .BuildServiceProvider();
         var httpContext = new DefaultHttpContext
         {

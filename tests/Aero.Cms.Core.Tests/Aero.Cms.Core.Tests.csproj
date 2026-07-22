@@ -51,6 +51,8 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Audit\Aero.Cms.Modules.Audit.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
