@@ -3,8 +3,12 @@ using System.Security.Claims;
 using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Identity;
+using Aero.Core;
+using Aero.Core.Http;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -28,6 +32,7 @@ public sealed class ExternalMemberLogoutIntegrationTests
         var documentSession = Substitute.For<IDocumentSession>();
         await using var app = await CreateAppAsync(querySession, documentSession);
         using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://localhost");
         var externalCookie = await SignInAsync(client, "/test/signin/external", ".AeroCms.Member");
         var internalCookie = await SignInAsync(client, "/test/signin/internal", ".AeroCms.Auth");
 
@@ -54,6 +59,7 @@ public sealed class ExternalMemberLogoutIntegrationTests
         documentSession.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
         await using var app = await CreateAppAsync(querySession, documentSession);
         using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://localhost");
         var externalCookie = await SignInAsync(client, "/test/signin/external", ".AeroCms.Member");
         var internalCookie = await SignInAsync(client, "/test/signin/internal", ".AeroCms.Auth");
 
@@ -78,6 +84,7 @@ public sealed class ExternalMemberLogoutIntegrationTests
             .Returns(Task.FromException<int>(new InvalidOperationException("store unavailable")));
         await using var app = await CreateAppAsync(querySession, documentSession);
         using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://localhost");
         var externalCookie = await SignInAsync(client, "/test/signin/external", ".AeroCms.Member");
         var internalCookie = await SignInAsync(client, "/test/signin/internal", ".AeroCms.Auth");
 
@@ -100,25 +107,56 @@ public sealed class ExternalMemberLogoutIntegrationTests
         var documentSession = Substitute.For<IDocumentSession>();
         await using var app = await CreateAppAsync(querySession, documentSession);
         using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://localhost");
         var externalCookie = await SignInAsync(client, "/test/signin/external", ".AeroCms.Member");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/member/logout");
         request.Headers.Add("Cookie", externalCookie);
         using var response = await client.SendAsync(request);
 
-        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.InternalServerError);
         await Assert.That(foreignSession.RevokedAt).IsNull();
         await documentSession.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
         await AssertMemberCookieOnlyIsDeletedAsync(response);
     }
 
+    [Test]
+    public async Task Site_a_cookie_presented_on_site_b_does_not_revoke_or_redirect()
+    {
+        var siteASession = ActiveSession();
+        siteASession.ProviderSessionReference = "provider-session";
+        var querySession = Substitute.For<IQuerySession>();
+        querySession.LoadAsync<ExternalMemberSession>(SessionId, Arg.Any<CancellationToken>())
+            .Returns(siteASession);
+        var documentSession = Substitute.For<IDocumentSession>();
+        await using var app = await CreateAppAsync(querySession, documentSession, siteId: 304);
+        using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://localhost");
+        var externalCookie = await SignInAsync(client, "/test/signin/external", ".AeroCms.Member");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/member/logout");
+        request.Headers.Add("Cookie", externalCookie);
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.InternalServerError);
+        await Assert.That(response.Headers.Location).IsNull();
+        await Assert.That(siteASession.RevokedAt).IsNull();
+        await documentSession.DidNotReceiveWithAnyArgs().SaveChangesAsync(default);
+    }
+
     private static async Task<WebApplication> CreateAppAsync(
         IQuerySession querySession,
-        IDocumentSession documentSession)
+        IDocumentSession documentSession,
+        long tenantId = 404,
+        long siteId = 303)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddLogging();
+        builder.Services.AddAntiforgery();
+        var antiforgery = Substitute.For<IAntiforgery>();
+        antiforgery.ValidateRequestAsync(Arg.Any<HttpContext>()).Returns(Task.CompletedTask);
+        builder.Services.AddSingleton(antiforgery);
         builder.Services
             .AddAuthentication(options =>
             {
@@ -155,10 +193,20 @@ public sealed class ExternalMemberLogoutIntegrationTests
         builder.Services.AddScoped<ICurrentPrincipal, CurrentPrincipal>();
         builder.Services.AddSingleton(querySession);
         builder.Services.AddSingleton(documentSession);
+        builder.Services.AddSingleton<IExternalMemberSessionRevocationService>(
+            new TestRevocationService(querySession, documentSession));
+        builder.Services.AddSingleton(Substitute.For<IExternalMemberAuthenticationCoordinator>());
+        builder.Services.AddSingleton(Substitute.For<IExternalMemberProviderStrategyFactory>());
+        builder.Services.AddSingleton(Substitute.For<IExternalProviderSecretSource>());
+        var siteContext = Substitute.For<ISiteContext>();
+        siteContext.SiteId.Returns(siteId);
+        siteContext.TenantId.Returns(tenantId);
+        builder.Services.AddSingleton(siteContext);
 
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseAntiforgery();
         app.MapGet("/test/signin/external", async (HttpContext context) =>
         {
             await context.SignInAsync(
@@ -219,9 +267,48 @@ public sealed class ExternalMemberLogoutIntegrationTests
     private static ExternalMemberSession ActiveSession() => new()
     {
         Id = SessionId,
+        TenantId = 404,
+        SiteId = 303,
         ExternalMemberId = MemberId,
         AuthenticationProvider = "workos",
         SecurityVersion = 3,
         ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
     };
+
+    private sealed class TestRevocationService(
+        IQuerySession querySession,
+        IDocumentSession documentSession) : IExternalMemberSessionRevocationService
+    {
+        public async Task<Result<ExternalMemberSessionRevocationReceipt, AeroError>> RevokeAsync(
+            ExternalMemberSessionRevocationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var session = await querySession.LoadAsync<ExternalMemberSession>(
+                    request.ExternalMemberSessionId, cancellationToken);
+                if (session is null || session.TenantId != request.TenantId ||
+                    session.SiteId != request.SiteId || session.ExternalMemberId != request.ExternalMemberId)
+                {
+                    return Prelude.Fail<ExternalMemberSessionRevocationReceipt, AeroError>(
+                        AeroError.NotFoundError("Session unavailable."));
+                }
+
+                session.RevokedAt = DateTimeOffset.UtcNow;
+                session.ModifiedOn = session.RevokedAt;
+                documentSession.Store(session);
+                await documentSession.SaveChangesAsync(cancellationToken);
+                return Prelude.Ok<ExternalMemberSessionRevocationReceipt, AeroError>(new(
+                    session.TenantId,
+                    session.SiteId,
+                    request.Provider,
+                    session.ProviderSessionReference));
+            }
+            catch
+            {
+                return Prelude.Fail<ExternalMemberSessionRevocationReceipt, AeroError>(
+                    AeroError.DatabaseError("Revocation failed."));
+            }
+        }
+    }
 }

@@ -8,9 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Aero.Cms.Core.Entities;
-using AeroDB.Sable;
+using Aero.Core;
+using Aero.Core.Railway;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -71,17 +72,22 @@ public static class IdentityApi
     /// </exception>
     public static void MapIdentityApi(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapExternalIdentityAdminApi();
+        endpoints.MapManagerFederationApi();
         var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/auth").WithTags("Admin - Identity");
 
-        group.MapGet("/config", (IConfiguration configuration) =>
-        {
-            var authenticationMode = configuration["AeroCms:Bootstrap:AuthenticationMode"] ?? "Local";
-            return Results.Ok(new AuthenticationConfigResponse(authenticationMode));
-        }).AllowAnonymous();
+        group.MapGet("/config", GetAuthenticationConfigAsync).AllowAnonymous();
 
         group.MapGet("/me", GetCurrentUserAsync)
             .RequireAuthorization();
         group.MapPost("/local/login", LocalLoginAsync)
+            .AllowAnonymous();
+        group.MapPost("/local/login/form", LocalLoginFormAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute())
+            .AllowAnonymous();
+        group.MapPost("/recovery", RecoveryLoginAsync)
+            .RequireRateLimiting(ManagerRecoveryDefaults.RateLimitPolicy)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute())
             .AllowAnonymous();
         group.MapPost("/logout", LogoutAsync)
             .AllowAnonymous();
@@ -203,16 +209,22 @@ public static class IdentityApi
     /// </remarks>
     private static async Task<IResult> LocalLoginAsync(
         LocalLoginRequest request,
-        IConfiguration configuration,
+        HttpContext httpContext,
+        IManagerAuthenticationModeResolver modeResolver,
         UserManager<AeroUser> userManager,
         SignInManager<AeroUser> signInManager,
+        ManagerAuthenticationRateLimiter rateLimiter,
         CancellationToken cancellationToken)
     {
-        var authenticationMode = configuration["AeroCms:Bootstrap:AuthenticationMode"] ?? "Local";
-        if (!string.Equals(authenticationMode, "Local", StringComparison.OrdinalIgnoreCase))
+        if (!rateLimiter.TryAcquireLocalLogin(httpContext))
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
+        var modeResult = await modeResolver.ResolveAsync(cancellationToken);
+        if (modeResult is not Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode) ||
+            !string.Equals(mode.EffectiveProvider,
+                AuthenticationProviderSelections.Manager.Local, StringComparison.Ordinal))
         {
-            return Results.BadRequest(new LocalLoginResponse(false,
-                "Local authentication is disabled for this installation."));
+            return Results.Unauthorized();
         }
 
         var identifier = request.EmailOrUserName?.Trim();
@@ -226,6 +238,11 @@ public static class IdentityApi
             : await userManager.FindByNameAsync(identifier);
 
         if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!user.IsActive || user.IsDeleted)
         {
             return Results.Unauthorized();
         }
@@ -254,6 +271,50 @@ public static class IdentityApi
         return Results.Ok(new LocalLoginResponse(true, "Login successful."));
     }
 
+    private static async Task<IResult> LocalLoginFormAsync(
+        [FromForm] LocalLoginFormRequest request,
+        HttpContext httpContext,
+        IManagerAuthenticationModeResolver modeResolver,
+        UserManager<AeroUser> userManager,
+        SignInManager<AeroUser> signInManager,
+        ManagerAuthenticationRateLimiter rateLimiter,
+        CancellationToken cancellationToken)
+    {
+        if (!rateLimiter.TryAcquireLocalLogin(httpContext))
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
+        var returnUrl = GetSafeLocalReturnUrl(request.ReturnUrl);
+        var failure = Results.LocalRedirect(BuildLocalFailureUrl(returnUrl));
+        var modeResult = await modeResolver.ResolveAsync(cancellationToken);
+        if (modeResult is not Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode) ||
+            !string.Equals(mode.EffectiveProvider,
+                AuthenticationProviderSelections.Manager.Local, StringComparison.Ordinal))
+            return failure;
+
+        var identifier = request.EmailOrUserName?.Trim();
+        if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(request.Password))
+            return failure;
+
+        var user = identifier.Contains('@')
+            ? await userManager.FindByEmailAsync(identifier)
+            : await userManager.FindByNameAsync(identifier);
+        if (user is null || !user.IsActive || user.IsDeleted)
+            return failure;
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (!roles.Intersect(CmsRoleNames.All, StringComparer.OrdinalIgnoreCase).Any())
+            return failure;
+
+        var signIn = await signInManager.PasswordSignInAsync(
+            user, request.Password, request.RememberMe, lockoutOnFailure: true);
+        if (!signIn.Succeeded)
+            return failure;
+
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        await userManager.UpdateAsync(user);
+        return Results.LocalRedirect(returnUrl);
+    }
+
     /// <summary>
     /// Clears the current Identity sign-in cookie.
     /// </summary>
@@ -266,11 +327,78 @@ public static class IdentityApi
     /// Whether sign-out invalidates any other issued cookies or tokens is determined by
     /// the host and store configuration. Exceptions propagate to the host pipeline.
     /// </remarks>
-    private static async Task<IResult> LogoutAsync(SignInManager<AeroUser> signInManager)
+    private static async Task<IResult> RecoveryLoginAsync(
+        [FromForm] ManagerRecoveryLoginRequest request,
+        HttpContext httpContext,
+        IManagerRecoveryAuthenticationService recoveryAuthenticationService,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
-        await signInManager.SignOutAsync();
+        var result = await recoveryAuthenticationService.AuthenticateAsync(
+            request.EmailOrUserName,
+            request.Password,
+            httpContext.Connection.RemoteIpAddress?.ToString(),
+            cancellationToken);
+
+        if (!result.Succeeded || result.Principal is null)
+        {
+            return Results.LocalRedirect(BuildRecoveryFailureUrl(request.ReturnUrl));
+        }
+
+        await httpContext.SignInAsync(
+            ManagerRecoveryDefaults.Scheme,
+            result.Principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = false,
+                AllowRefresh = false,
+                ExpiresUtc = timeProvider.GetUtcNow().Add(ManagerRecoveryDefaults.SessionLifetime)
+            });
+
+        return Results.LocalRedirect(GetSafeRecoveryReturnUrl(request.ReturnUrl));
+    }
+
+    private static async Task<IResult> LogoutAsync(HttpContext httpContext)
+    {
+        await httpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+        await httpContext.SignOutAsync(ManagerRecoveryDefaults.Scheme);
         return Results.NoContent();
     }
+
+    private static async Task<IResult> GetAuthenticationConfigAsync(
+        IManagerAuthenticationModeResolver modeResolver,
+        CancellationToken cancellationToken)
+    {
+        var result = await modeResolver.ResolveAsync(cancellationToken);
+        return result is Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode)
+            ? Results.Ok(new AuthenticationConfigResponse(mode.EffectiveProvider))
+            : Results.Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Manager authentication mode is unavailable.");
+    }
+
+    private static string GetSafeRecoveryReturnUrl(string? returnUrl)
+        => IsLocalReturnUrl(returnUrl) ? returnUrl! : "/manager";
+
+    private static string GetSafeLocalReturnUrl(string? returnUrl)
+        => IsLocalReturnUrl(returnUrl) ? returnUrl! : "/manager";
+
+    private static string BuildLocalFailureUrl(string returnUrl) =>
+        $"/manager/login?error=1&returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+    private static string BuildRecoveryFailureUrl(string? returnUrl)
+    {
+        var safeReturnUrl = GetSafeRecoveryReturnUrl(returnUrl);
+        return $"/manager/recovery?error=1&returnUrl={Uri.EscapeDataString(safeReturnUrl)}";
+    }
+
+    private static bool IsLocalReturnUrl(string? returnUrl)
+        => !string.IsNullOrWhiteSpace(returnUrl)
+            && returnUrl.Length <= 2048
+            && returnUrl.StartsWith("/", StringComparison.Ordinal)
+            && !returnUrl.StartsWith("//", StringComparison.Ordinal)
+            && !returnUrl.Contains('\\')
+            && returnUrl.All(character => !char.IsControl(character));
 
     /// <summary>
     /// Describes the authentication mode exposed to the administrative client.
@@ -338,6 +466,15 @@ public static class IdentityApi
     /// </remarks>
     public sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
 
+    /// <summary>Browser form fields for ordinary local manager authentication.</summary>
+    public sealed class LocalLoginFormRequest
+    {
+        public string? EmailOrUserName { get; set; }
+        public string? Password { get; set; }
+        public bool RememberMe { get; set; }
+        public string? ReturnUrl { get; set; }
+    }
+
     /// <summary>
     /// Reports the outcome message produced by a local-login attempt.
     /// </summary>
@@ -349,74 +486,17 @@ public static class IdentityApi
     /// authentication, missing input, invalid credentials, and account lockout.
     /// </param>
     public sealed record LocalLoginResponse(bool Succeeded, string Message);
-}
 
-/// <summary>Maps storefront-member session endpoints without exposing the manager authentication surface.</summary>
-public static class ExternalMemberApi
-{
-    /// <summary>Maps the externally scoped current-member and logout endpoints.</summary>
-    public static void MapExternalMemberApi(this IEndpointRouteBuilder endpoints)
+    /// <summary>Contains credentials for the one local recovery administrator.</summary>
+    public sealed class ManagerRecoveryLoginRequest
     {
-        var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}member")
-            .WithTags("Storefront - Member");
+        /// <summary>Gets or sets the submitted username or email address.</summary>
+        public string? EmailOrUserName { get; set; }
 
-        group.MapGet("/me", GetCurrentMember)
-            .RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy,
-                ExternalMemberAuthenticationDefaults.SitePolicy);
-        group.MapPost("/logout", LogoutAsync)
-            .RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy);
+        /// <summary>Gets or sets the submitted recovery password.</summary>
+        public string? Password { get; set; }
+
+        /// <summary>Gets or sets the local post-authentication target.</summary>
+        public string? ReturnUrl { get; set; }
     }
-
-    private static IResult GetCurrentMember([FromServices] ICurrentPrincipal currentPrincipal)
-    {
-        if (!currentPrincipal.IsAuthenticated || currentPrincipal.Kind != PrincipalKind.ExternalMember ||
-            currentPrincipal.PrincipalId is not long memberId || currentPrincipal.ExternalSessionId is not long sessionId ||
-            currentPrincipal.SecurityVersion is not long securityVersion || string.IsNullOrWhiteSpace(currentPrincipal.AuthenticationProvider))
-        {
-            return Results.Unauthorized();
-        }
-
-        return Results.Ok(new CurrentExternalMemberResponse(memberId, currentPrincipal.AuthenticationProvider,
-            sessionId, securityVersion));
-    }
-
-    private static async Task<IResult> LogoutAsync(
-        [FromServices] ICurrentPrincipal currentPrincipal,
-        [FromServices] IQuerySession querySession,
-        [FromServices] IDocumentSession documentSession,
-        HttpContext httpContext,
-        CancellationToken cancellationToken)
-    {
-        IResult result = Results.NoContent();
-        try
-        {
-            if (currentPrincipal.ExternalSessionId is long sessionId)
-            {
-                var session = await querySession.LoadAsync<ExternalMemberSession>(sessionId, cancellationToken);
-                if (session is not null && currentPrincipal.PrincipalId == session.ExternalMemberId)
-                {
-                    session.RevokedAt = DateTimeOffset.UtcNow;
-                    session.ModifiedOn = session.RevokedAt;
-                    documentSession.Store(session);
-                    await documentSession.SaveChangesAsync(cancellationToken);
-                }
-            }
-
-            return result;
-        }
-        catch
-        {
-            result = Results.Problem(
-                detail: "The local member session could not be revoked. The browser member cookie was cleared.",
-                statusCode: StatusCodes.Status500InternalServerError);
-            return result;
-        }
-        finally
-        {
-            await httpContext.SignOutAsync(ExternalMemberAuthenticationDefaults.Scheme);
-        }
-    }
-
-    /// <summary>Describes the local external-member session visible to storefront code.</summary>
-    public sealed record CurrentExternalMemberResponse(long MemberId, string AuthenticationProvider, long SessionId, long SecurityVersion);
 }

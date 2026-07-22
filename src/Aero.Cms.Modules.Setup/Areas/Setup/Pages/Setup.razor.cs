@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Aero.AppServer;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
@@ -142,9 +143,28 @@ public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, AeroAppServer
     /// </summary>
 public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
     /// <summary>
-    /// Gets the selected authentication mode, falling back to local authentication when blank.
+    /// Gets the resolved CMS manager authentication provider.
     /// </summary>
-public string EffectiveAuthenticationMode => NormalizeMode(Input.AuthenticationMode, "Local");
+public string EffectiveManagerAuthenticationProvider
+    => GetAuthenticationSelections().ManagerAuthenticationProvider;
+
+    /// <summary>
+    /// Gets the resolved storefront member authentication provider.
+    /// </summary>
+public string EffectiveMemberAuthenticationProvider
+    => GetAuthenticationSelections().MemberAuthenticationProvider;
+
+    /// <summary>
+    /// Gets a display label for the resolved CMS manager provider.
+    /// </summary>
+public string EffectiveManagerAuthenticationLabel
+    => GetManagerAuthenticationLabel(EffectiveManagerAuthenticationProvider);
+
+    /// <summary>
+    /// Gets a display label for the resolved storefront member provider.
+    /// </summary>
+public string EffectiveMemberAuthenticationLabel
+    => GetMemberAuthenticationLabel(EffectiveMemberAuthenticationProvider);
     /// <summary>
     /// Gets the curated culture choices displayed by the setup wizard.
     /// </summary>
@@ -188,7 +208,9 @@ protected override void OnInitialized()
             DatabaseMode = "Embedded",
             CacheMode = AeroAppServerConstants.LocalCacheMode,
             SecretProvider = "Local Certificate",
-            AuthenticationMode = "Local",
+            AuthenticationFamily = AuthenticationFamilies.Local,
+            ManagerAuthenticationProvider = AuthenticationProviderSelections.Manager.Local,
+            MemberAuthenticationProvider = AuthenticationProviderSelections.Member.Disabled,
             ConnectionString = DefaultServerDatabaseEndpoint,
             AdminUserName = "admin",
             AdminEmail = "hello@getaerocms.net",
@@ -329,13 +351,12 @@ public void OnDefaultCultureChanged(ChangeEventArgs args)
     /// </summary>
     /// <returns>A task that completes when the handoff succeeds or returns a failure.</returns>
     /// <remarks>
-    /// Authentication is currently forced to local mode. On success the setup host is expected
-    /// to stop, so submitting state remains set; on failure the UI is restored and errors are shown.
+    /// On success the setup host is expected to stop, so submitting state remains set; on failure
+    /// the UI is restored and errors are shown.
     /// </remarks>
 protected async Task HandleSubmit()
     {
         HasValidationErrors = false;
-        Input.AuthenticationMode = "Local";
 
         if (!ValidateCurrentStep(true))
         {
@@ -347,7 +368,7 @@ protected async Task HandleSubmit()
         var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
         var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
         var cacheMode = NormalizeMode(Input.CacheMode, AeroAppServerConstants.LocalCacheMode);
-        var authenticationMode = NormalizeMode(Input.AuthenticationMode, "Local");
+        var authenticationSelections = GetAuthenticationSelections();
 
         if (!IsSupportedCacheMode(cacheMode))
         {
@@ -383,7 +404,8 @@ protected async Task HandleSubmit()
             databaseMode,
             cacheMode,
             secretProvider,
-            authenticationMode,
+            authenticationSelections.ManagerAuthenticationProvider,
+            authenticationSelections.MemberAuthenticationProvider,
             Input.ConnectionString,
             Input.CacheConnectionString,
             Input.InfisicalMachineId,
@@ -435,6 +457,86 @@ protected async Task HandleSubmit()
            || cacheMode.Equals(AeroAppServerConstants.ServerCacheMode, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Resolves progressive-disclosure controls to the two canonical persisted selections.
+    /// </summary>
+    private AuthenticationSelections GetAuthenticationSelections()
+    {
+        if (Input.UseAdvancedAuthenticationOptions)
+        {
+            return new AuthenticationSelections(
+                Input.ManagerAuthenticationProvider,
+                Input.MemberAuthenticationProvider);
+        }
+
+        return Input.AuthenticationFamily switch
+        {
+            AuthenticationFamilies.Local => new AuthenticationSelections(
+                AuthenticationProviderSelections.Manager.Local,
+                Input.EnableStorefrontMembers
+                    ? AuthenticationProviderSelections.Member.Local
+                    : AuthenticationProviderSelections.Member.Disabled),
+            AuthenticationFamilies.MicrosoftEntra => new AuthenticationSelections(
+                AuthenticationProviderSelections.Manager.EntraWorkforce,
+                Input.EnableStorefrontMembers
+                    ? AuthenticationProviderSelections.Member.EntraExternalId
+                    : AuthenticationProviderSelections.Member.Disabled),
+            AuthenticationFamilies.WorkOs => new AuthenticationSelections(
+                AuthenticationProviderSelections.Manager.WorkOs,
+                Input.EnableStorefrontMembers
+                    ? AuthenticationProviderSelections.Member.WorkOs
+                    : AuthenticationProviderSelections.Member.Disabled),
+            _ => new AuthenticationSelections(string.Empty, string.Empty)
+        };
+    }
+
+    /// <summary>
+    /// Returns a user-facing error when a selection is unknown or not yet operational.
+    /// </summary>
+    private string? GetAuthenticationSelectionError()
+    {
+        var selections = GetAuthenticationSelections();
+
+        if (!AuthenticationProviderSelections.Manager.IsCanonical(selections.ManagerAuthenticationProvider))
+        {
+            return "Select a valid CMS manager authentication provider.";
+        }
+
+        if (!AuthenticationProviderSelections.Manager.IsAvailable(selections.ManagerAuthenticationProvider))
+        {
+            return "The selected CMS manager authentication provider is not available.";
+        }
+
+        if (!AuthenticationProviderSelections.Member.IsCanonical(selections.MemberAuthenticationProvider))
+        {
+            return "Select a valid storefront member authentication provider.";
+        }
+
+        if (!AuthenticationProviderSelections.Member.IsAvailable(selections.MemberAuthenticationProvider))
+        {
+            return "The selected storefront member authentication provider is not available.";
+        }
+
+        return null;
+    }
+
+    private static string GetManagerAuthenticationLabel(string provider) => provider switch
+    {
+        AuthenticationProviderSelections.Manager.Local => "Local Identity",
+        AuthenticationProviderSelections.Manager.EntraWorkforce => "Microsoft Entra Workforce",
+        AuthenticationProviderSelections.Manager.WorkOs => "WorkOS",
+        _ => "Invalid selection"
+    };
+
+    private static string GetMemberAuthenticationLabel(string provider) => provider switch
+    {
+        AuthenticationProviderSelections.Member.Disabled => "Disabled",
+        AuthenticationProviderSelections.Member.Local => "Local Identity",
+        AuthenticationProviderSelections.Member.EntraExternalId => "Microsoft Entra External ID",
+        AuthenticationProviderSelections.Member.WorkOs => "WorkOS",
+        _ => "Invalid selection"
+    };
+
+    /// <summary>
     /// Validates only the fields owned by the current wizard step.
     /// </summary>
     /// <param name="showMessage">Whether to update public validation state and the status message.</param>
@@ -464,6 +566,7 @@ protected async Task HandleSubmit()
                 => "Infisical machine id is required.",
             4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalClientSecret)
                 => "Infisical client secret is required.",
+            5 when GetAuthenticationSelectionError() is { } authenticationError => authenticationError,
             5 when string.IsNullOrWhiteSpace(Input.AdminUserName) => "Admin username is required.",
             5 when string.IsNullOrWhiteSpace(Input.AdminEmail) => "Admin email is required.",
             5 when string.IsNullOrWhiteSpace(Input.Password) => "Admin password is required.",
@@ -624,10 +727,34 @@ public class SetupInput
     public string SecretProvider { get; set; } = "Local Certificate";
 
     /// <summary>
-    /// Gets or sets the requested authentication mode.
+    /// Gets or sets the provider family used by the simple authentication view.
     /// </summary>
 [Required]
-    public string AuthenticationMode { get; set; } = "Local";
+    public string AuthenticationFamily { get; set; } = AuthenticationFamilies.Local;
+
+    /// <summary>
+    /// Gets or sets whether the wizard displays independent manager and member selections.
+    /// This presentation choice is not persisted.
+    /// </summary>
+public bool UseAdvancedAuthenticationOptions { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the simple view enables storefront member authentication.
+    /// This presentation choice is resolved to a canonical member provider before persistence.
+    /// </summary>
+public bool EnableStorefrontMembers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the manager provider selected in the advanced view.
+    /// </summary>
+[Required]
+public string ManagerAuthenticationProvider { get; set; } = AuthenticationProviderSelections.Manager.Local;
+
+    /// <summary>
+    /// Gets or sets the storefront member provider selected in the advanced view.
+    /// </summary>
+[Required]
+public string MemberAuthenticationProvider { get; set; } = AuthenticationProviderSelections.Member.Disabled;
 
     /// <summary>
     /// Gets or sets the remote database endpoint used in server mode.
@@ -737,3 +864,20 @@ public List<string> SupportedCultures { get; set; } = ["en-US"];
 /// Describes a selectable culture by canonical name and display label.
 /// </summary>
 public sealed record CultureOption(string Name, string DisplayName);
+
+/// <summary>
+/// Defines provider-family values used only by the setup wizard's simple view.
+/// </summary>
+public static class AuthenticationFamilies
+{
+    /// <summary>Local AeroCMS authentication.</summary>
+    public const string Local = "local";
+    /// <summary>Microsoft Entra authentication.</summary>
+    public const string MicrosoftEntra = "microsoft_entra";
+    /// <summary>WorkOS authentication.</summary>
+    public const string WorkOs = "workos";
+}
+
+internal sealed record AuthenticationSelections(
+    string ManagerAuthenticationProvider,
+    string MemberAuthenticationProvider);

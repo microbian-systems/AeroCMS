@@ -1,0 +1,74 @@
+@page "/manager/external-members"
+@namespace Aero.Cms.Shared.Pages.Manager.ExternalMembers
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>External members</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <header>
+        <h1 class="text-2xl font-bold pe-heading">External members</h1>
+        <p class="mt-1 text-sm pe-description">Configure tenant-wide customer identity and issue selected-site invitations.</p>
+    </header>
+
+    @if (IsLocalAuthority)
+    {
+        <div class="rounded-lg border border-emerald-700 bg-emerald-950 p-4 text-sm text-emerald-100">
+            Local storefront identity is active. Managers issue invitations and password-reset handles; customers complete them on the store Account page.
+        </div>
+    }
+    else
+    {
+        <div class="rounded-lg border border-amber-600 bg-amber-950 p-4 text-sm text-amber-100">
+            Remote configuration records intent only. Remote sign-in remains fail closed until its authority and provider credentials are available.
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <p class="text-sm text-slate-400">Loading external identity configuration…</p>
+    }
+    else if (Error is not null)
+    {
+        <div class="rounded-lg border border-red-700 bg-red-950 p-4 text-sm text-red-100">@Error</div>
+        <button type="button" @onclick="LoadAsync" class="rounded border border-slate-600 px-4 py-2 text-sm text-slate-100">Retry</button>
+    }
+    else
+    {
+        <div class="grid gap-6 xl:grid-cols-2">
+            @if (IsLocalAuthority)
+            {
+                <section class="rounded-lg border border-slate-700 bg-slate-900 p-6">
+                    <h2 class="text-lg font-semibold text-slate-100">Local identity authority</h2>
+                    <p class="mt-1 text-sm text-slate-400">AeroCMS-managed storefront credentials are active tenant-wide. The authority was selected during Setup and cannot be replaced here.</p>
+                </section>
+            }
+            else
+            {
+                <ExternalIdentityAuthorityForm Authority="Authority" IsBusy="IsSavingAuthority" OnSubmit="SaveAuthorityAsync" />
+            }
+            <ExternalMemberInvitationForm Enabled="@(Authority is { Configured: true, Enabled: true })" IsBusy="IsCreatingInvitation" OnSubmit="CreateInvitationAsync" />
+            @if (IsLocalAuthority)
+            {
+                <LocalExternalMemberPasswordResetForm Enabled="@(Authority is { Configured: true, Enabled: true })" IsBusy="IsIssuingPasswordReset" OnSubmit="IssuePasswordResetAsync" />
+            }
+        </div>
+    }
+
+    @if (InvitationHandle is not null)
+    {
+        <section class="rounded-lg border border-emerald-700 bg-emerald-950 p-5">
+            <h2 class="font-semibold text-emerald-100">Invitation created</h2>
+            <p class="mt-1 text-sm text-emerald-200">Copy this handle now. It is shown once and cannot be retrieved later.</p>
+            <code class="mt-3 block select-all overflow-x-auto rounded bg-slate-950 p-3 text-sm text-slate-100">@InvitationHandle</code>
+        </section>
+    }
+
+    @if (PasswordResetHandle is not null)
+    {
+        <section class="rounded-lg border border-amber-600 bg-amber-950 p-5">
+            <h2 class="font-semibold text-amber-100">Password-reset handle issued</h2>
+            <p class="mt-1 text-sm text-amber-200">Copy and deliver this handle through a trusted channel now. It is shown once, expires at @(PasswordResetExpiresAt?.ToString("u")), and must never be stored in notes or logs.</p>
+            <code class="mt-3 block select-all overflow-x-auto rounded bg-slate-950 p-3 text-sm text-slate-100">@PasswordResetHandle</code>
+        </section>
+    }
+</div>

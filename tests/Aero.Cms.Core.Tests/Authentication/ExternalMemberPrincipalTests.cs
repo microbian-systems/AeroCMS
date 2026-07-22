@@ -38,15 +38,16 @@ public sealed class ExternalMemberPrincipalTests
     }
 
     [Test]
-    public async Task Duplicate_or_local_identity_claims_are_rejected()
+    public async Task Duplicate_claims_are_rejected_and_exact_local_identity_is_accepted()
     {
         var duplicate = ExternalMemberPrincipal.Create(101, "workos", 202, 3);
         duplicate.AddIdentity(new ClaimsIdentity([new Claim(ExternalMemberClaimTypes.SessionId, "303")], ExternalMemberAuthenticationDefaults.Scheme));
-        var localIdentity = ExternalMemberPrincipal.Create(101, "workos", 202, 3);
-        localIdentity.AddIdentity(new ClaimsIdentity([new Claim(ExternalMemberClaimTypes.AuthenticationProvider, "local_identity")], ExternalMemberAuthenticationDefaults.Scheme));
+        var localIdentity = ExternalMemberPrincipal.Create(
+            101, LocalExternalMemberAuthentication.Provider, 202, 3);
 
         await Assert.That(ExternalMemberPrincipal.TryRead(duplicate, out _)).IsFalse();
-        await Assert.That(ExternalMemberPrincipal.TryRead(localIdentity, out _)).IsFalse();
+        await Assert.That(ExternalMemberPrincipal.TryRead(localIdentity, out var localClaims)).IsTrue();
+        await Assert.That(localClaims.Provider).IsEqualTo(LocalExternalMemberAuthentication.Provider);
     }
 
     [Test]
@@ -76,6 +77,8 @@ public sealed class ExternalMemberPrincipalTests
             .Contains(ExternalMemberAuthenticationDefaults.SitePolicy);
         await Assert.That(logout.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(data => data.Policy))
             .Contains(ExternalMemberAuthenticationDefaults.Policy);
+        await Assert.That(logout.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(data => data.Policy))
+            .Contains(ExternalMemberAuthenticationDefaults.SitePolicy);
         await Assert.That(logout.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods).Contains("POST");
     }
 

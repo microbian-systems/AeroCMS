@@ -1,4 +1,7 @@
 using Aero.Models.Entities;
+using Aero.Cms.Abstractions.Authentication;
+using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Http.Clients;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +18,9 @@ namespace Aero.Cms.Modules.Users.Areas.Api.v1;
 /// </remarks>
 public static class UsersApi
 {
+    private const string RecoveryAdministratorClaimType = "AeroCms.RecoveryAdministrator";
+    private const string RecoveryAdministratorClaimValue = "true";
+
     /// <summary>
     /// Maps the administrative users endpoint group.
     /// </summary>
@@ -216,6 +222,7 @@ public static class UsersApi
         long id,
         [FromBody] UpdateUserRequest request,
         [FromServices] UserManager<AeroUser> userManager,
+        [FromServices] IRecoveryAdministratorAuthority recoveryAdministratorAuthority,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
@@ -227,6 +234,28 @@ public static class UsersApi
             if (user is null)
             {
                 return TypedResults.NotFound(new { error = $"User with ID {id} not found." });
+            }
+
+            var recoveryAdministrator = await ResolveValidRecoveryAdministratorAsync(
+                userManager,
+                recoveryAdministratorAuthority,
+                cancellationToken);
+            if (recoveryAdministrator is null)
+            {
+                return TypedResults.Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "The recovery administrator invariant is unavailable.");
+            }
+
+            var hasRecoveryMarker = await IsRecoveryAdministratorAsync(userManager, user);
+            if ((user.Id == recoveryAdministrator.Id || hasRecoveryMarker)
+                && (!request.IsEnabled
+                    || !request.Roles.Contains(CmsRoleNames.Admin, StringComparer.OrdinalIgnoreCase)))
+            {
+                return TypedResults.BadRequest(new
+                {
+                    errors = new[] { "The recovery administrator must remain active and assigned the Admin role." }
+                });
             }
 
             user.Email = request.Email;
@@ -274,6 +303,7 @@ public static class UsersApi
     private static async Task<IResult> DeleteUser(
         long id,
         [FromServices] UserManager<AeroUser> userManager,
+        [FromServices] IRecoveryAdministratorAuthority recoveryAdministratorAuthority,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
@@ -285,6 +315,26 @@ public static class UsersApi
             if (user is null)
             {
                 return TypedResults.NotFound(new { error = $"User with ID {id} not found." });
+            }
+
+            var recoveryAdministrator = await ResolveValidRecoveryAdministratorAsync(
+                userManager,
+                recoveryAdministratorAuthority,
+                cancellationToken);
+            if (recoveryAdministrator is null)
+            {
+                return TypedResults.Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "The recovery administrator invariant is unavailable.");
+            }
+
+            if (user.Id == recoveryAdministrator.Id
+                || await IsRecoveryAdministratorAsync(userManager, user))
+            {
+                return TypedResults.BadRequest(new
+                {
+                    errors = new[] { "The recovery administrator cannot be deleted." }
+                });
             }
 
             var result = await userManager.DeleteAsync(user);
@@ -338,6 +388,41 @@ public static class UsersApi
             logger.LogError(ex, "Error changing password for user id={Id}", id);
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<bool> IsRecoveryAdministratorAsync(
+        UserManager<AeroUser> userManager,
+        AeroUser user)
+    {
+        var claims = await userManager.GetClaimsAsync(user);
+        return claims.Any(claim =>
+            string.Equals(claim.Type, RecoveryAdministratorClaimType, StringComparison.Ordinal)
+            && string.Equals(claim.Value, RecoveryAdministratorClaimValue, StringComparison.Ordinal));
+    }
+
+    private static async Task<AeroUser?> ResolveValidRecoveryAdministratorAsync(
+        UserManager<AeroUser> userManager,
+        IRecoveryAdministratorAuthority recoveryAdministratorAuthority,
+        CancellationToken cancellationToken)
+    {
+        var authoritativeUserId = await recoveryAdministratorAuthority.GetUserIdAsync(cancellationToken);
+        if (authoritativeUserId is not > 0)
+        {
+            return null;
+        }
+
+        var user = await userManager.FindByIdAsync(authoritativeUserId.Value.ToString());
+        if (user is null
+            || user.Id != authoritativeUserId.Value
+            || !user.IsActive
+            || user.IsDeleted
+            || !await IsRecoveryAdministratorAsync(userManager, user)
+            || !await userManager.IsInRoleAsync(user, CmsRoleNames.Admin))
+        {
+            return null;
+        }
+
+        return user;
     }
 
     // ── User-Site Assignment handlers ──────────────────────

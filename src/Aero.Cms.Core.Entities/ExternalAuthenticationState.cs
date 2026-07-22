@@ -16,6 +16,7 @@ public sealed class ExternalAuthenticationState : SableDocument, IAuditable, IVe
     public string Purpose { get; set; } = SignInPurpose;
     public string SecretDigest { get; set; } = string.Empty;
     public string ReturnPath { get; set; } = "/";
+    public string ProtectedProviderCorrelation { get; set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? ConsumedAt { get; set; }
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;

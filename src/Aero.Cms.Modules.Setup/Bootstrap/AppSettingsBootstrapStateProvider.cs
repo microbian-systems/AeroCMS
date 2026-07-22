@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Aero.Cms.Abstractions.Authentication;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -40,7 +41,10 @@ public BootstrapState GetState()
             DatabaseMode = section["DatabaseMode"],
             CacheMode = section["CacheMode"],
             SecretProvider = section["SecretProvider"],
-            AuthenticationMode = section["AuthenticationMode"]
+            RequestedManagerAuthenticationProvider = section["RequestedManagerAuthenticationProvider"]
+                ?? AuthenticationProviderSelections.Manager.Local,
+            RequestedMemberAuthenticationProvider = section["RequestedMemberAuthenticationProvider"]
+                ?? AuthenticationProviderSelections.Member.Disabled
         };
     }
 }

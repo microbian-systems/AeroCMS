@@ -4,6 +4,7 @@ using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Modules.Setup.Services;
 using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Modular;
@@ -16,6 +17,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -26,7 +28,7 @@ namespace Aero.Cms.Modules.Setup;
 /// Registers the bootstrap-safe setup surface and, once configured, runtime setup and import services.
 /// </summary>
 [Module(nameof(SetupModule))]
-public sealed class SetupModule : AeroModuleBase
+public sealed class SetupModule : AeroModuleBase, IConfigureAeroDB
 {
     /// <inheritdoc />
 public override string Name => nameof(SetupModule);
@@ -91,6 +93,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         {
             // These services depend on Identity and AeroDB, which are only available in runtime mode
             services.TryAddScoped<ISetupStateStore, AeroSetupStateStore>();
+            services.TryAddScoped<IRecoveryAdministratorAuthority, SetupRecoveryAdministratorAuthority>();
+            services.Replace(ServiceDescriptor.Scoped<IManagerAuthenticationModeResolver, ManagerAuthenticationModeResolver>());
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
             services.AddHostedService<InitialAdminRoleRepairService>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
@@ -100,6 +104,15 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             services.AddAeroCaching(false);
         }
     }
+
+    /// <summary>Enables optimistic concurrency for the durable setup singleton.</summary>
+    public void Configure(StoreOptions opts)
+    {
+        opts.Schema.For<SetupStateDocument>().UseOptimisticConcurrency = true;
+    }
+
+    /// <inheritdoc />
+    public void Configure(IServiceProvider? services, StoreOptions opts) => Configure(opts);
 
     /// <inheritdoc />
     /// <remarks>

@@ -1,6 +1,9 @@
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
+using Aero.Core;
+using Aero.Core.Railway;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
@@ -86,6 +89,7 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
         [FromBody] LoginRequest request,
         [FromServices] SignInManager<AeroUser> signInManager,
         [FromServices] UserManager<AeroUser> userManager,
+        [FromServices] IManagerAuthenticationModeResolver modeResolver,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -93,6 +97,13 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
 
         try
         {
+            if (!await IsLocalManagerAuthenticationEnabledAsync(modeResolver, cancellationToken))
+            {
+                return TypedResults.Json(
+                    new { message = "Invalid credentials." },
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
             // Support both email and username lookup (matching IdentityApi pattern)
             var user = request.UserName.Contains('@')
                 ? await userManager.FindByEmailAsync(request.UserName)
@@ -148,6 +159,7 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
         [FromServices] SignInManager<AeroUser> signInManager,
         [FromServices] UserManager<AeroUser> userManager,
         [FromServices] IApiKeyService apiKeyService,
+        [FromServices] IManagerAuthenticationModeResolver modeResolver,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -155,6 +167,11 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
 
         try
         {
+            if (!await IsLocalManagerAuthenticationEnabledAsync(modeResolver, cancellationToken))
+            {
+                return TypedResults.Unauthorized();
+            }
+
             // Step 1: Validate username/password credentials
             var user = await userManager.FindByNameAsync(request.UserName);
             if (user == null)
@@ -193,5 +210,15 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
             logger.LogError(ex, "Error during headless login for user={UserName}", request.UserName);
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<bool> IsLocalManagerAuthenticationEnabledAsync(
+        IManagerAuthenticationModeResolver modeResolver,
+        CancellationToken cancellationToken)
+    {
+        var result = await modeResolver.ResolveAsync(cancellationToken);
+        return result is Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode) &&
+               string.Equals(mode.EffectiveProvider,
+                   AuthenticationProviderSelections.Manager.Local, StringComparison.Ordinal);
     }
 }

@@ -2,6 +2,7 @@ using Aero.Cms.Core;
 using Aero.Core;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -73,6 +74,14 @@ Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest 
     /// <param name="cancellationToken">Accepted for workflow coordination; current Identity manager calls do not consume it.</param>
     /// <returns>A result describing role creation or assignment and any Identity errors.</returns>
     Task<SetupIdentityBootstrapResult> EnsureInitialAdminRoleAsync(string adminEmail, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ensures the exact setup recovery administrator remains active, marked, and assigned Admin.
+    /// </summary>
+    Task<SetupIdentityBootstrapResult> EnsureRecoveryAdministratorAsync(
+        long? recoveryAdministratorUserId,
+        string adminEmail,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -87,6 +96,9 @@ public sealed class SetupIdentityBootstrapper(
     UserManager<AeroUser> userManager,
     RoleManager<AeroRole> roleManager) : ISetupIdentityBootstrapper
 {
+    private const string RecoveryAdministratorClaimType = "AeroCms.RecoveryAdministrator";
+    private const string RecoveryAdministratorClaimValue = "true";
+
     /// <inheritdoc />
 public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
     {
@@ -134,6 +146,12 @@ public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBoot
             {
                 return SetupIdentityBootstrapResult.Failure(addToRoleResult.Errors);
             }
+        }
+
+        var recoveryMarkerResult = await CanonicalizeRecoveryMarkerAsync(adminUser);
+        if (!recoveryMarkerResult.Succeeded)
+        {
+            return SetupIdentityBootstrapResult.Failure(recoveryMarkerResult.Errors);
         }
 
         return new SetupIdentityBootstrapResult
@@ -189,6 +207,106 @@ public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBoot
             AdminUser = adminUser,
             CreatedRoles = roleResult.CreatedRoles || addedAdminRole
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<SetupIdentityBootstrapResult> EnsureRecoveryAdministratorAsync(
+        long? recoveryAdministratorUserId,
+        string adminEmail,
+        CancellationToken cancellationToken = default)
+    {
+        var roleResult = await EnsureCmsRolesAsync(cancellationToken);
+        if (!roleResult.Succeeded)
+        {
+            return SetupIdentityBootstrapResult.Failure(roleResult.Errors);
+        }
+
+        var adminUser = recoveryAdministratorUserId is > 0
+            ? await userManager.FindByIdAsync(recoveryAdministratorUserId.Value.ToString())
+            : await userManager.FindByEmailAsync(adminEmail);
+
+        if (adminUser is null)
+        {
+            return SetupIdentityBootstrapResult.Failure([new IdentityError
+            {
+                Description = "The setup recovery administrator could not be found."
+            }]);
+        }
+
+        var changed = roleResult.CreatedRoles;
+        if (!adminUser.IsActive || adminUser.IsDeleted)
+        {
+            adminUser.IsActive = true;
+            adminUser.IsDeleted = false;
+            adminUser.DeletedOn = null;
+            var updateResult = await userManager.UpdateAsync(adminUser);
+            if (!updateResult.Succeeded)
+            {
+                return SetupIdentityBootstrapResult.Failure(updateResult.Errors);
+            }
+
+            changed = true;
+        }
+
+        if (!await userManager.IsInRoleAsync(adminUser, CmsRoleNames.Admin))
+        {
+            var addToRoleResult = await userManager.AddToRoleAsync(adminUser, CmsRoleNames.Admin);
+            if (!addToRoleResult.Succeeded)
+            {
+                return SetupIdentityBootstrapResult.Failure(addToRoleResult.Errors);
+            }
+
+            changed = true;
+        }
+
+        var markerResult = await CanonicalizeRecoveryMarkerAsync(adminUser);
+        if (!markerResult.Succeeded)
+        {
+            return SetupIdentityBootstrapResult.Failure(markerResult.Errors);
+        }
+
+        return new SetupIdentityBootstrapResult
+        {
+            AdminUser = adminUser,
+            CreatedRoles = changed
+        };
+    }
+
+    private async Task<IdentityResult> CanonicalizeRecoveryMarkerAsync(AeroUser adminUser)
+    {
+        var canonicalMarkerExists = false;
+        foreach (var user in userManager.Users.ToList())
+        {
+            var claims = await userManager.GetClaimsAsync(user);
+            foreach (var claim in claims.Where(claim =>
+                         string.Equals(claim.Type, RecoveryAdministratorClaimType, StringComparison.Ordinal)))
+            {
+                var isCanonical = user.Id == adminUser.Id
+                    && string.Equals(claim.Value, RecoveryAdministratorClaimValue, StringComparison.Ordinal)
+                    && !canonicalMarkerExists;
+
+                if (isCanonical)
+                {
+                    canonicalMarkerExists = true;
+                    continue;
+                }
+
+                var removeResult = await userManager.RemoveClaimAsync(user, claim);
+                if (!removeResult.Succeeded)
+                {
+                    return removeResult;
+                }
+            }
+        }
+
+        if (canonicalMarkerExists)
+        {
+            return IdentityResult.Success;
+        }
+
+        return await userManager.AddClaimAsync(
+            adminUser,
+            new Claim(RecoveryAdministratorClaimType, RecoveryAdministratorClaimValue));
     }
 
     /// <summary>

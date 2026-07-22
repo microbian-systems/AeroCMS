@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Setup.Configuration;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
@@ -75,6 +76,18 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (!AuthenticationProviderSelections.Manager.IsCanonical(request.RequestedManagerAuthenticationProvider)
+            || !AuthenticationProviderSelections.Manager.IsAvailable(request.RequestedManagerAuthenticationProvider))
+        {
+            return SetupBootstrapHandoffResult.Failure("The selected CMS manager authentication provider is not available.");
+        }
+
+        if (!AuthenticationProviderSelections.Member.IsCanonical(request.RequestedMemberAuthenticationProvider)
+            || !AuthenticationProviderSelections.Member.IsAvailable(request.RequestedMemberAuthenticationProvider))
+        {
+            return SetupBootstrapHandoffResult.Failure("The selected storefront member authentication provider is not available.");
+        }
+
         try
         {
             logger.LogInformation("Starting setup bootstrap handoff process...");
@@ -85,7 +98,8 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
                 request.DatabaseMode,
                 request.ConnectionString,
                 request.SecretProvider,
-                request.AuthenticationMode,
+                request.RequestedManagerAuthenticationProvider,
+                request.RequestedMemberAuthenticationProvider,
                 request.InfisicalMachineId,
                 request.InfisicalClientSecret,
                 DatabaseUnauthenticated: request.DatabaseUnauthenticated,

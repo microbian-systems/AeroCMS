@@ -1,5 +1,6 @@
 ﻿using Aero.AppServer;
 using Aero.AppServer.Startup;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -28,6 +29,36 @@ public class BootstrapConfigurationTests
 
         state.State.Should().Be(BootstrapStates.Setup);
         state.HasBootstrapConfig.Should().BeFalse();
+
+        await Task.CompletedTask;
+    }
+
+    [Test]
+    public async Task Appsettings_bootstrap_provider_reads_independent_authentication_selections()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AeroCms:Bootstrap:RequestedManagerAuthenticationProvider"] = AuthenticationProviderSelections.Manager.Local,
+                ["AeroCms:Bootstrap:RequestedMemberAuthenticationProvider"] = AuthenticationProviderSelections.Member.WorkOs
+            })
+            .Build();
+
+        var state = new AppSettingsBootstrapStateProvider(config).GetState();
+
+        state.RequestedManagerAuthenticationProvider.Should().Be(AuthenticationProviderSelections.Manager.Local);
+        state.RequestedMemberAuthenticationProvider.Should().Be(AuthenticationProviderSelections.Member.WorkOs);
+
+        await Task.CompletedTask;
+    }
+
+    [Test]
+    public async Task Appsettings_bootstrap_provider_defaults_authentication_selections_without_legacy_mode()
+    {
+        var state = new AppSettingsBootstrapStateProvider(new ConfigurationBuilder().Build()).GetState();
+
+        state.RequestedManagerAuthenticationProvider.Should().Be(AuthenticationProviderSelections.Manager.Local);
+        state.RequestedMemberAuthenticationProvider.Should().Be(AuthenticationProviderSelections.Member.Disabled);
 
         await Task.CompletedTask;
     }

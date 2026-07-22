@@ -116,6 +116,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             options.Conventions.AddAreaPageRoute("Commerce", "/Checkout", "/shop/checkout");
             options.Conventions.AddAreaPageRoute("Commerce", "/Orders", "/shop/orders");
             options.Conventions.AddAreaPageRoute("Commerce", "/OrderDetail", "/shop/orders/{id}");
+            options.Conventions.AddAreaPageRoute("Commerce", "/Account", "/shop/account");
         });
     }
 

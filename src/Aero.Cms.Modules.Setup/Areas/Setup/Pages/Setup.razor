@@ -1,6 +1,7 @@
 @page "/setup"
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
+@using Aero.Cms.Abstractions.Authentication
 @using Aero.Cms.Shared.Layout
 @layout EmptyLayout
 
@@ -295,15 +296,76 @@
                                     <div class="h-px flex-1 bg-slate-100"></div>
                                 </div>
 
-                                <div class="space-y-2 max-w-md">
-                                    <label class="text-xs font-bold text-slate-700">@L["Authentication Provider"]</label>
-                                    <InputSelect @bind-Value="Input.AuthenticationMode" class="@GetFieldClass("Input.AuthenticationMode")">
-                                        <option value="Local">Local (Marten Identity)</option>
-                                    </InputSelect>
+                                <div class="space-y-4 max-w-2xl">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">@L["Authentication provider family"]</label>
+                                        <InputSelect @bind-Value="Input.AuthenticationFamily" class="@GetFieldClass("Input.AuthenticationFamily")" disabled="@Input.UseAdvancedAuthenticationOptions">
+                                            <option value="@AuthenticationFamilies.Local">Local</option>
+                                            <option value="@AuthenticationFamilies.MicrosoftEntra">Microsoft Entra</option>
+                                            <option value="@AuthenticationFamilies.WorkOs">WorkOS</option>
+                                        </InputSelect>
+                                        <p class="text-[11px] font-medium text-slate-500">
+                                            @L["The simple selection applies the same provider family to managers and, when enabled, storefront members."]
+                                        </p>
+                                    </div>
+
+                                    @if (!Input.UseAdvancedAuthenticationOptions)
+                                    {
+                                        <label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-semibold text-slate-700">
+                                            <InputCheckbox @bind-Value="Input.EnableStorefrontMembers" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <span>
+                                                @L["Enable storefront member authentication"]
+                                                <span class="block mt-1 text-[11px] font-medium text-slate-500">
+                                                    @L["Members use the selected provider family. Local members activate manager-issued invitations and sign in with AeroCMS-managed credentials."]
+                                                </span>
+                                            </span>
+                                        </label>
+                                    }
+
+                                    <label class="flex items-start gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm font-semibold text-indigo-900">
+                                        <InputCheckbox @bind-Value="Input.UseAdvancedAuthenticationOptions" class="mt-0.5 h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <span>
+                                            @L["Use different providers for managers and storefront members"]
+                                            <span class="block mt-1 text-[11px] font-medium text-indigo-700">
+                                                @L["This expands independent choices. The Advanced preference itself is not persisted."]
+                                            </span>
+                                        </span>
+                                    </label>
                                 </div>
 
-                                <div class="rounded-3xl border border-indigo-100 bg-indigo-50/70 p-5 text-sm text-indigo-800 max-w-2xl">
-                                    @L["Local Identity configures CMS administrators and managers. External member providers are configured per tenant later."]
+                                @if (Input.UseAdvancedAuthenticationOptions)
+                                {
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">@L["CMS managers (required)"]</label>
+                                            <InputSelect @bind-Value="Input.ManagerAuthenticationProvider" class="@GetFieldClass("Input.ManagerAuthenticationProvider")">
+                                                <option value="local">Local Identity</option>
+                                                <option value="entra_workforce">Microsoft Entra Workforce</option>
+                                                <option value="workos">WorkOS</option>
+                                            </InputSelect>
+                                            <p class="text-[11px] font-medium text-slate-500">
+                                                @L["Setup always creates the local recovery administrator below. A remote choice is recorded now; Local Identity remains effective until that administrator configures and verifies the authority after setup."]
+                                            </p>
+                                        </div>
+
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">@L["Storefront members (optional)"]</label>
+                                            <InputSelect @bind-Value="Input.MemberAuthenticationProvider" class="@GetFieldClass("Input.MemberAuthenticationProvider")">
+                                                <option value="disabled">Disabled</option>
+                                                <option value="local">Local Identity</option>
+                                                <option value="entra_external_id">Microsoft Entra External ID</option>
+                                                <option value="workos">WorkOS</option>
+                                            </InputSelect>
+                                            <p class="text-[11px] font-medium text-slate-500">
+                                                @L["Local Identity is ready after setup. Entra External ID and WorkOS require authority and Aero.Vault credential configuration in External Members before sign-in becomes available."]
+                                            </p>
+                                        </div>
+                                    </div>
+                                }
+
+                                <div class="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900 max-w-3xl">
+                                    <span class="font-bold">@L["Local recovery administrator required."]</span>
+                                    @L["The account created below is retained as a break-glass administrator even when remote manager authentication becomes available. It is never used as a storefront member account."]
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -398,7 +460,12 @@
                                                 <p><span class="font-semibold text-slate-900">Cache Connection:</span> Provided</p>
                                             }
                                             <p><span class="font-semibold text-slate-900">Secrets:</span> @EffectiveSecretProvider</p>
-                                            <p><span class="font-semibold text-slate-900">Authentication:</span> @EffectiveAuthenticationMode</p>
+                                            <p><span class="font-semibold text-slate-900">CMS managers:</span> @EffectiveManagerAuthenticationLabel</p>
+                                            @if (EffectiveManagerAuthenticationProvider != AuthenticationProviderSelections.Manager.Local)
+                                            {
+                                                <p><span class="font-semibold text-slate-900">Initial manager sign-in:</span> Local Identity (pending remote authority verification)</p>
+                                            }
+                                            <p><span class="font-semibold text-slate-900">Storefront members:</span> @EffectiveMemberAuthenticationLabel</p>
                                             @if (ShowInfisicalFields)
                                             {
                                                 <p><span class="font-semibold text-slate-900">Infisical:</span> Configured</p>

@@ -1,11 +1,8 @@
-using System.ComponentModel.DataAnnotations;
-using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
-using Aero.Core.Http;
 using Aero.Core.Railway;
-using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
+using Aero.Cms.Abstractions.Authentication;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
@@ -15,22 +12,11 @@ namespace Aero.Cms.Shared.Pages.Manager;
 public abstract class LoginBase : ComponentBase
 {
     [Inject]
-    private IAuthClient AuthClient { get; set; } = default!;
-
-    [Inject]
-    private InMemoryTokenProvider TokenProvider { get; set; } = default!;
-
-    [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
     /// <summary>
-    /// Gets or sets the Configuration.
-    /// </summary>
     [Inject]
-    protected IConfiguration Configuration { get; set; } = default!;
-
-    [Inject]
-    private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+    private IManagerAuthenticationModeResolver ModeResolver { get; set; } = default!;
 
     /// <summary>
     /// Gets or sets the L.
@@ -44,6 +30,9 @@ public abstract class LoginBase : ComponentBase
     [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
 
+    [SupplyParameterFromQuery(Name = "error")]
+    protected string? Error { get; set; }
+
     /// <summary>
     /// Model.
     /// </summary>
@@ -52,118 +41,52 @@ public abstract class LoginBase : ComponentBase
     /// ErrorMessage.
     /// </summary>
     protected string? ErrorMessage;
-    /// <summary>
-    /// Gets or sets the Is Submitting.
-    /// </summary>
-    protected bool IsSubmitting { get; set; }
-    /// <summary>
-    /// Gets or sets the Show Password.
-    /// </summary>
-    protected bool ShowPassword { get; set; }
+    protected string SafeReturnPath { get; private set; } = "/manager";
+
+    protected bool IsAuthenticationModeUnavailable { get; private set; }
+    protected bool IsRemoteAuthenticationActive { get; private set; }
+    protected bool IsRemoteAuthenticationPending { get; private set; }
+    protected string RemoteProviderLabel { get; private set; } = "External provider";
+    protected string RemoteLoginHref { get; private set; } = "/api/v1/admin/auth/federation/login?returnUrl=%2Fmanager";
+    protected bool IsDevelopment { get; private set; }
 
     /// <summary>
     /// OnInitialized method.
     /// </summary>
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        var env = Configuration["ASPNETCORE_ENVIRONMENT"] ?? Configuration["Environment"];
-        var isDev = env == "Development" || Navigation.BaseUri.Contains("localhost") || Navigation.BaseUri.Contains("127.0.0.1");
+        SafeReturnPath = IsSafeLocalReturnPath(ReturnUrl) ? ReturnUrl! : "/manager";
+        RemoteLoginHref = $"/api/v1/admin/auth/federation/login?returnUrl={Uri.EscapeDataString(SafeReturnPath)}";
+        if (string.Equals(Error, "1", StringComparison.Ordinal))
+            ErrorMessage = "Login failed. Check your credentials and try again.";
+        var result = await ModeResolver.ResolveAsync();
+        if (result is not Result<ManagerAuthenticationModeResolution, AeroError>.Ok(var mode))
+        {
+            IsAuthenticationModeUnavailable = true;
+            return;
+        }
 
-        if (isDev)
+        IsRemoteAuthenticationActive = string.Equals(mode.Status,
+            ManagerAuthenticationModeStatuses.Remote, StringComparison.Ordinal);
+        IsRemoteAuthenticationPending = string.Equals(mode.Status,
+            ManagerAuthenticationModeStatuses.Pending, StringComparison.Ordinal);
+        RemoteProviderLabel = mode.RequestedProvider == AuthenticationProviderSelections.Manager.EntraWorkforce
+            ? "Microsoft Entra"
+            : mode.RequestedProvider == AuthenticationProviderSelections.Manager.WorkOs ? "WorkOS" : "External provider";
+
+        IsDevelopment = Navigation.BaseUri.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+            Navigation.BaseUri.Contains("127.0.0.1", StringComparison.Ordinal);
+        if (IsDevelopment)
         {
             Model.EmailOrUserName = "admin";
             Model.Password = "*strongPassword1";
         }
     }
 
-    /// <summary>
-    /// TogglePasswordVisibility method.
-    /// </summary>
-    protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
-
-    /// <summary>
-    /// HandleSubmit method.
-    /// </summary>
-    protected async Task HandleSubmit()
-    {
-        ErrorMessage = null;
-        IsSubmitting = true;
-        await InvokeAsync(StateHasChanged);
-        string? redirectUrl = null;
-
-        try
-        {
-            // Step 1: Login via JWT/API key exchange (provides API access tokens)
-            var result = await AuthClient.LoginAsync(
-                new LoginRequest(Model.EmailOrUserName, Model.Password));
-
-            if (result is Result<JwtTokenResponse, AeroError>.Ok(var response))
-            {
-                TokenProvider.SetToken(response.AccessToken);
-
-                // Step 2: Login via ASP.NET Core Identity cookie endpoint.
-                // This sets the .AeroCms.Auth cookie so that UseAuthentication()
-                // middleware recognizes the user on subsequent HTTP requests and
-                // the AuthenticationStateProvider reports IsAuthenticated=true.
-                // Per MS Learn, cookie auth is the primary mechanism for Blazor Web Apps.
-                var identityResult = await LoginViaCookieAsync();
-                if (!identityResult)
-                {
-                    return; // ErrorMessage already set by LoginViaCookieAsync
-                }
-
-                redirectUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl;
-            }
-            else
-            {
-                ErrorMessage = "Login failed: Invalid credentials or insufficient permissions.";
-            }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Login failed: {ex.Message}";
-        }
-        finally
-        {
-            IsSubmitting = false;
-        }
-
-        // Keep navigation outside the exception boundary. During static SSR,
-        // NavigateTo may use NavigationException as redirect control flow; it
-        // must reach the framework rather than be presented as a login failure.
-        if (redirectUrl is not null)
-        {
-            Navigation.NavigateTo(redirectUrl, forceLoad: true);
-        }
-    }
-
-    /// <summary>
-    /// Calls the ASP.NET Core Identity cookie login endpoint to establish the auth session.
-    /// This is required in addition to JWT auth so that the Blazor Web App's
-    /// AuthenticationStateProvider correctly reports the user as authenticated.
-    /// </summary>
-    private async Task<bool> LoginViaCookieAsync()
-    {
-        try
-        {
-            var request = new LoginRequest(Model.EmailOrUserName, Model.Password, Model.RememberMe);
-            var cookieResponse = await AuthClient.LoginWithCookieAsync(request);
-
-            if (cookieResponse.IsSuccessStatusCode)
-            {
-                return true;
-            }
-
-            var errorBody = await cookieResponse.Content.ReadAsStringAsync();
-            ErrorMessage = $"Login failed: {errorBody}";
-            return false;
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Login failed: {ex.Message}";
-            return false;
-        }
-    }
+    private static bool IsSafeLocalReturnPath(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.StartsWith("/", StringComparison.Ordinal) &&
+        value.Length <= 2048 && !value.StartsWith("//", StringComparison.Ordinal) && !value.Contains('\\') &&
+        !value.Any(char.IsControl);
 
     /// <summary>
     /// Represents a class for LoginModel.
@@ -173,18 +96,12 @@ public abstract class LoginBase : ComponentBase
         /// <summary>
         /// Gets or sets the Email Or User Name.
         /// </summary>
-        [Required]
         public string EmailOrUserName { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the Password.
         /// </summary>
-        [Required]
         public string Password { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the Remember Me.
-        /// </summary>
-        public bool RememberMe { get; set; }
     }
 }

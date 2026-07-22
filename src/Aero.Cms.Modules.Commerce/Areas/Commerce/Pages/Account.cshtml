@@ -1,0 +1,102 @@
+@page "/shop/account"
+@model AccountModel
+@{
+    ViewData["Title"] = "Account";
+    ViewData["HeaderTitle"] = "Your account";
+    ViewData["HeaderSubtitle"] = "Sign in to manage orders and checkout.";
+}
+
+<div class="eshop-account">
+    @if (Model.IsAuthenticated)
+    {
+        <section class="eshop-account-panel">
+            <h2>You are signed in</h2>
+            <p>Your storefront account is ready for this site.</p>
+            <div class="eshop-account-actions">
+                <a class="eshop-button eshop-button-primary" href="/shop/orders">View my orders</a>
+                <form method="post" action="/api/v1/member/logout">
+                    @Html.AntiForgeryToken()
+                    <button class="eshop-button eshop-button-secondary" type="submit">Log out</button>
+                </form>
+            </div>
+        </section>
+    }
+    else if (Model.ProviderKind == StorefrontAuthenticationProviderKind.Local)
+    {
+        <div class="eshop-account-grid">
+            <section class="eshop-account-panel">
+                <h2>Sign in</h2>
+                <p>Use the email and password associated with your storefront invitation.</p>
+                <form class="eshop-account-form" method="post" action="/api/v1/member/local/login">
+                    @Html.AntiForgeryToken()
+                    <label>Email
+                        <input name="email" type="email" autocomplete="email" maxlength="320" required />
+                    </label>
+                    <label>Password
+                        <input name="password" type="password" autocomplete="current-password" maxlength="256" required />
+                    </label>
+                    <input name="returnPath" type="hidden" value="/shop/account" />
+                    <button class="eshop-button eshop-button-primary" type="submit">Sign in</button>
+                </form>
+            </section>
+
+            <section class="eshop-account-panel">
+                <h2>Activate an invitation</h2>
+                <p>Activation requires the one-time handle supplied by a store manager.</p>
+                <form class="eshop-account-form" method="post" action="/api/v1/member/local/activate">
+                    @Html.AntiForgeryToken()
+                    <label>Invitation handle
+                        <input name="invitationHandle" type="text" autocomplete="off" required />
+                    </label>
+                    <label>Email
+                        <input name="email" type="email" autocomplete="email" maxlength="320" required />
+                    </label>
+                    <label>Display name <span>(optional)</span>
+                        <input name="displayName" type="text" autocomplete="name" maxlength="256" />
+                    </label>
+                    <label>Create password
+                        <input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required />
+                    </label>
+                    <p class="eshop-account-help">Use at least 12 characters.</p>
+                    <input name="returnPath" type="hidden" value="/shop/account" />
+                    <button class="eshop-button eshop-button-primary" type="submit">Activate account</button>
+                </form>
+            </section>
+
+            <section class="eshop-account-panel">
+                <h2>Complete a password reset</h2>
+                <p>A store manager must issue the one-time reset handle. There is no public reset request.</p>
+                <form class="eshop-account-form" method="post" action="/api/v1/member/local/reset">
+                    @Html.AntiForgeryToken()
+                    <label>Reset handle
+                        <input name="resetHandle" type="text" autocomplete="off" required />
+                    </label>
+                    <label>New password
+                        <input name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required />
+                    </label>
+                    <p class="eshop-account-help">Use at least 12 characters. Existing storefront sessions are revoked.</p>
+                    <input name="returnPath" type="hidden" value="/shop/account" />
+                    <button class="eshop-button eshop-button-secondary" type="submit">Reset password</button>
+                </form>
+            </section>
+        </div>
+    }
+    else if (Model.ProviderKind == StorefrontAuthenticationProviderKind.Remote)
+    {
+        <section class="eshop-account-panel eshop-account-panel-centered">
+            <h2>Sign in with @Model.ProviderLabel</h2>
+            <p>Returning members can continue directly. First-time members must also enter the invitation handle supplied by a store manager.</p>
+            <form class="eshop-account-form" method="post" action="/api/v1/member/login/form">
+                @Html.AntiForgeryToken()
+                <label>Invitation handle <span>(first sign-in only)</span>
+                    <input name="invitationHandle" type="text" autocomplete="off" />
+                </label>
+                <button class="eshop-button eshop-button-primary" type="submit">Continue to @Model.ProviderLabel</button>
+            </form>
+        </section>
+    }
+    else
+    {
+        <div class="eshop-state">Storefront member sign-in is not available for this site.</div>
+    }
+</div>

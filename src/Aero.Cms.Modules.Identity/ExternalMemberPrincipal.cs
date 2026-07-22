@@ -11,8 +11,7 @@ public static class ExternalMemberPrincipal
     public static ClaimsPrincipal Create(long memberId, string provider, long sessionId, long securityVersion, string? displayName = null)
     {
         if (memberId <= 0 || sessionId <= 0 || securityVersion <= 0 ||
-            string.IsNullOrWhiteSpace(provider) ||
-            string.Equals(provider, "local_identity", StringComparison.OrdinalIgnoreCase))
+            !ExternalMemberSessionProviders.IsSupported(provider))
         {
             throw new ArgumentOutOfRangeException(nameof(memberId), "External-member session values must be valid local values.");
         }
@@ -49,8 +48,7 @@ public static class ExternalMemberPrincipal
             !TryGetExactlyOne(principal, ExternalMemberClaimTypes.SessionId, out var sessionIdText) ||
             !TryGetExactlyOne(principal, ExternalMemberClaimTypes.SecurityVersion, out var versionText) ||
             !string.Equals(kind, ExternalMemberClaimTypes.ExternalMember, StringComparison.Ordinal) ||
-            string.IsNullOrWhiteSpace(provider) ||
-            string.Equals(provider, "local_identity", StringComparison.OrdinalIgnoreCase) ||
+            !ExternalMemberSessionProviders.IsSupported(provider) ||
             !long.TryParse(memberIdText, out var memberId) || memberId <= 0 ||
             !long.TryParse(sessionIdText, out var sessionId) || sessionId <= 0 ||
             !long.TryParse(versionText, out var securityVersion) || securityVersion <= 0)

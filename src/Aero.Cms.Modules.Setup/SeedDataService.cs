@@ -24,6 +24,7 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
 using System.Globalization;
+using Aero.Cms.Abstractions.Authentication;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -38,7 +39,8 @@ public sealed record SeedDatabaseRequest(
     string DatabaseMode,
     string CacheMode,
     string SecretProvider,
-    string AuthenticationMode,
+    string RequestedManagerAuthenticationProvider,
+    string RequestedMemberAuthenticationProvider,
     string? ConnectionString,
     string? CacheConnectionString,
     string? InfisicalMachineId,
@@ -182,6 +184,18 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (!AuthenticationProviderSelections.Manager.IsCanonical(request.RequestedManagerAuthenticationProvider)
+            || !AuthenticationProviderSelections.Manager.IsAvailable(request.RequestedManagerAuthenticationProvider))
+        {
+            return SeedDatabaseResult.Failure("The selected CMS manager authentication provider is not available.");
+        }
+
+        if (!AuthenticationProviderSelections.Member.IsCanonical(request.RequestedMemberAuthenticationProvider)
+            || !AuthenticationProviderSelections.Member.IsAvailable(request.RequestedMemberAuthenticationProvider))
+        {
+            return SeedDatabaseResult.Failure("The selected storefront member authentication provider is not available.");
+        }
+
         var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, ct);
         if (existingState?.IsComplete == true)
         {
@@ -243,6 +257,33 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         }
 
         var completedAtUtc = existingState?.CompletedAtUtc ?? DateTimeOffset.UtcNow;
+        if (request.RequestedMemberAuthenticationProvider == AuthenticationProviderSelections.Member.Local)
+        {
+            var localAuthorities = await session.Query<ExternalMemberLocalAuthority>()
+                .Where(authority => authority.TenantId == tenant.Id)
+                .ToListAsync(ct);
+            var activeRemoteBindings = await session.Query<ExternalOrganizationBinding>()
+                .Where(binding => binding.TenantId == tenant.Id && binding.IsActive)
+                .ToListAsync(ct);
+            if (localAuthorities.Count > 1 || activeRemoteBindings.Count != 0)
+                return SeedDatabaseResult.Failure("The storefront member authority conflicts with existing configuration.");
+
+            var now = DateTimeOffset.UtcNow;
+            var localAuthority = localAuthorities.SingleOrDefault() ?? new ExternalMemberLocalAuthority
+            {
+                Id = Snowflake.NewId(),
+                TenantId = tenant.Id,
+                CreatedOn = now,
+                CreatedBy = "setup"
+            };
+            if (!localAuthority.IsActive)
+            {
+                localAuthority.IsActive = true;
+                localAuthority.ModifiedOn = now;
+                localAuthority.ModifiedBy = "setup";
+            }
+            session.Store(localAuthority);
+        }
         session.Store(new SetupStateDocument
         {
             Id = SetupStateDocument.FixedId,
@@ -251,7 +292,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             DatabaseMode = request.DatabaseMode,
             CacheMode = request.CacheMode,
             SecretProvider = request.SecretProvider,
+            RequestedManagerAuthenticationProvider = request.RequestedManagerAuthenticationProvider,
+            RequestedMemberAuthenticationProvider = request.RequestedMemberAuthenticationProvider,
             AdminEmail = request.AdminEmail,
+            RecoveryAdministratorUserId = identityResult.AdminUser.Id,
             SiteName = request.SiteName,
             HomepageTitle = request.HomepageTitle,
             BlogName = request.BlogName,
@@ -261,7 +305,20 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             DefaultCulture = cultureSettings.DefaultCulture,
             SupportedCultures = cultureSettings.SupportedCultures
         });
-        await session.SaveChangesAsync(ct);
+        try
+        {
+            await session.SaveChangesAsync(ct);
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return SeedDatabaseResult.Failure("The storefront member authority changed concurrently; restart setup.");
+        }
+        catch (Exception exception) when (IsUniqueConflict(exception))
+        {
+            session.ClearChanges();
+            return SeedDatabaseResult.Failure("The storefront member authority conflicts with existing configuration.");
+        }
 
         // Discover and save all available modules
         await SaveModuleStateAsync(ct);
@@ -276,6 +333,21 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             TenantId = tenant.Id,
             SiteId = site.Id
         };
+    }
+
+    private static bool IsUniqueConflict(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            var message = current.Message;
+            if ((message.Contains("unique", StringComparison.OrdinalIgnoreCase) &&
+                 (message.Contains("index", StringComparison.OrdinalIgnoreCase) ||
+                  message.Contains("constraint", StringComparison.OrdinalIgnoreCase))) ||
+                (message.Contains("Database index `uidx_", StringComparison.OrdinalIgnoreCase) &&
+                 message.Contains("already contains", StringComparison.OrdinalIgnoreCase)))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

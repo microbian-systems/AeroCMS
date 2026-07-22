@@ -46,6 +46,7 @@ public sealed class ExternalMemberIssuanceService(
                 TenantId = request.TenantId,
                 SiteId = request.SiteId,
                 OrganizationBindingId = binding!.Id,
+                LocalAuthorityId = null,
                 Provider = request.Provider,
                 NormalizedEmail = NormalizeEmail(request.Email),
                 TokenDigest = DigestSecret(secret),
@@ -124,6 +125,7 @@ public sealed class ExternalMemberIssuanceService(
                 Purpose = ExternalAuthenticationState.SignInPurpose,
                 SecretDigest = DigestSecret(secret),
                 ReturnPath = request.ReturnPath,
+                ProtectedProviderCorrelation = request.ProtectedProviderCorrelation,
                 ExpiresAt = now.Add(AuthenticationStateLifetime),
                 CreatedOn = now
             };
@@ -152,6 +154,64 @@ public sealed class ExternalMemberIssuanceService(
             session.ClearChanges();
             return DatabaseFailure<ExternalMemberAuthenticationHandle>("Sign-in could not be started.");
         }
+    }
+
+    /// <summary>Validates a callback handle and its persisted local scope without consuming the state.</summary>
+    public async Task<Result<ExternalMemberCallbackPreparation, AeroError>> PrepareCallbackAsync(
+        string authenticationHandle,
+        long expectedTenantId,
+        long expectedSiteId,
+        string expectedProvider,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!TryParseHandle(authenticationHandle, out var stateId, out var stateSecret) ||
+                expectedTenantId <= 0 || expectedSiteId <= 0 || !ExternalMemberIssuanceRules.IsCanonicalProvider(expectedProvider))
+                return Fail<ExternalMemberCallbackPreparation>("External sign-in could not be prepared.");
+
+            var state = await session.LoadAsync<ExternalAuthenticationState>(stateId, cancellationToken);
+            var now = timeProvider.GetUtcNow();
+            if (!IsUsablePreparedState(state, expectedTenantId, expectedSiteId, expectedProvider, now) ||
+                !VerifySecret(stateSecret, state!.SecretDigest))
+                return Fail<ExternalMemberCallbackPreparation>("External sign-in could not be prepared.");
+
+            var site = await session.LoadAsync<SitesModel>(state.SiteId, cancellationToken);
+            var binding = await session.LoadAsync<ExternalOrganizationBinding>(state.OrganizationBindingId, cancellationToken);
+            if (!IsMatchingActiveSite(site, expectedTenantId, expectedSiteId) ||
+                !IsUsableCallbackBinding(binding, expectedTenantId, expectedProvider))
+                return Fail<ExternalMemberCallbackPreparation>("External sign-in could not be prepared.");
+
+            return Prelude.Ok<ExternalMemberCallbackPreparation, AeroError>(new(
+                state.OrganizationBindingId, state.ProtectedProviderCorrelation, state.ReturnPath));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Cancelled<ExternalMemberCallbackPreparation>();
+        }
+        catch
+        {
+            return DatabaseFailure<ExternalMemberCallbackPreparation>("External sign-in could not be prepared.");
+        }
+    }
+
+    public async Task<Result<ExternalMemberCallbackPreparationWithProvider, AeroError>> PrepareCallbackAsync(
+        string authenticationHandle, long expectedTenantId, long expectedSiteId, CancellationToken cancellationToken = default)
+    {
+        if (!TryParseHandle(authenticationHandle, out var stateId, out _) || expectedTenantId <= 0 || expectedSiteId <= 0)
+            return Fail<ExternalMemberCallbackPreparationWithProvider>("External sign-in could not be prepared.");
+        try
+        {
+            var state = await session.LoadAsync<ExternalAuthenticationState>(stateId, cancellationToken);
+            if (state is null || !ExternalMemberIssuanceRules.IsCanonicalProvider(state.Provider))
+                return Fail<ExternalMemberCallbackPreparationWithProvider>("External sign-in could not be prepared.");
+            var prepared = await PrepareCallbackAsync(authenticationHandle, expectedTenantId, expectedSiteId, state.Provider, cancellationToken);
+            return prepared is Result<ExternalMemberCallbackPreparation, AeroError>.Ok(var value)
+                ? Prelude.Ok<ExternalMemberCallbackPreparationWithProvider, AeroError>(new(value.OrganizationBindingId, state.Provider, value.ProtectedProviderCorrelation, value.ReturnPath))
+                : Fail<ExternalMemberCallbackPreparationWithProvider>("External sign-in could not be prepared.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return Cancelled<ExternalMemberCallbackPreparationWithProvider>(); }
+        catch { return DatabaseFailure<ExternalMemberCallbackPreparationWithProvider>("External sign-in could not be prepared."); }
     }
 
     public async Task<Result<ExternalMemberIssuanceReceipt, AeroError>> CompleteAsync(
@@ -265,6 +325,8 @@ public sealed class ExternalMemberIssuanceService(
             var localSession = new ExternalMemberSession
             {
                 Id = Snowflake.NewId(),
+                TenantId = state.TenantId,
+                SiteId = state.SiteId,
                 ExternalMemberId = member!.Id,
                 ExternalIdentityLinkId = link.Id,
                 AuthenticationProvider = state.Provider,
@@ -344,6 +406,13 @@ public sealed class ExternalMemberIssuanceService(
         string.Equals(binding.BindingKey,
             ComputeKey(binding.Provider, binding.Issuer, binding.OrganizationId), StringComparison.Ordinal);
 
+    private static bool IsUsableCallbackBinding(ExternalOrganizationBinding? binding, long tenantId, string provider) =>
+        IsMatchingActiveBinding(binding, tenantId, provider) &&
+        ExternalMemberIssuanceRules.IsExactHttpsIssuer(binding!.Authority) &&
+        binding.VaultId > 0 && IsVaultEnvironment(binding.VaultEnvironment) &&
+        string.Equals(binding.CredentialPath,
+            ExternalProviderSecretReference.CanonicalCredentialPath(tenantId, provider), StringComparison.Ordinal);
+
     private static bool IsMatchingActiveSite(SitesModel? site, long tenantId, long siteId) =>
         site is { IsEnabled: true } && site.Id == siteId && site.TenantId == tenantId;
 
@@ -356,6 +425,7 @@ public sealed class ExternalMemberIssuanceService(
         DateTimeOffset now) =>
         invitation is not null && invitation.TenantId == tenantId && invitation.SiteId == siteId &&
         invitation.OrganizationBindingId == bindingId &&
+        invitation.LocalAuthorityId is null &&
         string.Equals(invitation.Provider, provider, StringComparison.Ordinal) &&
         invitation.ConsumedAt is null && invitation.RevokedAt is null && invitation.ExpiresAt > now;
 
@@ -368,6 +438,23 @@ public sealed class ExternalMemberIssuanceService(
         string.Equals(state.Purpose, ExternalAuthenticationState.SignInPurpose, StringComparison.Ordinal) &&
         ExternalMemberIssuanceRules.IsSafeLocalReturnPath(state.ReturnPath) &&
         state.ConsumedAt is null && state.ExpiresAt > now;
+
+    private static bool IsUsablePreparedState(
+        ExternalAuthenticationState? state,
+        long tenantId,
+        long siteId,
+        string provider,
+        DateTimeOffset now) =>
+        state is not null && state.TenantId == tenantId && state.SiteId == siteId &&
+        string.Equals(state.Provider, provider, StringComparison.Ordinal) &&
+        string.Equals(state.Purpose, ExternalAuthenticationState.SignInPurpose, StringComparison.Ordinal) &&
+        ExternalMemberIssuanceRules.IsSafeLocalReturnPath(state.ReturnPath) &&
+        ExternalMemberIssuanceRules.IsProtectedProviderCorrelation(state.ProtectedProviderCorrelation) &&
+        state.ConsumedAt is null && state.ExpiresAt > now;
+
+    private static bool IsVaultEnvironment(string? value) =>
+        value is { Length: > 0 and <= 128 } && string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+        value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.');
 
     private static string NormalizeEmail(string value) =>
         value.Trim().Normalize(NormalizationForm.FormKC).ToLowerInvariant();

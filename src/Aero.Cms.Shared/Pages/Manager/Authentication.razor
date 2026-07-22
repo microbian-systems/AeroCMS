@@ -1,0 +1,149 @@
+@page "/manager/authentication"
+@namespace Aero.Cms.Shared.Pages.Manager
+@inherits AuthenticationBase
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Manager authentication</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <header>
+        <h1 class="text-2xl font-bold pe-heading">Manager authentication</h1>
+        <p class="mt-1 text-sm pe-description">
+            Configure the installation-wide identity provider selected for CMS administrators and managers.
+        </p>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="rounded-lg border border-emerald-700 bg-emerald-950 p-4 text-sm text-emerald-100">
+            @SuccessMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(QueryErrorMessage))
+    {
+        <div class="rounded-lg border border-red-700 bg-red-950 p-4 text-sm text-red-100">
+            @QueryErrorMessage
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <p class="text-sm text-slate-400">Loading manager authentication status…</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(LoadErrorMessage))
+    {
+        <div class="rounded-lg border border-red-700 bg-red-950 p-4 text-sm text-red-100">
+            @LoadErrorMessage
+        </div>
+    }
+    else
+    {
+        <section class="rounded-lg border border-slate-700 bg-slate-900 p-6">
+            <h2 class="text-lg font-semibold text-slate-100">Current status</h2>
+            <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+                <div>
+                    <dt class="text-slate-400">Requested provider</dt>
+                    <dd class="mt-1 font-medium text-slate-100">@RequestedProviderLabel</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Effective provider</dt>
+                    <dd class="mt-1 font-medium text-slate-100">@EffectiveProviderLabel</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Status</dt>
+                    <dd class="mt-1 font-medium text-slate-100">@StatusLabel</dd>
+                </div>
+            </dl>
+        </section>
+
+        @if (IsPendingRemote)
+        {
+            <section class="rounded-lg border border-slate-700 bg-slate-900 p-6">
+                <h2 class="text-lg font-semibold text-slate-100">Configure @RequestedProviderLabel</h2>
+                <p class="mt-1 text-sm text-slate-400">
+                    These are non-secret authority references. Provider credentials are never entered in this form.
+                </p>
+
+                <form method="post" action="/api/v1/admin/auth/federation/authority/form" class="mt-5 space-y-4">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="Provider" value="@RequestedProvider" />
+
+                    <label class="block text-sm text-slate-300">
+                        Organization identifier
+                        <input name="OrganizationId" required maxlength="512" autocomplete="off"
+                               placeholder="@OrganizationPlaceholder"
+                               class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+                    </label>
+                    <p class="text-xs text-slate-400">@OrganizationHint</p>
+
+                    <label class="block text-sm text-slate-300">
+                        Canonical authority
+                        <input name="Authority" type="url" required maxlength="2048" autocomplete="off"
+                               value="@AuthorityValue" placeholder="@AuthorityPlaceholder" readonly="@IsWorkOs"
+                               class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2 read-only:text-slate-400" />
+                    </label>
+                    <p class="text-xs text-slate-400">@AuthorityHint</p>
+
+                    <label class="block text-sm text-slate-300">
+                        Public AeroCMS origin
+                        <input name="PublicOrigin" type="url" required maxlength="2048" autocomplete="off"
+                               placeholder="https://cms.example.com"
+                               class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+                    </label>
+                    <p class="text-xs text-slate-400">
+                        Enter the exact public HTTPS origin that serves the manager UI. Do not include a path, query, fragment, credentials, or non-default port.
+                    </p>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="block text-sm text-slate-300">
+                            Aero.Vault ID
+                            <input name="VaultId" type="number" min="1" max="9223372036854775807" required
+                                   class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+                        </label>
+                        <label class="block text-sm text-slate-300">
+                            Vault environment
+                            <input name="VaultEnvironment" required maxlength="128" value="production" autocomplete="off"
+                                   class="mt-1 block w-full rounded border border-slate-600 bg-slate-950 p-2" />
+                        </label>
+                    </div>
+
+                    <div class="rounded-lg border border-amber-700 bg-amber-950 p-4 text-sm text-amber-100">
+                        In Development, store provider credentials with .NET user-secrets and explicitly enable the development secret source.
+                        In production, credentials must come from Aero.Vault; this page stores only the Vault ID, environment, and canonical credential path.
+                    </div>
+
+                    <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                        Save authority configuration
+                    </button>
+                </form>
+            </section>
+
+            <section class="rounded-lg border border-amber-700 bg-amber-950 p-6">
+                <h2 class="text-lg font-semibold text-amber-100">Verify and activate</h2>
+                <p class="mt-2 text-sm text-amber-100">
+                    The exact local recovery administrator created during Setup must submit this link and authenticate with
+                    the matching @RequestedProviderLabel account. Another administrator cannot activate the authority.
+                </p>
+                <form method="post" action="/api/v1/admin/auth/federation/link?returnUrl=/manager/authentication" class="mt-4">
+                    <AntiforgeryToken />
+                    <button type="submit" class="rounded bg-amber-200 px-4 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-100">
+                        Link recovery administrator and activate
+                    </button>
+                </form>
+            </section>
+        }
+        else if (IsRemoteActive)
+        {
+            <div class="rounded-lg border border-emerald-700 bg-emerald-950 p-4 text-sm text-emerald-100">
+                Remote manager authentication is verified and active. The local recovery administrator remains available only through the recovery route.
+            </div>
+        }
+        else
+        {
+            <div class="rounded-lg border border-slate-700 bg-slate-900 p-4 text-sm text-slate-300">
+                Local ASP.NET Core Identity is the selected manager authentication provider. No remote authority configuration is required.
+            </div>
+        }
+    }
+</div>

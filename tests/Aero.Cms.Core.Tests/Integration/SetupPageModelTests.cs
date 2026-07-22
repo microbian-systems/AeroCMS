@@ -1,4 +1,5 @@
 ﻿using Aero.Cms.Modules.Setup.Areas.Setup.Pages;
+using Aero.Cms.Abstractions.Authentication;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.Integration;
@@ -85,6 +86,80 @@ public class SetupPageModelTests
         var input = new SetupInput();
 
         await Assert.That(input.CacheMode).IsEqualTo("Local");
+    }
+
+    [Test]
+    public async Task Setup_input_defaults_to_local_managers_and_disabled_storefront_members()
+    {
+        var model = CreateModel();
+
+        await Assert.That(model.EffectiveManagerAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Manager.Local);
+        await Assert.That(model.EffectiveMemberAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Member.Disabled);
+    }
+
+    [Test]
+    public async Task Advanced_authentication_allows_entra_external_id_for_storefront_members()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 5;
+        model.Input.UseAdvancedAuthenticationOptions = true;
+        model.Input.ManagerAuthenticationProvider = AuthenticationProviderSelections.Manager.Local;
+        model.Input.MemberAuthenticationProvider = AuthenticationProviderSelections.Member.EntraExternalId;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(6);
+        await Assert.That(model.EffectiveManagerAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Manager.Local);
+        await Assert.That(model.EffectiveMemberAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Member.EntraExternalId);
+    }
+
+    [Test]
+    public async Task Remote_manager_provider_advances_to_review()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 5;
+        model.Input.UseAdvancedAuthenticationOptions = true;
+        model.Input.ManagerAuthenticationProvider = AuthenticationProviderSelections.Manager.EntraWorkforce;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(6);
+        await Assert.That(model.EffectiveManagerAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Manager.EntraWorkforce);
+        model.StatusMessage.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Local_storefront_member_provider_advances_to_review()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 5;
+        model.Input.UseAdvancedAuthenticationOptions = true;
+        model.Input.MemberAuthenticationProvider = AuthenticationProviderSelections.Member.Local;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(6);
+        await Assert.That(model.EffectiveMemberAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Member.Local);
+        model.StatusMessage.Should().BeNull();
+    }
+
+    [Test]
+    public async Task Simple_provider_family_resolves_both_manager_and_member_providers()
+    {
+        var model = CreateModel();
+        model.Input.AuthenticationFamily = AuthenticationFamilies.WorkOs;
+        model.Input.EnableStorefrontMembers = true;
+
+        await Assert.That(model.EffectiveManagerAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Manager.WorkOs);
+        await Assert.That(model.EffectiveMemberAuthenticationProvider)
+            .IsEqualTo(AuthenticationProviderSelections.Member.WorkOs);
     }
 
     [Test]

@@ -7,6 +7,7 @@
     <div class="eshop-dropdown-menu">
         <button type="button" class="eshop-dropdown-button">Account</button>
         <div class="eshop-dropdown-content">
+            <a class="eshop-dropdown-item" href="/shop/account">Account</a>
             <a class="eshop-dropdown-item" href="/shop/orders">My orders</a>
             <form class="eshop-dropdown-item" method="post" action="/api/v1/member/logout">
                 @Html.AntiForgeryToken()
@@ -17,5 +18,5 @@
 }
 else
 {
-    <span class="eshop-account-state">Guest</span>
+    <a class="eshop-account-link" href="/shop/account">Sign in</a>
 }

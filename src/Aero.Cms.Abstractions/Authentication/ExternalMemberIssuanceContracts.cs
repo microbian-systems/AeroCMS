@@ -21,13 +21,20 @@ public sealed record BeginExternalMemberSignInRequest(
     long OrganizationBindingId,
     string? InvitationHandle,
     string Provider,
-    string ReturnPath);
+    string ReturnPath,
+    string ProtectedProviderCorrelation);
 
 /// <summary>One-time callback-state handle. The secret is returned only to the caller.</summary>
 public sealed record ExternalMemberAuthenticationHandle(
     string Handle,
     string ReturnPath,
     DateTimeOffset ExpiresAt);
+
+/// <summary>Validated callback-start context. Reading it does not consume the one-time state.</summary>
+public sealed record ExternalMemberCallbackPreparation(
+    long OrganizationBindingId,
+    string ProtectedProviderCorrelation,
+    string ReturnPath);
 
 /// <summary>Identity assertions already validated cryptographically by a provider adapter.</summary>
 public sealed record ValidatedExternalIdentity(
@@ -72,7 +79,20 @@ public interface IExternalMemberIssuanceService
         BeginExternalMemberSignInRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<Result<ExternalMemberCallbackPreparation, AeroError>> PrepareCallbackAsync(
+        string authenticationHandle,
+        long expectedTenantId,
+        long expectedSiteId,
+        string expectedProvider,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<ExternalMemberCallbackPreparationWithProvider, AeroError>> PrepareCallbackAsync(
+        string authenticationHandle, long expectedTenantId, long expectedSiteId, CancellationToken cancellationToken = default);
+
     Task<Result<ExternalMemberIssuanceReceipt, AeroError>> CompleteAsync(
         CompleteExternalMemberSignInRequest request,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record ExternalMemberCallbackPreparationWithProvider(long OrganizationBindingId,
+    string Provider, string ProtectedProviderCorrelation, string ReturnPath);

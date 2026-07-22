@@ -6,6 +6,12 @@ namespace Aero.Cms.Core.Entities;
 /// <summary>Represents a revocable local session issued after external authentication.</summary>
 public sealed class ExternalMemberSession : SableDocument, IAuditable, IVersioned
 {
+    /// <summary>Gets or sets the tenant scope committed with this session.</summary>
+    public long TenantId { get; set; }
+
+    /// <summary>Gets or sets the storefront site scope committed with this session.</summary>
+    public long SiteId { get; set; }
+
     /// <summary>Gets or sets the owning local external member identifier.</summary>
     public long ExternalMemberId { get; set; }
 

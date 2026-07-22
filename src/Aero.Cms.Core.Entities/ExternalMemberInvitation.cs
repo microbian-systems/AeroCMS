@@ -8,7 +8,11 @@ public sealed class ExternalMemberInvitation : SableDocument, IAuditable, IVersi
 {
     public long TenantId { get; set; }
     public long SiteId { get; set; }
-    public long OrganizationBindingId { get; set; }
+    /// <summary>Gets or sets the remote authority binding, exclusively for remote-provider invitations.</summary>
+    public long? OrganizationBindingId { get; set; }
+
+    /// <summary>Gets or sets the local authority, exclusively for local-identity invitations.</summary>
+    public long? LocalAuthorityId { get; set; }
     public string Provider { get; set; } = string.Empty;
     public string NormalizedEmail { get; set; } = string.Empty;
     public string TokenDigest { get; set; } = string.Empty;

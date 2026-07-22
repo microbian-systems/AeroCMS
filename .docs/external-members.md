@@ -1,738 +1,432 @@
-# External Members: Microsoft Entra External ID and WorkOS
+# Manager and Storefront Member Authentication
 
-Status: Provider-neutral foundation accepted; provider integrations proposed
-Created: 2026-07-20
-Scope: External member authentication, provisioning, tenant membership, site
-authorization, and session lifecycle
+Status: Local manager recovery, manager federation, local storefront member
+authentication, and direct Entra External ID and WorkOS member adapters are
+implemented. Production provider credentials remain blocked on Aero.Vault Host
+and client integration.
 
-Commerce production integration and delivery order are tracked in
-[commerce-production-vertical-slice.md](commerce-production-vertical-slice.md).
+This guide describes the current code. It covers initial selection, development
+credential setup, provider dashboard configuration, and smoke testing.
 
-## Outcome
+## Authentication boundaries
 
-Prepare AeroCMS to support external customer and partner members through
-Microsoft Entra External ID and WorkOS without coupling CMS authorization to
-either vendor.
+AeroCMS has two independent authentication realms:
 
-ASP.NET Core Identity remains the local authentication and account-management
-system for internal AeroCMS operators for the first implementation. External
-members use a separate local principal model and authenticate through a managed
-external identity provider.
+| Realm | Users | Providers | Cookie |
+|---|---|---|---|
+| Manager | CMS administrators and managers (`AeroUser`) | Local ASP.NET Core Identity, Entra Workforce, or WorkOS | `.AeroCms.Auth` |
+| Storefront member | Customers and partners (`ExternalMember`) | Disabled, local AeroCMS credentials, Entra External ID, or WorkOS | `.AeroCms.Member` |
 
-The target design must:
+The member cookie is never a manager authentication scheme. Manager federation
+also cannot consume the member cookie. The local recovery administrator uses a
+third, short-lived `.AeroCms.ManagerRecovery` cookie through
+`/manager/recovery`.
 
-- allow an AeroCMS tenant to select Entra External ID or WorkOS as its external
-  identity authority;
-- support a person who belongs to more than one AeroCMS tenant or site;
-- preserve AeroCMS as the authority for tenant, site, role, and permission
-  decisions;
-- use stable provider identifiers instead of email addresses as identity keys;
-- revoke access when a provider membership or directory user is deactivated;
-- keep provider secrets and refresh tokens out of user documents and browser
-  JavaScript;
-- make event processing idempotent, replayable, and tolerant of out-of-order
-  delivery; and
-- preserve the existing long/Snowflake identifier convention.
+Storefront authorization remains local to AeroCMS. Entra and WorkOS prove an
+identity, but AeroCMS decides the tenant, site, assignment, session, and access.
+Provider email addresses, groups, domains, roles, and permissions do not grant
+an AeroCMS site assignment by themselves.
 
-The provider-neutral foundation is now implemented. It adds the isolated local
-member cookie, local member/session/site-assignment documents, strict principal
-validation, host-site authorization, and member session endpoints. It does not
-add provider packages, provider tenants, secrets, callbacks, identity links,
-organization bindings, invitations, or webhooks.
+All persisted AeroCMS identities and authentication records use long Snowflake
+IDs. Provider tenant, organization, subject, and session identifiers remain
+opaque strings rather than primary keys.
 
-## Research corrections and current facts
+## Setup wizard selection
 
-### Microsoft terminology
+The Authentication step in `Setup.razor` offers two views:
 
-Microsoft Entra External ID is not merely a rename of Azure AD B2C. It is
-Microsoft's current CIAM platform for customer and business-customer
-applications. Azure AD B2C stopped being available for new purchases on
-2025-05-01, although existing B2C customers remain supported until at least May
-2030.
+- The simple view selects a provider family. Local maps to local managers and,
+  when storefront members are enabled, local members. Microsoft Entra maps to
+  Entra Workforce managers and Entra External ID members. WorkOS maps to WorkOS
+  for both realms. Disabling storefront members persists `disabled` regardless
+  of the selected manager family.
+- Advanced exposes independent manager and storefront-member choices. The
+  manager choice is required. The member choice may be Disabled, Local,
+  Microsoft Entra External ID, or WorkOS. The Advanced presentation preference
+  is not persisted; only the two canonical provider choices are stored.
 
-Microsoft distinguishes:
+Setup always creates one local recovery administrator. A remote manager choice
+is initially only requested intent: ordinary manager authentication remains
+local until the exact authority is configured, the recovery administrator is
+linked to the matching remote identity, and that link produces durable
+verification and activation evidence. After activation, remote manager login is
+effective and `/manager/recovery` remains the break-glass path.
 
-- a **workforce tenant**, used for employees, internal resources, and B2B guest
-  collaboration; and
-- an **external tenant**, used for consumer and business-customer applications,
-  user flows, and external application users.
+Selecting Local for storefront members creates or reuses one active local
+authority for the initial tenant. Local accounts are invitation-only. Managers
+issue an invitation handle, the customer activates it with an email and a new
+password, and AeroCMS stores only the password hash. Managers also issue
+one-time password-reset handles. There is no public reset-request workflow.
 
-For AeroCMS customer-facing membership, an **external tenant** is the default
-Entra model. Workforce B2B collaboration is appropriate only when AeroCMS is
-being exposed as an internal resource of the workforce tenant.
+## Development HTTPS and callback origin
 
-References:
+Complete this prerequisite before configuring any remote provider.
 
-- [Microsoft Entra External ID overview](https://learn.microsoft.com/entra/external-id/external-identities-overview)
-- [Workforce and external tenant configurations](https://learn.microsoft.com/entra/external-id/tenant-configurations)
-- [External ID FAQ and Azure AD B2C status](https://learn.microsoft.com/entra/external-id/customers/faq-customers)
-- [Microsoft multitenant identity architecture](https://learn.microsoft.com/azure/architecture/guide/multitenant/approaches/identity)
+Manager callbacks use the configured `PublicOrigin`; storefront callbacks use
+the host that resolved the current AeroCMS site. Both paths enforce all of the
+following:
 
-### Pricing and scale
+- exact `https`;
+- the default HTTPS port, 443;
+- no credentials, query, or fragment in the origin;
+- a valid, lowercase host; and
+- an exact callback path.
 
-The External ID core offer is currently free for the first 50,000 monthly active
-users. Premium add-ons do not inherit that free tier. Pricing is based on
-authentication activity, not the total number of stored external members.
+Consequently, the repository's usual `https://localhost:333` development URL
+and a conventional `https://localhost:5001` URL cannot be federation callback
+origins. Do not register either one and expect this implementation to accept it.
 
-This should be treated as a procurement input rather than an architectural
-guarantee. Pricing and add-on availability must be checked again before launch.
+Use a trusted development hostname served publicly on HTTPS port 443. Put
+AeroCMS behind a reverse proxy or secure tunnel that terminates trusted TLS on
+443 and preserves the public HTTPS host when forwarding to the local process.
+Then:
 
-External tenants also have request limits. Current Microsoft documentation lists
-20 requests per second per IP and 200 requests per second per external tenant;
-trial tenants are limited to 20 requests per second. Load and recovery testing
-must account for these limits instead of assuming that "millions of users" means
-unlimited authentication throughput.
+1. Add the exact lowercase development hostname as the AeroCMS site's primary
+   host or alias.
+2. Confirm `https://<dev-host>/shop/account` resolves the intended site.
+3. For manager federation, enter exactly `https://<dev-host>` as
+   `PublicOrigin`, with no trailing slash or port.
+4. Register the exact callback URLs below in the provider dashboard.
 
-References:
+The manager `PublicOrigin` and authority identity become immutable after
+verification/activation. Choose the final test hostname before linking the
+recovery administrator. Storefront callbacks are host-derived, so register a
+callback for every storefront host that will be tested.
 
-- [External ID pricing and billing](https://learn.microsoft.com/entra/external-id/external-identities-pricing)
-- [External ID service limits](https://learn.microsoft.com/entra/external-id/customers/reference-service-limits)
+## Exact callback URLs
 
-### WorkOS .NET SDK
+Replace `<manager-host>` and `<store-host>` with the trusted HTTPS host on port
+443. Paths and provider slugs are case-sensitive.
 
-The official package is `WorkOS.net`. At the time of this research, the current
-repository release is 5.5.0 and supports .NET 8 or later, which is compatible
-with AeroCMS's .NET 10 target.
-
-The SDK provides typed services for AuthKit/User Management, Organizations,
-SSO, Directory Sync, Events, Webhooks, and Audit Logs. It also includes URL
-builders, code exchange, logout helpers, session/JWT support, idempotency keys,
-and built-in retry behavior for selected transient failures.
-
-The SDK should be constructor-injected behind an AeroCMS adapter. Application
-code must not use the static `WorkOSConfiguration.WorkOSClient`.
-
-There is one package-policy blocker: the current SDK documentation states that
-its runtime uses Newtonsoft.Json when communicating with WorkOS, even though its
-generated models also support System.Text.Json. AeroCMS has a System.Text.Json-
-only rule. Before adopting the package, choose one of these explicitly:
-
-1. Allow Newtonsoft.Json only as an encapsulated transitive implementation
-   detail inside the WorkOS adapter; AeroCMS code continues to use
-   System.Text.Json.
-2. Keep the zero-Newtonsoft rule absolute and implement the required WorkOS
-   endpoints through a small typed `HttpClient`/System.Text.Json adapter.
-3. Re-evaluate a later WorkOS SDK version that no longer has the dependency.
-
-References:
-
-- [Official WorkOS .NET repository](https://github.com/workos/workos-dotnet)
-- [WorkOS .NET SDK documentation](https://workos.com/docs/sdks/dotnet)
-- [Generated .NET API reference](https://workos.github.io/workos-dotnet/)
-
-## Current AeroCMS boundary
-
-The accepted boundary now separates internal CMS operators from storefront
-members:
-
-- `Identity.Application` and `.AeroCms.Auth` remain the default internal
-  authenticate, challenge, and sign-in scheme for `AeroUser` administrators and
-  managers.
-- `AeroCms.ExternalMember` and `.AeroCms.Member` are distinct and never become a
-  default scheme. Generic manager authorization therefore cannot consume a
-  storefront-member cookie.
-- `ExternalMember`, `ExternalMemberSession`, and
-  `ExternalMemberSiteAssignment` provide local Snowflake ownership, revocation,
-  and site-membership state without creating an `AeroUser`.
-- Every member-cookie request revalidates the local member and session and fails
-  closed on malformed claims, revocation, expiry, stale security version, or
-  datastore failure.
-- Storefront site authorization uses the host-resolved `ISiteContext` tenant and
-  site. It never trusts the manager-selected `AeroCms.SiteId` cookie.
-- `/api/v1/member/me` and `/api/v1/member/logout` are isolated from
-  `/api/v1/admin/auth/*`; logout clears only the member cookie and reports an
-  explicit failure if server-side revocation cannot be persisted.
-- `UserSiteAssignment`, `SitePermissionHandler`, and `/auth/me` remain internal
-  manager concerns in this bounded slice. Broader principal-aware manager and
-  audit refactors are deferred.
-- `SitesModel` separates `TenantId` from `SiteId`. A future WorkOS organization
-  or Entra customer organization binds at `TenantId`; local assignments select
-  sites within that tenant.
-
-Relevant code:
-
-- `src/Aero.Cms.Modules.Identity/IdentityModule.cs`
-- `src/Aero.Cms.Modules.Identity/IdentityApi.cs`
-- `src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs`
-- `src/Aero.Cms.Core.Entities/UserSiteAssignment.cs`
-- `src/Aero.Cms.Modules.Sites/SitePermissionHandler.cs`
-- `src/Aero.Cms.Core.Entities/SitesModel.cs`
-
-## Proposed decisions
-
-### 1. Keep authentication and authorization separate
-
-Entra External ID and WorkOS prove who authenticated and report provider
-membership state. AeroCMS remains authoritative for:
-
-- the local principal ID;
-- AeroCMS tenant and site access;
-- the currently selected site;
-- CMS roles and permissions;
-- resource-level authorization; and
-- audit attribution.
-
-Provider roles, Entra groups, WorkOS organization roles, email domains, and token
-claims must not directly grant `site:*` permissions. A synchronization policy
-may translate them into local assignments, but authorization always reads the
-local current state.
-
-This preserves the existing site-policy model and prevents a provider
-configuration change from silently becoming a CMS authorization change.
-
-### 2. Add a provider-neutral external principal
-
-Do not require external members to be `AeroUser` password accounts. Introduce
-clean current-model documents similar to:
-
-| Document | Purpose |
+| Mode | Exact redirect URI |
 |---|---|
-| `ExternalMember` | Local Snowflake principal, profile snapshot, lifecycle state, and security version |
-| `ExternalIdentityLink` | Unique provider identity mapped to one local member |
-| `ExternalOrganizationBinding` | Maps an AeroCMS `TenantId` to a provider organization/directory |
-| `ExternalMemberSiteAssignment` | Grants an active local external member storefront access to a tenant/site pair |
-| `ExternalMemberSession` | Revocable local member session with provider name, security version, and absolute expiry |
-| `ExternalIdentityEventReceipt` | Deduplication and processing status for provider events |
+| Manager: Entra Workforce | `https://<manager-host>/api/v1/admin/auth/callback/entra-workforce` |
+| Manager: WorkOS | `https://<manager-host>/api/v1/admin/auth/callback/workos` |
+| Member: Entra External ID | `https://<store-host>/api/v1/member/callback` |
+| Member: WorkOS | `https://<store-host>/api/v1/member/callback` |
 
-All persisted domain documents use long Snowflake IDs. Provider IDs remain
-opaque strings.
+The two member providers intentionally share one provider-neutral callback.
+Protected server state selects the provider; no provider name in the callback
+path or browser input is trusted.
 
-Suggested identity-link uniqueness:
+## Development provider credentials
 
-```text
-(Provider, Issuer, Subject) -> one ExternalMemberId
+The Web project has the `Aero.Cms.Web` user-secrets ID. Development credentials
+are read only when the process environment is `Development` **and** the
+realm-specific opt-in flag is `true`. Use placeholder values below, never real
+credentials in source control or this document.
+
+Run commands from the repository root:
+
+```powershell
+# Opt in to the development-only manager secret source.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ManagerFederation:EnableDevelopmentProviderSecrets" "true"
+
+# Manager - Microsoft Entra Workforce.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ManagerFederation:DevelopmentSecrets:entra_workforce:ClientId" "<manager-entra-client-id>"
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ManagerFederation:DevelopmentSecrets:entra_workforce:ClientSecret" "<manager-entra-client-secret>"
+
+# Manager - WorkOS.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ManagerFederation:DevelopmentSecrets:workos:ClientId" "<manager-workos-client-id>"
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ManagerFederation:DevelopmentSecrets:workos:ApiKey" "<manager-workos-api-key>"
+
+# Opt in to the development-only storefront-member secret source.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ExternalMembers:EnableDevelopmentProviderSecrets" "true"
+
+# Member - Microsoft Entra External ID.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ExternalMembers:DevelopmentSecrets:entra_external_id:ClientId" "<member-entra-client-id>"
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ExternalMembers:DevelopmentSecrets:entra_external_id:ClientSecret" "<member-entra-client-secret>"
+
+# Member - WorkOS.
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ExternalMembers:DevelopmentSecrets:workos:ClientId" "<member-workos-client-id>"
+dotnet user-secrets set --project src/Aero.Cms.Web/Aero.Cms.Web.csproj "AeroCms:Authentication:ExternalMembers:DevelopmentSecrets:workos:ApiKey" "<member-workos-api-key>"
 ```
 
-Suggested organization-binding uniqueness:
+The manager and member namespaces are deliberately separate. Add only the keys
+for the providers being exercised. Secret values must be nonempty, trimmed,
+bounded UTF-8 values. The non-secret authority forms still require a positive
+Aero.Vault ID and a canonical environment such as `development`; these identify
+the approved credential reference even when the Development source supplies
+the bytes.
 
-```text
-(Provider, ExternalOrganizationId) -> one TenantId
-(TenantId, Provider) -> one active binding
-```
+In every non-Development environment, both development secret sources are
+disabled regardless of configuration. The production source currently returns
+Unavailable and fails closed because the deployable Aero.Vault Host and typed
+client are not yet integrated.
 
-An identity link must never be created from email matching alone. Email is
-mutable, may be recycled, and is not an authorization key. Linking two provider
-identities requires one of:
+## Configure Microsoft Entra Workforce managers
 
-- an authenticated member explicitly linking another provider;
-- an unexpired invitation bound to the intended tenant;
-- a verified administrator action; or
-- a signed, provider-originated membership event whose organization is already
-  bound to the tenant.
+Use a workforce tenant and a single-tenant web application for internal CMS
+operators. Follow Microsoft's [app registration
+quickstart](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app).
 
-### 3. Replace user-only request assumptions with a local principal abstraction
+1. In the intended workforce tenant, register a web application whose supported
+   account type is accounts in this organizational directory only.
+2. Add the exact manager Entra callback URI from the table as a Web redirect
+   URI.
+3. Create a client secret for development testing. Record its **value** at
+   creation time, not its identifier.
+4. Record the Application (client) ID and Directory (tenant) ID. AeroCMS requires
+   the tenant ID as a lowercase canonical GUID.
+5. Add the recovery administrator's Entra account to the tenant/application as
+   required by the tenant's assignment policy. The authorization request uses
+   `openid profile`, authorization code flow, query response mode, nonce, and
+   PKCE S256.
+6. Put the client ID and secret in the manager user-secret keys above.
+7. In Setup, select Microsoft Entra for managers. After Setup, sign in locally,
+   open `/manager/authentication`, and enter:
 
-The foundation adds an application-owned `ICurrentPrincipal`/`CurrentPrincipal`
-abstraction for the strict external-member cookie. Its stable fields are:
+   - Organization identifier: the lowercase Directory (tenant) ID;
+   - Canonical authority:
+     `https://login.microsoftonline.com/<tenant-id>/v2.0`;
+   - Public AeroCMS origin: `https://<manager-host>`;
+   - a positive Aero.Vault ID and canonical environment, for example
+     `development`.
 
-- `PrincipalId` (`long`);
-- `PrincipalKind` (`InternalUser` or `ExternalMember`);
-- `AuthenticationProvider`;
-- display name and verified-email snapshot;
-- external session ID when applicable; and
-- local security version.
+8. Save the authority. While signed in as the exact recovery administrator,
+   choose **Link recovery administrator and activate**, then authenticate with
+   the intended Entra account.
 
-The application cookie's `NameIdentifier` remains the local Snowflake
-`PrincipalId`. Add explicit `principal_kind` and `auth_provider` claims.
+The callback validates the exact tenant (`tid`), issuer, client audience,
+subject, nonce, signature, lifetime, and link. A different tenant account or a
+different local administrator cannot activate the authority.
 
-Refactor these consumers before enabling a real Entra or WorkOS sign-in flow:
+## Configure Microsoft Entra External ID members
 
-- `/auth/me`;
-- site selection;
-- `SitePermissionHandler`;
-- audit actor resolution;
-- manager authentication-state serialization; and
-- logout.
+Use an Entra **external tenant**, not the workforce tenant. Microsoft's
+[External ID web-app prerequisites and user-flow
+guide](https://learn.microsoft.com/entra/identity-platform/quickstart-web-app-sign-in#prerequisites)
+describes the tenant, app registration, and sign-up/sign-in flow.
 
-The accepted bounded model keeps `UserSiteAssignment` internal-only and adds
-`ExternalMemberSiteAssignment` for storefront membership. A future unified
-principal-assignment model may replace both only when manager selection,
-permissions, audit attribution, and UI can move atomically.
+1. Create or select an external tenant.
+2. Register a web application in that external tenant and add the exact member
+   Entra callback URI from the table as a Web redirect URI.
+3. Create a client secret and record the client ID, secret value, lowercase
+   external tenant ID GUID, and the external tenant's lowercase
+   `<tenant-name>.ciamlogin.com` label.
+4. Create a sign-up/sign-in user flow, select Email as an identity method, add
+   the application to it, and select the available email and display-name token
+   claims. AeroCMS requests `openid profile email` and its current adapter
+   requires exact `email` plus `email_verified: true` claims for an
+   invitation-gated first link. Confirm those exact claim names in a staging ID
+   token. If the External ID flow emits `emails` or omits `email_verified`, the
+   first link will fail closed and the adapter needs an explicit claim-mapping
+   change before this smoke test can pass.
+5. Put the client ID and client secret in the member Entra user-secret keys.
+6. Select Microsoft Entra External ID for members in Setup, or open
+   `/manager/external-members` for the selected site and enter:
 
-### 4. Use isolated local application sessions
+   - Provider: Microsoft Entra External ID;
+   - Organization identifier: the lowercase external tenant ID GUID;
+   - Authority:
+     `https://<tenant-name>.ciamlogin.com/<tenant-id>/v2.0`;
+   - a positive Aero.Vault ID and `development` environment;
+   - Enabled: checked.
 
-Internal and external authentication paths use separate server-side cookies:
+7. On `/manager/external-members`, issue an invitation for the exact customer
+   email and copy the one-time handle.
+8. On that storefront host, open `/shop/account`, enter the handle, and continue
+   to Entra. Complete the external user flow with the invited email.
 
-- internal operators: `Identity.Application` / `.AeroCms.Auth`;
-- external members: `AeroCms.ExternalMember` / `.AeroCms.Member`.
+The first callback requires a valid invitation and matching verified email.
+The issuer is validated as
+`https://<tenant-id>.ciamlogin.com/<tenant-id>/v2.0`; the configured authority
+host may use the external tenant's canonical lowercase label. Returning members
+with an active local link and site assignment can sign in without another
+invitation. Entra self-sign-up does not itself grant AeroCMS membership.
 
-This corrects the earlier shared-cookie proposal. The live manager surface has
-many endpoints that use default `RequireAuthorization()`, so a shared default
-cookie would allow a storefront member to satisfy the manager authentication
-boundary before principal-kind checks ran.
+## Configure WorkOS managers and members
 
-The member cookie validation contract:
+Use a [WorkOS staging
+environment](https://workos.com/docs/authkit/environments) for this test. Obtain
+the [API key and client
+ID](https://workos.com/docs/reference/api-authentication), and configure exact
+[redirect URIs](https://workos.com/docs/reference/authkit/redirect-uri).
 
-1. Require exactly one authenticated identity from the dedicated member scheme.
-2. Resolve the local `PrincipalId`, provider, session ID, and security version.
-3. Confirm the local member is active and the security version is current.
-4. Confirm the local session owner/provider/version, expiry, and revocation
-   state.
-5. Check tenant/site membership through the host-site authorization policy.
-6. Reject and clear the member cookie on malformed state or datastore failure.
+Manager and member credential references and callback routes are separate.
+Separate WorkOS applications/configurations and organizations are recommended
+for testing the two trust realms independently; the code does not require the
+two organization IDs to be equal. If one WorkOS application is deliberately
+shared, register both exact redirect URIs and keep the AeroCMS manager/member
+secret namespaces separate.
 
-Member logout:
+For each realm:
 
-1. attempts to revoke the owned local external session;
-2. always clears `.AeroCms.Member`, including when persistence fails;
-3. never clears `.AeroCms.Auth`; and
-4. reports an explicit server error when local revocation was not persisted.
+1. Configure AuthKit in the WorkOS staging environment.
+2. Register that realm's exact callback URL.
+3. Create an organization and record its exact `org_...` organization ID.
+4. Create or invite a test user and add an active organization membership. See
+   [WorkOS users and
+   organizations](https://workos.com/docs/authkit/users-organizations).
+5. Record the staging client ID and secret API key, then add them to the matching
+   manager or member user-secret keys. AeroCMS sends the API key server-side
+   during code exchange; it is never returned to the browser.
 
-Provider-aware upstream logout is deferred until the Entra and WorkOS adapters
-exist. Browser code must not receive provider refresh tokens or API keys.
+For managers, select WorkOS in Setup. At `/manager/authentication`, configure:
 
-### 5. Select one external authority per AeroCMS tenant
+- Organization identifier: the exact WorkOS organization ID;
+- Authority: `https://api.workos.com` (fixed and read-only in the UI);
+- Public origin: `https://<manager-host>`;
+- a positive Aero.Vault ID and `development` environment.
 
-Do not expose Entra External ID and WorkOS as competing authorities for the same
-customer tenant by default. That creates duplicate identities, conflicting
-membership lifecycles, and ambiguous logout/revocation behavior.
+Save, then have the exact recovery administrator link the WorkOS user and
+activate the authority. WorkOS must return the configured organization ID; an
+impersonated response is rejected.
 
-Each `TenantId` selects one mode:
+For members, select the intended manager site, open
+`/manager/external-members`, and configure:
 
-- `EntraExternalId`;
-- `WorkOS`;
-- `Disabled`; or
-- a future explicitly designed migration/coexistence mode.
+- Provider: WorkOS;
+- Organization identifier: the exact member WorkOS organization ID;
+- Authority: `https://api.workos.com`;
+- a positive Aero.Vault ID and `development` environment;
+- Enabled: checked.
 
-If an enterprise uses Microsoft Entra as its corporate IdP while AeroCMS uses
-WorkOS, Entra should normally be configured upstream through WorkOS SSO or
-Directory Sync. AeroCMS then integrates with one external control plane for that
+Issue an AeroCMS invitation for the WorkOS user's verified email. On the correct
+storefront host, open `/shop/account`, enter the one-time handle, and continue
+to WorkOS. WorkOS must return the exact configured organization and a verified
+email. A returning, linked member no longer needs the AeroCMS invitation.
+
+## Local storefront member workflow
+
+1. Select Local for storefront members during Setup. This seeds the tenant-wide
+   local authority.
+2. Select the intended site in the manager and open
+   `/manager/external-members`.
+3. Issue an invitation for the customer email. Expiry must be in the future and
+   no more than seven days away. Copy the handle when shown; AeroCMS persists
+   only its digest and does not show it again.
+4. On that site's host, open `/shop/account`. Under **Activate an invitation**,
+   enter the handle, exact invited email, optional display name, and a password
+   from 12 through 256 characters.
+5. Subsequent sign-in uses the local email/password form. Five failed attempts
+   lock the credential for 15 minutes. A successful login issues an eight-hour
+   storefront session.
+6. To reset a password, the manager enters the member's Snowflake ID on
+   `/manager/external-members` and issues a handle. The UI currently chooses a
+   one-hour expiry. Deliver it through a trusted channel immediately.
+7. The member completes **Complete a password reset** on `/shop/account` with a
+   new 12-to-256-character password. Completion consumes the handle, bumps the
+   security version, revokes existing storefront sessions, clears the member
+   cookie, and does not automatically sign the member back in.
+
+Invitation and reset handles are bearer secrets. Do not put them in logs,
+tickets, analytics, or long-lived notes.
+
+## Smoke-test checklist
+
+Run each provider in a fresh development data set or with an authority state
+that matches the selected provider. Authority provider/organization identity is
+immutable once bound; local and remote active authorities cannot coexist for a
 tenant.
 
-Temporary coexistence must be treated as a migration, with explicit identity
-linking and a declared source of truth for membership.
+### Manager: Entra Workforce or WorkOS
 
-## Microsoft Entra External ID integration
+1. Before authority configuration, verify `/manager/login` still offers local
+   sign-in and the manager Authentication page reports the remote selection as
+   pending.
+2. Configure the exact origin/authority and try linking as a non-recovery
+   administrator. Expected: activation fails.
+3. Link as the recovery administrator with the correct provider user and
+   organization. Expected: callback returns to the manager, the authority is
+   verified/active, and the effective provider becomes remote.
+4. Sign out and use the remote manager login. Expected: a `.AeroCms.Auth`
+   session is issued; no `.AeroCms.Member` cookie is issued.
+5. Change the callback host, scheme, port, path, state, tenant/organization, or
+   provider account. Expected: sign-in fails closed and no cookie is issued. A
+   request that still reaches the valid callback route returns the manager
+   login error state; a different route may simply return not found.
+6. Disable the manager user or remove all CMS roles, then retry or reuse the
+   cookie. Expected: manager authentication fails.
+7. Remove the development secret or make the provider unavailable. Open
+   `/manager/recovery`, sign in with the original local recovery credentials,
+   and verify recovery access still works. The recovery cookie is nonpersistent,
+   non-sliding, and lasts at most 15 minutes.
+8. Log out, then retry a protected manager page. Expected: the local manager
+   cookie is cleared and the durable federated session is revoked when
+   persistence is available.
 
-### Tenant and protocol choice
+### Member: Entra External ID or WorkOS
 
-Use an Entra **external tenant** and a registered web application. External
-tenant authorities use `ciamlogin.com`, not the workforce
-`login.microsoftonline.com` authority.
+1. On the selected site, configure and enable exactly one remote authority and
+   issue an invitation.
+2. On `/shop/account`, start sign-in with that handle and the matching verified
+   provider email. Expected: callback consumes the invitation, creates the
+   provider link/site assignment/local session, and issues only
+   `.AeroCms.Member`.
+3. Replay the invitation. Expected: it is rejected. A normal returning login
+   without the invitation should still succeed for the already linked member.
+4. Start the flow on one site host and send the callback to an alias for another
+   tenant/site, a different host, HTTP, or a non-443 port. Expected: callback is
+   rejected; no cookie is issued.
+5. For WorkOS, use a user from a different organization. For Entra, use a token
+   from a different tenant. Expected: callback is rejected.
+6. Present the member cookie to a manager route. Expected: it does not satisfy
+   manager authorization.
+7. Log out from the original site. Expected: the local session is revoked and
+   `.AeroCms.Member` is cleared. Provider logout is best effort after local
+   revocation. Reusing the old cookie must fail.
+8. Try the old cookie on another tenant or a site without the assignment.
+   Expected: host/site authorization rejects it.
 
-Use server-side OpenID Connect authorization-code flow with PKCE. Do not
-implement authentication as a public browser client and do not expose provider
-tokens to Blazor WebAssembly.
+### Local members
 
-Because AeroCMS will support more than one external provider, prefer a named
-ASP.NET Core OpenID Connect scheme for Entra and keep provider-specific options
-isolated. Microsoft recommends `Microsoft.Identity.Web` for Microsoft identity
-providers, but ASP.NET Core documentation notes that the default OIDC handler is
-normally safer when multiple OIDC provider clients share one application
-because provider libraries can overwrite shared options. The implementation
-spike must prove whichever option is selected.
+1. Activate a valid invite on its site. Expected: success and a member cookie.
+2. Replay the invite, alter its email, or submit it on another site/tenant.
+   Expected: the same generic failure and no cookie.
+3. Log out and verify the old session cannot be reused.
+4. Issue a reset, complete it once, and verify all previous sessions fail.
+5. Replay the reset or submit it on another site/tenant. Expected: generic
+   failure, no password change, and no automatic login.
+6. Enter five incorrect passwords. Expected: the credential locks for 15
+   minutes and valid credentials do not bypass the active lockout.
 
-References:
+For all modes, also verify that missing provider secrets, duplicate authorities,
+datastore errors, malformed antiforgery submissions, and unresolved site hosts
+fail closed without exposing provider keys, invitation digests, reset digests,
+or whether a particular email exists.
 
-- [ASP.NET Core OIDC guidance](https://learn.microsoft.com/aspnet/core/security/authentication/configure-oidc-web-authentication?view=aspnetcore-10.0)
-- [External ID ASP.NET Core setup](https://learn.microsoft.com/entra/identity-platform/tutorial-web-app-dotnet-prepare-app)
-- [External-tenant token endpoints and issuers](https://learn.microsoft.com/entra/identity-platform/security-tokens)
+## Implemented status and current limitations
 
-### Entra identity key
+Implemented and directly testable from the current UI/code:
 
-Validate issuer, audience, signature, lifetime, nonce, and state before
-provisioning.
+- simple and Advanced Setup selections;
+- immutable, pending-to-active manager federation with Entra Workforce and
+  WorkOS;
+- a permanent local recovery-administrator route;
+- isolated manager, recovery, and storefront cookies;
+- tenant-scoped Entra External ID and WorkOS authorities;
+- invitation-gated provider linking and provider-neutral member callback;
+- local storefront invitation activation, login, lockout, manager-issued reset,
+  and session revocation;
+- `/manager/authentication`, `/manager/external-members`, and `/shop/account`;
+- antiforgery and rate limiting on browser mutation/login paths; and
+- host-, tenant-, site-, organization-, state-, nonce-, and PKCE-bound flows.
 
-Prefer:
+Not production-ready or not implemented:
 
-```text
-Provider = EntraExternalId
-Issuer   = validated iss
-Subject  = validated sub
-```
+- Production provider credentials require Aero.Vault and fail closed. The
+  deployable Aero.Vault Host and typed client integration is not yet present.
+- Entra External ID staging must prove that the configured user flow emits the
+  exact `email` and `email_verified` claims required for invitation matching;
+  otherwise the adapter needs a claim-mapping update.
+- Local reset handles are manually delivered by a manager. There is no public
+  forgot-password request or email delivery.
+- Public self-service AeroCMS signup, passkeys, and member MFA are not present.
+  A provider may offer its own authentication factors, but AeroCMS does not yet
+  manage them as a storefront feature.
+- Provider webhooks, directory reconciliation, automatic deprovisioning, and
+  provider role/group mapping are not present.
+- The source contains focused unit/integration coverage for the security
+  boundaries, but clean full-solution build and real-provider browser E2E runs
+  remain release gates. Complete the smoke tests above with real staging tenants
+  before treating any remote mode as verified for deployment.
 
-If cross-application correlation inside the same Entra tenant is required,
-store the validated `tid` and `oid` as additional provider metadata. Do not
-assume `sub == oid`; Microsoft documents `sub` as pairwise per application.
+## Provider references
 
-Never use `email`, `preferred_username`, display name, or an unvalidated tenant
-hint as the identity key or as proof of tenant membership.
-
-### Entra onboarding
-
-Start invite-only:
-
-1. A tenant/site administrator creates a local pending invitation.
-2. AeroCMS generates an Entra sign-in challenge with signed state that contains
-   only a nonce/invitation reference and safe return path.
-3. The callback validates the OIDC response.
-4. AeroCMS resolves or creates the external member and identity link.
-5. The invitation is atomically consumed and local site assignments are
-   created.
-6. AeroCMS issues the isolated local external-member cookie.
-
-Self-service sign-up, domain auto-join, federation, and custom authentication
-extensions remain later opt-in capabilities. Domain ownership must be verified
-before domain-based membership is enabled.
-
-## WorkOS integration
-
-### Product boundary
-
-Use WorkOS when an AeroCMS customer needs a managed B2B identity control plane,
-especially:
-
-- AuthKit-hosted sign-in;
-- enterprise SAML/OIDC SSO;
-- organizations and organization memberships;
-- invitations and JIT provisioning;
-- Directory Sync/SCIM lifecycle;
-- customer IT self-service through Admin Portal; or
-- provider-normalized events and reconciliation.
-
-One WorkOS organization maps to one AeroCMS `TenantId`, not directly to a
-`SiteId`. Local site assignments determine which sites within that tenant the
-member may use.
-
-WorkOS explicitly models users separately from organization memberships and
-supports many-to-many membership. Membership can be pending, active, or
-inactive. Deactivating a membership revokes its active WorkOS sessions. This
-maps well to AeroCMS's separation of a tenant from its sites.
-
-References:
-
+- [Microsoft Entra app registration](https://learn.microsoft.com/entra/identity-platform/quickstart-register-app)
+- [Microsoft Entra External ID web-app prerequisites](https://learn.microsoft.com/entra/identity-platform/quickstart-web-app-sign-in#prerequisites)
+- [WorkOS staging and production environments](https://workos.com/docs/authkit/environments)
+- [WorkOS API authentication](https://workos.com/docs/reference/api-authentication)
+- [WorkOS redirect URIs](https://workos.com/docs/reference/authkit/redirect-uri)
 - [WorkOS users and organizations](https://workos.com/docs/authkit/users-organizations)
-- [WorkOS invitations](https://workos.com/docs/authkit/invitations)
-- [WorkOS JIT provisioning](https://workos.com/docs/authkit/jit-provisioning)
-- [WorkOS sessions](https://workos.com/docs/authkit/sessions)
-
-### WorkOS login
-
-1. Resolve the intended AeroCMS tenant before building the authorization URL.
-2. Load the tenant's active WorkOS organization binding.
-3. Generate and persist short-lived `state`; use PKCE where appropriate.
-4. Redirect through the SDK's AuthKit/SSO URL builder.
-5. On callback, validate state and exchange the code server-side.
-6. Require the returned WorkOS organization/membership to match the bound
-   AeroCMS tenant.
-7. Resolve or create `(WorkOS, issuer, WorkOS user ID)`.
-8. Apply local membership/assignment policy.
-9. Issue the isolated local AeroCMS external-member cookie.
-
-WorkOS access tokens contain `sub`, `sid`, and—when an organization is
-selected—`org_id`, role, and permissions. AeroCMS may use these as validated
-provider inputs, but the local database remains authoritative for CMS
-authorization.
-
-Keep WorkOS access-token duration short. If refresh tokens are retained, store
-them only in an encrypted server-side session or secure HTTP-only cookie and
-replace rotated refresh tokens after use.
-
-### Directory Sync and webhooks
-
-Use WorkOS events to synchronize:
-
-- users;
-- organization memberships;
-- membership activation/deactivation;
-- directories and directory users;
-- groups and group memberships; and
-- connection/organization lifecycle needed by AeroCMS.
-
-The webhook endpoint must:
-
-1. read the raw request body;
-2. verify the `WorkOS-Signature` timestamp and signature with the endpoint
-   secret;
-3. persist the provider event ID and payload in an inbox;
-4. return `200` quickly; and
-5. dispatch durable background processing through Wolverine.
-
-The processor must:
-
-- be idempotent by provider event ID;
-- accept duplicate and out-of-order events;
-- compare provider `updated_at` values before overwriting newer state;
-- upsert complete provider objects;
-- disable access immediately on deactivation;
-- separate state projection from one-time side effects;
-- retain failures with retry visibility; and
-- support event replay and periodic/full reconciliation.
-
-WorkOS recommends queueing webhook work, responding immediately, handling
-duplicate and out-of-sequence events, and maintaining a reconciliation path.
-
-References:
-
-- [WorkOS webhook synchronization](https://workos.com/docs/events/data-syncing/webhooks)
-- [WorkOS data reconciliation](https://workos.com/docs/events/data-syncing/data-reconciliation)
-- [WorkOS Directory Sync](https://workos.com/docs/directory-sync)
-
-## Authorization mapping
-
-External authentication success never implies site access.
-
-The minimum authorization chain is:
-
-```text
-validated provider identity
-  -> active local ExternalMember
-  -> active provider organization binding for TenantId
-  -> local ExternalMemberSiteAssignment for the host-resolved SiteId
-  -> resource ownership check
-```
-
-Rules:
-
-- A selected site must belong to the tenant represented by the active external
-  organization binding.
-- Provider organization IDs must never be accepted directly from a browser as
-  authorization proof.
-- WorkOS role/permission claims and Entra group/app-role claims are inputs to an
-  explicit mapping policy, not direct CMS permissions.
-- Removing or deactivating an external membership disables local assignments
-  according to the tenant's lifecycle policy.
-- An external member never receives the internal `Admin` bypass by default.
-- Cross-tenant identifiers remain concealed using the established `404` rule.
-
-## Configuration and secret boundaries
-
-Suggested configuration shape:
-
-```text
-AeroCms:ExternalMembers:Enabled
-AeroCms:ExternalMembers:CookieLifetime
-AeroCms:ExternalMembers:InviteOnly
-
-AeroCms:ExternalMembers:Entra:Enabled
-AeroCms:ExternalMembers:Entra:Authority
-AeroCms:ExternalMembers:Entra:ClientId
-AeroCms:ExternalMembers:Entra:CallbackPath
-
-AeroCms:ExternalMembers:WorkOS:Enabled
-AeroCms:ExternalMembers:WorkOS:ClientId
-AeroCms:ExternalMembers:WorkOS:CallbackPath
-```
-
-Secrets are not stored in ordinary configuration documents:
-
-- Entra client credential/certificate;
-- WorkOS API key;
-- WorkOS webhook signing secret;
-- provider refresh tokens; and
-- any session-encryption keys.
-
-Production secrets belong in the configured external secret store. Provider
-clients use `IHttpClientFactory`, bounded timeouts, cancellation, structured
-retry policy, and OpenTelemetry instrumentation without logging tokens,
-authorization codes, email addresses, or raw webhook payloads.
-
-## Failure and consistency model
-
-Provider API calls and the AeroCMS database cannot share a transaction.
-
-Use these rules:
-
-- Local authorization state changes commit atomically in Sable.
-- Outbound provider operations use stable idempotency keys where supported.
-- Inbound provider events enter an idempotent inbox before projection.
-- A failed audit/event publish after a local commit must not make the caller
-  believe the commit failed.
-- Provisioning workflows record explicit pending/succeeded/failed states.
-- Deprovisioning fails closed: uncertain provider membership disables new
-  sessions until reconciliation succeeds.
-- Sign-in availability and already-issued local session availability are
-  separate failure domains.
-
-## Delivery phases
-
-### Phase 0 — Architectural decisions
-
-- [ ] Decide whether the WorkOS SDK's internal Newtonsoft.Json dependency gets
-  a narrow exception.
-- [ ] Confirm one external authority per `TenantId`.
-- [x] Confirm external members remain separate from `AeroUser`.
-- [ ] Confirm invite-only onboarding as the default.
-- [ ] Define external-session and revocation latency targets.
-- [ ] Define which provider roles/groups, if any, map into local site
-  assignments.
-
-### Phase 1 — Provider-neutral principal foundation
-
-- [x] Add the narrow storefront `ExternalMember`, `ExternalMemberSession`, and
-  local external-member/site-membership models.
-- [x] Keep `UserSiteAssignment` internal-only and add
-  `ExternalMemberSiteAssignment` for the storefront foundation. This is an
-  intentional additive deviation: the existing manager assignment API and
-  selected-site cookie remain unchanged until a complete principal-aware
-  replacement can be delivered safely.
-- [x] Add `ICurrentPrincipal` for strict external-member claims.
-- [x] Add a distinct `.AeroCms.Member` cookie under the non-default
-  `AeroCms.ExternalMember` scheme. Manager/default `Identity.Application` and
-  `.AeroCms.Auth` remain internal-only.
-- [x] Add local member/session validation on every external-cookie request and
-  host-site membership authorization that never reads `AeroCms.SiteId`.
-- [x] Add non-admin `GET /api/v1/member/me` and `POST /api/v1/member/logout`.
-- [ ] Refactor `/auth/me`, site selection, audit attribution, and
-  `SitePermissionHandler`.
-- [x] Add the WU-4a provider-neutral identity-link, organization-binding,
-  invitation, callback-state, and committed local-session issuance foundation.
-- [ ] Add Entra/WorkOS adapters, production login/callback routes, cookie
-  issuance, upstream logout, and provider-specific failure handling.
-
-Exit criterion for the bounded foundation: a test-only cookie harness can issue
-an external principal that is authorized entirely through local tenant/site
-assignments without creating an `AeroUser`. This criterion is met. Real
-provider callbacks remain later phases.
-
-Current foundation note: WU-4a now provides a provider-neutral application
-service that accepts only an already validated external identity. It validates
-a pre-existing tenant authority binding and persists Snowflake-keyed links,
-digest-only invitations and callback states, assignments, and revocable sessions
-across separate local commits. Invitation creation, authentication-state
-creation, and completion are separate local commits.
-Completion atomically consumes the applicable state and invitation and persists
-or updates only the member, link, assignment, and session documents required for
-that sign-in. One-time browser handles use a strict opaque `id.secret` format while
-only the SHA-256 secret digest is persisted. A returning active linked member
-with an active exact-site assignment does not need another invitation; creating
-a principal, link, or missing site assignment requires a fresh provider-verified
-email that matches a valid invitation. It intentionally does not introduce provider packages, login/callback
-routes, or production cookie issuance. Those provider-facing pieces remain
-required before WU-4 or Phase 2/3 is complete. Setup continues to configure
-Local Identity only for CMS administrators and managers; external providers
-are configured per tenant.
-
-### Phase 2 — Entra External ID
-
-- [ ] Register a named external-tenant OIDC scheme.
-- [ ] Add login, callback, remote-failure, and provider-aware logout endpoints.
-- [ ] Implement issuer/subject identity resolution and invite consumption.
-- [ ] Add Entra tenant/application setup documentation.
-- [ ] Add token-validation, state, nonce, PKCE, linking, revocation, and
-  cross-tenant tests.
-
-### Phase 3 — WorkOS AuthKit and SSO
-
-- [ ] Resolve the SDK dependency decision.
-- [ ] Add a constructor-injected WorkOS adapter.
-- [ ] Implement tenant-to-organization binding.
-- [ ] Add AuthKit/SSO login, callback, organization selection, refresh, and
-  logout.
-- [ ] Add invitation and membership synchronization.
-- [ ] Verify provider organization IDs against local bindings on every callback.
-
-### Phase 4 — Directory lifecycle
-
-- [ ] Add signed webhook ingestion and durable inbox processing.
-- [ ] Synchronize directory users, groups, and memberships.
-- [ ] Implement immediate local deactivation and session revocation.
-- [ ] Add replay, reconciliation, dead-letter visibility, and operator repair
-  tooling.
-- [ ] Add WorkOS Admin Portal onboarding if required.
-
-### Phase 5 — Production hardening
-
-- [ ] Threat-model login CSRF, callback mix-up, account linking, invitation
-  theft, tenant confusion, session fixation, replay, and deprovisioning races.
-- [ ] Run two-tenant IDOR and forged-organization tests.
-- [ ] Load-test Entra and WorkOS rate-limit behavior.
-- [ ] Verify multi-instance Data Protection key sharing.
-- [ ] Verify secret rotation and provider credential rollover.
-- [ ] Add provider health, callback failure, webhook lag, reconciliation drift,
-  and deactivation-latency telemetry.
-- [ ] Complete privacy retention/export/deletion policies for external profiles
-  and event payloads.
-
-## Required tests
-
-### Identity and linking
-
-- same issuer/subject resolves the same external member;
-- same email with a different issuer/subject does not auto-link;
-- identity link uniqueness is race-safe;
-- expired or consumed invitations cannot be reused;
-- callback state cannot be moved between tenants/providers;
-- an unbound provider organization cannot create local access.
-
-### Tenant and site isolation
-
-- an external member assigned to tenant A cannot select a site in tenant B;
-- a WorkOS `org_id` for tenant A cannot authorize a tenant B callback;
-- provider role/group claims do not bypass local `site:*` assignments;
-- external principals never acquire the internal Admin bypass implicitly;
-- switching sites rechecks current local assignment state.
-
-### Sessions
-
-- disabled/deprovisioned members cannot create or refresh sessions;
-- local security-version change invalidates an existing cookie;
-- WorkOS logout clears local and upstream sessions;
-- Entra logout clears local and upstream sessions;
-- internal Identity logout remains unchanged;
-- `/auth/me` resolves both principal kinds.
-
-### Events and reconciliation
-
-- invalid signatures and stale timestamps are rejected;
-- duplicate events are acknowledged once and projected once;
-- old out-of-order events cannot overwrite newer state;
-- deactivation revokes access even when delivery is retried;
-- replay rebuilds projections without repeating one-time side effects;
-- full reconciliation detects local members missing upstream.
-
-## Alternatives considered
-
-### Store external members as passwordless `AeroUser` records
-
-This minimizes changes to `/auth/me`, `SignInManager`, and
-`UserSiteAssignment`. It also makes ASP.NET Core Identity the local account
-store for both internal and external users.
-
-Rejected for the proposed design because the stated boundary keeps ASP.NET
-Identity internal for now, and because external lifecycle/session state differs
-from local password/security-stamp state. This alternative can be reconsidered
-if a single Identity account store is explicitly preferred over the separate
-principal model.
-
-### Trust provider roles and permissions directly
-
-This reduces local synchronization work.
-
-Rejected because AeroCMS site permissions and resource ownership are
-application-domain rules. Direct trust also creates provider lock-in and makes
-cross-provider behavior inconsistent.
-
-### Enable both providers for every tenant
-
-This offers maximum login choice.
-
-Rejected as the default because identity linking, membership authority,
-deprovisioning, and logout become ambiguous. Provider coexistence is allowed
-only as an explicit migration mode.
-
-### Build SAML and SCIM directly
-
-This avoids a WorkOS dependency.
-
-Deferred. Direct implementation creates substantial protocol, compatibility,
-security, reconciliation, and support obligations. It is justified only if
-WorkOS cost, dependency policy, hosting requirements, or customer constraints
-outweigh those obligations.
-
-## Open decisions for implementation
-
-1. Is the WorkOS SDK allowed a narrow Newtonsoft.Json transitive-dependency
-   exception, or must the adapter use direct System.Text.Json HTTP calls?
-2. Does every WorkOS organization map one-to-one to `TenantModel`, including
-   tenants with multiple sites?
-3. Are invitations required for every first membership, or may verified-domain
-   JIT provisioning be enabled per tenant?
-4. Which local site permissions may be derived from WorkOS roles, Entra app
-   roles, directory groups, or custom attributes?
-5. What is the maximum acceptable delay between upstream deactivation and local
-   access revocation?
-6. Must an external member be allowed to belong to tenants that use different
-   providers?
-
-## Definition of ready
-
-Implementation can start when:
-
-- Phase 0 decisions are answered;
-- the principal and assignment schema is accepted;
-- the WorkOS dependency decision is recorded;
-- Entra and WorkOS development environments are available;
-- callback/logout/webhook URLs are reserved;
-- secret storage and Data Protection key sharing are configured; and
-- the two-tenant security test matrix is approved.

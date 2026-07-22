@@ -53,9 +53,13 @@ public string? CacheMode { get; set; }
     /// </summary>
 public string? SecretProvider { get; set; }
     /// <summary>
-    /// Gets or sets the selected authentication mode.
+    /// Gets or sets the canonical CMS manager authentication provider.
     /// </summary>
-public string? AuthenticationMode { get; set; }
+public string RequestedManagerAuthenticationProvider { get; set; } = "local";
+    /// <summary>
+    /// Gets or sets the canonical storefront member authentication provider.
+    /// </summary>
+public string RequestedMemberAuthenticationProvider { get; set; } = "disabled";
     /// <summary>
     /// Gets or sets whether bootstrap configuration is available.
     /// </summary>

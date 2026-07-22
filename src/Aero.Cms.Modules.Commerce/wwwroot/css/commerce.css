@@ -102,6 +102,7 @@
 .eshop-brand { margin-right: auto; font-size: 1.25rem; font-weight: 700; }
 .eshop-dropdown-button { border: 0; background: transparent; font: inherit; cursor: pointer; }
 .eshop-account-state { color: #52525b; }
+.eshop-account-link { color: #111; }
 .eshop-cart-link { position: relative; }
 
 /* ---- Header: Cart Badge ---- */
@@ -158,6 +159,19 @@
     font-family: inherit;
     font-size: 0.875rem;
 }
+
+/* ---- Account ---- */
+.eshop-account { max-width: 70rem; margin: 0 auto; padding: 0 3rem; }
+.eshop-account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.eshop-account-panel { border: 1px solid #d4d4d8; background: #fafafa; padding: 2rem; }
+.eshop-account-panel h2 { margin-top: 0; }
+.eshop-account-panel-centered { max-width: 34rem; margin: 0 auto; }
+.eshop-account-form { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.eshop-account-form label { display: grid; gap: 0.4rem; font-weight: 600; }
+.eshop-account-form label span, .eshop-account-help { color: #52525b; font-size: 0.875rem; font-weight: 400; }
+.eshop-account-form input { border: 1px solid #71717a; background: #fff; padding: 0.75rem; font: inherit; }
+.eshop-account-actions { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+.eshop-account-actions form { margin: 0; }
 
 /* ---- Footer ---- */
 .eshop-footer {
@@ -596,6 +610,8 @@
     .eshop-cart-summary { width: 100%; }
     .eshop-checkout { padding: 0 1rem; }
     .eshop-orders { padding: 0 1rem; }
+    .eshop-account { padding: 0 1rem; }
+    .eshop-account-grid { grid-template-columns: 1fr; }
     .eshop-header-home .eshop-header-container { height: 20rem; }
     .eshop-header-intro h1 { font-size: 2rem; }
     .eshop-header-intro p { font-size: 1.25rem; }

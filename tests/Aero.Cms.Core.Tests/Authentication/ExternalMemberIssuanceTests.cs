@@ -419,7 +419,7 @@ public sealed class ExternalMemberIssuanceTests
         new(TenantId, siteId, BindingId, Provider, Email, setup.Time.GetUtcNow().AddHours(1));
 
     private static BeginExternalMemberSignInRequest BeginRequest(string? invitationHandle, long siteId = SiteId) =>
-        new(TenantId, siteId, BindingId, invitationHandle, Provider, "/shop/checkout");
+        new(TenantId, siteId, BindingId, invitationHandle, Provider, "/shop/checkout", "protected-correlation");
 
     private static CompleteExternalMemberSignInRequest CompleteRequest(
         Setup setup,
@@ -480,6 +480,10 @@ public sealed class ExternalMemberIssuanceTests
         Issuer = Issuer,
         OrganizationId = organization,
         BindingKey = Key(Provider, Issuer, organization),
+        Authority = "https://authority.example.com",
+        VaultId = 9001,
+        VaultEnvironment = "production",
+        CredentialPath = ExternalProviderSecretReference.CanonicalCredentialPath(tenantId, Provider),
         IsActive = true
     };
 

@@ -12,6 +12,7 @@
 		<AeroPowerShellExe Condition="'$(AeroPowerShellExe)' == ''">pwsh</AeroPowerShellExe>
 		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
 		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
+		<UserSecretsId>Aero.Cms.Web</UserSecretsId>
 	</PropertyGroup>
 
   <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
@@ -286,6 +287,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
