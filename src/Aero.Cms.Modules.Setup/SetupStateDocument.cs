@@ -17,9 +17,9 @@ public sealed class SetupStateDocument : SableDocumentString, IVersioned
 public const string FixedId = "cms/setup-state";
 
     /// <summary>
-    /// Gets or sets the document identifier.
+    /// Initializes the singleton setup-state document with its fixed identifier.
     /// </summary>
-public string Id { get; set; } = FixedId;
+public SetupStateDocument() => Id = FixedId;
     /// <summary>
     /// Gets or sets whether initial setup completed.
     /// </summary>

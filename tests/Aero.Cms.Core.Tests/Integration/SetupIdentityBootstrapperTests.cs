@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -39,6 +40,8 @@ public class SetupIdentityBootstrapperTests
         harness.PasswordHasher.VerifyHashedPassword(admin, admin.PasswordHash!, "CorrectHorseBattery1!")
             .Should().NotBe(PasswordVerificationResult.Failed);
         (await harness.UserManager.IsInRoleAsync(admin, CmsRoleNames.Admin)).Should().BeTrue();
+        (await harness.UserManager.GetClaimsAsync(admin)).Should().ContainSingle(claim =>
+            claim.Type == "AeroCms.RecoveryAdministrator" && claim.Value == "true");
     }
 
     [Test]
@@ -141,13 +144,16 @@ public class SetupIdentityBootstrapperTests
     private sealed class InMemoryUserStore :
         IUserEmailStore<AeroUser>,
         IUserPasswordStore<AeroUser>,
-        IUserRoleStore<AeroUser>
+        IUserRoleStore<AeroUser>,
+        IUserClaimStore<AeroUser>,
+        IQueryableUserStore<AeroUser>
     {
         private readonly Dictionary<long, AeroUser> _users = [];
         private readonly Dictionary<long, HashSet<string>> _rolesByUser = [];
+        private readonly Dictionary<long, List<Claim>> _claimsByUser = [];
         private long _nextId = 1;
 
-        public IReadOnlyCollection<AeroUser> Users => _users.Values;
+        public IQueryable<AeroUser> Users => _users.Values.AsQueryable();
 
         public void Dispose()
         {
@@ -183,6 +189,7 @@ public class SetupIdentityBootstrapperTests
 
             _users[user.Id] = user;
             _rolesByUser.TryAdd(user.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            _claimsByUser.TryAdd(user.Id, []);
             return Task.FromResult(IdentityResult.Success);
         }
 
@@ -190,6 +197,7 @@ public class SetupIdentityBootstrapperTests
         {
             _users[user.Id] = user;
             _rolesByUser.TryAdd(user.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            _claimsByUser.TryAdd(user.Id, []);
             return Task.FromResult(IdentityResult.Success);
         }
 
@@ -197,6 +205,7 @@ public class SetupIdentityBootstrapperTests
         {
             _users.Remove(user.Id);
             _rolesByUser.Remove(user.Id);
+            _claimsByUser.Remove(user.Id);
             return Task.FromResult(IdentityResult.Success);
         }
 
@@ -288,6 +297,73 @@ public class SetupIdentityBootstrapperTests
 
             return Task.FromResult(users);
         }
+
+        public Task<IList<Claim>> GetClaimsAsync(AeroUser user, CancellationToken cancellationToken)
+        {
+            IList<Claim> claims = _claimsByUser.TryGetValue(user.Id, out var assignedClaims)
+                ? assignedClaims.ToList()
+                : [];
+            return Task.FromResult(claims);
+        }
+
+        public Task AddClaimsAsync(
+            AeroUser user,
+            IEnumerable<Claim> claims,
+            CancellationToken cancellationToken)
+        {
+            var assignedClaims = _claimsByUser.TryGetValue(user.Id, out var existingClaims)
+                ? existingClaims
+                : _claimsByUser[user.Id] = [];
+            assignedClaims.AddRange(claims);
+            return Task.CompletedTask;
+        }
+
+        public Task ReplaceClaimAsync(
+            AeroUser user,
+            Claim claim,
+            Claim newClaim,
+            CancellationToken cancellationToken)
+        {
+            if (_claimsByUser.TryGetValue(user.Id, out var assignedClaims))
+            {
+                for (var index = 0; index < assignedClaims.Count; index++)
+                {
+                    if (ClaimsMatch(assignedClaims[index], claim))
+                        assignedClaims[index] = newClaim;
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveClaimsAsync(
+            AeroUser user,
+            IEnumerable<Claim> claims,
+            CancellationToken cancellationToken)
+        {
+            if (_claimsByUser.TryGetValue(user.Id, out var assignedClaims))
+            {
+                foreach (var claim in claims)
+                    assignedClaims.RemoveAll(candidate => ClaimsMatch(candidate, claim));
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IList<AeroUser>> GetUsersForClaimAsync(
+            Claim claim,
+            CancellationToken cancellationToken)
+        {
+            IList<AeroUser> users = _users.Values
+                .Where(user => _claimsByUser.TryGetValue(user.Id, out var assignedClaims) &&
+                    assignedClaims.Any(candidate => ClaimsMatch(candidate, claim)))
+                .ToList();
+            return Task.FromResult(users);
+        }
+
+        private static bool ClaimsMatch(Claim left, Claim right) =>
+            string.Equals(left.Type, right.Type, StringComparison.Ordinal) &&
+            string.Equals(left.Value, right.Value, StringComparison.Ordinal);
     }
 
     private sealed class InMemoryRoleStore : IRoleStore<AeroRole>

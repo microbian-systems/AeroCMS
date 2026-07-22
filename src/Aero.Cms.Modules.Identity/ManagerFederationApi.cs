@@ -48,12 +48,12 @@ public static class ManagerFederationApi
             .WithMetadata(new RequireAntiforgeryTokenAttribute());
         endpoints.MapGet(ManagerFederationRoutes.EntraWorkforceCallbackPath, (
                 HttpContext context,
-                IManagerIdentityAuthorityService authorityService,
-                IManagerFederationCoordinator coordinator,
-                IDocumentStore store,
-                UserManager<AeroUser> userManager,
-                SignInManager<AeroUser> signInManager,
-                TimeProvider timeProvider,
+                [FromServices] IManagerIdentityAuthorityService authorityService,
+                [FromServices] IManagerFederationCoordinator coordinator,
+                [FromServices] IDocumentStore store,
+                [FromServices] UserManager<AeroUser> userManager,
+                [FromServices] SignInManager<AeroUser> signInManager,
+                [FromServices] TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             CompleteCallbackAsync(ManagerIdentityProviders.EntraWorkforce,
                 ManagerFederationRoutes.EntraWorkforceCallbackPath,
@@ -62,12 +62,12 @@ public static class ManagerFederationApi
             .WithTags("Admin - Identity");
         endpoints.MapGet(ManagerFederationRoutes.WorkOsCallbackPath, (
                 HttpContext context,
-                IManagerIdentityAuthorityService authorityService,
-                IManagerFederationCoordinator coordinator,
-                IDocumentStore store,
-                UserManager<AeroUser> userManager,
-                SignInManager<AeroUser> signInManager,
-                TimeProvider timeProvider,
+                [FromServices] IManagerIdentityAuthorityService authorityService,
+                [FromServices] IManagerFederationCoordinator coordinator,
+                [FromServices] IDocumentStore store,
+                [FromServices] UserManager<AeroUser> userManager,
+                [FromServices] SignInManager<AeroUser> signInManager,
+                [FromServices] TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             CompleteCallbackAsync(ManagerIdentityProviders.WorkOs,
                 ManagerFederationRoutes.WorkOsCallbackPath,
@@ -77,7 +77,7 @@ public static class ManagerFederationApi
     }
 
     private static async Task<IResult> GetAuthorityAsync(
-        IManagerIdentityAuthorityService authorityService,
+        [FromServices] IManagerIdentityAuthorityService authorityService,
         CancellationToken cancellationToken)
     {
         var result = await authorityService.GetAsync(cancellationToken);
@@ -94,7 +94,7 @@ public static class ManagerFederationApi
 
     private static async Task<IResult> ConfigureAuthorityAsync(
         [FromBody] ConfigureManagerIdentityAuthorityRequest request,
-        IManagerIdentityAuthorityService authorityService,
+        [FromServices] IManagerIdentityAuthorityService authorityService,
         CancellationToken cancellationToken)
     {
         var result = await authorityService.ConfigureAsync(request, cancellationToken);
@@ -103,7 +103,7 @@ public static class ManagerFederationApi
 
     private static async Task<IResult> ConfigureAuthorityFormAsync(
         [FromForm] ConfigureManagerIdentityAuthorityRequest request,
-        IManagerIdentityAuthorityService authorityService,
+        [FromServices] IManagerIdentityAuthorityService authorityService,
         CancellationToken cancellationToken)
     {
         var result = await authorityService.ConfigureAsync(request, cancellationToken);
@@ -129,7 +129,7 @@ public static class ManagerFederationApi
 
     private static async Task<IResult> LogoutAsync(
         HttpContext httpContext,
-        IManagerFederationCoordinator coordinator,
+        [FromServices] IManagerFederationCoordinator coordinator,
         CancellationToken cancellationToken)
     {
         var sessionClaims = httpContext.User.FindAll(ManagerFederationClaims.SessionId).ToArray();
@@ -167,9 +167,9 @@ public static class ManagerFederationApi
 
     private static async Task<IResult> BeginLoginAsync(
         HttpContext httpContext,
-        IManagerIdentityAuthorityService authorityService,
-        IManagerFederationCoordinator coordinator,
-        ManagerAuthenticationRateLimiter rateLimiter,
+        [FromServices] IManagerIdentityAuthorityService authorityService,
+        [FromServices] IManagerFederationCoordinator coordinator,
+        [FromServices] ManagerAuthenticationRateLimiter rateLimiter,
         CancellationToken cancellationToken)
     {
         var authorityResult = await authorityService.GetAsync(cancellationToken);
@@ -194,9 +194,9 @@ public static class ManagerFederationApi
 
     private static async Task<IResult> BeginLinkAsync(
         HttpContext httpContext,
-        IRecoveryAdministratorAuthority recoveryAdministratorAuthority,
-        IManagerIdentityAuthorityService authorityService,
-        IManagerFederationCoordinator coordinator,
+        [FromServices] IRecoveryAdministratorAuthority recoveryAdministratorAuthority,
+        [FromServices] IManagerIdentityAuthorityService authorityService,
+        [FromServices] IManagerFederationCoordinator coordinator,
         CancellationToken cancellationToken)
     {
         var recoveryAdministratorId = await recoveryAdministratorAuthority.GetUserIdAsync(cancellationToken);

@@ -208,12 +208,12 @@ public static class IdentityApi
     /// </para>
     /// </remarks>
     private static async Task<IResult> LocalLoginAsync(
-        LocalLoginRequest request,
+        [FromBody] LocalLoginRequest request,
         HttpContext httpContext,
-        IManagerAuthenticationModeResolver modeResolver,
-        UserManager<AeroUser> userManager,
-        SignInManager<AeroUser> signInManager,
-        ManagerAuthenticationRateLimiter rateLimiter,
+        [FromServices] IManagerAuthenticationModeResolver modeResolver,
+        [FromServices] UserManager<AeroUser> userManager,
+        [FromServices] SignInManager<AeroUser> signInManager,
+        [FromServices] ManagerAuthenticationRateLimiter rateLimiter,
         CancellationToken cancellationToken)
     {
         if (!rateLimiter.TryAcquireLocalLogin(httpContext))
@@ -274,10 +274,10 @@ public static class IdentityApi
     private static async Task<IResult> LocalLoginFormAsync(
         [FromForm] LocalLoginFormRequest request,
         HttpContext httpContext,
-        IManagerAuthenticationModeResolver modeResolver,
-        UserManager<AeroUser> userManager,
-        SignInManager<AeroUser> signInManager,
-        ManagerAuthenticationRateLimiter rateLimiter,
+        [FromServices] IManagerAuthenticationModeResolver modeResolver,
+        [FromServices] UserManager<AeroUser> userManager,
+        [FromServices] SignInManager<AeroUser> signInManager,
+        [FromServices] ManagerAuthenticationRateLimiter rateLimiter,
         CancellationToken cancellationToken)
     {
         if (!rateLimiter.TryAcquireLocalLogin(httpContext))
@@ -330,8 +330,8 @@ public static class IdentityApi
     private static async Task<IResult> RecoveryLoginAsync(
         [FromForm] ManagerRecoveryLoginRequest request,
         HttpContext httpContext,
-        IManagerRecoveryAuthenticationService recoveryAuthenticationService,
-        TimeProvider timeProvider,
+        [FromServices] IManagerRecoveryAuthenticationService recoveryAuthenticationService,
+        [FromServices] TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         var result = await recoveryAuthenticationService.AuthenticateAsync(
@@ -366,7 +366,7 @@ public static class IdentityApi
     }
 
     private static async Task<IResult> GetAuthenticationConfigAsync(
-        IManagerAuthenticationModeResolver modeResolver,
+        [FromServices] IManagerAuthenticationModeResolver modeResolver,
         CancellationToken cancellationToken)
     {
         var result = await modeResolver.ResolveAsync(cancellationToken);
