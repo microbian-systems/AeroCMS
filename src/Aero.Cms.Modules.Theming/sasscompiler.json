@@ -1,0 +1,6 @@
+{
+  "Source": "Styles/aero-safe/theme.scss",
+  "Target": "wwwroot/themes/aero-safe/1.0.0/theme.css",
+  "Arguments": "--style=expanded --no-source-map",
+  "GenerateScopedCss": false
+}

@@ -5,7 +5,9 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Sites.Events;
+using Aero.Core;
 using Aero.Core.Http;
+using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -152,12 +154,107 @@ public sealed class SitesApiAuthorizationTests
                 Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task ThemeUpdateAuthorizesRouteSiteInsteadOfForgedCurrentSiteCookie()
+    {
+        var dependencies = CreateDependencies(hasReadPermission: true);
+        await using var app = await CreateAppAsync(dependencies);
+        using var client = app.GetTestClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/{HttpConstants.ApiPrefix}admin/sites/{SiteId}/theme")
+        {
+            Content = JsonContent.Create(new UpdateSiteThemeRequest(1, "aero-safe", "1.0.0"))
+        };
+        request.WithTestUser(UserId);
+        request.Headers.Add("Cookie", "AeroCms.SiteId=999999");
+
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await dependencies.UserSiteService.Received(1)
+            .HasPermissionAsync(UserId, SiteId, "update", Arg.Any<CancellationToken>());
+        await dependencies.ThemeSelectionService.Received(1)
+            .UpdateAsync(SiteId, Arg.Any<UpdateSiteThemeRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ThemeUpdateRejectsUnassignedRouteSiteBeforeMutation()
+    {
+        var dependencies = CreateDependencies(hasReadPermission: false);
+        await using var app = await CreateAppAsync(dependencies);
+        using var client = app.GetTestClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/{HttpConstants.ApiPrefix}admin/sites/{SiteId}/theme")
+        {
+            Content = JsonContent.Create(new UpdateSiteThemeRequest(1, "aero-safe", "1.0.0"))
+        };
+        request.WithTestUser(UserId);
+
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Forbidden);
+        await dependencies.ThemeSelectionService.DidNotReceive()
+            .UpdateAsync(Arg.Any<long>(), Arg.Any<UpdateSiteThemeRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AdminRoleCanUpdateThemeWithoutSiteAssignment()
+    {
+        var dependencies = CreateDependencies(hasReadPermission: false);
+        await using var app = await CreateAppAsync(dependencies);
+        using var client = app.GetTestClient();
+        using var request = CreateThemeUpdateRequest();
+        request.WithTestUser(UserId, role: "Admin");
+
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await dependencies.UserSiteService.DidNotReceive()
+            .HasPermissionAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await dependencies.ThemeSelectionService.Received(1)
+            .UpdateAsync(SiteId, Arg.Any<UpdateSiteThemeRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ExactIsAdminClaimCanUpdateThemeWithoutSiteAssignment()
+    {
+        var dependencies = CreateDependencies(hasReadPermission: false);
+        await using var app = await CreateAppAsync(dependencies);
+        using var client = app.GetTestClient();
+        using var request = CreateThemeUpdateRequest();
+        request.WithTestUser(UserId, isAdmin: true);
+
+        using var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await dependencies.UserSiteService.DidNotReceive()
+            .HasPermissionAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await dependencies.ThemeSelectionService.Received(1)
+            .UpdateAsync(SiteId, Arg.Any<UpdateSiteThemeRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SitesModuleDeclaresThemeModuleDependency()
+    {
+        await Assert.That(new SitesModule().Dependencies).Contains("AeroThemeModule");
+    }
+
     private static HttpRequestMessage CreateSelectionRequest()
         => new(
             HttpMethod.Post,
             $"/{HttpConstants.ApiPrefix}admin/sites/current")
         {
             Content = JsonContent.Create(new SetCurrentSiteRequest(SiteId))
+        };
+
+    private static HttpRequestMessage CreateThemeUpdateRequest()
+        => new(
+            HttpMethod.Put,
+            $"/{HttpConstants.ApiPrefix}admin/sites/{SiteId}/theme")
+        {
+            Content = JsonContent.Create(new UpdateSiteThemeRequest(1, "aero-safe", "1.0.0"))
         };
 
     private static TestDependencies CreateDependencies(bool hasReadPermission)
@@ -184,10 +281,23 @@ public sealed class SitesApiAuthorizationTests
                 Arg.Any<CancellationToken>())
             .Returns(hasReadPermission);
 
+        var themeSelectionService = Substitute.For<ISiteThemeSelectionService>();
+        themeSelectionService.UpdateAsync(
+                Arg.Any<long>(),
+                Arg.Any<UpdateSiteThemeRequest>(),
+                Arg.Any<CancellationToken>())
+            .Returns(call => Task.FromResult<Result<SiteThemeSelectionViewModel, AeroError>>(
+                new Result<SiteThemeSelectionViewModel, AeroError>.Ok(
+                    new SiteThemeSelectionViewModel(
+                        call.ArgAt<UpdateSiteThemeRequest>(1).ThemeId,
+                        call.ArgAt<UpdateSiteThemeRequest>(1).ThemeVersion,
+                        2))));
+
         return new TestDependencies(
             siteLookup,
             userSiteService,
-            Substitute.For<IMessageBus>());
+            Substitute.For<IMessageBus>(),
+            themeSelectionService);
     }
 
     private static async Task<WebApplication> CreateAppAsync(TestDependencies dependencies)
@@ -199,6 +309,7 @@ public sealed class SitesApiAuthorizationTests
         builder.Services.AddSingleton(dependencies.SiteLookup);
         builder.Services.AddSingleton(dependencies.UserSiteService);
         builder.Services.AddSingleton(dependencies.Bus);
+        builder.Services.AddSingleton(dependencies.ThemeSelectionService);
 
         var app = builder.Build();
         app.UseAuthentication();
@@ -211,5 +322,6 @@ public sealed class SitesApiAuthorizationTests
     private sealed record TestDependencies(
         ISiteLookupService SiteLookup,
         IUserSiteService UserSiteService,
-        IMessageBus Bus);
+        IMessageBus Bus,
+        ISiteThemeSelectionService ThemeSelectionService);
 }

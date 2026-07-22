@@ -13,6 +13,7 @@
     <PackageVersion Include="TUnit" Version="1.58.0" />
     <PackageVersion Include="AngleSharp" Version="1.5.2" />
     <PackageVersion Include="AngleSharp.Css" Version="1.0.0-beta.216" />
+    <PackageVersion Include="AspNetCore.SassCompiler" Version="1.101.0" />
     <PackageVersion Include="Blazor.Radzen.Theming" Version="10.4.7" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
     <PackageVersion Include="Boxed.AspNetCore" Version="9.0.1" />

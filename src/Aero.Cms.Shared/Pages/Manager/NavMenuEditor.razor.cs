@@ -1071,7 +1071,7 @@ protected override async Task OnParametersSetAsync()
         var appCss = new Uri(root, "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(root, "_content/Aero.Cms.Shared/aero-manager.css");
         var radzenCss = new Uri(root, "_content/Radzen.Blazor/css/standard-base.css");
-        var aeroCss = new Uri(root, "css/aero.css");
+        var aeroCss = new Uri(root, "css/aero.generated.css");
 
         return $$"""
             <!DOCTYPE html>
@@ -1087,8 +1087,7 @@ protected override async Task OnParametersSetAsync()
                 <link rel="stylesheet" href="{{appCss}}">
                 <link rel="stylesheet" href="{{managerCss}}">
                 <link rel="stylesheet" href="{{radzenCss}}">
-                <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-                <style type="text/tailwindcss" src="{{aeroCss}}"></style>
+                <link rel="stylesheet" href="{{aeroCss}}">
                 <style>
                     html, body { margin: 0; min-height: 100%; background: #fff; }
                     body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }

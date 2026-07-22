@@ -1,5 +1,6 @@
 using Aero.Core.Data;
 using Aero.Cms.Html;
+using Aero.Cms.Abstractions.Theming;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
@@ -44,6 +45,15 @@ public string? DefaultCulture { get; set; } = DefaultCultureName;
     /// Gets or sets the framework-neutral site style profile.
     /// </summary>
     public StyleProfileSettings StyleProfile { get; set; } = new();
+
+    /// <summary>Gets or sets the exact deployment-installed theme identifier.</summary>
+    public string ThemeId { get; set; } = BuiltInThemeDefaults.Id;
+
+    /// <summary>Gets or sets the exact deployment-installed theme version.</summary>
+    public string ThemeVersion { get; set; } = BuiltInThemeDefaults.Version;
+
+    /// <summary>Gets or sets the optimistic revision of the theme selection.</summary>
+    public long ThemeRevision { get; set; } = 1;
 
     // IAuditable
     /// <summary>Gets or sets the creation timestamp. The default is UTC, but setters do not enforce an offset.</summary>

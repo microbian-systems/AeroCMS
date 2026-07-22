@@ -47,6 +47,18 @@ public record SiteViewModel : AeroEntityViewModel
     /// </summary>
 [Id(8)]
     public SiteStyleProfileViewModel StyleProfile { get; set; } = new();
+
+    /// <summary>Gets or sets the exact deployment-installed theme identifier.</summary>
+[Id(9)]
+    public string ThemeId { get; set; } = Theming.BuiltInThemeDefaults.Id;
+
+    /// <summary>Gets or sets the exact deployment-installed theme version.</summary>
+[Id(10)]
+    public string ThemeVersion { get; set; } = Theming.BuiltInThemeDefaults.Version;
+
+    /// <summary>Gets or sets the optimistic revision of the theme selection.</summary>
+[Id(11)]
+    public long ThemeRevision { get; set; } = 1;
 }
 
 /// <summary>

@@ -54,6 +54,10 @@ public Task Handle(FooterChangedEvent @event, CancellationToken cancellationToke
 public Task Handle(SiteStyleProfileChangedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateSiteStyleProfileAsync(@event, cancellationToken);
 
+        /// <summary>Invalidates all rendered pages for a site after its exact theme changes.</summary>
+public Task Handle(SiteThemeChangedEvent @event, CancellationToken cancellationToken)
+        => cacheInvalidationService.InvalidateSiteThemeAsync(@event, cancellationToken);
+
     // Rich events — carry PageViewModel for zero-DB consumers
         /// <summary>
     /// Forwards a rich page-create event as a current-slug content change.

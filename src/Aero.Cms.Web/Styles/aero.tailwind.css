@@ -1,6 +1,16 @@
-/* 
+@import "tailwindcss" source(none);
+
+/* Scan application-owned UI sources without traversing static/vendor or build output trees. */
+@source "../Components";
+@source "../Pages";
+@source "../Views";
+@source "../ts";
+@source "../../Aero.Cms.Shared/{Components,Layout,Pages,ts}";
+@source "../../Aero.Cms.Modules.*/{Areas,Components,Pages,Views}";
+
+/*
   Aero CMS Web Client Theme
-  Targeting Tailwind CSS v4 Browser Engine
+  Compiled by the pinned Tailwind CSS standalone CLI in eng/theme-assets.
 */
 
 @theme {
@@ -20,7 +30,7 @@
   --color-avocado-600: oklch(0.53 0.12 118.34);
 
   /* Brand Accents */
-  --color-brand-600: oklch(0.51 0.22 262.38); /* Premium Indigo */
+  --color-brand-600: oklch(0.51 0.22 262.38);
   --color-brand-700: oklch(0.44 0.19 261.21);
 
   /* Animation Easing */
@@ -32,12 +42,11 @@
   --radius-2xl: 1.5rem;
 }
 
-/* Base Styles */
 @layer base {
   html {
     @apply scroll-smooth;
   }
-  
+
   body {
     @apply font-sans;
   }
@@ -51,8 +60,7 @@
   html[dir="rtl"] svg {
     transform-origin: center;
   }
-  
-  /* Shared block utilities */
+
   .container-wide {
     @apply mx-auto px-4 sm:px-6 lg:px-12 max-w-[100rem];
   }

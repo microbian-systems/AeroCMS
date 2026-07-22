@@ -36,6 +36,11 @@ Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsync(
     long id,
     UpdateSiteStyleProfileRequest request,
     CancellationToken ct = default);
+        /// <summary>Updates a site's exact deployment-installed theme selection.</summary>
+Task<Result<SiteThemeSelectionViewModel, AeroError>> UpdateThemeAsync(
+    long id,
+    UpdateSiteThemeRequest request,
+    CancellationToken ct = default);
         /// <summary>
     /// DeleteAsync method.
     /// </summary>
@@ -94,6 +99,32 @@ public Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsyn
             $"{id}/style-profile",
             request,
             ct);
+
+        /// <inheritdoc />
+public async Task<Result<SiteThemeSelectionViewModel, AeroError>> UpdateThemeAsync(
+    long id,
+    UpdateSiteThemeRequest request,
+    CancellationToken ct = default)
+{
+    var result = await PutAsync<UpdateSiteThemeRequest, SiteThemeSelectionViewModel>(
+            $"{id}/theme",
+            request,
+            ct);
+
+    return result switch
+    {
+        Result<SiteThemeSelectionViewModel, AeroError>.Failure
+        {
+            Error: AeroError.HttpRequest httpError
+        } when httpError.code == System.Net.HttpStatusCode.Conflict
+            => new Result<SiteThemeSelectionViewModel, AeroError>.Failure(
+                AeroError.ConflictError(
+                    string.IsNullOrWhiteSpace(httpError.msg)
+                        ? "The site theme changed concurrently."
+                        : httpError.msg)),
+        _ => result
+    };
+}
 
         /// <summary>
     /// DeleteAsync method.

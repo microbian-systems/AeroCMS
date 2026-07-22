@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Primitives;
@@ -18,11 +19,11 @@ namespace Aero.Cms.Modules.OutputCache.Caching;
 /// </para>
 /// <para>
 /// Cache keys are partitioned by scheme and host, path base and path, current UI culture,
-/// and, by default, every query parameter. A named policy can replace the query-key set after
-/// this policy runs. Request cookies and arbitrary request headers are not key dimensions.
-/// Consequently, endpoints using this policy must produce output that is safe to share among
-/// anonymous requests with the same configured dimensions; this policy is not a tenant,
-/// cookie, or user-isolation boundary.
+/// the resolved site and exact persisted theme selection, and, by default, every query parameter.
+/// A named policy can replace the query-key set after this policy runs. Request cookies and
+/// arbitrary request headers are not key dimensions. Consequently, endpoints using this policy
+/// must produce output that is safe to share among anonymous requests with the same configured
+/// dimensions; this policy is not a cookie or user-isolation boundary.
 /// </para>
 /// <para>
 /// This type configures the ASP.NET Core response-output cache. It neither reads nor writes
@@ -68,7 +69,7 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
     /// <inheritdoc />
     /// <remarks>
     /// Enables output caching and locking, evaluates request eligibility, and establishes
-    /// origin, path, query, and UI-culture variation. Ineligible requests receive the
+    /// origin, path, query, UI-culture, and resolved site/theme variation. Ineligible requests receive the
     /// <c>BYPASS</c> diagnostic value when the response has not started.
     /// </remarks>
     ValueTask IOutputCachePolicy.CacheRequestAsync(
@@ -95,6 +96,16 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
         // Vary by all query parameters by default.
         context.CacheVaryByRules.QueryKeys = "*";
         context.CacheVaryByRules.VaryByValues["culture"] = CultureInfo.CurrentUICulture.Name;
+
+        if (context.HttpContext.Features.Get<IAeroSiteSlice>() is { } site)
+        {
+            context.CacheVaryByRules.VaryByValues["site-id"] =
+                site.SiteId.ToString(CultureInfo.InvariantCulture);
+            context.CacheVaryByRules.VaryByValues["theme-id"] = site.ThemeId;
+            context.CacheVaryByRules.VaryByValues["theme-version"] = site.ThemeVersion;
+            context.CacheVaryByRules.VaryByValues["theme-revision"] =
+                site.ThemeRevision.ToString(CultureInfo.InvariantCulture);
+        }
 
         if (!attemptOutputCaching)
         {

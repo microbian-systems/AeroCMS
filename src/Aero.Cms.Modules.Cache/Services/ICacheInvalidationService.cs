@@ -33,4 +33,8 @@ Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancella
 Task InvalidateSiteStyleProfileAsync(
     SiteStyleProfileChangedEvent @event,
     CancellationToken cancellationToken = default);
+        /// <summary>Invalidates rendered pages whose stylesheet selection changed.</summary>
+Task InvalidateSiteThemeAsync(
+    SiteThemeChangedEvent @event,
+    CancellationToken cancellationToken = default);
 }

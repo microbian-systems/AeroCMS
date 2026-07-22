@@ -7,6 +7,11 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
     <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+		<AeroRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../..'))</AeroRepositoryRoot>
+		<AeroThemeAssetScript>$(AeroRepositoryRoot)/eng/theme-assets/build-theme-assets.ps1</AeroThemeAssetScript>
+		<AeroPowerShellExe Condition="'$(AeroPowerShellExe)' == ''">pwsh</AeroPowerShellExe>
+		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
+		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
 	</PropertyGroup>
 
   <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
@@ -345,5 +350,43 @@
     </PropertyGroup>
     <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
   </Target>
+
+  <ItemGroup>
+    <AeroThemeAssetInput Include="$(AeroThemeAssetScript)" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/**/*.css" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Components/**/*;$(MSBuildProjectDirectory)/Pages/**/*;$(MSBuildProjectDirectory)/Views/**/*;$(MSBuildProjectDirectory)/ts/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Layout/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/ts/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Areas/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Views/**/*"
+                         Exclude="$(AeroRepositoryRoot)/src/**/bin/**;$(AeroRepositoryRoot)/src/**/obj/**;$(AeroRepositoryRoot)/src/**/wwwroot/**;$(AeroRepositoryRoot)/src/**/Generated/**" />
+  </ItemGroup>
+
+  <Target Name="AeroCompileThemeAssets"
+          Inputs="@(AeroThemeAssetInput)"
+          Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+    <Exec Command="&quot;$(AeroPowerShellExe)&quot; -NoProfile -File &quot;$(AeroThemeAssetScript)&quot; -Mode Build" />
+  </Target>
+
+  <Target Name="AeroBuildThemeAssetsWhenRequested"
+          Condition="'$(AeroBuildThemeAssets)' == 'true'"
+          DependsOnTargets="AeroCompileThemeAssets" />
+
+  <Target Name="AeroEnsureGeneratedThemeAssetsExist">
+    <Error Condition="!Exists('$(AeroGeneratedCss)')"
+           Text="Compiled Tailwind CSS is missing: $(AeroGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+    <Error Condition="!Exists('$(AeroDocsGeneratedCss)')"
+           Text="Compiled Tailwind CSS is missing: $(AeroDocsGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+  </Target>
+
+  <Target Name="AeroRejectStaleGeneratedThemeAssets"
+          Condition="'$(AeroBuildThemeAssets)' != 'true'"
+          DependsOnTargets="AeroEnsureGeneratedThemeAssetsExist"
+          Inputs="@(AeroThemeAssetInput)"
+          Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+    <Error Text="Committed Tailwind CSS is older than an authoring or UI source. Run eng/theme-assets/build-theme-assets.ps1, or rebuild with -p:AeroBuildThemeAssets=true." />
+  </Target>
+
+  <Target Name="AeroPrepareThemeAssetsBeforeStaticWebAssets"
+          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
+          DependsOnTargets="AeroBuildThemeAssetsWhenRequested;AeroEnsureGeneratedThemeAssetsExist;AeroRejectStaleGeneratedThemeAssets" />
 
 </Project>

@@ -22,6 +22,12 @@ string? DefaultCulture { get; }
     /// Gets or sets the Supported Cultures.
     /// </summary>
 IReadOnlyList<string> SupportedCultures { get; }
+    /// <summary>Gets the exact selected deployment-installed theme identifier.</summary>
+string ThemeId { get; }
+    /// <summary>Gets the exact selected deployment-installed theme version.</summary>
+string ThemeVersion { get; }
+    /// <summary>Gets the persisted theme-selection revision.</summary>
+long ThemeRevision { get; }
 }
 
 /// <summary>
@@ -45,4 +51,10 @@ public string? DefaultCulture { get; init; }
     /// Gets or sets the Supported Cultures.
     /// </summary>
 public IReadOnlyList<string> SupportedCultures { get; init; } = [];
+    /// <inheritdoc />
+public string ThemeId { get; init; } = Theming.BuiltInThemeDefaults.Id;
+    /// <inheritdoc />
+public string ThemeVersion { get; init; } = Theming.BuiltInThemeDefaults.Version;
+    /// <inheritdoc />
+public long ThemeRevision { get; init; } = 1;
 }

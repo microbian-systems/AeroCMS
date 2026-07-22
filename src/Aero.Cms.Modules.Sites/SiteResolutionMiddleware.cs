@@ -75,7 +75,10 @@ public async Task InvokeAsync(HttpContext context)
             SiteId = site.Id,
             TenantId = site.TenantId,
             DefaultCulture = site.DefaultCulture,
-            SupportedCultures = site.SupportedCultures
+            SupportedCultures = site.SupportedCultures,
+            ThemeId = site.ThemeId,
+            ThemeVersion = site.ThemeVersion,
+            ThemeRevision = site.ThemeRevision
         });
 
         await next(context);

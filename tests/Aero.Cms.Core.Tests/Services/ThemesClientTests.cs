@@ -60,14 +60,14 @@ public class ThemesClientTests
     public async Task GetByIdAsync_Should_Return_Theme_Detail()
     {
         // Arrange
-        var theme = new ThemeDetail("theme1", "Theme 1", "1.0.0", "Author 1", "Description 1", null, true, new List<ThemeAsset>(), DateTime.UtcNow);
+        var theme = new ThemeDetail("theme1", "Theme 1", "1.0.0", "Author 1", "Description 1", null, true, new List<ThemeAsset>());
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(theme)
         };
 
         // Act
-        var result = await _client.GetByIdAsync("theme1");
+        var result = await _client.GetByIdAsync("theme1", "1.0.0");
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -75,7 +75,7 @@ public class ThemesClientTests
         {
             okResult.Value.Name.Should().Be("Theme 1");
         }
-        _handler.LastRequest!.RequestUri!.PathAndQuery.Should().Be("/api/v1/admin/themes/details/theme1");
+        _handler.LastRequest!.RequestUri!.PathAndQuery.Should().Be("/api/v1/admin/themes/details/theme1/1.0.0");
     }
 
     private class MockHttpMessageHandler : HttpMessageHandler

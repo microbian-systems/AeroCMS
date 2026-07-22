@@ -1,9 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
+  <PropertyGroup>
+    <AeroBuiltInThemeRoot>$(MSBuildProjectDirectory)\wwwroot\themes\aero-safe\1.0.0</AeroBuiltInThemeRoot>
+    <SassCompilerEnableWatcher>false</SassCompilerEnableWatcher>
+  </PropertyGroup>
 
+  <Target Name="ValidateAeroBuiltInThemeAssets"
+          BeforeTargets="ResolveScopedCssInputs;BundleMinify;ResolveProjectStaticWebAssets;Build;Publish"
+          DependsOnTargets="Compile Sass">
+    <Error Condition="!Exists('$(AeroBuiltInThemeRoot)\framework.css')"
+           Text="The built-in Aero Safe framework stylesheet is missing: $(AeroBuiltInThemeRoot)\framework.css" />
+    <Error Condition="!Exists('$(AeroBuiltInThemeRoot)\theme.css')"
+           Text="The built-in Aero Safe theme stylesheet is missing: $(AeroBuiltInThemeRoot)\theme.css" />
+  </Target>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="AspNetCore.SassCompiler" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

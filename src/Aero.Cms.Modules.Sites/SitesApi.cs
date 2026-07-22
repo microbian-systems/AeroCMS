@@ -54,6 +54,7 @@ public static class SitesApi
         group.MapPost("/", CreateSite);
         group.MapPut("/{id:long}", UpdateSite);
         group.MapPut("/{id:long}/style-profile", UpdateSiteStyleProfile);
+        group.MapPut("/{id:long}/theme", UpdateSiteTheme);
         group.MapDelete("/{id:long}", DeleteSite);
 
         // ── Client error reporting ──
@@ -181,6 +182,22 @@ public static class SitesApi
                 cancellationToken);
     }
 
+    /// <summary>Determines whether the principal may update the route-selected site.</summary>
+    private static async Task<bool> CanUpdateSiteAsync(
+        ClaimsPrincipal user,
+        long siteId,
+        IUserSiteService userSiteService,
+        CancellationToken cancellationToken)
+    {
+        if (user.IsInRole("Admin") || user.HasClaim("is_admin", "true"))
+            return true;
+
+        var claim = user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub");
+        return long.TryParse(claim, out var userId) &&
+               await userSiteService.HasPermissionAsync(userId, siteId, "update", cancellationToken);
+    }
+
     /// <summary>
     /// Expires the manager's selected-site cookie.
     /// </summary>
@@ -284,6 +301,9 @@ public static class SitesApi
             DefaultCulture = some.Value.DefaultCulture,
             SupportedCultures = NormalizeCultureSettings(some.Value.DefaultCulture, some.Value.SupportedCultures).SupportedCultures,
             StyleProfile = SiteStyleProfileMapper.ToViewModel(some.Value.StyleProfile),
+            ThemeId = some.Value.ThemeId,
+            ThemeVersion = some.Value.ThemeVersion,
+            ThemeRevision = some.Value.ThemeRevision,
             CreatedOn = some.Value.CreatedOn,
             ModifiedOn = some.Value.ModifiedOn,
             CreatedBy = some.Value.CreatedBy,
@@ -456,6 +476,34 @@ public static class SitesApi
             Result<SiteStyleProfileViewModel, AeroError>.Failure { Error: var error } =>
                 Results.Problem(error.ToString(), statusCode: StatusCodes.Status500InternalServerError),
             _ => Results.Problem("Unexpected style-profile update result.")
+        };
+    }
+
+    /// <summary>Applies an authorized optimistic exact-theme update to the route-selected site.</summary>
+    private static async Task<IResult> UpdateSiteTheme(
+        long id,
+        [FromBody] UpdateSiteThemeRequest request,
+        HttpContext httpContext,
+        [FromServices] IUserSiteService userSiteService,
+        [FromServices] ISiteThemeSelectionService themeSelectionService,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanUpdateSiteAsync(httpContext.User, id, userSiteService, cancellationToken))
+            return Results.Forbid();
+
+        var result = await themeSelectionService.UpdateAsync(id, request, cancellationToken).ConfigureAwait(false);
+        return result switch
+        {
+            Result<SiteThemeSelectionViewModel, AeroError>.Ok ok => Results.Ok(ok.Value),
+            Result<SiteThemeSelectionViewModel, AeroError>.Failure { Error: AeroError.NotFound notFound } =>
+                Results.NotFound(new { message = notFound.msg }),
+            Result<SiteThemeSelectionViewModel, AeroError>.Failure { Error: AeroError.Conflict conflict } =>
+                Results.Conflict(new { message = conflict.msg }),
+            Result<SiteThemeSelectionViewModel, AeroError>.Failure { Error: AeroError.Validation validation } =>
+                Results.BadRequest(new { errors = validation.Errors }),
+            Result<SiteThemeSelectionViewModel, AeroError>.Failure =>
+                Results.Problem("The site theme could not be updated.", statusCode: StatusCodes.Status500InternalServerError),
+            _ => Results.Problem("Unexpected site-theme update result.")
         };
     }
 

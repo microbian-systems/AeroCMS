@@ -154,7 +154,6 @@ public sealed class AdminEndpointAuthorizationMetadataTests
             "/api/v1/admin/audit",
             "/api/v1/admin/dashboard",
             "/api/v1/admin/settings",
-            "/api/v1/admin/themes",
             "/api/v1/admin/modules",
             "/api/v1/admin/localization",
             "/api/v1/admin/users"
@@ -167,6 +166,18 @@ public sealed class AdminEndpointAuthorizationMetadataTests
             .Select(endpoint => endpoint.RoutePattern.RawText)
             .ToList();
         await Assert.That(globalEndpointsWithoutAdminPolicy).IsEmpty();
+
+        var themeEndpoints = endpoints
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(
+                "/api/v1/admin/themes",
+                StringComparison.Ordinal) == true)
+            .ToList();
+        await Assert.That(themeEndpoints).IsNotEmpty();
+        await Assert.That(themeEndpoints.All(endpoint =>
+            endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
+            && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any()
+            && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
+                .All(data => data.Policy is null))).IsTrue();
 
         var aiSettingsEndpoints = endpoints
             .Where(endpoint => string.Equals(

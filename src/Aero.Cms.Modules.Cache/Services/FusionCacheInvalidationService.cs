@@ -151,6 +151,22 @@ public async Task InvalidateSiteStyleProfileAsync(
             @event.Revision);
     }
 
+        /// <summary>Invalidates rendered page responses for the site whose theme selection changed.</summary>
+public async Task InvalidateSiteThemeAsync(
+    SiteThemeChangedEvent @event,
+    CancellationToken cancellationToken = default)
+    {
+        var tag = $"site-pages-{@event.SiteId}";
+        await outputCacheStore.EvictByTagAsync(tag, cancellationToken);
+
+        logger.LogDebug(
+            "Invalidated rendered pages for site {SiteId} after theme {ThemeId}@{ThemeVersion} revision {Revision}",
+            @event.SiteId,
+            @event.ThemeId,
+            @event.ThemeVersion,
+            @event.Revision);
+    }
+
     private async Task RemoveSlugKeyAsync(string contentType, long siteId, string? slug, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(slug))

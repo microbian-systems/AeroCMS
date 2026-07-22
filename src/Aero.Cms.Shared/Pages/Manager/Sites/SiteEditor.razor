@@ -18,12 +18,12 @@
                           Text="@SaveButtonText"
                           ButtonStyle="ButtonStyle.Primary"
                           Click="@SaveAsync"
-                          Disabled="@IsSaving" />
+                          Disabled="@(IsSaving || IsApplyingTheme)" />
             <RadzenButton Icon="close"
                           Text="@L["Cancel"]"
                           ButtonStyle="ButtonStyle.Secondary"
                           Click="@(() => Navigation.NavigateTo("/manager/sites"))"
-                          Disabled="@IsSaving" />
+                          Disabled="@(IsSaving || IsApplyingTheme)" />
         </div>
     </div>
 
@@ -67,6 +67,87 @@
                         <p class="mt-1 text-sm pe-description">
                             @L["Set reusable colors for page content. Page authors use these named roles instead of framework-specific classes."]
                         </p>
+                    </div>
+
+                    <div class="mb-6 rounded-md border p-4"
+                         style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-3">
+                                    <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Site theme"]</h3>
+                                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">
+                                        @L["Choose an exact version from the themes installed with this deployment. Theme changes are applied separately from the rest of this form."]
+                                    </p>
+                                </div>
+
+                                <label class="pe-field">
+                                    <span>@L["Installed theme and version"]</span>
+                                    <select @bind="SelectedThemeIndex"
+                                            disabled="@(IsNew || IsLoading || IsThemeCatalogLoading || IsApplyingTheme || ThemeCatalog.Count == 0)">
+                                        @if (!IsCurrentThemeInCatalog)
+                                        {
+                                            <option value="-1" disabled>
+                                                @CurrentThemeId @CurrentThemeVersion — @L["not installed in this deployment"]
+                                            </option>
+                                        }
+                                        @for (var index = 0; index < ThemeCatalog.Count; index++)
+                                        {
+                                            var optionIndex = index;
+                                            var theme = ThemeCatalog[index];
+                                            <option value="@optionIndex">
+                                                @theme.Name — @theme.Id @theme.Version@(theme.IsSafeDefault ? $" — {L["safe default"]}" : string.Empty)
+                                            </option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <p class="mt-2 text-xs" style="color: var(--pe-text-muted);">
+                                    @L["Current selection:"] <span class="font-mono">@CurrentThemeId@("@")@CurrentThemeVersion</span>
+                                    · @L["revision"] @CurrentThemeRevision
+                                </p>
+                            </div>
+
+                            <button type="button"
+                                    class="pe-btn pe-btn-primary"
+                                    disabled="@(!CanApplyTheme)"
+                                    @onclick="ApplyThemeAsync">
+                                @(IsApplyingTheme ? L["Applying..."] : L["Apply Theme"])
+                            </button>
+                        </div>
+
+                        @if (IsNew)
+                        {
+                            <p class="mt-3 rounded border px-3 py-2 text-xs"
+                               style="border-color: var(--pe-border); color: var(--pe-text-muted);">
+                                @L["Create the site first, then return here to apply a theme."]
+                            </p>
+                        }
+                        else if (IsThemeCatalogLoading)
+                        {
+                            <p class="mt-3 text-xs" style="color: var(--pe-text-muted);">@L["Loading installed themes..."]</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(ThemeCatalogError))
+                        {
+                            <div class="mt-3 flex flex-col gap-2 rounded border px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between"
+                                 style="border-color: var(--pe-border); color: var(--pe-text-secondary);">
+                                <span>@L["The installed theme catalog could not be loaded."] @ThemeCatalogError</span>
+                                <button type="button"
+                                        class="pe-btn pe-btn-secondary pe-btn-sm"
+                                        disabled="@(IsThemeCatalogLoading || IsApplyingTheme)"
+                                        @onclick="LoadThemeCatalogAsync">
+                                    @L["Retry"]
+                                </button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(ThemeApplyError))
+                        {
+                            <p class="mt-3 rounded border px-3 py-2 text-xs"
+                               style="border-color: var(--pe-border); color: var(--pe-text-secondary);">
+                                @ThemeApplyError
+                            </p>
+                        }
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

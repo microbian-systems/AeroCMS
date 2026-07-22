@@ -1,0 +1,13 @@
+:root {
+  color-scheme: light;
+  --aero-theme-background: #f8fafc;
+  --aero-theme-foreground: #0f172a;
+  --aero-theme-surface: #ffffff;
+  --aero-theme-border: #e2e8f0;
+}
+
+html {
+  background: var(--aero-theme-background);
+  color: var(--aero-theme-foreground);
+  font-family: var(--aero-theme-font-sans);
+}

@@ -12,7 +12,7 @@
 
 @* Docs-specific CSS — pass through from child pages *@
 @section cssPartial {
-    <style type="text/tailwindcss" src="/_content/Aero.Cms.Modules.Docs/css/docs.css"></style>
+    <link rel="stylesheet" href="/_content/Aero.Cms.Modules.Docs/css/docs.generated.css" />
     @await RenderSectionAsync("cssPartial", required: false)
 }
 

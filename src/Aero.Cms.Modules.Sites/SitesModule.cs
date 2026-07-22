@@ -45,9 +45,9 @@ public override string Author => AeroConstants.Author;
 public override short Order => -9999;
 
     /// <summary>
-    /// Gets the tenant module dependency that must be loaded first.
+    /// Gets the tenant and theme module dependencies that must be loaded first.
     /// </summary>
-public override IReadOnlyList<string> Dependencies => ["TenantModule"];
+public override IReadOnlyList<string> Dependencies => ["TenantModule", "AeroThemeModule"];
 
     /// <summary>
     /// Gets the module categories used by discovery and administration.
@@ -78,6 +78,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IUserSiteService, UserSiteService>();
         services.AddScoped<ISiteStyleProfileResolver, SiteStyleProfileResolver>();
         services.AddScoped<ISiteStyleProfileService, SiteStyleProfileService>();
+        services.AddScoped<ISiteThemeSelectionService, SiteThemeSelectionService>();
 
         // Register site authorization handler and policies.
         // Policies: site:create, site:read, site:update, site:delete

@@ -236,6 +236,16 @@ public sealed record SiteStyleProfileChangedEvent(
     long Revision,
     DateTimeOffset ChangedOn) : AeroEvent($"style profile revision {Revision} changed for site {SiteId}");
 
+/// <summary>
+/// Published after a site's exact theme selection has been persisted.
+/// </summary>
+public sealed record SiteThemeChangedEvent(
+    long SiteId,
+    string ThemeId,
+    string ThemeVersion,
+    long Revision,
+    DateTimeOffset ChangedOn) : AeroEvent($"theme {ThemeId}@{ThemeVersion} revision {Revision} changed for site {SiteId}");
+
 // tag events
 /// <summary>
 /// Represents a record for TagViewModelCreated.

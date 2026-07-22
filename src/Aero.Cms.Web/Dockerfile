@@ -63,6 +63,10 @@
 # ---------------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
+# AspNetCore.SassCompiler uses the Dart Sass runtime, which needs glibc
+# compatibility when the build runs on Alpine.
+RUN apk add --no-cache gcompat
+
 ARG BUILD_CONFIGURATION=Release
 ARG PUBLISH_READY_TO_RUN=true
 

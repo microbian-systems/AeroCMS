@@ -438,3 +438,6 @@ openobserve_data/db/metadata.sqlite-shm
 
 # Local Aero CMS embedded runtime data
 src/Aero.Cms.Web/App_Data/
+
+# Repository-local, verified frontend tool binaries (restored by eng/theme-assets).
+.tools/

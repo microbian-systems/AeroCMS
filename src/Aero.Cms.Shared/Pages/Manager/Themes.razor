@@ -1,51 +1,71 @@
 @page "/manager/themes"
 @page "/manager/themes/general"
 @attribute [Authorize]
-@inject DialogService DialogService
-@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+@using Aero.Cms.Abstractions.Http.Clients
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <h1 class="text-2xl font-bold pe-heading">@L["Themes"]</h1>
-            <p class="mt-1 text-sm pe-description">@L["Manage your site's visual identity and layout sets."]</p>
+            <p class="mt-1 text-sm pe-description">@L["Browse the themes installed with this application deployment."]</p>
         </div>
-        <div class="flex space-x-3">
-             <RadzenButton Icon="brush" Text="@L["Customizer"]" ButtonStyle="ButtonStyle.Light" />
-             <RadzenButton Icon="file_upload" Text="@L["Install Theme"]" ButtonStyle="ButtonStyle.Primary" />
+        <div class="flex items-center gap-2">
+            <RadzenButton Icon="language"
+                          Text="@L["Sites"]"
+                          ButtonStyle="ButtonStyle.Light"
+                          Size="ButtonSize.Small"
+                          Click="@OpenSites" />
+            <RadzenButton Icon="refresh"
+                          Text="@L["Refresh"]"
+                          ButtonStyle="ButtonStyle.Light"
+                          Size="ButtonSize.Small"
+                          Click="@LoadThemesAsync"
+                          Disabled="@_isLoading" />
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @{
-            var themes = new[] { ("Modern", "Default Look"), ("Ocean", "Blue Accents"), ("Forest", "Sustainable Green") };
-        }
-        @foreach (var theme in themes)
-        {
-            <RadzenCard class="p-6 cursor-pointer hover:border-indigo-500 transition-colors shadow-sm" @onclick="() => OpenDetail(theme.Item1)">
-                <div class="aspect-video bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 mb-4 overflow-hidden relative group">
-                    <div class="w-full h-full bg-indigo-50 flex items-center justify-center">
-                        <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <RadzenText TextStyle="TextStyle.H6" class="font-bold leading-none">@theme.Item1</RadzenText>
-                        <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500 mt-1">@theme.Item2</RadzenText>
-                    </div>
-                    @if (theme.Item1 == "Modern")
-                    {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@L["Active"]" />
-                    }
-                </div>
-            </RadzenCard>
-        }
-    </div>
-</div>
+    <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat">
+        @L["Theme selection is stored per site. This catalog is read-only; open a site's Design System to apply an exact theme version."]
+    </RadzenAlert>
 
-@code {
-    private void OpenDetail(string name)
+    @if (_isLoading)
     {
-        DialogService.OpenSide<RadzenText>(name, new Dictionary<string, object?> { { "Text", name } }, new SideDialogOptions { Position = DialogPosition.Right, Width = "500px" });
+        <div class="flex min-h-40 items-center justify-center">
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" style="width: 14rem;" />
+        </div>
     }
-}
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">
+            @_errorMessage
+        </RadzenAlert>
+    }
+    else if (_themes.Count == 0)
+    {
+        <RadzenCard class="p-8 text-center">
+            <p style="color: var(--pe-text-secondary);">@L["No deployment-installed themes are available."]</p>
+        </RadzenCard>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            @foreach (var theme in _themes)
+            {
+                <RadzenCard class="p-6 shadow-sm">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@theme.Name</h2>
+                            <p class="mt-1 text-sm" style="color: var(--pe-text-secondary);">@($"{theme.Id}@{theme.Version}")</p>
+                        </div>
+                        @if (theme.IsSafeDefault)
+                        {
+                            <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Safe fallback"]" />
+                        }
+                    </div>
+                    <p class="mt-5 text-sm" style="color: var(--pe-text-secondary);">@L["By"] @theme.Author</p>
+                </RadzenCard>
+            }
+        </div>
+    }
+</div>
