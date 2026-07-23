@@ -368,6 +368,13 @@ export function normalizeMarkdownHtml(html: string): string {
     strike.replaceWith(deletion);
   });
 
+  // CommonMark doesn't permit boundary whitespace inside emphasis delimiters.
+  // Tiptap can retain that whitespace when a user formats an existing selection,
+  // so canonicalize it before the strict Markdown round-trip boundary sees it.
+  Array.from(template.content.querySelectorAll('strong, em, del'))
+    .reverse()
+    .forEach((mark) => normalizeMarkBoundaryWhitespace(mark));
+
   template.content.querySelectorAll('a').forEach((link) => {
     link.removeAttribute('target');
     link.removeAttribute('rel');
@@ -432,4 +439,119 @@ export function normalizeMarkdownHtml(html: string): string {
   });
 
   return template.innerHTML;
+}
+
+function normalizeMarkBoundaryWhitespace(mark: Element): void {
+  if (mark.attributes.length > 0) {
+    return;
+  }
+
+  const text = mark.textContent ?? '';
+  const hasMeaningfulDescendant = Array.from(mark.querySelectorAll('*'))
+    .some((descendant) =>
+      !isMarkdownInlineMark(descendant)
+      || descendant.attributes.length > 0);
+
+  if (!text && !hasMeaningfulDescendant) {
+    mark.remove();
+    return;
+  }
+
+  if (/^[\t\n\f\r ]+$/.test(text) && !hasMeaningfulDescendant) {
+    mark.replaceWith(document.createTextNode(text));
+    return;
+  }
+
+  const leadingWhitespace = readBoundaryWhitespace(mark, false);
+  const trailingWhitespace = readBoundaryWhitespace(mark, true);
+
+  if (leadingWhitespace) {
+    consumeBoundaryText(mark, leadingWhitespace.length, false);
+    mark.before(document.createTextNode(leadingWhitespace));
+  }
+
+  if (trailingWhitespace) {
+    consumeBoundaryText(mark, trailingWhitespace.length, true);
+    mark.after(document.createTextNode(trailingWhitespace));
+  }
+}
+
+function readBoundaryWhitespace(root: Element, fromEnd: boolean): string {
+  const childNodes = Array.from(root.childNodes);
+  if (fromEnd) {
+    childNodes.reverse();
+  }
+
+  let whitespace = '';
+  for (const child of childNodes) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent ?? '';
+      const match = fromEnd
+        ? text.match(/[\t\n\f\r ]+$/)?.[0] ?? ''
+        : text.match(/^[\t\n\f\r ]+/)?.[0] ?? '';
+      whitespace = fromEnd
+        ? `${match}${whitespace}`
+        : `${whitespace}${match}`;
+      if (match.length !== text.length) {
+        break;
+      }
+      continue;
+    }
+
+    if (child instanceof Element
+      && isMarkdownInlineMark(child)
+      && child.attributes.length === 0) {
+      const nestedWhitespace = readBoundaryWhitespace(child, fromEnd);
+      whitespace = fromEnd
+        ? `${nestedWhitespace}${whitespace}`
+        : `${whitespace}${nestedWhitespace}`;
+      if (nestedWhitespace.length !== (child.textContent ?? '').length) {
+        break;
+      }
+      continue;
+    }
+
+    break;
+  }
+
+  return whitespace;
+}
+
+function isMarkdownInlineMark(element: Element): boolean {
+  const tagName = element.tagName.toLowerCase();
+  return tagName === 'strong' || tagName === 'em' || tagName === 'del';
+}
+
+function consumeBoundaryText(
+  root: Element,
+  characterCount: number,
+  fromEnd: boolean,
+): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    textNodes.push(current as Text);
+    current = walker.nextNode();
+  }
+
+  if (fromEnd) {
+    textNodes.reverse();
+  }
+
+  let remaining = characterCount;
+  for (const textNode of textNodes) {
+    if (remaining === 0) {
+      break;
+    }
+
+    const consumed = Math.min(remaining, textNode.data.length);
+    textNode.data = fromEnd
+      ? textNode.data.slice(0, textNode.data.length - consumed)
+      : textNode.data.slice(consumed);
+    if (!textNode.data) {
+      textNode.remove();
+    }
+    remaining -= consumed;
+  }
 }

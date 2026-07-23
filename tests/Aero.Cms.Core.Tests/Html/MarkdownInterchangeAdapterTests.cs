@@ -284,6 +284,25 @@ public sealed class MarkdownInterchangeAdapterTests
     }
 
     [Test]
+    public async Task Export_rejects_noncanonical_boundary_whitespace_inside_inline_marks()
+    {
+        var importer = new HtmlFragmentImporter(
+            Catalog,
+            AttributePolicy,
+            ContentPolicy,
+            Validator);
+        var content = RequireOk(importer.Import(
+            """<p>Before<strong> bold text </strong>after</p>"""));
+
+        var result = CreateAdapter().Export(content);
+
+        await Assert.That(result).IsTypeOf<Result<string>.Failure>();
+        var failure = (Result<string>.Failure)result;
+        await Assert.That(Describe(failure.Error))
+            .Contains("cannot be represented losslessly");
+    }
+
+    [Test]
     public async Task Interchange_enforces_generated_html_and_export_limits()
     {
         var importAdapter = CreateAdapter(new MarkdownInterchangeLimits

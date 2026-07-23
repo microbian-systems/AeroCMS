@@ -69,6 +69,40 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task MarkdownTiptapNormalizationMovesBoundaryWhitespaceOutsideInlineMarks()
+    {
+        await Fixture.LoginAsync();
+        var page = Fixture.Page!;
+
+        var normalized = await page.EvaluateAsync<string[]>(
+            """
+            async () => {
+                const module = await import(
+                    '/_content/Aero.Cms.Shared/js/aero-tiptap-markdown-editor.js');
+                return [
+                    module.normalizeMarkdownHtml(
+                        '<p>Before<strong>  bold text \t</strong>after</p>'),
+                    module.normalizeMarkdownHtml(
+                        '<p><strong><em>  nested text  </em></strong></p>'),
+                    module.normalizeMarkdownHtml(
+                        '<p>Before<del> \t </del>after</p>'),
+                    module.normalizeMarkdownHtml(
+                        '<p><strong> <img src="/media/example.jpg" alt="Example"> </strong></p>'),
+                    module.normalizeMarkdownHtml(
+                        '<p><strong data-preserve="true"> attributed text </strong></p>')
+                ];
+            }
+            """);
+
+        normalized.Should().Equal(
+            "<p>Before  <strong>bold text</strong> \tafter</p>",
+            "<p>  <strong><em>nested text</em></strong>  </p>",
+            "<p>Before \t after</p>",
+            "<p> <strong><img src=\"/media/example.jpg\" alt=\"Example\"></strong> </p>",
+            "<p><strong data-preserve=\"true\"> attributed text </strong></p>");
+    }
+
+    [Test]
     public async Task MarkdownTiptapPreservesExistingImageAttributes()
     {
         await Fixture.LoginAsync();
