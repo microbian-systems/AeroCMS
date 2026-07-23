@@ -312,7 +312,7 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
     }
 
     /// <summary>
-    /// Counts post membership for a set of series identifiers within one site.
+    /// Counts in-memory series membership after loading all posts for one site.
     /// </summary>
     private static async Task<Dictionary<long, int>> GetContentCountsAsync(
         IQuerySession query,
@@ -325,12 +325,18 @@ public static void MapSeriesApi(this IEndpointRouteBuilder app)
             return [];
 
         var posts = await query.Query<PostDocument>()
-            .Where(x => x.SiteId == siteId && x.SeriesId.HasValue && ids.Contains(x.SeriesId.Value))
+            .Where(x => x.SiteId == siteId)
             .ToListAsync(cancellationToken);
 
-        return posts
-            .GroupBy(x => x.SeriesId!.Value)
-            .ToDictionary(x => x.Key, x => x.Count());
+        var requestedSeriesIds = ids.ToHashSet();
+        var countsBySeriesId = posts
+            .Where(post => post.SeriesId is long seriesId && requestedSeriesIds.Contains(seriesId))
+            .GroupBy(post => post.SeriesId!.Value)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        return ids.ToDictionary(
+            id => id,
+            id => countsBySeriesId.GetValueOrDefault(id));
     }
 
     /// <summary>

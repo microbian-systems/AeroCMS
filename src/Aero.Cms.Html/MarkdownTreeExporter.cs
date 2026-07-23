@@ -82,6 +82,7 @@ internal sealed class MarkdownTreeExporter(
             "ol" => RenderList(node, ordered: true),
             "hr" => RenderRule(node),
             "pre" => RenderCodeBlock(node),
+            "table" => RenderTable(node),
             _ => throw UnsupportedElement(node)
         };
     }
@@ -240,6 +241,112 @@ internal sealed class MarkdownTreeExporter(
         var fence = new string('`', Math.Max(3, LongestRun(text, '`') + 1));
         return $"{fence}{language}\n{text.TrimEnd('\r', '\n')}\n{fence}";
     }
+
+    /// <summary>
+    /// Renders a rectangular pipe table with one semantic header row.
+    /// Spans, captions, alignment metadata, and block content are rejected because
+    /// pipe Markdown cannot preserve them losslessly.
+    /// </summary>
+    private static string RenderTable(HtmlNode node)
+    {
+        EnsureAttributes(node);
+        if (node.Children.Count != 2
+            || node.Children[0].Kind is not HtmlNodeKind.Element
+            || node.Children[0].TagName != "thead"
+            || node.Children[1].Kind is not HtmlNodeKind.Element
+            || node.Children[1].TagName != "tbody")
+        {
+            throw new MarkdownExportException(
+                "A Markdown table must contain one <thead> followed by one <tbody>.");
+        }
+
+        var head = node.Children[0];
+        var body = node.Children[1];
+        EnsureNoPresentation(head);
+        EnsureNoPresentation(body);
+        EnsureAttributes(head);
+        EnsureAttributes(body);
+
+        if (head.Children.Count != 1)
+        {
+            throw new MarkdownExportException(
+                "A Markdown table must contain exactly one header row.");
+        }
+
+        var header = RenderTableRow(head.Children[0], "th", expectedColumns: null);
+        if (header.Count == 0)
+        {
+            throw new MarkdownExportException(
+                "A Markdown table must contain at least one column.");
+        }
+
+        var lines = new List<string>
+        {
+            RenderPipeTableRow(header),
+            RenderPipeTableRow(Enumerable.Repeat("---", header.Count))
+        };
+
+        foreach (var row in body.Children)
+        {
+            lines.Add(RenderPipeTableRow(RenderTableRow(row, "td", header.Count)));
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>Renders one strict table row and validates its cell type and width.</summary>
+    private static IReadOnlyList<string> RenderTableRow(
+        HtmlNode row,
+        string cellTag,
+        int? expectedColumns)
+    {
+        if (row.Kind is not HtmlNodeKind.Element || row.TagName != "tr")
+        {
+            throw new MarkdownExportException(
+                $"A Markdown table section can contain only <tr> children.");
+        }
+
+        EnsureNoPresentation(row);
+        EnsureAttributes(row);
+        if (expectedColumns.HasValue && row.Children.Count != expectedColumns.Value)
+        {
+            throw new MarkdownExportException(
+                "Every Markdown table row must contain the same number of cells.");
+        }
+
+        var cells = new List<string>(row.Children.Count);
+        foreach (var cell in row.Children)
+        {
+            if (cell.Kind is not HtmlNodeKind.Element || cell.TagName != cellTag)
+            {
+                throw new MarkdownExportException(
+                    $"The table row can contain only <{cellTag}> cells.");
+            }
+
+            EnsureNoPresentation(cell);
+            EnsureAttributes(cell);
+            if (cell.Children.Any(child => !IsInlineNode(child)))
+            {
+                throw new MarkdownExportException(
+                    "Markdown table cells can contain inline content only.");
+            }
+
+            var rendered = RenderInlineChildren(cell);
+            if (rendered.Contains('\r') || rendered.Contains('\n'))
+            {
+                throw new MarkdownExportException(
+                    "Markdown table cells cannot contain line breaks.");
+            }
+
+            cells.Add(rendered);
+        }
+
+        return cells;
+    }
+
+    /// <summary>Renders a canonical pipe-delimited table row.</summary>
+    private static string RenderPipeTableRow(IEnumerable<string> cells) =>
+        $"| {string.Join(" | ", cells)} |";
 
     /// <summary>Renders all children through the inline-only visitor.</summary>
     private static string RenderInlineChildren(HtmlNode node) => RenderInlineNodes(node.Children);
@@ -431,7 +538,7 @@ internal sealed class MarkdownTreeExporter(
                 writer.Append("&lt;");
             }
             else if (character is '\\' or '`' or '*' or '_' or '{' or '}' or '[' or ']'
-                     or '#' or '>' or '+' or '-' or '!' or '~')
+                     or '#' or '>' or '+' or '-' or '!' or '~' or '|')
             {
                 writer.Append('\\').Append(character);
             }

@@ -24,11 +24,11 @@ public sealed class NavMenuService(
     IMessageBus? bus = null) : INavMenuService
 {
     /// <inheritdoc />
-public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
-        int skip = 0,
-        int take = 20,
-        string? search = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
+            int skip = 0,
+            int take = 20,
+            string? search = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -59,7 +59,7 @@ public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount)
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -79,7 +79,7 @@ public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, Cancella
     }
 
     /// <inheritdoc />
-public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
     {
         var menuResult = await GetAsync(id, cancellationToken);
         if (menuResult is Result<NavMenuDocument, AeroError>.Failure failure)
@@ -94,9 +94,9 @@ public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, C
     }
 
     /// <inheritdoc />
-public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
-        long id,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
+            long id,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -133,7 +133,7 @@ public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultur
     }
 
     /// <inheritdoc />
-public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
+    public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -154,10 +154,10 @@ public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, Cance
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
-        long siteId,
-        long id,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+            long siteId,
+            long id,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -191,10 +191,10 @@ public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
-        long siteId,
-        long? pageOverrideId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
+            long siteId,
+            long? pageOverrideId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -227,10 +227,10 @@ public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
-        CreateNavigationRequest request,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
+            CreateNavigationRequest request,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -272,12 +272,12 @@ public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
-        long id,
-        UpdateNavigationRequest request,
-        long expectedVersion,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
+            long id,
+            UpdateNavigationRequest request,
+            long expectedVersion,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -324,11 +324,11 @@ public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
-        long id,
-        long expectedVersion,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
+            long id,
+            long expectedVersion,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -375,10 +375,10 @@ public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<bool, AeroError>> SetDefaultAsync(
-        long id,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<bool, AeroError>> SetDefaultAsync(
+            long id,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -421,11 +421,11 @@ public async Task<Result<bool, AeroError>> SetDefaultAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<bool, AeroError>> ArchiveAsync(
-        long id,
-        long expectedVersion,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<bool, AeroError>> ArchiveAsync(
+            long id,
+            long expectedVersion,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {
@@ -569,11 +569,11 @@ public async Task<Result<bool, AeroError>> ArchiveAsync(
     }
 
     /// <inheritdoc />
-public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
-        long id,
-        string targetCulture,
-        long? userId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
+            long id,
+            string targetCulture,
+            long? userId = null,
+            CancellationToken cancellationToken = default)
     {
         try
         {

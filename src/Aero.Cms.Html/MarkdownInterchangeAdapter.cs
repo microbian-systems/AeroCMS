@@ -13,6 +13,7 @@ public sealed class MarkdownInterchangeAdapter : IMarkdownInterchangeAdapter
     private static readonly MarkdownPipeline ImportPipeline = new MarkdownPipelineBuilder()
         .DisableHtml()
         .UseEmphasisExtras()
+        .UsePipeTables()
         .Build();
 
     private readonly IHtmlFragmentImporter _htmlImporter;

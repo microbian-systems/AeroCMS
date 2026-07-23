@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Modules.Posts;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
@@ -848,7 +849,7 @@ public static class PostsApi
                 return TypedResults.BadRequest(new { error = "Blog post content is required." });
 
             ct.ThrowIfCancellationRequested();
-            var html = Markdown.ToHtml(request.MarkdownContent);
+            var html = Markdown.ToHtml(request.MarkdownContent, PostMarkdownPipelines.Preview);
             return TypedResults.Ok(new PreviewBlogPostFragmentResponse(html));
         }
         catch (Exception ex)

@@ -28,6 +28,8 @@
     --pe-text-primary:   #0f172a;
     --pe-text-secondary: #475569;
     --pe-text-muted:     #64748b;
+    --pe-selection-bg:   #4f46e5;
+    --pe-selection-text: #ffffff;
 
     --pe-border:         #e2e8f0;
     --pe-border-light:   #cbd5e1;
@@ -86,6 +88,8 @@
     --pe-text-primary:   #f8fafc;
     --pe-text-secondary: #cbd5e1;
     --pe-text-muted:     #94a3b8;
+    --pe-selection-bg:   #c4b5fd;
+    --pe-selection-text: #0f172a;
 
     --pe-border:         #334155;
     --pe-border-light:   #475569;
@@ -303,13 +307,10 @@
     margin: 0;
 }
 
-/* Make text selection visible inside the editor canvas and property modals. */
-.pe-main-content ::selection,
-.pe-blocks-container ::selection,
-.pe-modal ::selection,
-.neo-composition-child ::selection {
-    background: rgb(99 102 241 / 38%);
-    color: inherit;
+/* Make text selection visible throughout the manager workspace. */
+.pe-root ::selection {
+    background: var(--pe-selection-bg);
+    color: var(--pe-selection-text);
 }
 
 /* Native composition authoring surfaces inside native container primitives */

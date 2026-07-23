@@ -136,6 +136,93 @@ public sealed class MarkdownInterchangeAdapterTests
     }
 
     [Test]
+    public async Task Export_round_trips_the_normalized_tiptap_toolbar_contract()
+    {
+        var importer = new HtmlFragmentImporter(
+            Catalog,
+            AttributePolicy,
+            ContentPolicy,
+            Validator);
+        var renderer = new HtmlStaticRenderer(Catalog, ContentPolicy, AttributePolicy, Validator);
+        var cases = new Dictionary<string, string>
+        {
+            ["inline formatting"] =
+                """<h2>Toolbar content</h2><p><strong>Bold</strong>, <em>italic</em>, <del>struck</del>, <code>inline</code>, and <a href="/guide">linked</a>.</p>""",
+            ["lists"] =
+                """<ul><li>Bullet item</li></ul><ol><li>Numbered item</li></ol>""",
+            ["blockquote"] =
+                """<blockquote><p>Quoted content.</p></blockquote>""",
+            ["code block"] =
+                "<pre><code>Console.WriteLine(\"Hello\");\n</code></pre>",
+            ["image"] =
+                """<p><img src="/media/example.jpg" alt="Example" title="A title"></p>""",
+            ["horizontal rule"] =
+                """<hr>"""
+        };
+
+        foreach (var (name, tiptapHtml) in cases)
+        {
+            var imported = RequireOk(importer.Import(tiptapHtml));
+            var exported = CreateAdapter().Export(imported);
+            if (exported is Result<string>.Failure failure)
+            {
+                throw new InvalidOperationException($"{name}: {Describe(failure.Error)}");
+            }
+
+            var markdown = ((Result<string>.Ok)exported).Value;
+            var roundTripped = RequireOk(CreateAdapter().Import(markdown));
+            await Assert.That(RequireOk(renderer.Render(roundTripped)))
+                .IsEqualTo(RequireOk(renderer.Render(imported)));
+        }
+    }
+
+    [Test]
+    public async Task Interchange_round_trips_canonical_pipe_tables()
+    {
+        const string markdown = """
+            | Feature | Status |
+            | --- | --- |
+            | Images | Ready |
+            | Tables | Ready |
+            """;
+
+        var adapter = CreateAdapter();
+        var imported = RequireOk(adapter.Import(markdown));
+        var table = imported.Root.Children.Single();
+
+        await Assert.That(table.TagName).IsEqualTo("table");
+        await Assert.That(table.Children.Select(node => node.TagName!))
+            .IsEquivalentTo(["thead", "tbody"]);
+
+        var exported = RequireOk(adapter.Export(imported));
+        await Assert.That(exported).Contains("| Feature | Status |");
+        await Assert.That(exported).Contains("| Images | Ready |");
+
+        var renderer = new HtmlStaticRenderer(Catalog, ContentPolicy, AttributePolicy, Validator);
+        await Assert.That(RequireOk(renderer.Render(RequireOk(adapter.Import(exported)))))
+            .IsEqualTo(RequireOk(renderer.Render(imported)));
+    }
+
+    [Test]
+    public async Task Export_rejects_table_spans_and_non_rectangular_rows()
+    {
+        var importer = new HtmlFragmentImporter(
+            Catalog,
+            AttributePolicy,
+            ContentPolicy,
+            Validator);
+        var adapter = CreateAdapter();
+
+        var spanning = RequireOk(importer.Import(
+            """<table><thead><tr><th colspan="2">Header</th></tr></thead><tbody><tr><td>A</td><td>B</td></tr></tbody></table>"""));
+        await Assert.That(adapter.Export(spanning)).IsTypeOf<Result<string>.Failure>();
+
+        var uneven = RequireOk(importer.Import(
+            """<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>Only one</td></tr></tbody></table>"""));
+        await Assert.That(adapter.Export(uneven)).IsTypeOf<Result<string>.Failure>();
+    }
+
+    [Test]
     public async Task Export_fails_instead_of_dropping_layout_style_or_attributes()
     {
         var section = Catalog.CreateElement("section");

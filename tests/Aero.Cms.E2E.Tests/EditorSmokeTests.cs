@@ -30,6 +30,75 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task MarkdownTiptapNormalizationPreservesTrailingCodeBlankLines()
+    {
+        await Fixture.LoginAsync();
+        var page = Fixture.Page!;
+
+        var normalized = await page.EvaluateAsync<string>(
+            """
+            async () => {
+                const module = await import(
+                    '/_content/Aero.Cms.Shared/js/aero-tiptap-markdown-editor.js');
+                return module.normalizeMarkdownHtml(
+                    '<pre><code>line\r\n\r\n</code></pre>');
+            }
+            """);
+
+        normalized.Should().Be("<pre><code>line\n\n</code></pre>");
+    }
+
+    [Test]
+    public async Task MarkdownTiptapNormalizationRemovesEmptyParagraphsAndCanonicalizesTables()
+    {
+        await Fixture.LoginAsync();
+        var page = Fixture.Page!;
+
+        var normalized = await page.EvaluateAsync<string>(
+            """
+            async () => {
+                const module = await import(
+                    '/_content/Aero.Cms.Shared/js/aero-tiptap-markdown-editor.js');
+                return module.normalizeMarkdownHtml(
+                    '<p><br></p><table style="min-width: 200px"><colgroup><col></colgroup><tbody><tr><th colspan="1"><p>Feature</p></th><th rowspan="1"><p>Status</p></th></tr><tr><td><p>Images</p></td><td><p>Ready</p></td></tr></tbody></table>');
+            }
+            """);
+
+        normalized.Should().Be(
+            "<table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody><tr><td>Images</td><td>Ready</td></tr></tbody></table>");
+    }
+
+    [Test]
+    public async Task MarkdownTiptapPreservesExistingImageAttributes()
+    {
+        await Fixture.LoginAsync();
+        var page = Fixture.Page!;
+
+        var imageHtml = await page.EvaluateAsync<string>(
+            """
+            async () => {
+                const module = await import(
+                    '/_content/Aero.Cms.Shared/js/aero-tiptap-markdown-editor.js');
+                const host = document.createElement('div');
+                document.body.appendChild(host);
+                const handle = await module.initialize(
+                    host,
+                    '<p><img src="/media/example.jpg" alt="Example" title="A title"></p>');
+                try {
+                    return module.getHtml(handle);
+                } finally {
+                    module.dispose(handle);
+                    host.remove();
+                }
+            }
+            """);
+
+        imageHtml.Should().Contain("src=\"/media/example.jpg\"");
+        imageHtml.Should().Contain("alt=\"Example\"");
+        imageHtml.Should().Contain("title=\"A title\"");
+    }
+
+    [Test]
     public async Task PagesGridShowsSeededPage()
     {
         await Fixture.LoginAsync();

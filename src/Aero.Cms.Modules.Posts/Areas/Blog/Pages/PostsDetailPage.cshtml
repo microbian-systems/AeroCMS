@@ -111,7 +111,7 @@
 
         <div class="blog-article-reading">
             @* Markdown content *@
-            <div class="blog-article-content prose prose-lg">
+            <div id="article-content" class="blog-article-content prose prose-lg">
                 @if (!string.IsNullOrWhiteSpace(Model.RenderedMarkdown))
                 {
                     @Html.Raw(Model.RenderedMarkdown)

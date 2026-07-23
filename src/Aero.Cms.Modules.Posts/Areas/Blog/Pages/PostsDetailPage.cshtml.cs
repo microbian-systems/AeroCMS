@@ -2,11 +2,11 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Modules.Posts;
 using Aero.Cms.Shared.Components;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using Markdig;
-using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Renderers.Html;
 using Markdig.Syntax;
 using Microsoft.AspNetCore.Mvc;
@@ -32,10 +32,6 @@ public class PostsDetailPageModel(
     IAeroPostActor postActor,
     ISiteContext siteContext) : PageModel
 {
-    private static readonly MarkdownPipeline BlogMarkdownPipeline = new MarkdownPipelineBuilder()
-        .UseAutoIdentifiers()
-        .Build();
-
     /// <summary>
     /// Gets or sets the route slug for a public post request.
     /// </summary>
@@ -89,7 +85,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
     /// </summary>
 public string RenderedMarkdown { get; private set; } = string.Empty;
     /// <summary>
-    /// Gets the second- and third-level article headings for the on-page navigation.
+    /// Gets the article overview and authored section headings for the on-page navigation.
     /// </summary>
 public IReadOnlyList<BlogTableOfContentsItem> TableOfContents { get; private set; } = [];
 
@@ -143,7 +139,7 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         Post = post;
         RenderedMarkdown = string.IsNullOrWhiteSpace(post.MarkdownContent)
             ? string.Empty
-            : Markdown.ToHtml(post.MarkdownContent, BlogMarkdownPipeline);
+            : Markdown.ToHtml(post.MarkdownContent, PostMarkdownPipelines.Public);
         TableOfContents = ExtractTableOfContents(post.MarkdownContent);
         RenderedCulture = post.Culture;
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
@@ -163,8 +159,11 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         if (string.IsNullOrWhiteSpace(markdown))
             return [];
 
-        var document = Markdown.Parse(markdown, BlogMarkdownPipeline);
-        var headings = new List<BlogTableOfContentsItem>();
+        var document = Markdown.Parse(markdown, PostMarkdownPipelines.Public);
+        var headings = new List<BlogTableOfContentsItem>
+        {
+            new("Article", "article-content", 2)
+        };
 
         foreach (var heading in document.Descendants<HeadingBlock>())
         {
