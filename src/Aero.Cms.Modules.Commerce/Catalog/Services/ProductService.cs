@@ -32,7 +32,7 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
                     (x.Description != null && x.Description.ToLower().Contains(term)));
             }
 
-            var scopedQuery = (ISurrealDbQueryable<ProductDocument>)query;
+            var scopedQuery = (ISableQueryable<ProductDocument>)query;
             var totalCount = await scopedQuery.CountAsync(ct);
             var items = await scopedQuery
                 .OrderBy(x => x.Name)
@@ -93,7 +93,7 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
                     (x.Description != null && x.Description.ToLower().Contains(term)));
             }
 
-            var scopedQuery = (ISurrealDbQueryable<ProductListingDocument>)query;
+            var scopedQuery = (ISableQueryable<ProductListingDocument>)query;
             var totalCount = await scopedQuery.CountAsync(ct);
             var items = await scopedQuery
                 .OrderBy(x => x.Name)

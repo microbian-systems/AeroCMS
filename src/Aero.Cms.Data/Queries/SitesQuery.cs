@@ -13,7 +13,7 @@ public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 public string hostname { get; set; } = null!;
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SiteHost>, SiteHost?>> QueryIs()
+public Expression<Func<ISableQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Host == hostname);
     }
@@ -32,7 +32,7 @@ public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<Site
 public required long TenantId { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.TenantId == TenantId)
@@ -50,7 +50,7 @@ public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesMod
 public required string Name { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -63,7 +63,7 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
 public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.IsEnabled)
@@ -76,7 +76,7 @@ public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> Quer
 public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => !x.IsEnabled)
@@ -93,7 +93,7 @@ public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, ILis
 public required string DefaultCulture { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.DefaultCulture == DefaultCulture)

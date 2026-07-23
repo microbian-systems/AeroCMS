@@ -20,7 +20,7 @@ public sealed class TagsByNameQuery : ICompiledQuery<TagModel, IList<TagModel>>
 public required string Name { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
+public Expression<Func<ISableQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -37,7 +37,7 @@ public sealed class TagsByNameContainsQuery : ICompiledQuery<TagModel, IList<Tag
 public required string Name { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
+public Expression<Func<ISableQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name != null && x.Name.Contains(Name))
@@ -54,7 +54,7 @@ public sealed class TagsByDescriptionQuery : ICompiledQuery<TagModel, IList<TagM
 public required string Description { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TagModel>, IList<TagModel>>> QueryIs()
+public Expression<Func<ISableQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Description == Description)

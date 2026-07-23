@@ -44,7 +44,7 @@ public required long SiteId { get; set; }
 public required string PathPrefix { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.Path.StartsWith(PathPrefix))

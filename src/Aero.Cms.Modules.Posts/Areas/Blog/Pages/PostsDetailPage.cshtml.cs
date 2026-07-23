@@ -5,6 +5,10 @@ using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Shared.Components;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
+using Markdig;
+using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Renderers.Html;
+using Markdig.Syntax;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
@@ -28,6 +32,10 @@ public class PostsDetailPageModel(
     IAeroPostActor postActor,
     ISiteContext siteContext) : PageModel
 {
+    private static readonly MarkdownPipeline BlogMarkdownPipeline = new MarkdownPipelineBuilder()
+        .UseAutoIdentifiers()
+        .Build();
+
     /// <summary>
     /// Gets or sets the route slug for a public post request.
     /// </summary>
@@ -76,6 +84,14 @@ public IReadOnlyList<AlternatePostLink> AlternateLinks { get; private set; } = [
     /// Gets the alternate URLs projected for the site culture switcher.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+    /// <summary>
+    /// Gets the server-rendered Markdown HTML with stable heading anchors.
+    /// </summary>
+public string RenderedMarkdown { get; private set; } = string.Empty;
+    /// <summary>
+    /// Gets the second- and third-level article headings for the on-page navigation.
+    /// </summary>
+public IReadOnlyList<BlogTableOfContentsItem> TableOfContents { get; private set; } = [];
 
     /// <summary>
     /// Resolves the requested post and prepares canonical, alternate, taxonomy, and author data.
@@ -125,6 +141,10 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         }
 
         Post = post;
+        RenderedMarkdown = string.IsNullOrWhiteSpace(post.MarkdownContent)
+            ? string.Empty
+            : Markdown.ToHtml(post.MarkdownContent, BlogMarkdownPipeline);
+        TableOfContents = ExtractTableOfContents(post.MarkdownContent);
         RenderedCulture = post.Culture;
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
         CanonicalUrl = BuildCultureUrl(RenderedCulture, $"blog/{post.Slug}");
@@ -136,6 +156,30 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         ViewData["CultureSwitcherLinks"] = CultureSwitcherLinks;
         ApplyResponseCacheHeaders();
         return Page();
+    }
+
+    private static IReadOnlyList<BlogTableOfContentsItem> ExtractTableOfContents(string? markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return [];
+
+        var document = Markdown.Parse(markdown, BlogMarkdownPipeline);
+        var headings = new List<BlogTableOfContentsItem>();
+
+        foreach (var heading in document.Descendants<HeadingBlock>())
+        {
+            if (heading.Level is not (2 or 3))
+                continue;
+
+            var anchorId = heading.TryGetAttributes()?.Id;
+            var text = heading.Inline?.FirstChild?.ToString();
+            if (string.IsNullOrWhiteSpace(anchorId) || string.IsNullOrWhiteSpace(text))
+                continue;
+
+            headings.Add(new BlogTableOfContentsItem(text, anchorId, heading.Level));
+        }
+
+        return headings;
     }
 
     /// <summary>
@@ -227,4 +271,9 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
     /// <param name="Hreflang">The normalized culture code or <c>x-default</c>.</param>
     /// <param name="Href">The absolute alternate URL.</param>
 public sealed record AlternatePostLink(string Hreflang, string Href);
+
+/// <summary>
+/// Describes an anchored article heading shown in the public post table of contents.
+/// </summary>
+public sealed record BlogTableOfContentsItem(string Text, string AnchorId, int Level);
 }

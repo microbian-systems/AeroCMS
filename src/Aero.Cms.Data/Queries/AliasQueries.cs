@@ -19,7 +19,7 @@ public sealed class AliasesBySiteIdQuery : ICompiledQuery<AliasDocument, IList<A
 public required long SiteId { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId)
@@ -36,7 +36,7 @@ public sealed class AliasesByOldPathContainsQuery : ICompiledQuery<AliasDocument
 public required string OldPath { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.OldPath.Contains(OldPath))
@@ -53,7 +53,7 @@ public sealed class AliasByOldPathQuery : ICompiledQuery<AliasDocument, AliasDoc
 public required string OldPath { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.OldPath == OldPath);
@@ -71,7 +71,7 @@ public required long SiteId { get; set; }
 public required string OldPath { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.SiteId == SiteId && x.OldPath == OldPath);
@@ -86,7 +86,7 @@ public sealed class AliasesByNewPathQuery : ICompiledQuery<AliasDocument, IList<
 public required string NewPath { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.NewPath == NewPath)
@@ -105,7 +105,7 @@ public required long SiteId { get; set; }
 public required string NewPath { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.NewPath == NewPath)
@@ -122,7 +122,7 @@ public sealed class AliasesByNotesQuery : ICompiledQuery<AliasDocument, IList<Al
 public required string Notes { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+public Expression<Func<ISableQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.Notes == Notes)

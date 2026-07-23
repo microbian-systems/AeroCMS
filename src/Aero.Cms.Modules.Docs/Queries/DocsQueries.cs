@@ -18,7 +18,7 @@ public required long SiteId { get; set; }
     /// Builds the provider expression that filters published pages and orders them by display order.
     /// </summary>
     /// <returns>The query expression executed by the document provider.</returns>
-public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+public Expression<Func<ISableQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -49,7 +49,7 @@ public int Take { get; set; } = 10;
     /// Builds the provider expression that filters, orders, skips, and takes records.
     /// </summary>
     /// <returns>The query expression executed by the document provider.</returns>
-public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+public Expression<Func<ISableQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -72,7 +72,7 @@ public required long SiteId { get; set; }
     /// Builds the provider count expression.
     /// </summary>
     /// <returns>The query expression executed by the document provider.</returns>
-public Expression<Func<ISurrealDbQueryable<DocsPage>, long>> QueryIs()
+public Expression<Func<ISableQueryable<DocsPage>, long>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -99,7 +99,7 @@ public required string Slug { get; set; }
     /// </summary>
     /// <returns>The query expression executed by the document provider.</returns>
     /// <remarks>The query does not filter by culture.</remarks>
-public Expression<Func<ISurrealDbQueryable<DocsPage>, DocsPage?>> QueryIs()
+public Expression<Func<ISableQueryable<DocsPage>, DocsPage?>> QueryIs()
         => q => q.FirstOrDefault(x =>
             x.SiteId == SiteId
             && x.Slug == Slug

@@ -42,7 +42,7 @@ public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount)
             }
 
             var stats = new global::AeroDB.Sable.QueryStatistics();
-            var items = await ((global::AeroDB.Sable.ISurrealDbQueryable<NavMenuDocument>)query)
+            var items = await ((global::AeroDB.Sable.ISableQueryable<NavMenuDocument>)query)
                 .OrderBy(x => x.Name)
                 .Stats(out stats)
                 .Skip(skip)

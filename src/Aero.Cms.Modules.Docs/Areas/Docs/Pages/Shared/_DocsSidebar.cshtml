@@ -1,12 +1,21 @@
-@* _DocsSidebar.cshtml — Left sidebar tree navigation powered by Alpine.js *@
+@* _DocsSidebar.cshtml — Left documentation table of contents powered by Alpine.js *@
 @model IEnumerable<Aero.Cms.Modules.Docs.Areas.Docs.Models.DocsSidebarNode>
 
-<aside class="hidden lg:block w-[300px] min-w-[300px] bg-white border-r border-slate-200 overflow-y-auto sticky top-0 max-h-[calc(100vh-4rem)] sidebar-scroll" 
+<aside aria-label="Documentation contents"
+       class="hidden lg:flex lg:flex-col w-[300px] min-w-[300px] bg-white border-r border-slate-200 overflow-y-auto sticky top-0 max-h-[calc(100vh-4rem)] sidebar-scroll"
        x-data="{ activeId: @(ViewBag.ActiveDocId ?? 0) }">
-    <nav class="px-2 py-4">
+    <div class="border-b border-slate-100 px-5 py-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Documentation</p>
+        <p class="mt-1 text-sm font-medium text-slate-700">Contents</p>
+    </div>
+    <nav class="flex-1 px-2 py-4" aria-label="Documentation pages">
         @foreach (var node in Model)
         {
             @await Html.PartialAsync("_DocsSidebarNode", node)
+        }
+        @if (!Model.Any())
+        {
+            <p class="px-3 py-2 text-sm text-slate-500">No published sections available.</p>
         }
     </nav>
 </aside>

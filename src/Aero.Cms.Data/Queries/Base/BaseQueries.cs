@@ -17,7 +17,7 @@ public class EntityByIdQuery<T> : ICompiledQuery<T, T?>
 public required long Id { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
+public Expression<Func<ISableQueryable<T>, T?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Id == Id);
     }
@@ -36,7 +36,7 @@ public abstract class EntityByIdQueryList<T> : ICompiledQuery<T, IList<T>>
 public long Id { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.Id == Id).ToList();
     }
@@ -60,7 +60,7 @@ public class EntitiesByIdsQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     /// <summary>The identifier sequence used by the membership predicate.</summary>
 public IEnumerable<TKey> Ids { get; init; } = [];
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => Ids.Contains(x.Id)).ToList();
     }
@@ -82,7 +82,7 @@ public abstract class EntitiesByCreatedByQuery<T, TKey> : ICompiledQuery<T, ILis
 public required string CreatedBy { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedBy == CreatedBy).ToList();
     }
@@ -104,7 +104,7 @@ public abstract class EntitiesByModifiedByQuery<T, TKey> : ICompiledQuery<T, ILi
 public required string ModifiedBy { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.ModifiedBy == ModifiedBy).ToList();
     }
@@ -128,7 +128,7 @@ public required DateTimeOffset From { get; set; }
 public required DateTimeOffset To { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedOn >= From && x.CreatedOn < To)
@@ -157,7 +157,7 @@ public required DateTimeOffset From { get; set; }
 public required DateTimeOffset To { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null &&
@@ -184,7 +184,7 @@ public abstract class EntitiesCreatedSinceQuery<T, TKey> : ICompiledQuery<T, ILi
 public required DateTimeOffset Since { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedOn >= Since).ToList();
     }
@@ -206,7 +206,7 @@ public abstract class EntitiesCreatedBeforeQuery<T, TKey> : ICompiledQuery<T, IL
 public required DateTimeOffset Before { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedOn < Before).ToList();
     }
@@ -228,7 +228,7 @@ public abstract class EntitiesModifiedSinceQuery<T, TKey> : ICompiledQuery<T, IL
 public required DateTimeOffset Since { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedOn >= Since)
@@ -252,7 +252,7 @@ public abstract class EntitiesModifiedBeforeQuery<T, TKey> : ICompiledQuery<T, I
 public required DateTimeOffset Before { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedOn < Before)
@@ -280,7 +280,7 @@ public required DateTimeOffset From { get; set; }
 public required DateTimeOffset To { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedBy == CreatedBy &&
@@ -310,7 +310,7 @@ public required DateTimeOffset From { get; set; }
 public required DateTimeOffset To { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null &&
@@ -338,7 +338,7 @@ public abstract class LatestCreatedByQuery<T, TKey> : ICompiledQuery<T, T?>
 public required string CreatedBy { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, T?>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedBy == CreatedBy)
@@ -363,7 +363,7 @@ public abstract class LatestModifiedByQuery<T, TKey> : ICompiledQuery<T, T?>
 public required string ModifiedBy { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, T?>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedBy == ModifiedBy)
@@ -384,7 +384,7 @@ public required DateTimeOffset From { get; set; }
 public required DateTimeOffset To { get; set; }
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x =>
@@ -410,7 +410,7 @@ public int Skip { get; set; }
 public int Take { get; set; } = 50;
 
     /// <inheritdoc />
-public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
+public virtual Expression<Func<ISableQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedOn >= From && x.CreatedOn <= To)

@@ -20,7 +20,7 @@ public sealed class TenantByNameQuery : ICompiledQuery<TenantModel, TenantModel?
 public required string Name { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TenantModel>, TenantModel?>> QueryIs()
+public Expression<Func<ISableQueryable<TenantModel>, TenantModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Name == Name);
@@ -35,7 +35,7 @@ public sealed class TenantByHostnameQuery : ICompiledQuery<TenantModel, TenantMo
 public required string Hostname { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TenantModel>, TenantModel?>> QueryIs()
+public Expression<Func<ISableQueryable<TenantModel>, TenantModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Hostname == Hostname);
@@ -50,7 +50,7 @@ public sealed class TenantsByNotesQuery : ICompiledQuery<TenantModel, IList<Tena
 public required string Notes { get; set; }
 
     /// <inheritdoc />
-public Expression<Func<ISurrealDbQueryable<TenantModel>, IList<TenantModel>>> QueryIs()
+public Expression<Func<ISableQueryable<TenantModel>, IList<TenantModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Notes == Notes)

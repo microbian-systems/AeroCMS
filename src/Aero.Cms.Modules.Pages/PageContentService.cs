@@ -265,7 +265,7 @@ public async Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), A
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
             var stats = new global::AeroDB.Sable.QueryStatistics();
-            var pages = await ((global::AeroDB.Sable.ISurrealDbQueryable<PageDocument>)filteredQuery)
+            var pages = await ((global::AeroDB.Sable.ISableQueryable<PageDocument>)filteredQuery)
                 .OrderBy(x => x.Title)
                 .Stats(out stats)
                 .Skip(skip)

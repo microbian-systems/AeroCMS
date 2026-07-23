@@ -212,7 +212,7 @@ public async Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), Aer
             }
 
             var stats = new global::AeroDB.Sable.QueryStatistics();
-            var items = await ((global::AeroDB.Sable.ISurrealDbQueryable<MediaAsset>)filteredQuery)
+            var items = await ((global::AeroDB.Sable.ISableQueryable<MediaAsset>)filteredQuery)
                 .OrderByDescending(x => x.IsFolder)
                 .ThenByDescending(x => x.CreatedOn)
                 .Stats(out stats)

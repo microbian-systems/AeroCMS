@@ -230,7 +230,7 @@ public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), A
             }
 
             var stats = new global::AeroDB.Sable.QueryStatistics();
-            var posts = await ((global::AeroDB.Sable.ISurrealDbQueryable<PostDocument>)filteredQuery)
+            var posts = await ((global::AeroDB.Sable.ISableQueryable<PostDocument>)filteredQuery)
                 .OrderByDescending(x => x.CreatedOn)
                 .Stats(out stats)
                 .Skip(skip)

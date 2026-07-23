@@ -138,6 +138,44 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             SidebarTree = treeOk.Value.ToList();
         }
 
+        // Keep the public navigation useful when a stale projection/cache or a
+        // legacy record without a normalized culture makes the tree query empty.
+        // The current page is already site- and publication-authorized, so this
+        // fallback can safely rebuild the same hierarchy from the published set.
+        if (SidebarTree.Count == 0)
+        {
+            var fallbackResult = await _docsService.GetAllAsync(cancellationToken);
+            if (fallbackResult is global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>.Ok fallbackOk)
+            {
+                var published = fallbackOk.Value
+                    .Where(doc => doc.SiteId == MarkdownPage.SiteId)
+                    .Where(doc => doc.PublicationState == ContentPublicationState.Published)
+                    .ToList();
+
+                var culturePublished = published
+                    .Where(doc => string.IsNullOrWhiteSpace(doc.Culture)
+                        || string.Equals(doc.Culture, RenderedCulture, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (culturePublished.Any(doc => string.Equals(doc.Slug, "docs", StringComparison.OrdinalIgnoreCase)))
+                    published = culturePublished;
+                else
+                {
+                    var rootCulture = published
+                        .FirstOrDefault(doc => string.Equals(doc.Slug, "docs", StringComparison.OrdinalIgnoreCase))?.Culture;
+                    if (!string.IsNullOrWhiteSpace(rootCulture))
+                    {
+                        published = published
+                            .Where(doc => string.IsNullOrWhiteSpace(doc.Culture)
+                                || string.Equals(doc.Culture, rootCulture, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                    }
+                }
+
+                SidebarTree = BuildSidebarTree(published, MarkdownPage.Id);
+            }
+        }
+
         // ── Child pages (for space overview feature cards) ─────────────
         // Check if this page is a space root (top-level child of "docs")
         if (MarkdownPage.ParentId is null)
@@ -174,6 +212,49 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         HttpContext.Items["AeroCms.DocSlug"] = MarkdownPage.Slug;
 
         return Page();
+    }
+
+    private static List<DocsSidebarNode> BuildSidebarTree(IReadOnlyList<DocsPage> pages, long activeId)
+    {
+        var root = pages.FirstOrDefault(page => string.Equals(page.Slug, "docs", StringComparison.OrdinalIgnoreCase));
+        if (root is null)
+            return [];
+
+        var childrenByParent = pages
+            .GroupBy(page => page.ParentId ?? 0)
+            .ToDictionary(group => group.Key, group => group.OrderBy(page => page.Order).ThenBy(page => page.Title).ToList());
+
+        return BuildSidebarNodes(root.Id, 0, activeId, childrenByParent);
+    }
+
+    private static List<DocsSidebarNode> BuildSidebarNodes(
+        long parentId,
+        int depth,
+        long activeId,
+        IReadOnlyDictionary<long, List<DocsPage>> childrenByParent)
+    {
+        if (!childrenByParent.TryGetValue(parentId, out var children))
+            return [];
+
+        var nodes = new List<DocsSidebarNode>();
+        foreach (var page in children)
+        {
+            var childNodes = BuildSidebarNodes(page.Id, depth + 1, activeId, childrenByParent);
+            var isActive = page.Id == activeId;
+            nodes.Add(new DocsSidebarNode
+            {
+                Id = page.Id,
+                Title = page.Title,
+                Slug = page.Slug,
+                Order = page.Order,
+                Depth = depth,
+                IsActive = isActive,
+                IsExpanded = isActive || childNodes.Any(node => node.IsActive || node.IsExpanded),
+                Children = childNodes
+            });
+        }
+
+        return nodes;
     }
 
     /// <summary>

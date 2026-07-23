@@ -7,6 +7,9 @@
 @source "../ts";
 @source "../../Aero.Cms.Shared/{Components,Layout,Pages,ts}";
 @source "../../Aero.Cms.Modules.*/{Areas,Components,Pages,Views}";
+/* The wildcard/brace form above is not expanded by every Tailwind CLI host.
+   Keep the public blog pages explicit so their layout utilities are emitted. */
+@source "../../Aero.Cms.Modules.Posts/Areas";
 @source "../../Aero.Cms.Modules.Navigation/Views";
 @source "../../Aero.Cms.Modules.Footer/Views";
 @source "../../Aero.Cms.Modules.Footer/Rendering";

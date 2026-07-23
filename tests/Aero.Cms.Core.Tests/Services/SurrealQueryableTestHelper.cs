@@ -15,12 +15,12 @@ internal static class SurrealQueryableTestHelper
     /// with full LINQ provider plumbing, so that FirstOrDefaultAsync, ToListAsync, etc.
     /// work against the provided data.
     /// </summary>
-    public static ISurrealDbQueryable<T> AsSurrealQueryable<T>(this IEnumerable<T> source) where T : class
+    public static ISableQueryable<T> AsSurrealQueryable<T>(this IEnumerable<T> source) where T : class
     {
         var list = source.ToList();
         var enumerableQuery = list.AsQueryable();
 
-        var mock = Substitute.For<ISurrealDbQueryable<T>>();
+        var mock = Substitute.For<ISableQueryable<T>>();
 
         // IQueryable plumbing
         mock.Expression.Returns(enumerableQuery.Expression);
