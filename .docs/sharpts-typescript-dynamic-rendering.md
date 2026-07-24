@@ -10,6 +10,7 @@ The design must be validated with a focused SharpTS hosting spike before the
 public contracts are treated as accepted.
 
 Date: 2026-07-19
+Updated: 2026-07-23
 
 ## Executive Summary
 
@@ -47,7 +48,7 @@ TypeScript pages may obtain their data in any of these modes:
 
 The TypeScript-facing API remains the same in every mode. Templates receive an
 AeroCMS capability object such as `context.data`; they do not receive raw
-`IDocumentSession`, `IQuerySession`, `IGrainFactory`, grain references, or the
+`IDocumentSession`, `IGrainFactory`, grain references, or the
 application service provider.
 
 Developer-authored, reviewed TypeScript may run in-process. TypeScript authored
@@ -71,7 +72,7 @@ The Scriban renderer establishes several useful precedents:
 - create isolated state for every render;
 - impose time, recursion, loop, input, and output limits;
 - disable runtime evaluation and broad CLR access;
-- convert expected failures into `Result<T, AeroError>`; and
+- convert expected failures into `Result<T>`; and
 - sanitize successful HTML.
 
 SharpTS enables richer server-side logic and first-class TypeScript, but its
@@ -123,8 +124,8 @@ trust boundary explicit.
 - Designing action scripts, form handlers, or mutation endpoints in the first
   delivery. A future `*.action.ts` pipeline would require separate authorization,
   CSRF, validation, transaction, and idempotency rules.
-- Supporting a custom Vue/Svelte-style single-file component parser in the first
-  delivery.
+- Supporting a custom `.tshtml`, mixed Razor/TypeScript, or Vue/Svelte-style
+  single-file component parser.
 
 ## SharpTS Package and Runtime Findings
 
@@ -244,6 +245,56 @@ its CLI orchestration without an explicit compatibility decision.
 
 ## Architectural Decisions
 
+### 0. Separate whole-page renderers from embedded fragment renderers
+
+AeroCMS has two renderer levels:
+
+```text
+Page renderer
+├── Aero composition
+│   ├── ordinary visual elements
+│   ├── Scriban fragment
+│   ├── SharpTS fragment
+│   └── HTMX island/fragment
+├── Pure Scriban page
+├── Pure SharpTS page
+└── Pure HTMX page
+```
+
+The whole-page renderer is selected from page metadata. The initial stable
+renderer identifiers are:
+
+```text
+aero.composition
+aero.scriban
+aero.sharpts
+aero.htmx
+```
+
+Renderer identifiers are persisted as canonical strings and may be represented
+by value objects in .NET; they are not enum members. A renderer registry
+resolves the identifier to an `IPageRenderer`, so an optional rendering module
+can add a renderer without modifying a closed Pages-module enum. Page role,
+such as standard page, homepage, or blog listing, is independent of the
+renderer identifier.
+
+`aero.composition` is the existing visual page model. It may contain ordinary
+HTML elements and registered Scriban, SharpTS, or HTMX fragments.
+
+`aero.scriban` and `aero.sharpts` are code-first pages whose source owns the
+page body rather than a visual composition tree.
+
+`aero.htmx` is an HTMX-first page. It still produces an initial server-rendered
+HTML response, then uses registered, authorized fragment endpoints for swaps.
+It does not give persisted page source arbitrary endpoint URLs, database
+access, or a new client-side execution environment. HTMX islands remain usable
+inside `aero.composition`; the whole-page renderer is an additional authoring
+and dispatch option.
+
+The deployment-owned `Page.cshtml` remains the final public shell for every
+renderer. It resolves the selected renderer through a coordinator and emits
+the returned validated page result.
+
 ### 1. Add `Aero.Cms.Modules.TypeScript`
 
 The feature belongs in:
@@ -290,22 +341,25 @@ only include modules whose services are actually required.
 
 ### 2. Keep SharpTS-specific types inside the module
 
-The Pages module should depend on a neutral strategy contract, for example:
+The Pages module should depend on a neutral renderer contract, for example:
 
 ```csharp
-public interface IPageRenderStrategy
-{
-    string Key { get; }
+public readonly record struct PageRendererId(string Value);
 
-    Task<Result<PageRenderResult, AeroError>> RenderAsync(
+public interface IPageRenderer
+{
+    PageRendererId Id { get; }
+
+    Task<Result<PageRenderResult>> RenderAsync(
         PageRenderRequest request,
         CancellationToken cancellationToken);
 }
 ```
 
-The TypeScript module supplies the `"typescript"` implementation. The existing
-static renderer remains the `"static-html"` implementation. Scriban can be
-adapted later without making SharpTS the general rendering abstraction.
+The TypeScript module supplies the `aero.sharpts` implementation. The Pages
+module owns the `aero.composition` coordinator. Scriban and HTMX integrations
+provide their own implementations. A registry resolves renderers by stable ID;
+no renderer-specific persisted enum is required.
 
 ### 3. Expose one stable TypeScript host contract
 
@@ -360,8 +414,6 @@ Orleans without rewriting templates.
 Do not inject:
 
 - `IDocumentSession`;
-- `IQuerySession`;
-- `IDocumentStore`;
 - `IGrainFactory`;
 - `IClusterClient`;
 - existing broad grain references;
@@ -677,20 +729,22 @@ renderer reference:
 ```csharp
 public sealed record PageRendererReference
 {
-    public required string RendererKey { get; init; }
-    public long DefinitionId { get; init; }
-    public int Version { get; init; }
+    public required PageRendererId RendererId { get; init; }
+    public long? DefinitionId { get; init; }
+    public int? Version { get; init; }
 }
 ```
 
 Examples:
 
 ```text
-RendererKey = "static-html"
-RendererKey = "typescript"
+RendererId = "aero.composition"
+RendererId = "aero.scriban"
+RendererId = "aero.sharpts"
+RendererId = "aero.htmx"
 ```
 
-Static HTML remains the default when no reference is present.
+`aero.composition` remains the default when no reference is present.
 
 ## TypeScript Authoring Contract
 
@@ -761,8 +815,8 @@ export default defineElement<ProductCardModel>(({ model }) =>
 
 ### `html` tagged-template behavior
 
-The `html` tagged-template helper is the first-release alternative to a custom
-`<template>` single-file component syntax.
+The `html` tagged-template helper is the selected SharpTS authoring syntax.
+AeroCMS will not add a custom `.tshtml` or mixed Razor/TypeScript source format.
 
 Required behavior:
 
@@ -780,38 +834,6 @@ Required behavior:
 
 The helper should produce an internal fragment representation when practical,
 not merely concatenate unchecked strings.
-
-### Future single-file component syntax
-
-A future source format could support:
-
-```html
-<template>
-  <article>
-    <h1>{{ model.title }}</h1>
-  </article>
-</template>
-
-<script lang="ts">
-export interface Model {
-  title: string;
-}
-</script>
-```
-
-This is deferred because SharpTS compiles TypeScript, not this custom file
-format. AeroCMS would have to own:
-
-- parsing;
-- template-to-TypeScript transformation;
-- interpolation and escaping semantics;
-- generated source maps;
-- error remapping;
-- editor language services; and
-- format versioning.
-
-The `html` tagged template provides similar ergonomics while remaining ordinary
-TypeScript.
 
 ### Identifier representation
 
@@ -1349,7 +1371,8 @@ internal exception text to template authors.
 
 ## Error Semantics
 
-Compilation, publication, and rendering use `Result<T, AeroError>`.
+Compilation, publication, and rendering use Aero's `Result<T>` shorthand,
+whose error type is `AeroError`.
 
 Expected error categories:
 
@@ -1656,13 +1679,13 @@ operation, validator, renderer, importer, outline, and preview.
 
 Decision: rejected. Use native `<template>` placeholders and sidecar metadata.
 
-### Use a custom `<template>` single-file format immediately
+### Use a custom `.tshtml` or `<template>` single-file format
 
 This offers attractive authoring syntax but requires AeroCMS to create and
 maintain a compiler front end, source maps, diagnostics remapping, and editor
 tooling.
 
-Decision: defer. Begin with standard `.ts` files and an `html` tagged template.
+Decision: rejected. Use standard `.ts` files and the `html` tagged template.
 
 ### Load all compiled pages into the web process
 
@@ -1749,6 +1772,7 @@ The first complete release is acceptable when:
 ### AeroCMS
 
 - [PageEditor Living Standard design](page-editor-html-living-standard.md)
+- [Tentative future features](future-feature-list.md)
 - [`HtmlNodeKind`](../src/Aero.Cms.Html/HtmlNodeKind.cs)
 - [`HtmlStaticRenderer`](../src/Aero.Cms.Html/HtmlStaticRenderer.cs)
 - [`HtmlFragmentImporter`](../src/Aero.Cms.Html/HtmlFragmentImporter.cs)

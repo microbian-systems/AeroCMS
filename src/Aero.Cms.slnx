@@ -102,6 +102,7 @@
   <Folder Name="/Tests/">
     <Project Path="../tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj" />
     <Project Path="../tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj" />
+    <Project Path="../tests/Aero.Cms.Rendering.Interop.Tests/Aero.Cms.Rendering.Interop.Tests.csproj" />
   </Folder>
   <Project Path="Aero.AppServer/Aero.AppServer.csproj" Id="17744a70-a68e-4734-9c5b-6bb410054f6c" />
   <Project Path="Aero.Cms.Abstractions/Aero.Cms.Abstractions.csproj" Id="4164242f-b26c-4206-a16b-4cf5c0a54d6e" />
