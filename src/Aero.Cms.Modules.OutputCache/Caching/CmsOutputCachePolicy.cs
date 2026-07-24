@@ -77,9 +77,11 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
         CancellationToken cancellationToken)
     {
         var attemptOutputCaching = AttemptOutputCaching(context);
+        var allowCacheLookup = attemptOutputCaching
+            && !RequestRequiresRevalidation(context.HttpContext.Request);
 
         context.EnableOutputCaching = true;
-        context.AllowCacheLookup = attemptOutputCaching;
+        context.AllowCacheLookup = allowCacheLookup;
         context.AllowCacheStorage = attemptOutputCaching;
         context.AllowLocking = true;
 
@@ -312,6 +314,88 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Determines whether an otherwise eligible request requires origin revalidation.
+    /// </summary>
+    /// <remarks>
+    /// Directive names are matched as complete comma-separated tokens. A
+    /// syntactically valid <c>max-age</c> delta-seconds value is treated numerically,
+    /// so both <c>0</c> and values containing only leading zeroes require revalidation.
+    /// </remarks>
+    private static bool RequestRequiresRevalidation(HttpRequest request)
+        => HasDirective(request.Headers.CacheControl, "no-cache")
+           || HasZeroDeltaSecondsDirective(request.Headers.CacheControl, "max-age")
+           || HasDirective(request.Headers.Pragma, "no-cache");
+
+    /// <summary>
+    /// Finds one exact directive in one or more comma-separated header values.
+    /// </summary>
+    private static bool HasDirective(
+        StringValues headerValues,
+        string expectedName)
+    {
+        foreach (var headerValue in headerValues)
+        {
+            if (string.IsNullOrWhiteSpace(headerValue))
+            {
+                continue;
+            }
+
+            foreach (var candidate in headerValue.Split(','))
+            {
+                var separatorIndex = candidate.IndexOf('=');
+                var name = (separatorIndex >= 0
+                        ? candidate.AsSpan(0, separatorIndex)
+                        : candidate.AsSpan())
+                    .Trim();
+
+                if (!name.Equals(expectedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Finds an exact directive whose value is a syntactically valid zero delta-seconds.
+    /// </summary>
+    private static bool HasZeroDeltaSecondsDirective(
+        StringValues headerValues,
+        string expectedName)
+    {
+        foreach (var headerValue in headerValues)
+        {
+            if (string.IsNullOrWhiteSpace(headerValue))
+            {
+                continue;
+            }
+
+            foreach (var candidate in headerValue.Split(','))
+            {
+                var separatorIndex = candidate.IndexOf('=');
+                if (separatorIndex < 0
+                    || !candidate.AsSpan(0, separatorIndex).Trim()
+                        .Equals(expectedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = candidate.AsSpan(separatorIndex + 1).Trim();
+                if (!value.IsEmpty && value.IndexOfAnyExcept('0') < 0)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

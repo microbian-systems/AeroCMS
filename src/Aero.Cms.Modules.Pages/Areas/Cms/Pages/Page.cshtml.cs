@@ -35,8 +35,8 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 /// <param name="logger">The page logger.</param>
 /// <remarks>
 /// Draft selection is controlled by <see cref="DraftId"/> and is scoped to the
-/// manager-selected site. Public responses receive a five-minute cache header,
-/// while previews are marked no-store.
+/// manager-selected site. Public responses are retained by Aero's server-side
+/// output cache but require client revalidation, while previews are marked no-store.
 /// </remarks>
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
@@ -565,7 +565,10 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             return;
         }
 
-        Response.Headers.CacheControl = "public,max-age=300";
+        // Publication evicts Aero's tagged server-side output-cache entry. Browsers
+        // cannot participate in that eviction, so they must revalidate rather than
+        // independently retaining an old published snapshot for five minutes.
+        Response.Headers.CacheControl = "public, no-cache, max-age=0, must-revalidate";
     }
 
     /// <summary>

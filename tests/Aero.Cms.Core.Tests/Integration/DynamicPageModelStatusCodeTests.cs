@@ -195,6 +195,26 @@ public class DynamicPageModelStatusCodeTests
     }
 
     [Test]
+    public async Task PublishedPage_requires_client_revalidation_after_output_cache_eviction()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_402_1);
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var model = CreateModel(harness, page);
+        model.Slug = page.Slug;
+
+        var result = await model.OnGetAsync();
+
+        result.Should().BeOfType<PageResult>();
+        model.Response.Headers.CacheControl.ToString()
+            .Should().Be("public, no-cache, max-age=0, must-revalidate");
+    }
+
+    [Test]
     public async Task DraftPreview_UsesScopedActorLookup()
     {
         await using var harness = new SableTestHarness()
@@ -215,6 +235,8 @@ public class DynamicPageModelStatusCodeTests
         var result = await model.OnGetAsync();
 
         result.Should().BeOfType<PageResult>();
+        model.Response.Headers.CacheControl.ToString().Should().Be("no-store, no-cache");
+        model.Response.Headers.Pragma.ToString().Should().Be("no-cache");
         await actor.Received(1).GetByIdAsync(
             page.Id,
             page.SiteId,

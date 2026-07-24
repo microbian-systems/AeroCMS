@@ -10,6 +10,7 @@
 		<AeroRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../..'))</AeroRepositoryRoot>
 		<AeroThemeAssetScript>$(AeroRepositoryRoot)/eng/theme-assets/build-theme-assets.ps1</AeroThemeAssetScript>
 		<AeroPowerShellExe Condition="'$(AeroPowerShellExe)' == ''">pwsh</AeroPowerShellExe>
+		<AeroBuildThemeAssets Condition="'$(AeroBuildThemeAssets)' == ''">true</AeroBuildThemeAssets>
 		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
 		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
 		<UserSecretsId>Aero.Cms.Web</UserSecretsId>
@@ -48,14 +49,12 @@
       so the host must declare the runtime assembly as well.
     -->
     <PackageDownload Include="SharpTS" Version="[1.0.8]" />
-    <Reference Include="SharpTS"
-               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
-               Private="true" />
+    <Reference Include="SharpTS" HintPath="$(SharpTsToolDirectory)\SharpTS.dll" Private="true" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Areas\Weather\" />
     <Folder Include="logs\" />
-    <Folder Include="Areas\" />
     <Folder Include="wwwroot\img\" />
   </ItemGroup>
 
@@ -368,37 +367,24 @@
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/**/*.css" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Components/**/*;$(MSBuildProjectDirectory)/Pages/**/*;$(MSBuildProjectDirectory)/Views/**/*;$(MSBuildProjectDirectory)/ts/**/*" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Layout/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/ts/**/*" />
-    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Areas/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Views/**/*"
-                         Exclude="$(AeroRepositoryRoot)/src/**/bin/**;$(AeroRepositoryRoot)/src/**/obj/**;$(AeroRepositoryRoot)/src/**/wwwroot/**;$(AeroRepositoryRoot)/src/**/Generated/**" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Areas/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Views/**/*" Exclude="$(AeroRepositoryRoot)/src/**/bin/**;$(AeroRepositoryRoot)/src/**/obj/**;$(AeroRepositoryRoot)/src/**/wwwroot/**;$(AeroRepositoryRoot)/src/**/Generated/**" />
   </ItemGroup>
 
-  <Target Name="AeroCompileThemeAssets"
-          Inputs="@(AeroThemeAssetInput)"
-          Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+  <Target Name="AeroCompileThemeAssets" Inputs="@(AeroThemeAssetInput)" Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
     <Exec Command="&quot;$(AeroPowerShellExe)&quot; -NoProfile -File &quot;$(AeroThemeAssetScript)&quot; -Mode Build" />
   </Target>
 
-  <Target Name="AeroBuildThemeAssetsWhenRequested"
-          Condition="'$(AeroBuildThemeAssets)' == 'true'"
-          DependsOnTargets="AeroCompileThemeAssets" />
+  <Target Name="AeroBuildThemeAssetsWhenRequested" Condition="'$(AeroBuildThemeAssets)' == 'true'" DependsOnTargets="AeroCompileThemeAssets" />
 
   <Target Name="AeroEnsureGeneratedThemeAssetsExist">
-    <Error Condition="!Exists('$(AeroGeneratedCss)')"
-           Text="Compiled Tailwind CSS is missing: $(AeroGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
-    <Error Condition="!Exists('$(AeroDocsGeneratedCss)')"
-           Text="Compiled Tailwind CSS is missing: $(AeroDocsGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+    <Error Condition="!Exists('$(AeroGeneratedCss)')" Text="Compiled Tailwind CSS is missing: $(AeroGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+    <Error Condition="!Exists('$(AeroDocsGeneratedCss)')" Text="Compiled Tailwind CSS is missing: $(AeroDocsGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
   </Target>
 
-  <Target Name="AeroRejectStaleGeneratedThemeAssets"
-          Condition="'$(AeroBuildThemeAssets)' != 'true'"
-          DependsOnTargets="AeroEnsureGeneratedThemeAssetsExist"
-          Inputs="@(AeroThemeAssetInput)"
-          Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+  <Target Name="AeroRejectStaleGeneratedThemeAssets" Condition="'$(AeroBuildThemeAssets)' != 'true'" DependsOnTargets="AeroEnsureGeneratedThemeAssetsExist" Inputs="@(AeroThemeAssetInput)" Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
     <Error Text="Committed Tailwind CSS is older than an authoring or UI source. Run eng/theme-assets/build-theme-assets.ps1, or rebuild with -p:AeroBuildThemeAssets=true." />
   </Target>
 
-  <Target Name="AeroPrepareThemeAssetsBeforeStaticWebAssets"
-          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
-          DependsOnTargets="AeroBuildThemeAssetsWhenRequested;AeroEnsureGeneratedThemeAssetsExist;AeroRejectStaleGeneratedThemeAssets" />
+  <Target Name="AeroPrepareThemeAssetsBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" DependsOnTargets="AeroBuildThemeAssetsWhenRequested;AeroEnsureGeneratedThemeAssetsExist;AeroRejectStaleGeneratedThemeAssets" />
 
 </Project>

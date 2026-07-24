@@ -379,7 +379,10 @@ public sealed class PageCompositionExpanderTests
     }
 
     [Test]
-    public async Task ExpandAsync_renders_mixed_author_fragments_from_a_saved_aero_page()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ExpandAsync_renders_mixed_author_fragments_for_public_and_preview_pages(
+        bool isPreview)
     {
         var catalog = HtmlElementCatalog.CreateDefault();
         var content = new HtmlPageContent();
@@ -441,7 +444,7 @@ public sealed class PageCompositionExpanderTests
                 Title = "Troy",
                 Slug = "troy",
                 Path = "/troy",
-                IsPreview = true
+                IsPreview = isPreview
             });
 
         if (result is Result<PageCompositionExpansion, AeroError>.Failure failure)
