@@ -59,6 +59,20 @@
                     @onclick="() => RequestEditorCommandAsync(HtmlEditorCommandKind.Edit)">
                 <span aria-hidden="true">✎</span>
             </button>
+            @if (ShowSelectedSourceAi && AiRequested.HasDelegate)
+            {
+                <span class="aero-page-canvas__ai-tooltip"
+                      title="@AiButtonTitle">
+                    <button type="button"
+                            class="aero-page-canvas__toolbar-ai"
+                            disabled="@(!AiEnabled)"
+                            aria-disabled="@(!AiEnabled)"
+                            aria-label="Open AI assistant for selected source fragment"
+                            @onclick="RequestAiAsync">
+                        AI
+                    </button>
+                </span>
+            }
             <button type="button"
                     class="aero-page-canvas__toolbar-delete"
                     aria-label="Delete selected element"

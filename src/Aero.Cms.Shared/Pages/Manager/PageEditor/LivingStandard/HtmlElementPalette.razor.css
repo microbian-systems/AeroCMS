@@ -129,6 +129,39 @@
     transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
+.aero-element-palette__source-item {
+    position: relative;
+    min-width: 0;
+}
+
+.aero-element-palette__source-item > .aero-element-palette__item {
+    width: 100%;
+}
+
+.aero-element-palette__ai-tooltip {
+    position: absolute;
+    top: .35rem;
+    right: .35rem;
+    display: inline-flex;
+}
+
+.aero-element-palette__ai {
+    min-width: 2rem;
+    border: 1px solid color-mix(in srgb, var(--pe-primary) 35%, transparent);
+    border-radius: 999px;
+    padding: .18rem .38rem;
+    color: var(--pe-primary);
+    background: var(--pe-bg-secondary);
+    font-size: .65rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.aero-element-palette__ai:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
 .aero-element-palette__item.aero-palette-drag-source {
     border-color: #7c3aed;
     box-shadow: 0 0 0 3px rgb(124 58 237 / 16%);

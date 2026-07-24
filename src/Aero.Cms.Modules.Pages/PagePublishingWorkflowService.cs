@@ -2,10 +2,13 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Railway;
+using System.Collections.Immutable;
 using Wolverine;
 
 namespace Aero.Cms.Modules.Pages;
@@ -64,6 +67,18 @@ public interface IPagePublishingWorkflowService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Validates and atomically publishes a batch of pages owned by the authorized site.
+    /// </summary>
+    /// <remarks>
+    /// Every draft is validated before any page is mutated. All page snapshots are then
+    /// committed in one unit of work before downstream notifications are published.
+    /// </remarks>
+    Task<Result<bool, AeroError>> PublishBatchAsync(
+        IReadOnlyCollection<long> pageIds,
+        long authorizedSiteId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Marks a page as archived and sends page-update notifications.
     /// </summary>
     /// <param name="pageId">The page identifier.</param>
@@ -92,7 +107,10 @@ public sealed class PagePublishingWorkflowService(
     ISiteStyleProfileResolver styleProfileResolver,
     ILogger<PagePublishingWorkflowService> logger,
     IContentCompositionReferenceValidator? contentReferenceValidator = null,
-    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null) : IPagePublishingWorkflowService
+    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null,
+    IPageRendererRegistry? pageRendererRegistry = null,
+    IPageSourceVersionStore? pageSourceVersionStore = null,
+    IPageContentQueryResolver? pageContentQueryResolver = null) : IPagePublishingWorkflowService
 {
     /// <inheritdoc />
     public async Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default)
@@ -228,6 +246,80 @@ public sealed class PagePublishingWorkflowService(
     }
 
     /// <inheritdoc />
+    public async Task<Result<bool, AeroError>> PublishBatchAsync(
+        IReadOnlyCollection<long> pageIds,
+        long authorizedSiteId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            if (pageIds is null || pageIds.Count == 0)
+            {
+                return AeroError.ValidationError(
+                    ["At least one page identifier is required for batch publication."]);
+            }
+
+            if (pageIds.Any(pageId => pageId <= 0))
+            {
+                return AeroError.ValidationError(
+                    ["Page identifiers must be positive."]);
+            }
+
+            var distinctPageIds = pageIds.Distinct().ToArray();
+            var loadedPages = await session.LoadManyAsync<PageDocument>(distinctPageIds, ct);
+            var pagesById = loadedPages.ToDictionary(page => page.Id);
+            if (distinctPageIds.Any(pageId =>
+                    !pagesById.TryGetValue(pageId, out var page)
+                    || page.SiteId != authorizedSiteId))
+            {
+                return AeroError.NotFoundError(
+                    "One or more pages were not found for the authorized site.");
+            }
+
+            var pages = distinctPageIds
+                .Select(pageId => pagesById[pageId])
+                .ToArray();
+
+            foreach (var page in pages)
+            {
+                var validation = await ValidateDraftAsync(page, ct);
+                if (validation is Result<CompiledPageStyles>.Failure failure)
+                {
+                    return failure.Error;
+                }
+            }
+
+            var publishedOn = DateTimeOffset.UtcNow;
+            foreach (var page in pages)
+            {
+                page.PublishDraftContent(publishedOn);
+            }
+
+            session.Store(pages);
+            await session.SaveChangesAsync(ct);
+
+            foreach (var page in pages)
+            {
+                await PublishNotificationsAsync(page);
+            }
+
+            logger.LogInformation(
+                "Published {PageCount} pages for authorized site {SiteId}",
+                pages.Length,
+                authorizedSiteId);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to publish page batch for authorized site {SiteId}",
+                authorizedSiteId);
+            return AeroError.DatabaseError("Failed to publish page batch.");
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<Result<bool, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default)
     {
         try
@@ -290,7 +382,102 @@ public sealed class PagePublishingWorkflowService(
             return profileFailure.Error;
 
         var profile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-        return styleCompiler.Compile(page.DraftContent, profile);
+        var compiled = styleCompiler.Compile(page.DraftContent, profile);
+        if (compiled is Result<CompiledPageStyles>.Failure)
+        {
+            return compiled;
+        }
+
+        var rendererValidation = await ValidateSourceRendererAsync(
+            page,
+            cancellationToken);
+        return rendererValidation is Result<bool>.Failure rendererFailure
+            ? rendererFailure.Error
+            : compiled;
+    }
+
+    private async Task<Result<bool>> ValidateSourceRendererAsync(
+        PageDocument page,
+        CancellationToken cancellationToken)
+    {
+        var rendererId = PageRendererIds.NormalizeOrDefault(page.RendererId);
+        if (pageRendererRegistry is null)
+        {
+            return AeroError.ConfigurationError(
+                "The page renderer registry is not configured.");
+        }
+
+        var rendererResult = pageRendererRegistry.Resolve(rendererId);
+        if (rendererResult is Result<IPageRenderer>.Failure rendererFailure)
+        {
+            return rendererFailure.Error;
+        }
+
+        var renderer = ((Result<IPageRenderer>.Ok)rendererResult).Value;
+        if (!renderer.Descriptor.RequiresSource)
+        {
+            return true;
+        }
+
+        if (pageSourceVersionStore is null
+            || pageContentQueryResolver is null)
+        {
+            return AeroError.ConfigurationError(
+                $"{renderer.Descriptor.DisplayName} page publication dependencies are not configured.");
+        }
+
+        var sourceResult = await pageSourceVersionStore.LoadAsync(
+            page.DraftSourceVersionId,
+            page.SiteId,
+            page.Id,
+            rendererId,
+            cancellationToken);
+        if (sourceResult is Result<PageSourceVersionSnapshot?>.Failure sourceFailure)
+        {
+            return sourceFailure.Error;
+        }
+
+        if (((Result<PageSourceVersionSnapshot?>.Ok)sourceResult).Value is not { } source)
+        {
+            return AeroError.NotFoundError(
+                "Page source version not found or access denied.");
+        }
+
+        var queryResult = await pageContentQueryResolver.ResolveAsync(
+            page.SiteId,
+            page.Culture,
+            page.DraftComposition.ContentQueries,
+            includeDrafts: false,
+            cancellationToken);
+        if (queryResult is Result<PageContentQueryResolution>.Failure queryFailure)
+        {
+            return queryFailure.Error;
+        }
+
+        var rendered = await renderer.RenderAsync(
+            new PageRenderRequest(
+                new PageRenderMetadata(
+                    page.Id,
+                    page.SiteId,
+                    rendererId,
+                    page.Title,
+                    page.Slug,
+                    page.Path,
+                    page.Culture),
+                new PageRenderSource(
+                    source.Id,
+                    source.RendererId,
+                    source.Source,
+                    source.SourceHash),
+                page.DraftContent,
+                page.DraftComposition,
+                ImmutableDictionary<long, int>.Empty,
+                ((Result<PageContentQueryResolution>.Ok)queryResult).Value,
+                IsPreview: false),
+            cancellationToken);
+        return rendered is Result<RenderedPage>.Failure renderFailure
+            ? renderFailure.Error
+            : true;
     }
 
     private async Task SaveAsync(PageDocument page, CancellationToken ct)

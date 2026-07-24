@@ -180,6 +180,54 @@ public sealed class ContentCompositionReferenceValidatorTests
             Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task ValidateAsync_enforces_hierarchy_query_type_projection_root_scope_and_publication()
+    {
+        var contentTypes = Substitute.For<IContentTypeService>();
+        var contentItems = Substitute.For<IContentService>();
+        var type = CreateContentType();
+        type.Structure = ContentStructure.Hierarchical;
+        contentTypes.GetByIdAsync(42, 501, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                new Result<ContentTypeDefinition, AeroError>.Ok(type)));
+        var root = CreateContentItem(
+            publicationState: ContentPublicationState.Draft,
+            culture: "fr-FR");
+        root.SiteId = 99;
+        contentItems.LoadAsync(42, 7_001, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentItem, AeroError>>(
+                new Result<ContentItem, AeroError>.Ok(root)));
+        var composition = new PageCompositionDocument
+        {
+            ContentQueries =
+            [
+                new ContentQueryDefinition
+                {
+                    Name = "topics",
+                    ContentTypeId = 501,
+                    ContentTypeAlias = "articles",
+                    Traversal = ContentTraversal.Descendants,
+                    RootId = 7_001,
+                    Projection = ["missingField"]
+                }
+            ]
+        };
+        var validator = new ContentCompositionReferenceValidator(contentTypes, contentItems);
+
+        var result = await validator.ValidateAsync(
+            42,
+            "en-US",
+            composition,
+            ContentReferenceValidationMode.Publishing);
+
+        var failure = result.ShouldBeOfType<Result<bool, AeroError>.Failure>();
+        var validation = failure.Error.ShouldBeOfType<AeroError.Validation>();
+        validation.Errors.ShouldContain(error => error.Contains("missingField", StringComparison.Ordinal));
+        validation.Errors.ShouldContain(error => error.Contains("current site", StringComparison.Ordinal));
+        validation.Errors.ShouldContain(error => error.Contains("culture 'en-US'", StringComparison.Ordinal));
+        validation.Errors.ShouldContain(error => error.Contains("must be published", StringComparison.Ordinal));
+    }
+
     private static ContentTypeDefinition CreateContentType() => new()
     {
         Id = 501,

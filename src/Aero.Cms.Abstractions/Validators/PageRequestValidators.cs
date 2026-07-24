@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using FluentValidation;
+using System.Text;
 
 namespace Aero.Cms.Abstractions.Validators;
 
@@ -8,6 +10,8 @@ namespace Aero.Cms.Abstractions.Validators;
 /// </summary>
 public class PageRequestValidators : AbstractValidator<CreatePageRequest>
 {
+    private const int MaximumDraftSourceLengthBytes = 50_000;
+
         /// <summary>
     /// Initializes a new instance of the <see cref="PageRequestValidators"/> class.
     /// </summary>
@@ -18,7 +22,29 @@ public PageRequestValidators()
         RuleFor(x => x.Summary).MaximumLength(500);
         RuleFor(x => x.SeoTitle).MaximumLength(200);
         RuleFor(x => x.SeoDescription).MaximumLength(300);
+        RuleFor(x => x.RendererId)
+            .Must(rendererId => PageRendererIds.IsValid(PageRendererIds.NormalizeOrDefault(rendererId)))
+            .WithMessage("The page renderer identifier is invalid.");
+        RuleFor(x => x.DraftSource)
+            .Null()
+            .When(x => PageRendererIds.NormalizeOrDefault(x.RendererId) == PageRendererIds.AeroComposition)
+            .WithMessage("Aero composition pages cannot include draft source.");
+        RuleFor(x => x.DraftSource)
+            .Must(source => !string.IsNullOrWhiteSpace(source))
+            .When(x => IsBuiltInSourceRenderer(
+                PageRendererIds.NormalizeOrDefault(x.RendererId)))
+            .WithMessage("Source-rendered pages require non-blank draft source.");
+        RuleFor(x => x.DraftSource)
+            .Must(WithinDraftSourceLimit)
+            .When(x => x.DraftSource is not null)
+            .WithMessage($"Page draft source cannot exceed {MaximumDraftSourceLengthBytes} UTF-8 bytes.");
     }
+
+    private static bool WithinDraftSourceLimit(string? source)
+        => source is null || Encoding.UTF8.GetByteCount(source) <= MaximumDraftSourceLengthBytes;
+
+    private static bool IsBuiltInSourceRenderer(string rendererId) =>
+        rendererId is PageRendererIds.Scriban or PageRendererIds.SharpTs or PageRendererIds.Htmx;
 }
 
 /// <summary>
@@ -26,6 +52,8 @@ public PageRequestValidators()
 /// </summary>
 public class UpdatePageRequestValidator : AbstractValidator<UpdatePageRequest>
 {
+    private const int MaximumDraftSourceLengthBytes = 50_000;
+
         /// <summary>
     /// Initializes a new instance of the <see cref="UpdatePageRequestValidator"/> class.
     /// </summary>
@@ -37,7 +65,30 @@ public UpdatePageRequestValidator()
         RuleFor(x => x.Summary).MaximumLength(500);
         RuleFor(x => x.SeoTitle).MaximumLength(200);
         RuleFor(x => x.SeoDescription).MaximumLength(300);
+        RuleFor(x => x.RendererId)
+            .Must(rendererId => PageRendererIds.IsValid(PageRendererIds.NormalizeOrDefault(rendererId)))
+            .WithMessage("The page renderer identifier is invalid.");
+        RuleFor(x => x.DraftSource)
+            .Null()
+            .When(x => PageRendererIds.NormalizeOrDefault(x.RendererId) == PageRendererIds.AeroComposition)
+            .WithMessage("Aero composition pages cannot include draft source.");
+        RuleFor(x => x.DraftSource)
+            .Must(source => !string.IsNullOrWhiteSpace(source))
+            .When(x => IsBuiltInSourceRenderer(
+                    PageRendererIds.NormalizeOrDefault(x.RendererId))
+                && x.DraftSource is not null)
+            .WithMessage("Page draft source cannot be blank.");
+        RuleFor(x => x.DraftSource)
+            .Must(WithinDraftSourceLimit)
+            .When(x => x.DraftSource is not null)
+            .WithMessage($"Page draft source cannot exceed {MaximumDraftSourceLengthBytes} UTF-8 bytes.");
     }
+
+    private static bool WithinDraftSourceLimit(string? source)
+        => source is null || Encoding.UTF8.GetByteCount(source) <= MaximumDraftSourceLengthBytes;
+
+    private static bool IsBuiltInSourceRenderer(string rendererId) =>
+        rendererId is PageRendererIds.Scriban or PageRendererIds.SharpTs or PageRendererIds.Htmx;
 }
 
 /// <summary>

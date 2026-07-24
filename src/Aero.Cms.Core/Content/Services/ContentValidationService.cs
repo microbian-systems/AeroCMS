@@ -17,6 +17,7 @@ namespace Aero.Cms.Core.Content.Services;
 /// </remarks>
 public sealed class ContentValidationService(
     IContentTypeService contentTypeService,
+    ContentHierarchyValidator hierarchyValidator,
     IEnumerable<IContentFieldValidator> fieldValidators,
     IEnumerable<IAsyncContentValidator> asyncValidators)
 {
@@ -43,6 +44,10 @@ public sealed class ContentValidationService(
             return AeroError.NotFoundError($"Content type '{item.ContentTypeAlias}' was not found.");
 
         var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
+
+        var hierarchyResult = await hierarchyValidator.ValidateAsync(item, type, mode, ct);
+        if (hierarchyResult is Result<ContentItem>.Failure hierarchyFailure)
+            return hierarchyFailure.Error;
 
         var syncValidator = new DynamicContentValidator(type, mode, fieldValidators);
         var syncResult = await syncValidator.ValidateAsync(item, ct);

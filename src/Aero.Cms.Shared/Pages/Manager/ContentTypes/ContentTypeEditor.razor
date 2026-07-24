@@ -1,4 +1,5 @@
 @page "/manager/content-type/editor/{alias?}"
+@using Aero.Cms.Abstractions.Content
 @using Aero.Cms.Abstractions.Http.Clients
 @using BlazorMonaco.Editor
 @using Radzen.Blazor
@@ -125,6 +126,64 @@
                     <span class="pe-property-label">@L["Description"]</span>
                     <RadzenTextArea @bind-Value="Description" Placeholder="@L["A short note that helps editors understand when to use this type."]" Rows="3" Class="w-full" />
                 </label>
+            </div>
+
+            <div class="ct-panel space-y-4" style="background: var(--pe-bg-primary);">
+                <div>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Entry organization"]</h2>
+                    <p class="ct-help mt-1">@L["Choose whether this type has one entry or many, and whether entries can form a tree."]</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">@L["Cardinality"]</span>
+                        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                @bind="Cardinality">
+                            <option value="@ContentCardinality.Collection">@L["Collection — many entries"]</option>
+                            <option value="@ContentCardinality.Singleton">@L["Singleton — one entry per culture"]</option>
+                        </select>
+                    </label>
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">@L["Structure"]</span>
+                        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                @bind="Structure">
+                            <option value="@ContentStructure.Flat">@L["Flat list"]</option>
+                            <option value="@ContentStructure.Hierarchical">@L["Hierarchy — parent and child entries"]</option>
+                        </select>
+                    </label>
+                </div>
+                @if (Structure == ContentStructure.Hierarchical)
+                {
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4" style="border-color: var(--pe-border);">
+                        <label class="pe-property-group">
+                            <span class="pe-property-label">@L["Maximum depth"]</span>
+                            <input type="number"
+                                   min="1"
+                                   max="32"
+                                   class="w-full rounded-md shadow-sm sm:text-sm"
+                                   style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                   @bind="MaximumHierarchyDepth" />
+                            <span class="text-xs ct-muted">@L["Counts parent links from a root entry."]</span>
+                        </label>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                <RadzenCheckBox TValue="bool" @bind-Value="AllowRootItems" />
+                                @L["Allow entries at the root"]
+                            </label>
+                            <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                <RadzenCheckBox TValue="bool" @bind-Value="RequireSameTypeParent" />
+                                @L["Require parents to use this content type"]
+                            </label>
+                        </div>
+                        @if (!RequireSameTypeParent)
+                        {
+                            <AllowedParentContentTypePicker ContentTypes="_availableParentContentTypes"
+                                                            SelectedIds="AllowedParentContentTypeIds"
+                                                            SelectedIdsChanged="SetAllowedParentContentTypes" />
+                        }
+                    </div>
+                }
             </div>
 
             <div class="ct-panel" style="background: var(--pe-bg-primary);">
@@ -357,10 +416,13 @@
                     <p class="ct-help mt-1">@EntriesDescription</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <RadzenTextBox Placeholder="@L["Search entries..."]"
-                                   Value="@_entriesSearchText"
-                                   ValueChanged="@OnEntriesSearchChanged"
-                                   class="w-64" />
+                    @if (Structure != ContentStructure.Hierarchical)
+                    {
+                        <RadzenTextBox Placeholder="@L["Search entries..."]"
+                                       Value="@_entriesSearchText"
+                                       ValueChanged="@OnEntriesSearchChanged"
+                                       class="w-64" />
+                    }
                     <RadzenButton Icon="add"
                                   Text="@L["New Entry"]"
                                   ButtonStyle="ButtonStyle.Primary"
@@ -368,7 +430,13 @@
                 </div>
             </div>
 
-            <RadzenDataGrid @ref="_entriesGrid"
+            @if (Structure == ContentStructure.Hierarchical)
+            {
+                <ContentHierarchyManager Alias="@AliasValue" Title="@Name" />
+            }
+            else
+            {
+                <RadzenDataGrid @ref="_entriesGrid"
                             Data="@_entries"
                             TItem="ContentItemSummary"
                             Count="@_entriesCount"
@@ -472,7 +540,8 @@
                         </Template>
                     </RadzenDataGridColumn>
                 </Columns>
-            </RadzenDataGrid>
+                </RadzenDataGrid>
+            }
         </section>
     }
 </div>

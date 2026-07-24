@@ -48,12 +48,25 @@ public sealed class AeroContentTypeService(
     /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTypeDefinition definition, CancellationToken ct = default)
     {
+        var hierarchyValidation = ValidateHierarchy(definition);
+        if (hierarchyValidation is Result<NoneType, AeroError>.Failure hierarchyFailure)
+        {
+            return hierarchyFailure.Error;
+        }
+
         ContentTypeDocument? stored = null;
         if (definition.Id != 0)
         {
             stored = await session.LoadAsync<ContentTypeDocument>(definition.Id, ct);
             if (stored is null || stored.SiteId != definition.SiteId)
                 return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.NotFoundError($"Content type '{definition.Id}' not found."));
+
+            if (!string.Equals(stored.Alias, definition.Alias, StringComparison.Ordinal))
+            {
+                return Prelude.Fail<ContentTypeDefinition, AeroError>(
+                    AeroError.ConflictError(
+                        "Changing a content-type alias requires an explicit conversion workflow."));
+            }
         }
 
         var existing = await session.Query<ContentTypeDocument>()
@@ -78,6 +91,9 @@ public sealed class AeroContentTypeService(
             Description = definition.Description,
             Category = definition.Category,
             Icon = definition.Icon,
+            Cardinality = definition.Cardinality,
+            Structure = definition.Structure,
+            HierarchyRules = definition.HierarchyRules,
             AllowPublicUrl = definition.AllowPublicUrl,
             HideFromSearch = definition.HideFromSearch,
             Fields = definition.Fields,
@@ -108,7 +124,8 @@ public sealed class AeroContentTypeService(
     private static ContentTypeDefinition Map(ContentTypeDocument doc) => new()
     {
         Id = doc.Id, SiteId = doc.SiteId, Alias = doc.Alias, Name = doc.Name, Description = doc.Description,
-        Category = doc.Category, Icon = doc.Icon, AllowPublicUrl = doc.AllowPublicUrl, HideFromSearch = doc.HideFromSearch, Fields = doc.Fields,
+        Category = doc.Category, Icon = doc.Icon, Cardinality = doc.Cardinality, Structure = doc.Structure,
+        HierarchyRules = doc.HierarchyRules, AllowPublicUrl = doc.AllowPublicUrl, HideFromSearch = doc.HideFromSearch, Fields = doc.Fields,
         ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig
     };
 
@@ -124,6 +141,54 @@ public sealed class AeroContentTypeService(
         var validation = templateValidator.Validate(template, schema);
         if (validation is Result<NoneType, AeroError>.Failure)
             return validation;
+        return Prelude.Ok<NoneType, AeroError>(Prelude.None);
+    }
+
+    private static Result<NoneType, AeroError> ValidateHierarchy(
+        ContentTypeDefinition definition)
+    {
+        if (!Enum.IsDefined(definition.Cardinality))
+        {
+            return AeroError.ValidationError(["The content cardinality is invalid."]);
+        }
+
+        if (!Enum.IsDefined(definition.Structure))
+        {
+            return AeroError.ValidationError(["The content structure is invalid."]);
+        }
+
+        if (definition.HierarchyRules is null)
+        {
+            return AeroError.ValidationError(["Content hierarchy rules are required."]);
+        }
+
+        if (definition.Structure != ContentStructure.Hierarchical)
+        {
+            return Prelude.Ok<NoneType, AeroError>(Prelude.None);
+        }
+
+        var rules = definition.HierarchyRules;
+        if (rules.MaximumDepth is < 1 or > ContentHierarchyValidator.MaximumSystemDepth)
+        {
+            return AeroError.ValidationError(
+                [$"Hierarchy maximum depth must be between 1 and {ContentHierarchyValidator.MaximumSystemDepth}."]);
+        }
+
+        if (rules.AllowedParentContentTypeIds.Any(id => id <= 0))
+        {
+            return AeroError.ValidationError(
+                ["Allowed parent content-type identifiers must be positive."]);
+        }
+
+        if (!string.Equals(
+                rules.DefaultOrdering,
+                "sortOrder,title",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return AeroError.ValidationError(
+                ["The supported hierarchy ordering is 'sortOrder,title'."]);
+        }
+
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
     }
 }

@@ -67,8 +67,16 @@ public sealed record ContentItemViewModel : AeroEntityViewModel
         /// <summary>
     /// Gets or sets the Source Item Id.
     /// </summary>
-[Id(11)]
+    [Id(11)]
     public long? SourceItemId { get; set; }
+
+    /// <summary>Gets or sets the source-of-truth parent item identifier.</summary>
+    [Id(12)]
+    public long? ParentId { get; set; }
+
+    /// <summary>Gets or sets the stable order among siblings.</summary>
+    [Id(13)]
+    public int SortOrder { get; set; }
 }
 
 /// <summary>

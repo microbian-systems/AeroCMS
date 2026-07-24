@@ -57,8 +57,20 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
         /// <summary>
     /// Gets or sets the Schedule Config.
     /// </summary>
-[Id(9)]
+    [Id(9)]
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
+
+    /// <summary>Gets or sets the item cardinality.</summary>
+    [Id(10)]
+    public ContentCardinality Cardinality { get; set; } = ContentCardinality.Collection;
+
+    /// <summary>Gets or sets the item structure.</summary>
+    [Id(11)]
+    public ContentStructure Structure { get; set; } = ContentStructure.Flat;
+
+    /// <summary>Gets or sets hierarchical placement rules.</summary>
+    [Id(12)]
+    public ContentHierarchyRules HierarchyRules { get; set; } = new();
 }
 
 /// <summary>

@@ -8,11 +8,13 @@ using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -204,10 +206,7 @@ public sealed class PageEditorPublishingGoldenPathTests
         var contentPolicy = new HtmlContentModelPolicy(catalog);
         var attributePolicy = new HtmlAttributePolicy();
         var contentValidator = new HtmlContentValidator(catalog, contentPolicy, attributePolicy);
-        var model = new DynamicPageModel(
-            actor,
-            siteContext,
-            harness.Store,
+        var pageRenderer = new AeroCompositionPageRenderer(
             new PageCompositionExpander(
                 Substitute.For<IContentCompositionResolver>(),
                 contentValidator),
@@ -217,7 +216,14 @@ public sealed class PageEditorPublishingGoldenPathTests
                 attributePolicy,
                 contentValidator),
             new NativeCssStyleCompiler(),
-            styleProfileResolver ?? CreateStyleProfileResolver(),
+            styleProfileResolver ?? CreateStyleProfileResolver());
+        var model = new DynamicPageModel(
+            actor,
+            siteContext,
+            harness.Store,
+            new PageRendererRegistry([pageRenderer]),
+            new PageContentQueryResolver(Substitute.For<IContentHierarchyQueryService>()),
+            CreateAuthorizationService(),
             NullLogger<DynamicPageModel>.Instance)
         {
             Slug = page.Slug,
@@ -235,6 +241,17 @@ public sealed class PageEditorPublishingGoldenPathTests
         var result = await model.OnGetAsync();
         result.ShouldBeOfType<PageResult>();
         return model;
+    }
+
+    private static IAuthorizationService CreateAuthorizationService()
+    {
+        var service = Substitute.For<IAuthorizationService>();
+        service.AuthorizeAsync(
+                Arg.Any<System.Security.Claims.ClaimsPrincipal>(),
+                Arg.Any<object?>(),
+                "site:read")
+            .Returns(AuthorizationResult.Success());
+        return service;
     }
 
     private static HtmlPageContent CreateTokenContent(string tokenName)

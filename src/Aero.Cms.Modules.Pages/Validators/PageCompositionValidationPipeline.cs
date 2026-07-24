@@ -60,7 +60,8 @@ internal static class PageCompositionValidationPipeline
 
         var hasReferences = (composition.ContentLists?.Count ?? 0) > 0
             || (composition.ContentItems?.Count ?? 0) > 0
-            || (composition.FieldBindings?.Count ?? 0) > 0;
+            || (composition.FieldBindings?.Count ?? 0) > 0
+            || (composition.ContentQueries?.Count ?? 0) > 0;
         if (!hasReferences)
         {
             return Prelude.Ok<bool, AeroError>(true);

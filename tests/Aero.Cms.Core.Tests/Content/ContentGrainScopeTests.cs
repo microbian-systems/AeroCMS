@@ -117,6 +117,7 @@ public sealed class ContentGrainScopeTests
         services.AddScoped<AeroContentService>();
         services.AddScoped<IContentService>(
             provider => provider.GetRequiredService<AeroContentService>());
+        services.AddScoped<ContentHierarchyValidator>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
         services.AddScoped<ContentEventPublisher>();

@@ -113,6 +113,8 @@ public sealed class PageDocumentHtmlLifecycleTests
             },
             ContentRevision = 7,
             PublishedVersion = 3,
+            DraftSourceVersionId = 9_001,
+            PublishedSourceVersionId = 8_001,
             PublicationState = ContentPublicationState.Draft
         };
 
@@ -128,11 +130,31 @@ public sealed class PageDocumentHtmlLifecycleTests
         await Assert.That(page.PublishedComposition!.ContentItems[0].ContentItemId).IsEqualTo(30);
         await Assert.That(page.PublishedComposition.RenderedFragments[0].Source).IsEqualTo("**Published**");
         await Assert.That(page.PublishedComposition).IsNotSameReferenceAs(page.DraftComposition);
+        await Assert.That(page.PublishedSourceVersionId).IsEqualTo(9_001);
         await Assert.That(page.ContentRevision).IsEqualTo(7);
+        await Assert.That(page.PublishedContentRevision).IsEqualTo(7);
         await Assert.That(page.PublishedVersion).IsEqualTo(4);
         await Assert.That(page.PublicationState).IsEqualTo(ContentPublicationState.Published);
+        await Assert.That(page.HasUnpublishedChanges).IsFalse();
         await Assert.That(page.PublishedOn).IsEqualTo(publishedOn);
         await Assert.That(page.ModifiedOn).IsEqualTo(publishedOn);
+    }
+
+    [Test]
+    public async Task ReplaceDraftContent_after_publish_marks_the_public_snapshot_as_stale()
+    {
+        var page = new PageDocument
+        {
+            DraftContent = CreateContent("Published"),
+            ContentRevision = 2
+        };
+
+        page.PublishDraftContent(DateTimeOffset.UtcNow);
+        page.ReplaceDraftContent(CreateContent("New draft"), DateTimeOffset.UtcNow);
+
+        await Assert.That(page.ContentRevision).IsEqualTo(3);
+        await Assert.That(page.PublishedContentRevision).IsEqualTo(2);
+        await Assert.That(page.HasUnpublishedChanges).IsTrue();
     }
 
     [Test]
@@ -141,11 +163,13 @@ public sealed class PageDocumentHtmlLifecycleTests
         var page = new PageDocument
         {
             DraftContent = CreateContent("Published"),
-            PublishedVersion = 2
+            PublishedVersion = 2,
+            DraftSourceVersionId = 9_002
         };
         page.PublishDraftContent(DateTimeOffset.UtcNow);
         var snapshot = page.PublishedContent;
         var version = page.PublishedVersion;
+        var sourceVersionId = page.PublishedSourceVersionId;
         var modifiedOn = new DateTimeOffset(2026, 7, 13, 14, 0, 0, TimeSpan.Zero);
 
         page.UnpublishContent(modifiedOn);
@@ -153,6 +177,7 @@ public sealed class PageDocumentHtmlLifecycleTests
         await Assert.That(page.PublicationState).IsEqualTo(ContentPublicationState.Draft);
         await Assert.That(page.PublishedOn).IsNull();
         await Assert.That(page.PublishedContent).IsSameReferenceAs(snapshot);
+        await Assert.That(page.PublishedSourceVersionId).IsEqualTo(sourceVersionId);
         await Assert.That(page.PublishedVersion).IsEqualTo(version);
         await Assert.That(page.ModifiedOn).IsEqualTo(modifiedOn);
     }

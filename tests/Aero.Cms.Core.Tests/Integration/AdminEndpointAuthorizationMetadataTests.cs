@@ -77,6 +77,7 @@ public sealed class AdminEndpointAuthorizationMetadataTests
         app.MapBlogApi();
         app.MapCategoriesApi();
         app.MapContentItemsApi();
+        app.MapContentHierarchyManagerApi();
         app.MapContentTypesApi();
         app.MapTagsApi();
         app.MapSeriesApi();

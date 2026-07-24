@@ -39,6 +39,14 @@ public string Culture { get; set; } = string.Empty;
 public long? SourceItemId { get; set; }
 
     /// <summary>
+    /// Gets or sets the source-of-truth parent item identifier for hierarchical content.
+    /// </summary>
+    public long? ParentId { get; set; }
+
+    /// <summary>Gets or sets the stable order among siblings.</summary>
+    public int SortOrder { get; set; }
+
+    /// <summary>
     /// Field values stored as JsonElement for AOT-safe serialization.
     /// </summary>
     public Dictionary<string, JsonElement> Fields { get; set; } = [];

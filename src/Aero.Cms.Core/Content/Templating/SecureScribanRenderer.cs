@@ -72,16 +72,51 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(model);
 
-        var validationResult = validator.Validate(definition.Template, definition.DataSchema);
-        if (validationResult is Result<NoneType, AeroError>.Failure validationFailure)
-        {
-            return validationFailure.Error;
-        }
-
         var dataValidationResult = validator.ValidateData(model.Fields, definition.DataSchema);
         if (dataValidationResult is Result<NoneType, AeroError>.Failure dataValidationFailure)
         {
             return dataValidationFailure.Error;
+        }
+
+        try
+        {
+            var globals = JsonToScribanMapper.CreateGlobals(
+                model,
+                options.MaxInputDepth,
+                imports);
+            var rendered = await RenderTrustedAsync(
+                definition,
+                globals,
+                cancellationToken);
+            return rendered switch
+            {
+                Result<string>.Ok success =>
+                    Prelude.Ok<string, AeroError>(success.Value),
+                Result<string>.Failure failure =>
+                    Prelude.Fail<string, AeroError>(failure.Error),
+                _ => Prelude.Fail<string, AeroError>(
+                    AeroError.CreateError("Unknown Scriban rendering result state."))
+            };
+        }
+        catch (InvalidOperationException exception)
+        {
+            return AeroError.ValidationError([exception.Message]);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<string>> RenderTrustedAsync(
+        ScribanRenderDefinition definition,
+        ScriptObject trustedGlobals,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(trustedGlobals);
+
+        var validationResult = validator.Validate(definition.Template, definition.DataSchema);
+        if (validationResult is Result<NoneType, AeroError>.Failure validationFailure)
+        {
+            return validationFailure.Error;
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -90,7 +125,7 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
         try
         {
             var template = GetOrAddTemplate(definition);
-            var context = CreateContext(model, imports, timeoutCts.Token);
+            var context = CreateContext(trustedGlobals, timeoutCts.Token);
             var output = await template.RenderAsync(context);
             if (output.Length > options.MaxOutputLength)
             {
@@ -98,7 +133,7 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
                     [$"Dynamic template output exceeds the {options.MaxOutputLength} character limit."]);
             }
 
-            return Prelude.Ok<string, AeroError>(htmlSanitizer.Sanitize(output));
+            return new Result<string>.Ok(htmlSanitizer.Sanitize(output));
         }
         catch (OperationCanceledException)
         {
@@ -124,8 +159,7 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
     }
 
     private TemplateContext CreateContext(
-        ScribanContentRenderModel model,
-        IReadOnlyDictionary<string, ScriptObject>? imports,
+        ScriptObject trustedGlobals,
         CancellationToken cancellationToken)
     {
         var context = new TemplateContext(CreateSafeBuiltinObject())
@@ -146,7 +180,7 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
             TemplateLoader = null
         };
 
-        context.PushGlobal(JsonToScribanMapper.CreateGlobals(model, options.MaxInputDepth, imports));
+        context.PushGlobal((ScriptObject)trustedGlobals.Clone(deep: true));
         return context;
     }
 

@@ -1,15 +1,22 @@
 using System.Reflection;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Pages.Rendering;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
+using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Http;
+using Aero.Core;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authorization;
@@ -53,9 +60,11 @@ public sealed class PagesApiTests
         {
             ("GET", "/api/v1/admin/pages/", "site:read"),
             ("GET", "/api/v1/admin/pages/{id:long}", "site:read"),
+            ("GET", "/api/v1/admin/pages/{id:long}/source", "site:update"),
             ("GET", "/api/v1/admin/pages/slug/{*slug}", "site:read"),
             ("GET", "/api/v1/admin/pages/drafts/{id:long}", "site:read"),
             ("GET", "/api/v1/admin/pages/registered-fragments", "site:read"),
+            ("GET", "/api/v1/admin/pages/renderers", "site:read"),
             ("POST", "/api/v1/admin/pages/", "site:create"),
             ("GET", "/api/v1/admin/pages/{id:long}/translations", "site:read"),
             ("POST", "/api/v1/admin/pages/{id:long}/translations", "site:create"),
@@ -123,6 +132,37 @@ public sealed class PagesApiTests
         await Assert.That(publicSelectors).IsNotEmpty();
         await Assert.That(publicSelectors.All(endpoint =>
             endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Count == 0)).IsTrue();
+    }
+
+    [Test]
+    public async Task DraftRazorRouteWinsOverPublicCatchAll()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddLogging();
+        new PagesModule().ConfigureServices(builder.Services);
+
+        await using var app = builder.Build();
+        app.UseRouting();
+        app.Use((
+            Microsoft.AspNetCore.Http.HttpContext context,
+            Microsoft.AspNetCore.Http.RequestDelegate _) =>
+        {
+            context.Response.Headers["X-Test-Draft-Id"] =
+                context.Request.RouteValues["draftId"]?.ToString() ?? string.Empty;
+            context.Response.Headers["X-Test-Slug"] =
+                context.Request.RouteValues["slug"]?.ToString() ?? string.Empty;
+            context.Response.StatusCode = 204;
+            return Task.CompletedTask;
+        });
+        app.MapRazorPages();
+        await app.StartAsync();
+
+        using var response = await app.GetTestClient()
+            .GetAsync("/_cms/preview/pages/drafts/123");
+
+        await Assert.That(response.Headers.GetValues("X-Test-Draft-Id").Single()).IsEqualTo("123");
+        await Assert.That(response.Headers.GetValues("X-Test-Slug").Single()).IsEmpty();
     }
 
     [Test]
@@ -288,6 +328,203 @@ public sealed class PagesApiTests
     }
 
     [Test]
+    public async Task GetSource_ReturnsExactManagerSourceAndUsesCurrentSite()
+    {
+        const long pageId = 603;
+        const string exactSource = "\r\n<main>{{ page.title }}</main>\n";
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetSourceAsync(pageId, 42, Arg.Any<CancellationToken>())
+            .Returns(new PageSourceViewModel(
+                9001,
+                PageRendererIds.Scriban,
+                "source-hash",
+                exactSource));
+        await using var app = await CreateAppAsync(actor);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}/source");
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        await Assert.That(response.IsSuccessStatusCode).IsTrue();
+        var source = await response.Content.ReadFromJsonAsync<PageSourceViewModel>();
+        await Assert.That(source).IsNotNull();
+        await Assert.That(source!.Source).IsEqualTo(exactSource);
+        await actor.Received(1).GetSourceAsync(
+            pageId,
+            42,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task GetSource_MissingOrCrossOwnedSourceReturnsNotFound()
+    {
+        const long pageId = 604;
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetSourceAsync(pageId, 42, Arg.Any<CancellationToken>())
+            .Returns((PageSourceViewModel?)null);
+        await using var app = await CreateAppAsync(actor);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}/source");
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task UnsavedScribanPreview_UsesServerContextAndExactUnpersistedSource()
+    {
+        const string exactSource = "\r\n<main>{{ page.title }}</main>\n";
+        PageRenderRequest? captured = null;
+        var renderer = Substitute.For<IPageRenderer>();
+        renderer.RenderAsync(Arg.Any<PageRenderRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                captured = call.Arg<PageRenderRequest>();
+                return Task.FromResult<Result<RenderedPage>>(
+                    new Result<RenderedPage>.Ok(
+                        new RenderedPage("<main>preview</main>", ".preview{}", [])));
+            });
+        var registry = Substitute.For<IPageRendererRegistry>();
+        registry.Resolve(PageRendererIds.Scriban)
+            .Returns(new Result<IPageRenderer>.Ok(renderer));
+        var pageService = Substitute.For<IPageContentService>();
+        var queryResolver = Substitute.For<IPageContentQueryResolver>();
+        queryResolver.ResolveAsync(
+                42,
+                "en-US",
+                Arg.Any<IReadOnlyList<ContentQueryDefinition>?>(),
+                true,
+                Arg.Any<CancellationToken>())
+            .Returns(PageContentQueryResolution.Empty);
+        await using var app = await CreateAppAsync(
+            Substitute.For<IAeroPageActor>(),
+            registry,
+            pageService,
+            queryResolver);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/{HttpConstants.ApiPrefix}admin/preview/pages/render-fragment")
+        {
+            Content = JsonContent.Create(new PreviewPageFragmentRequest(
+                Content: null,
+                Culture: "en-us",
+                RendererId: PageRendererIds.Scriban,
+                Title: "Unsaved source page",
+                Slug: "unsaved-source-page",
+                Path: "/unsaved-source-page",
+                Source: exactSource))
+        };
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        await Assert.That(response.IsSuccessStatusCode).IsTrue();
+        var payload = await response.Content.ReadFromJsonAsync<PreviewPageFragmentResponse>();
+        await Assert.That(payload).IsNotNull();
+        await Assert.That(payload!.Html).Contains("<style data-aero-page-styles>");
+        await Assert.That(captured).IsNotNull();
+        await Assert.That(captured!.Metadata.SiteId).IsEqualTo(42);
+        await Assert.That(captured.Metadata.Culture).IsEqualTo("en-US");
+        await Assert.That(captured.IsPreview).IsTrue();
+        await Assert.That(captured.Source).IsNotNull();
+        await Assert.That(captured.Source!.VersionId).IsEqualTo(0);
+        await Assert.That(captured.Source.Source).IsEqualTo(exactSource);
+        await Assert.That(captured.Source.SourceHash)
+            .IsEqualTo("ac64d4947922fd4b9c43e6225150c58df3bd0235e63c5e5a756a9b58af5fc1b0");
+    }
+
+    [Test]
+    public async Task UnsavedPreview_ReturnsActionableValidationMessage()
+    {
+        var renderer = Substitute.For<IPageRenderer>();
+        renderer.RenderAsync(Arg.Any<PageRenderRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<RenderedPage>>(
+                new Result<RenderedPage>.Failure(
+                    AeroError.ValidationError(
+                        ["The '<style>' element is not supported in page fragments."]))));
+        var registry = Substitute.For<IPageRendererRegistry>();
+        registry.Resolve(PageRendererIds.Htmx)
+            .Returns(new Result<IPageRenderer>.Ok(renderer));
+        var queryResolver = Substitute.For<IPageContentQueryResolver>();
+        queryResolver.ResolveAsync(
+                42,
+                "en-US",
+                Arg.Any<IReadOnlyList<ContentQueryDefinition>?>(),
+                true,
+                Arg.Any<CancellationToken>())
+            .Returns(PageContentQueryResolution.Empty);
+        await using var app = await CreateAppAsync(
+            Substitute.For<IAeroPageActor>(),
+            registry,
+            Substitute.For<IPageContentService>(),
+            queryResolver);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/{HttpConstants.ApiPrefix}admin/preview/pages/render-fragment")
+        {
+            Content = JsonContent.Create(new PreviewPageFragmentRequest(
+                Content: null,
+                Culture: "en-US",
+                RendererId: PageRendererIds.Htmx,
+                Source: "<style>.card{display:block}</style><div class=\"card\"></div>"))
+        };
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.BadRequest);
+        await Assert.That(payload.RootElement.GetProperty("error").GetString())
+            .IsEqualTo("The '<style>' element is not supported in page fragments.");
+    }
+
+    [Test]
+    public async Task ExistingPagePreview_WithDifferentRenderer_ReturnsConflict()
+    {
+        const long pageId = 605;
+        var renderer = Substitute.For<IPageRenderer>();
+        var registry = Substitute.For<IPageRendererRegistry>();
+        registry.Resolve(PageRendererIds.Scriban)
+            .Returns(new Result<IPageRenderer>.Ok(renderer));
+        var pageService = Substitute.For<IPageContentService>();
+        pageService.LoadAsync(pageId, Arg.Any<CancellationToken>())
+            .Returns(new Result<PageDocument?, AeroError>.Ok(new PageDocument
+            {
+                Id = pageId,
+                SiteId = 42,
+                RendererId = PageRendererIds.AeroComposition
+            }));
+        await using var app = await CreateAppAsync(
+            Substitute.For<IAeroPageActor>(),
+            registry,
+            pageService,
+            Substitute.For<IPageContentQueryResolver>());
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/{HttpConstants.ApiPrefix}admin/preview/pages/render-fragment")
+        {
+            Content = JsonContent.Create(new PreviewPageFragmentRequest(
+                Content: null,
+                RendererId: PageRendererIds.Scriban,
+                PageId: pageId,
+                Source: "<main>preview</main>"))
+        };
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Conflict);
+        await renderer.DidNotReceive().RenderAsync(
+            Arg.Any<PageRenderRequest>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task Create_WithCrossSiteParent_ReturnsNotFoundBeforeMutation()
     {
         const long parentId = 701;
@@ -384,7 +621,72 @@ public sealed class PagesApiTests
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
     }
 
-    private static async Task<WebApplication> CreateAppAsync(IAeroPageActor actor)
+    [Test]
+    public async Task PublishTranslationGroup_RoutesBatchThroughWorkflowWithAuthorizedSite()
+    {
+        const long translationGroupId = 7_500;
+        var variants = new PageDocument[]
+        {
+            new()
+            {
+                Id = 7_501,
+                SiteId = 42,
+                TranslationGroupId = translationGroupId,
+                Culture = "en-US",
+                Title = "English",
+                Slug = "english"
+            },
+            new()
+            {
+                Id = 7_502,
+                SiteId = 42,
+                TranslationGroupId = translationGroupId,
+                Culture = "fr-FR",
+                Title = "French",
+                Slug = "french"
+            }
+        };
+        var pageService = Substitute.For<IPageContentService>();
+        pageService.ListCultureVariantsAsync(
+                translationGroupId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IReadOnlyList<PageDocument>, AeroError>>(
+                new Result<IReadOnlyList<PageDocument>, AeroError>.Ok(variants)));
+        var publishingWorkflow = Substitute.For<IPagePublishingWorkflowService>();
+        publishingWorkflow.PublishBatchAsync(
+                Arg.Any<IReadOnlyCollection<long>>(),
+                42,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Ok(true)));
+        await using var app = await CreateAppAsync(
+            Substitute.For<IAeroPageActor>(),
+            pageService: pageService,
+            publishingWorkflow: publishingWorkflow);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/{HttpConstants.ApiPrefix}admin/pages/translation-groups/{translationGroupId}/publish");
+        request.WithTestUser(42);
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await publishingWorkflow.Received(1).PublishBatchAsync(
+            Arg.Is<IReadOnlyCollection<long>>(ids =>
+                ids.SequenceEqual(variants.Select(page => page.Id))),
+            42,
+            Arg.Any<CancellationToken>());
+        await pageService.DidNotReceive().SaveAsync(
+            Arg.Any<PageDocument>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static async Task<WebApplication> CreateAppAsync(
+        IAeroPageActor actor,
+        IPageRendererRegistry? rendererRegistry = null,
+        IPageContentService? pageService = null,
+        IPageContentQueryResolver? contentQueryResolver = null,
+        IPagePublishingWorkflowService? publishingWorkflow = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -394,6 +696,14 @@ public sealed class PagesApiTests
         var siteContext = Substitute.For<ISiteContext>();
         siteContext.SiteId.Returns(42);
         builder.Services.AddSingleton(siteContext);
+        builder.Services.AddSingleton<IPageRendererRegistry>(
+            rendererRegistry ?? CreateRendererRegistry());
+        builder.Services.AddSingleton(
+            pageService ?? Substitute.For<IPageContentService>());
+        builder.Services.AddSingleton(
+            contentQueryResolver ?? Substitute.For<IPageContentQueryResolver>());
+        builder.Services.AddSingleton(
+            publishingWorkflow ?? Substitute.For<IPagePublishingWorkflowService>());
 
         var app = builder.Build();
         app.UseAuthentication();
@@ -401,6 +711,19 @@ public sealed class PagesApiTests
         app.MapPagesApi();
         await app.StartAsync();
         return app;
+    }
+
+    private static IPageRendererRegistry CreateRendererRegistry()
+    {
+        var renderer = Substitute.For<IPageRenderer>();
+        renderer.Id.Returns(new PageRendererId(PageRendererIds.AeroComposition));
+        renderer.Descriptor.Returns(new PageRendererDescriptor(
+            PageRendererIds.AeroComposition,
+            "Aero",
+            PageEditorKinds.VisualComposition,
+            SupportsFragments: true,
+            IsExperimental: false));
+        return new PageRendererRegistry([renderer]);
     }
 
     private static HtmlPageContent CreateHtmlContent()

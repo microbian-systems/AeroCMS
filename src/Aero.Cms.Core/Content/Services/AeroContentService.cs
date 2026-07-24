@@ -79,6 +79,9 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
             !await TranslationGroupBelongsToSiteAsync(item.SiteId, groupId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
+        if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
+            return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+
         foreach (var field in type.Fields.Where(x => x.FieldType == "reference"))
         {
             if (!item.Fields.TryGetValue(field.Name, out var value) || value.ValueKind is System.Text.Json.JsonValueKind.Null)
@@ -113,6 +116,17 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
         var item = await session.LoadAsync<ContentItem>(id, ct);
         if (item is null || item.SiteId != siteId)
             return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Content item '{id}' not found."));
+
+        var hasChildren = await session.Query<ContentItem>()
+            .Where(candidate => candidate.SiteId == siteId && candidate.ParentId == id)
+            .AnyAsync(ct);
+        if (hasChildren)
+        {
+            return Prelude.Fail<bool, AeroError>(
+                AeroError.ConflictError(
+                    "This content item has children. Move or delete its children before deleting it."));
+        }
+
         session.Delete(item);
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);

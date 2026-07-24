@@ -1381,6 +1381,8 @@ public sealed class HtmlPageEditorSession
             PageRenderedFragmentKind.Markdown => "Markdown block — double-click to edit",
             PageRenderedFragmentKind.CustomHtml => "Custom HTML block — double-click to edit",
             PageRenderedFragmentKind.Scriban => "Scriban block — double-click to edit",
+            PageRenderedFragmentKind.SharpTs => "TS block — double-click to edit",
+            PageRenderedFragmentKind.Htmx => "HTMX block — double-click to edit",
             _ => "Rendered block — double-click to edit"
         }));
         container.Children.Add(placeholder);

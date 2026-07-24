@@ -61,6 +61,8 @@ public sealed class PageCultureForkerTests
         await Assert.That(fork.PublishedVersion).IsEqualTo(0);
         await Assert.That(fork.PublishedContent).IsNull();
         await Assert.That(fork.PublishedComposition).IsNull();
+        await Assert.That(fork.DraftSourceVersionId).IsNull();
+        await Assert.That(fork.PublishedSourceVersionId).IsNull();
         await Assert.That(fork.ContentRevision).IsEqualTo(3);
         await Assert.That(fork.DraftContent.Root.Children[0].Children[0].Text).IsEqualTo("Welcome");
         await Assert.That(fork.DraftContent).IsNotSameReferenceAs(source.DraftContent);

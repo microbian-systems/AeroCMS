@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AeroBin>$(MSBuildThisFileDirectory)..\codex-pages-clean\bin\Aero.Cms.Modules.Pages\debug</AeroBin>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Aero.Cms.Modules.Pages" HintPath="$(AeroBin)\Aero.Cms.Modules.Pages.dll" />
+    <Reference Include="Aero.Cms.Abstractions" HintPath="$(AeroBin)\Aero.Cms.Abstractions.dll" />
+    <Reference Include="Aero.Core" HintPath="$(AeroBin)\Aero.Core.dll" />
+    <Content Include="$(AeroBin)\*.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(AeroBin)\sharpts\*.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

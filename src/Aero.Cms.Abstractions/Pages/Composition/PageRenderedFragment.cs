@@ -6,13 +6,19 @@ namespace Aero.Cms.Abstractions.Pages.Composition;
 public enum PageRenderedFragmentKind
 {
     /// <summary>Renders Markdown source through the Pages Markdown strategy.</summary>
-    Markdown,
+    Markdown = 0,
 
     /// <summary>Imports author-supplied HTML through the Pages HTML policy.</summary>
-    CustomHtml,
+    CustomHtml = 1,
 
     /// <summary>Renders a bounded Scriban template with an allowlisted context.</summary>
-    Scriban
+    Scriban = 2,
+
+    /// <summary>Renders SharpTS through Aero's bounded interpreted TypeScript host.</summary>
+    SharpTs = 3,
+
+    /// <summary>Imports HTML enhanced with Aero's bounded HTMX attribute policy.</summary>
+    Htmx = 4
 }
 
 /// <summary>

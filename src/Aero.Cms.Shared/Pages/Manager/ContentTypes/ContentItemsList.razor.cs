@@ -32,10 +32,13 @@ public partial class ContentItemsList
     private string _searchText = string.Empty;
     private string _typeName = "Content";
     private bool _allowPublicUrl;
+    private bool _isHierarchical;
 
-    private string HeaderDescription => _allowPublicUrl
-        ? L["Managing {0} {1} entries with optional public pages.", _count, _typeName.ToLowerInvariant()]
-        : L["Managing {0} {1} entries for embedding in pages and blocks.", _count, _typeName.ToLowerInvariant()];
+    private string HeaderDescription => _isHierarchical
+        ? L["Browse, nest, and reorder {0} entries.", _typeName.ToLowerInvariant()]
+        : _allowPublicUrl
+            ? L["Managing {0} {1} entries with optional public pages.", _count, _typeName.ToLowerInvariant()]
+            : L["Managing {0} {1} entries for embedding in pages and blocks.", _count, _typeName.ToLowerInvariant()];
 
         /// <summary>
     /// OnInitializedAsync method.
@@ -47,13 +50,14 @@ protected override async Task OnInitializedAsync()
         {
             _typeName = ok.Value.Name;
             _allowPublicUrl = ok.Value.AllowPublicUrl;
+            _isHierarchical = ok.Value.Structure == Aero.Cms.Abstractions.Content.ContentStructure.Hierarchical;
         }
         else
         {
             _typeName = Alias;
         }
 
-        if (!_hasRequestedInitialItems)
+        if (!_isHierarchical && !_hasRequestedInitialItems)
         {
             _hasRequestedInitialItems = true;
             await LoadData(new LoadDataArgs { Skip = 0, Top = 10 });

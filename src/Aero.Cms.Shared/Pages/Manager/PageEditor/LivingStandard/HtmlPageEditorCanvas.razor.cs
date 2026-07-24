@@ -76,6 +76,25 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     public bool CanMoveSelectedDown { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the selected node is a source-backed fragment with an AI action.
+    /// </summary>
+    [Parameter]
+    public bool ShowSelectedSourceAi { get; set; }
+
+    /// <summary>Gets or sets whether the configured AI feature is usable.</summary>
+    [Parameter]
+    public bool AiEnabled { get; set; }
+
+    /// <summary>Gets or sets the discoverable reason that AI assistance is unavailable.</summary>
+    [Parameter]
+    public string AiUnavailableMessage { get; set; }
+        = "Configure and enable an AI provider to use source assistance.";
+
+    /// <summary>Gets or sets the callback that opens the manager AI workflow.</summary>
+    [Parameter]
+    public EventCallback AiRequested { get; set; }
+
+    /// <summary>
     /// Gets or sets the callback invoked when the selected node changes.
     /// </summary>
     [Parameter]
@@ -121,6 +140,10 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
 
     private bool CanRootAcceptMove => ActiveMoveSource is { } source
         && ContentPolicy.CanContain(Content.Root, source).IsAllowed;
+
+    private string AiButtonTitle => AiEnabled
+        ? "Open AI assistant"
+        : AiUnavailableMessage;
 
     /// <summary>
     /// Initializes the browser-side sortable integration after the canvas first renders.
@@ -342,6 +365,11 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     private Task RequestEditorCommandAsync(HtmlEditorCommandKind command) => PreviewMode
         ? Task.CompletedTask
         : EditorCommandRequested.InvokeAsync(command);
+
+    /// <summary>Opens AI assistance for the selected source-backed fragment.</summary>
+    private Task RequestAiAsync() => !PreviewMode && AiEnabled
+        ? AiRequested.InvokeAsync()
+        : Task.CompletedTask;
 
     /// <summary>
     /// Releases the sortable JavaScript integration and its .NET callback reference.

@@ -8,6 +8,7 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Abstractions.Requests;
 using PageRouteChangeImpact = Aero.Cms.Abstractions.Http.Clients.PageRouteChangeImpact;
 using Aero.Cms.Core.Entities;
@@ -15,7 +16,10 @@ using Aero.Cms.Html;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Services;
 using Aero.Core.Http;
+using System.Collections.Immutable;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using ZiggyCreatures.Caching.Fusion;
 using static Aero.Core.Railway.Prelude;
@@ -35,6 +39,13 @@ public interface IPageContentService
     /// <param name="cancellationToken">The token used for cache and store access.</param>
     /// <returns>The page, or a not-found/database error.</returns>
 Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Loads the exact editable source snapshot after verifying page, site, and
+    /// renderer ownership.
+    /// </summary>
+    Task<Result<PageSourceVersionSnapshot, AeroError>> LoadDraftSourceAsync(
+        long id,
+        CancellationToken cancellationToken = default);
     /// <summary>
     /// Finds a published page by path using the current UI culture and site-default fallback.
     /// </summary>
@@ -200,9 +211,13 @@ public sealed class AeroPageContentService(
     IPageTreeService? pageTreeService = null,
     IPageRouteAliasWriter? aliasWriter = null,
     IContentCompositionReferenceValidator? contentReferenceValidator = null,
-    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null) : IPageContentService
+    IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null,
+    IPageRendererRegistry? pageRendererRegistry = null,
+    IPageSourceVersionStore? pageSourceVersionStore = null,
+    IPageContentQueryResolver? pageContentQueryResolver = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
+    private const int MaximumDraftSourceLengthBytes = 50_000;
     private readonly ISiteContext _siteContext = siteContext;
 
     /// <inheritdoc />
@@ -292,8 +307,14 @@ public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug,
         try
         {
             var currentCulture = GetCurrentCulture(culture);
-            var routeSlug = AeroCultureRoute.StripLeadingCulture(slug);
-            var cacheKey = BuildCacheKey($"slug:{currentCulture}:{NormalizeCachePart(routeSlug)}");
+            // Route middleware/page models resolve supported culture prefixes before
+            // calling the data service. Do not infer a culture from arbitrary page
+            // slugs here: values such as "my-page" are syntactically valid culture
+            // tags to CultureInfo and would otherwise collapse to the homepage.
+            var routeSlug = slug.Trim().Trim('/');
+            // Version the slug cache because culture-like slugs (for example "my-page")
+            // were previously normalized to the homepage and may still exist in L2.
+            var cacheKey = BuildCacheKey($"slug:v2:{currentCulture}:{NormalizeCachePart(routeSlug)}");
             var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
@@ -317,6 +338,49 @@ public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug,
         {
             logger.LogError(ex, "Failed to find page by slug {Slug}", slug);
             return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<PageSourceVersionSnapshot, AeroError>> LoadDraftSourceAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+            {
+                return AeroError.NotFoundError(
+                    $"Page with id '{id}' not found or access denied");
+            }
+
+            if (pageSourceVersionStore is null)
+            {
+                return AeroError.ConfigurationError(
+                    "The page source version store is not configured.");
+            }
+
+            var sourceResult = await pageSourceVersionStore.LoadAsync(
+                page.DraftSourceVersionId,
+                page.SiteId,
+                page.Id,
+                PageRendererIds.NormalizeOrDefault(page.RendererId),
+                cancellationToken);
+            return sourceResult switch
+            {
+                Result<PageSourceVersionSnapshot?>.Ok { Value: not null } source =>
+                    source.Value,
+                Result<PageSourceVersionSnapshot?>.Failure failure =>
+                    failure.Error,
+                _ => AeroError.NotFoundError(
+                    "Page source version not found or access denied.")
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Failed to load draft source for page {PageId}", id);
+            return AeroError.DatabaseError(exception.Message);
         }
     }
 
@@ -416,6 +480,53 @@ public async Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(
                 }
             }
 
+            var sourceRendererId = PageRendererIds.NormalizeOrDefault(source.RendererId);
+            var sourceRendererResult = pageRendererRegistry?.Resolve(sourceRendererId);
+            if (sourceRendererResult is Result<IPageRenderer>.Ok
+                {
+                    Value.Descriptor.RequiresSource: true
+                })
+            {
+                if (pageSourceVersionStore is null)
+                {
+                    return AeroError.ConfigurationError(
+                        "The page source version store is not configured.");
+                }
+
+                var sourceResult = await pageSourceVersionStore.LoadAsync(
+                    source.DraftSourceVersionId,
+                    source.SiteId,
+                    source.Id,
+                    sourceRendererId,
+                    cancellationToken);
+                if (sourceResult is Result<PageSourceVersionSnapshot?>.Failure sourceFailure)
+                {
+                    return sourceFailure.Error;
+                }
+
+                if (((Result<PageSourceVersionSnapshot?>.Ok)sourceResult).Value is not { } sourceSnapshot)
+                {
+                    return AeroError.NotFoundError(
+                        "Page source version not found or access denied.");
+                }
+
+                var stagedSource = pageSourceVersionStore.Stage(
+                    new PageSourceVersionWriteRequest(
+                        fork.SiteId,
+                        fork.Id,
+                        sourceRendererId,
+                        sourceSnapshot.Source,
+                        DateTimeOffset.UtcNow,
+                        actor ?? "system"));
+                if (stagedSource is Result<PageSourceVersionSnapshot>.Failure stageFailure)
+                {
+                    return stageFailure.Error;
+                }
+
+                fork.DraftSourceVersionId =
+                    ((Result<PageSourceVersionSnapshot>.Ok)stagedSource).Value.Id;
+            }
+
             return await SaveAsync(fork, cancellationToken);
         }
         catch (Exception ex)
@@ -430,6 +541,13 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
     {
         try
         {
+            var rendererResult = ValidateRendererId(request.RendererId);
+            if (rendererResult is Result<string, AeroError>.Failure rendererFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(rendererFailure.Error);
+            }
+
+            var rendererId = ((Result<string, AeroError>.Ok)rendererResult).Value;
             var slug = string.IsNullOrEmpty(request.Slug)
                 ? request.Title.GenerateSlug()
                 : request.Slug;
@@ -446,6 +564,7 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
                 PublicationState = ContentPublicationState.Draft,
+                RendererId = rendererId,
                 ShowInNavMenu = request.ShowInNavMenu,
                 ShowHeaderNavigation = request.ShowHeaderNavigation,
                 HideFooter = request.HideFooter,
@@ -531,6 +650,18 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
             }
 
+            var sourcePlanResult = await PrepareDraftSourceAsync(
+                page,
+                request.DraftSource,
+                draftContent,
+                draftComposition,
+                requireSource: true,
+                cancellationToken);
+            if (sourcePlanResult is Result<DraftSourcePlan?, AeroError>.Failure sourceFailure)
+            {
+                return sourceFailure.Error;
+            }
+
             // Reserve slug for public URL routing — use the full Path for
             // hierarchical pages so /parent/child resolves correctly.
             var publicSlug = page.Path.TrimStart('/'); // "/about/team" → "about/team"
@@ -549,6 +680,20 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
             page.CreatedOn = now;
             page.CreatedBy = actor ?? "system";
             page.ModifiedBy = actor ?? "system";
+
+            var sourcePlan = ((Result<DraftSourcePlan?, AeroError>.Ok)sourcePlanResult).Value;
+            if (sourcePlan is not null)
+            {
+                var stageResult = StageDraftSource(page, sourcePlan.Source, now);
+                if (stageResult is Result<PageSourceVersionSnapshot, AeroError>.Failure stageFailure)
+                {
+                    return stageFailure.Error;
+                }
+
+                page.DraftSourceVersionId =
+                    ((Result<PageSourceVersionSnapshot, AeroError>.Ok)stageResult).Value.Id;
+            }
+
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
@@ -615,6 +760,23 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                         AeroError.ConflictError(
                             "This route has previously been published. Choose whether to preserve the old URL as a permanent redirect."));
                 }
+            }
+
+            var rendererResult = ValidateRendererId(request.RendererId);
+            if (rendererResult is Result<string, AeroError>.Failure rendererFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(rendererFailure.Error);
+            }
+
+            var rendererId = ((Result<string, AeroError>.Ok)rendererResult).Value;
+            if (!string.Equals(
+                    PageRendererIds.NormalizeOrDefault(page.RendererId),
+                    rendererId,
+                    StringComparison.Ordinal))
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ConflictError(
+                        "Changing an existing page renderer requires an explicit conversion workflow."));
             }
 
             if (draftChanged)
@@ -688,6 +850,18 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
             }
 
+            var sourcePlanResult = await PrepareDraftSourceAsync(
+                page,
+                request.DraftSource,
+                candidateDraftContent,
+                candidateDraftComposition,
+                requireSource: false,
+                cancellationToken);
+            if (sourcePlanResult is Result<DraftSourcePlan?, AeroError>.Failure sourceFailure)
+            {
+                return sourceFailure.Error;
+            }
+
             if (draftChanged)
             {
                 page.ReplaceDraftContent(
@@ -716,7 +890,6 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
 
             page.ModifiedOn = DateTimeOffset.UtcNow;
             page.ModifiedBy = actor ?? "system";
-            session.Store(page);
 
             if (!string.Equals(oldPath, page.Path, StringComparison.Ordinal))
             {
@@ -763,6 +936,23 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 aliasStage = ((Result<PageRouteAliasStageResult, AeroError>.Ok)aliasResult).Value;
             }
 
+            var sourcePlan = ((Result<DraftSourcePlan?, AeroError>.Ok)sourcePlanResult).Value;
+            if (sourcePlan is not null)
+            {
+                var stageResult = StageDraftSource(
+                    page,
+                    sourcePlan.Source,
+                    page.ModifiedOn ?? DateTimeOffset.UtcNow);
+                if (stageResult is Result<PageSourceVersionSnapshot, AeroError>.Failure stageFailure)
+                {
+                    return stageFailure.Error;
+                }
+
+                page.DraftSourceVersionId =
+                    ((Result<PageSourceVersionSnapshot, AeroError>.Ok)stageResult).Value.Id;
+            }
+
+            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             if (aliasStage?.HasChanges == true && aliasWriter is not null)
@@ -1191,7 +1381,207 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
         page.HideFooter = request.HideFooter;
         page.ShowChatAgent = request.ShowChatAgent;
         page.ParentId = request.ParentId;
+        page.RendererId = PageRendererIds.NormalizeOrDefault(request.RendererId);
     }
+
+    private Result<string, AeroError> ValidateRendererId(string? rendererId)
+    {
+        var normalized = PageRendererIds.NormalizeOrDefault(rendererId);
+        if (!PageRendererIds.IsValid(normalized))
+        {
+            return Prelude.Fail<string, AeroError>(
+                AeroError.ValidationError(["The page renderer identifier is invalid."]));
+        }
+
+        if (pageRendererRegistry is null)
+        {
+            return string.Equals(normalized, PageRendererIds.AeroComposition, StringComparison.Ordinal)
+                ? Prelude.Ok<string, AeroError>(normalized)
+                : Prelude.Fail<string, AeroError>(
+                    AeroError.ValidationError(
+                        [$"No page renderer registry can resolve '{normalized}'."]));
+        }
+
+        return pageRendererRegistry.Resolve(normalized) is Result<IPageRenderer>.Failure failure
+            ? Prelude.Fail<string, AeroError>(failure.Error)
+            : Prelude.Ok<string, AeroError>(normalized);
+    }
+
+    private async Task<Result<DraftSourcePlan?, AeroError>> PrepareDraftSourceAsync(
+        PageDocument page,
+        string? draftSource,
+        HtmlPageContent draftContent,
+        PageCompositionDocument draftComposition,
+        bool requireSource,
+        CancellationToken cancellationToken)
+    {
+        var rendererId = PageRendererIds.NormalizeOrDefault(page.RendererId);
+        if (string.Equals(rendererId, PageRendererIds.AeroComposition, StringComparison.Ordinal))
+        {
+            if (draftSource is not null)
+            {
+                return AeroError.ValidationError(
+                    ["Aero composition pages cannot include draft source."]);
+            }
+
+            if (page.DraftSourceVersionId is not null
+                || page.PublishedSourceVersionId is not null)
+            {
+                return AeroError.ValidationError(
+                    ["Aero composition pages cannot reference page source versions."]);
+            }
+
+            return Prelude.Ok<DraftSourcePlan?, AeroError>(null);
+        }
+
+        if (pageRendererRegistry is null)
+        {
+            return AeroError.ConfigurationError(
+                "The page renderer registry is not configured.");
+        }
+
+        var rendererResult = pageRendererRegistry.Resolve(rendererId);
+        if (rendererResult is Result<IPageRenderer>.Failure rendererFailure)
+        {
+            return rendererFailure.Error;
+        }
+
+        var renderer = ((Result<IPageRenderer>.Ok)rendererResult).Value;
+        if (!renderer.Descriptor.RequiresSource)
+        {
+            return draftSource is null
+                ? Prelude.Ok<DraftSourcePlan?, AeroError>(null)
+                : AeroError.ValidationError(
+                    [$"Renderer '{rendererId}' does not accept inline page source."]);
+        }
+
+        if (draftSource is null)
+        {
+            if (requireSource || page.DraftSourceVersionId is null)
+            {
+                return AeroError.ValidationError(
+                    [$"{renderer.Descriptor.DisplayName} pages require non-blank draft source."]);
+            }
+
+            return Prelude.Ok<DraftSourcePlan?, AeroError>(null);
+        }
+
+        if (string.IsNullOrWhiteSpace(draftSource))
+        {
+            return AeroError.ValidationError(
+                [$"{renderer.Descriptor.DisplayName} pages require non-blank draft source."]);
+        }
+
+        if (Encoding.UTF8.GetByteCount(draftSource) > MaximumDraftSourceLengthBytes)
+        {
+            return AeroError.ValidationError(
+                [$"Page draft source cannot exceed {MaximumDraftSourceLengthBytes} UTF-8 bytes."]);
+        }
+
+        if (!requireSource && page.DraftSourceVersionId is not null)
+        {
+            if (pageSourceVersionStore is null)
+            {
+                return AeroError.ConfigurationError(
+                    "The page source version store is not configured.");
+            }
+
+            var currentResult = await pageSourceVersionStore.LoadAsync(
+                page.DraftSourceVersionId,
+                page.SiteId,
+                page.Id,
+                rendererId,
+                cancellationToken);
+            if (currentResult is Result<PageSourceVersionSnapshot?>.Failure currentFailure)
+            {
+                return currentFailure.Error;
+            }
+
+            if (((Result<PageSourceVersionSnapshot?>.Ok)currentResult).Value is { } current
+                && string.Equals(current.Source, draftSource, StringComparison.Ordinal))
+            {
+                return Prelude.Ok<DraftSourcePlan?, AeroError>(null);
+            }
+        }
+
+        if (pageRendererRegistry is null || pageContentQueryResolver is null)
+        {
+            return AeroError.ConfigurationError(
+                "Page source preview dependencies are not configured.");
+        }
+
+        var contentQueriesResult = await pageContentQueryResolver.ResolveAsync(
+            page.SiteId,
+            page.Culture,
+            draftComposition.ContentQueries,
+            includeDrafts: true,
+            cancellationToken);
+        if (contentQueriesResult is Result<PageContentQueryResolution>.Failure queryFailure)
+        {
+            return queryFailure.Error;
+        }
+
+        var sourceHash = ComputeSourceHash(draftSource);
+        var renderResult = await renderer.RenderAsync(
+            new PageRenderRequest(
+                new PageRenderMetadata(
+                    page.Id,
+                    page.SiteId,
+                    rendererId,
+                    page.Title,
+                    page.Slug,
+                    page.Path,
+                    page.Culture),
+                new PageRenderSource(0, rendererId, draftSource, sourceHash),
+                draftContent,
+                draftComposition,
+                ImmutableDictionary<long, int>.Empty,
+                ((Result<PageContentQueryResolution>.Ok)contentQueriesResult).Value,
+                IsPreview: true),
+            cancellationToken);
+        if (renderResult is Result<RenderedPage>.Failure renderFailure)
+        {
+            return renderFailure.Error;
+        }
+
+        return Prelude.Ok<DraftSourcePlan?, AeroError>(new DraftSourcePlan(draftSource));
+    }
+
+    private Result<PageSourceVersionSnapshot, AeroError> StageDraftSource(
+        PageDocument page,
+        string exactSource,
+        DateTimeOffset createdOn)
+    {
+        if (pageSourceVersionStore is null)
+        {
+            return AeroError.ConfigurationError(
+                "The page source version store is not configured.");
+        }
+
+        var result = pageSourceVersionStore.Stage(
+            new PageSourceVersionWriteRequest(
+                page.SiteId,
+                page.Id,
+                PageRendererIds.NormalizeOrDefault(page.RendererId),
+                exactSource,
+                createdOn,
+                actor ?? "system"));
+        return result switch
+        {
+            Result<PageSourceVersionSnapshot>.Ok ok =>
+                Prelude.Ok<PageSourceVersionSnapshot, AeroError>(ok.Value),
+            Result<PageSourceVersionSnapshot>.Failure failure =>
+                Prelude.Fail<PageSourceVersionSnapshot, AeroError>(failure.Error),
+            _ => Prelude.Fail<PageSourceVersionSnapshot, AeroError>(
+                AeroError.DatabaseError("Unexpected page source staging result."))
+        };
+    }
+
+    private static string ComputeSourceHash(string source)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)))
+            .ToLowerInvariant();
+
+    private sealed record DraftSourcePlan(string Source);
 
     private static Result<HtmlPageContent, AeroError> DeserializeDraftContent(string? json)
     {
@@ -1243,6 +1633,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
     private static void ApplyDraftMetadata(PageDocument source, PageDocument target)
     {
         target.Kind = source.Kind;
+        target.RendererId = PageRendererIds.NormalizeOrDefault(source.RendererId);
         target.Slug = source.Slug;
         target.Title = source.Title;
         target.Summary = source.Summary;

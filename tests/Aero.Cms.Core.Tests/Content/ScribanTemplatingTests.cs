@@ -203,6 +203,30 @@ public sealed class ScribanTemplatingTests
     }
 
     [Test]
+    public async Task Trusted_globals_are_cloned_and_do_not_gain_content_item_scopes()
+    {
+        var page = new ScriptObject { ["title"] = "Original" };
+        var globals = new ScriptObject { ["page"] = page };
+        var renderer = new SecureScribanRenderer();
+        var mutation = await renderer.RenderTrustedAsync(
+            new ScribanRenderDefinition(
+                1_052,
+                1,
+                """{{ page.title = "Changed" }}{{ page.title }}""",
+                null),
+            globals);
+        var unavailableItem = await renderer.RenderTrustedAsync(
+            new ScribanRenderDefinition(1_053, 1, "{{ item.id }}", null),
+            globals);
+
+        var success = mutation as Result<string>.Ok;
+        await Assert.That(success).IsNotNull();
+        await Assert.That(success!.Value).IsEqualTo("Changed");
+        await Assert.That(page["title"]).IsEqualTo("Original");
+        await Assert.That(unavailableItem).IsTypeOf<Result<string>.Failure>();
+    }
+
+    [Test]
     public async Task Enforces_output_and_input_depth_limits()
     {
         using var shallowData = JsonDocument.Parse("""{"title":"Aero"}""");

@@ -31,6 +31,7 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
         var bindings = composition.FieldBindings ?? [];
         var fragments = composition.RenderedFragments ?? [];
         var registeredFragments = composition.RegisteredFragments ?? [];
+        var contentQueries = composition.ContentQueries ?? [];
         var scopeNodeIds = new HashSet<long>();
 
         foreach (var list in lists)
@@ -131,6 +132,19 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
 
         ValidateRenderedFragments(content, fragments, registeredFragments, scopeNodeIds, bindings, context);
         ValidateRegisteredFragments(content, registeredFragments, fragments, scopeNodeIds, bindings, context);
+        ValidateContentQueries(contentQueries, context);
+    }
+
+    private static void ValidateContentQueries(
+        IReadOnlyList<ContentQueryDefinition> queries,
+        ValidationContext<PageCompositionDocument> context)
+    {
+        foreach (var error in ContentQueryDefinition.ValidateDefinitions(queries))
+        {
+            context.AddFailure(
+                nameof(PageCompositionDocument.ContentQueries),
+                error);
+        }
     }
 
     private static void ValidateRenderedFragments(

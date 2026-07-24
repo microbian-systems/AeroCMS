@@ -42,6 +42,8 @@ public static class ContentServiceExtensions
         services.AddScoped<IContentService>(
             static provider => provider.GetRequiredService<AeroContentService>());
         services.AddScoped<IContentQueryService, AeroContentQueryService>();
+        services.AddScoped<IContentHierarchyQueryService, ContentHierarchyQueryService>();
+        services.AddScoped<ContentHierarchyValidator>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
         services.AddScoped<IContentItemRenderer, ContentItemRenderer>();

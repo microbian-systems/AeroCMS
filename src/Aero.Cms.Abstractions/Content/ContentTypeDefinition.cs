@@ -33,6 +33,15 @@ public string? Category { get; set; }
     /// </summary>
 public string? Icon { get; set; }
 
+    /// <summary>Gets or sets whether this type is a singleton or collection.</summary>
+    public ContentCardinality Cardinality { get; set; } = ContentCardinality.Collection;
+
+    /// <summary>Gets or sets whether items are flat or hierarchical.</summary>
+    public ContentStructure Structure { get; set; } = ContentStructure.Flat;
+
+    /// <summary>Gets or sets hierarchy rules used when <see cref="Structure"/> is hierarchical.</summary>
+    public ContentHierarchyRules HierarchyRules { get; set; } = new();
+
     /// <summary>
     /// When true, entries of this type can be addressed by their own public URL.
     /// Content types are embedded-first by default to avoid accidental public pages.

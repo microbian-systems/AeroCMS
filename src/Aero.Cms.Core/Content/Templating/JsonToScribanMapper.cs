@@ -8,6 +8,13 @@ namespace Aero.Cms.Core.Content.Templating;
 /// </summary>
 public static class JsonToScribanMapper
 {
+    /// <summary>Converts one JSON value into Scriban's closed dynamic value model.</summary>
+    public static object? Convert(JsonElement element, int maxDepth)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
+        return ConvertElement(element, 0, maxDepth);
+    }
+
     /// <summary>
     /// Creates the <c>fields</c>, <c>item</c>, <c>content_type</c>, and <c>site</c>
     /// scopes and adds explicitly trusted imports.
@@ -40,7 +47,7 @@ public static class JsonToScribanMapper
 
         var globals = new ScriptObject
         {
-            ["fields"] = ConvertElement(model.Fields, 0, maxDepth),
+            ["fields"] = Convert(model.Fields, maxDepth),
             ["item"] = CreateItemScope(model.Item, maxDepth),
             ["content_type"] = CreateContentTypeScope(model.ContentType, maxDepth),
             ["site"] = CreateSiteScope(model.Site)
@@ -107,7 +114,7 @@ public static class JsonToScribanMapper
                 ["required"] = field.Required,
                 ["default_value"] = field.DefaultValue,
                 ["placeholder"] = field.Placeholder,
-                ["settings"] = ConvertElement(field.Settings, 0, maxDepth)
+                ["settings"] = Convert(field.Settings, maxDepth)
             });
         }
 
@@ -163,6 +170,7 @@ public static class JsonToScribanMapper
         foreach (var property in element.EnumerateObject())
         {
             scriptObject[property.Name] = ConvertElement(property.Value, depth + 1, maxDepth);
+            scriptObject.SetReadOnly(property.Name, readOnly: true);
         }
 
         return scriptObject;

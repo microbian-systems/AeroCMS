@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Content.Caching;
@@ -68,6 +69,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ContentEventPublisher>();
         services.Replace(ServiceDescriptor.Scoped<IContentTypeService, CachedContentTypeService>());
         services.Replace(ServiceDescriptor.Scoped<IContentService, CachedContentService>());
+        services.Replace(ServiceDescriptor.Scoped<IContentHierarchyQueryService, ContentHierarchyQueryService>());
+        services.AddScoped<ContentHierarchyManagerService>();
         services.AddScoped<IContentCompositionReferenceValidator, ContentCompositionReferenceValidator>();
         services.AddScoped<IContentCompositionResolver, ContentCompositionResolver>();
 
@@ -122,7 +125,8 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<ContentItem>()
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
-            .Index(x => x.ContentTypeAlias);
+            .Index(x => x.ContentTypeAlias)
+            .Index(x => x.ParentId);
 
         opts.Schema.For<ContentItemVersion>()
             .Index(x => x.ContentItemId);
@@ -147,6 +151,7 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
+        builder.MapContentHierarchyManagerApi();
 
         return Task.CompletedTask;
     }

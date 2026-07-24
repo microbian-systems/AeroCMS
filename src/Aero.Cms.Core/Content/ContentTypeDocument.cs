@@ -27,6 +27,12 @@ public string? Category { get; set; }
     /// Gets or sets the optional icon identifier used by clients.
     /// </summary>
 public string? Icon { get; set; }
+        /// <summary>Gets or sets whether this type is a singleton or collection.</summary>
+public ContentCardinality Cardinality { get; set; } = ContentCardinality.Collection;
+        /// <summary>Gets or sets whether items are flat or hierarchical.</summary>
+public ContentStructure Structure { get; set; } = ContentStructure.Flat;
+        /// <summary>Gets or sets the rules for hierarchical placement.</summary>
+public ContentHierarchyRules HierarchyRules { get; set; } = new();
         /// <summary>
     /// Gets or sets whether items of this type may be addressed by a public URL.
     /// </summary>

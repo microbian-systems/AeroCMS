@@ -1,0 +1,98 @@
+@using Aero.Cms.Abstractions.Http.Clients
+
+<li role="none" class="aero-content-tree-node">
+    @if (Dragging)
+    {
+        <div class="aero-content-tree-node__drop"
+             aria-hidden="true"
+             @ondragover:preventDefault
+             @ondrop="() => DropAsync(ContentHierarchyDropPlacement.Before)"></div>
+    }
+
+    <div class="@RowClass"
+         role="treeitem"
+         aria-level="@(Node.Depth + 1)"
+         aria-selected="@IsSelected"
+         aria-expanded="@(Node.Children.Count > 0 ? IsExpanded : null)"
+         @ondragover:preventDefault
+         @ondrop="() => DropAsync(ContentHierarchyDropPlacement.Inside)">
+        <button type="button"
+                class="aero-content-tree-node__handle"
+                draggable="@Node.IsTargetType"
+                disabled="@(!Node.IsTargetType)"
+                title="Drag to move"
+                aria-label="@($"Move {Node.Title}")"
+                @ondragstart="StartDragAsync"
+                @ondragend="EndDragAsync">⋮⋮</button>
+
+        @if (Node.Children.Count > 0)
+        {
+            <button type="button"
+                    class="aero-content-tree-node__disclosure"
+                    aria-label="@($"{(IsExpanded ? "Collapse" : "Expand")} {Node.Title}")"
+                    @onclick="ToggleAsync">
+                @(IsExpanded ? "⌄" : "›")
+            </button>
+        }
+        else
+        {
+            <span class="aero-content-tree-node__disclosure-spacer" aria-hidden="true"></span>
+        }
+
+        <button type="button"
+                class="aero-content-tree-node__select"
+                @onclick="SelectAsync">
+            <span class="aero-content-tree-node__title">@Node.Title</span>
+            <span class="aero-content-tree-node__meta">
+                @if (!Node.IsTargetType)
+                {
+                    <span class="aero-content-tree-node__type">@Node.ContentTypeAlias</span>
+                }
+                <span>@Node.Culture</span>
+                <span class="@StatusClass">@Node.PublicationState</span>
+            </span>
+        </button>
+
+        @if (Node.IsTargetType)
+        {
+            <div class="aero-content-tree-node__actions" aria-label="@($"{Node.Title} hierarchy actions")">
+                <button type="button" title="Move up" aria-label="@($"Move {Node.Title} up")"
+                        @onclick="() => CommandAsync(ContentHierarchyMoveCommand.Up)">↑</button>
+                <button type="button" title="Move down" aria-label="@($"Move {Node.Title} down")"
+                        @onclick="() => CommandAsync(ContentHierarchyMoveCommand.Down)">↓</button>
+                <button type="button" title="Move into previous sibling" aria-label="@($"Move {Node.Title} into previous sibling")"
+                        @onclick="() => CommandAsync(ContentHierarchyMoveCommand.IntoPrevious)">↳</button>
+                <button type="button" title="Move out one level" aria-label="@($"Move {Node.Title} out one level")"
+                        @onclick="() => CommandAsync(ContentHierarchyMoveCommand.Out)">↰</button>
+            </div>
+        }
+    </div>
+
+    @if (Dragging)
+    {
+        <div class="aero-content-tree-node__drop"
+             aria-hidden="true"
+             @ondragover:preventDefault
+             @ondrop="() => DropAsync(ContentHierarchyDropPlacement.After)"></div>
+    }
+
+    @if (IsExpanded && Node.Children.Count > 0)
+    {
+        <ul role="group">
+            @foreach (var child in Node.Children)
+            {
+                <ContentHierarchyTreeNodeRow @key="child.Id"
+                                             Node="child"
+                                             ExpandedIds="ExpandedIds"
+                                             SelectedId="SelectedId"
+                                             Dragging="Dragging"
+                                             Selected="Selected"
+                                             ToggleRequested="ToggleRequested"
+                                             MoveCommandRequested="MoveCommandRequested"
+                                             DragStarted="DragStarted"
+                                             DragEnded="DragEnded"
+                                             DropRequested="DropRequested" />
+            }
+        </ul>
+    }
+</li>

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components;
 using Aero.Core;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Models;
 
 using Aero.Core.Railway;
@@ -19,6 +20,8 @@ using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
+using Aero.Cms.Abstractions.Ai;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -64,6 +67,8 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable
     /// Gets or sets the Dialog Service.
     /// </summary>
 [Inject] protected DialogService DialogService { get; set; } = default!;
+    [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+    [Inject] protected ManagerAssistantState ManagerAssistantState { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
@@ -73,7 +78,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable
         /// <summary>
     /// Gets or sets the Page Title.
     /// </summary>
-protected string PageTitle    { get; set; } = "Homepage";
+protected string PageTitle    { get; set; } = "New Page";
         /// <summary>
     /// Gets or sets the Last Saved.
     /// </summary>
@@ -146,6 +151,17 @@ protected string Author       { get; set; } = "Admin";
             ? (HtmlEditor.Composition.RenderedFragments ?? [])
                 .FirstOrDefault(fragment => fragment.NodeId == nodeId)
             : null;
+
+    /// <summary>
+    /// Gets whether the selected Aero fragment owns source that can be assisted by AI.
+    /// </summary>
+    protected bool SelectedRenderedFragmentSupportsAi =>
+        SelectedRenderedFragment?.Kind is
+            PageRenderedFragmentKind.Markdown
+            or PageRenderedFragmentKind.CustomHtml
+            or PageRenderedFragmentKind.Scriban
+            or PageRenderedFragmentKind.SharpTs
+            or PageRenderedFragmentKind.Htmx;
 
     protected IReadOnlyList<PageRegisteredFragmentDescriptor> RegisteredFragmentDescriptors { get; private set; } = [];
 
@@ -229,6 +245,7 @@ protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pa
     /// Gets or sets the Preview Frame Url.
     /// </summary>
 protected string? PreviewFrameUrl => Id is { } id
+        && !(UsesSourceEditor && _pageState == PageState.Dirty)
         ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
         /// <summary>
@@ -254,7 +271,7 @@ protected string ActiveTab             { get; set; } = "editor";
         /// <summary>
     /// Gets or sets the Page Slug.
     /// </summary>
-protected string PageSlug { get; set; } = string.Empty;
+protected string PageSlug { get; set; } = "new-page";
         /// <summary>
     /// Gets or sets the Summary.
     /// </summary>
@@ -292,6 +309,86 @@ protected bool   ShowChatAgent { get; set; } = true;
     /// Gets or sets the Publication State.
     /// </summary>
 protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    /// <summary>Gets whether the current draft differs from the public snapshot.</summary>
+protected bool HasUnpublishedChanges { get; set; }
+    /// <summary>Gets or sets the stable rendering strategy selected for this page.</summary>
+protected string RendererId { get; set; } = PageRendererIds.AeroComposition;
+
+    /// <summary>Gets the exact source draft retained independently of visual composition state.</summary>
+protected string DraftSource { get; set; } = string.Empty;
+
+    /// <summary>Gets the full-page renderers currently registered by the host.</summary>
+protected IReadOnlyList<PageRendererDescriptor> PageRendererDescriptors { get; set; } =
+[
+    new(
+        PageRendererIds.AeroComposition,
+        "Aero",
+        PageEditorKinds.VisualComposition,
+        SupportsFragments: true,
+        IsExperimental: false)
+];
+
+    private ExpandableMonacoSourceEditor? _sourceEditor;
+    private bool _isSourceEditorExpanded;
+    private bool _sourceSnapshotPending;
+    private bool _pageTypeDialogOpen;
+    private bool _pageTypeSelectionComplete;
+    private bool _aiAvailabilityResolved;
+    private bool _sourceAiEnabled;
+
+    /// <summary>Gets the selected renderer descriptor advertised by the host.</summary>
+protected PageRendererDescriptor? SelectedPageRenderer => PageRendererDescriptors.FirstOrDefault(
+        descriptor => string.Equals(descriptor.Id, RendererId, StringComparison.Ordinal));
+
+    /// <summary>Gets whether the selected renderer requires a full-page source editor.</summary>
+protected bool UsesSourceEditor =>
+        SelectedPageRenderer?.RequiresSource == true;
+
+    /// <summary>Gets the Monaco language for the selected source renderer.</summary>
+protected string SourceEditorLanguage =>
+        SelectedPageRenderer?.SourceLanguage ?? "plaintext";
+
+    /// <summary>Gets the source-kind label announced by Monaco and its expansion control.</summary>
+protected string SourceEditorAccessibleLabel =>
+        $"{SelectedPageRenderer?.DisplayName ?? "Source"} editor";
+
+    /// <summary>Gets the identity that recreates Monaco only when the page or renderer changes.</summary>
+protected string SourceEditorKey =>
+        $"{Id?.ToString(CultureInfo.InvariantCulture) ?? "new"}:{RendererId}";
+
+    /// <summary>Gets the stable DOM identifier for the current source editor.</summary>
+protected string SourceEditorId =>
+        $"page-source-{Id?.ToString(CultureInfo.InvariantCulture) ?? "new"}-{RendererId.Replace('.', '-')}";
+
+    /// <summary>Gets the source workspace class while retaining expansion ownership in PageEditor.</summary>
+protected string SourceWorkspaceCssClass => _isSourceEditorExpanded
+        ? "pe-source-workspace pe-source-workspace--expanded"
+        : "pe-source-workspace";
+
+    /// <summary>Gets whether source assistance is backed by globally enabled usable AI settings.</summary>
+    protected bool SourceAiEnabled => _aiAvailabilityResolved && _sourceAiEnabled;
+
+    /// <summary>Gets whether changing the renderer cannot discard renderer-specific draft work.</summary>
+    protected bool CanChangeNewPageType =>
+        !Id.HasValue
+        && string.IsNullOrWhiteSpace(DraftSource)
+        && HtmlEditor.Content.Root.Children.Count == 0
+        && DraftComposition.ContentLists.Count == 0
+        && DraftComposition.ContentItems.Count == 0
+        && DraftComposition.FieldBindings.Count == 0
+        && DraftComposition.RenderedFragments.Count == 0
+        && DraftComposition.RegisteredFragments.Count == 0
+        && DraftComposition.ContentQueries.Count == 0;
+
+    /// <summary>Gets the discoverable disabled-state explanation for source assistance.</summary>
+    protected string SourceAiUnavailableMessage => _aiAvailabilityResolved
+        ? "Configure and enable an AI provider to use source assistance."
+        : "Checking AI availability…";
+
+    /// <summary>Gets the discoverable label for page and fragment AI controls.</summary>
+    protected string SourceAiButtonTitle => SourceAiEnabled
+        ? "Open AI assistant"
+        : SourceAiUnavailableMessage;
     /// <summary>Optional parent page ID to pre-select when creating a new child page.</summary>
     [SupplyParameterFromQuery(Name = "parentId")]
     protected long? ParentId { get; set; }
@@ -402,7 +499,7 @@ protected override async Task OnParametersSetAsync()
         // example, after creating a page and replacing /editor with
         // /editor/{id}). Loading in OnInitializedAsync misses that transition
         // and leaves an interactive WASM instance holding the new ID with the
-        // default "Homepage" draft. Always synchronize routed resource state
+        // default new-page draft. Always synchronize routed resource state
         // from OnParametersSetAsync instead.
         if (Id is { } pageId && _loadedPageId != pageId)
         {
@@ -432,20 +529,146 @@ protected override async Task OnInitializedAsync()
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
         await EnsureSiteStyleProfileAsync();
+        await LoadPageRendererCatalogAsync();
         await LoadRegisteredFragmentCatalogAsync();
+        await LoadAiAvailabilityAsync();
 
         if (!Id.HasValue)
         {
             UpdateLastSaved();
         }
+        else
+        {
+            _pageTypeSelectionComplete = true;
+        }
 
         await RefreshParentSlugPrefixAsync();
+        if (_pageTypeSelectionComplete)
+        {
+            StartAutoSaveTimer();
+        }
+    }
+
+    /// <summary>Applies an explicitly loaded source snapshot after Monaco is mounted.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !Id.HasValue && !_pageTypeSelectionComplete)
+        {
+            await ShowPageTypeDialogAsync(cancelReturnsToPages: true);
+        }
+
+        if (_sourceSnapshotPending && UsesSourceEditor && _sourceEditor is not null)
+        {
+            _sourceSnapshotPending = false;
+            await _sourceEditor.SetValueAsync(DraftSource);
+        }
+    }
+
+    private void StartAutoSaveTimer()
+    {
+        if (_autoSaveTimer is not null)
+        {
+            return;
+        }
 
         _autoSaveTimer = new System.Timers.Timer(30_000);
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
     }
+
+    private async Task ShowPageTypeDialogAsync(bool cancelReturnsToPages)
+    {
+        if (_pageTypeDialogOpen || PageRendererDescriptors.Count == 0)
+        {
+            return;
+        }
+
+        _pageTypeDialogOpen = true;
+        try
+        {
+            var result = await DialogService.OpenAsync<NewPageTypeDialog>(
+                "Choose a page type",
+                new Dictionary<string, object>
+                {
+                    [nameof(NewPageTypeDialog.Renderers)] = PageRendererDescriptors,
+                    [nameof(NewPageTypeDialog.SelectedRendererId)] = RendererId
+                },
+                new DialogOptions
+                {
+                    Width = "34rem",
+                    Resizable = false,
+                    Draggable = false,
+                    CloseDialogOnOverlayClick = false
+                });
+
+            if (result is not NewPageTypeDialogResult choice)
+            {
+                if (cancelReturnsToPages)
+                {
+                    NavManager.NavigateTo("/manager/pages");
+                }
+
+                return;
+            }
+
+            var rendererChanged = !string.Equals(RendererId, choice.RendererId, StringComparison.Ordinal);
+            RendererId = choice.RendererId;
+            if (rendererChanged
+                && PageRendererDescriptors.FirstOrDefault(descriptor =>
+                    string.Equals(descriptor.Id, RendererId, StringComparison.Ordinal)) is { } descriptor)
+            {
+                DraftSource = descriptor.RequiresSource
+                    ? descriptor.InitialSource ?? string.Empty
+                    : string.Empty;
+            }
+            _isSourceEditorExpanded = false;
+            _pageTypeSelectionComplete = true;
+            _pageState = rendererChanged && !cancelReturnsToPages
+                ? PageState.Dirty
+                : PageState.Clean;
+            StartAutoSaveTimer();
+            await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            _pageTypeDialogOpen = false;
+        }
+    }
+
+    /// <summary>Allows an unsaved page to revisit its type choice without creating a page.</summary>
+    protected Task ChangeNewPageTypeAsync() => ShowPageTypeDialogAsync(cancelReturnsToPages: false);
+
+    private async Task LoadAiAvailabilityAsync()
+    {
+        try
+        {
+            var settingsResult = await AiClient.GetSettingsAsync();
+            var providersResult = await AiClient.GetProviderOptionsAsync();
+            _sourceAiEnabled =
+                settingsResult is Result<AiSettingsConfiguration, AeroError>.Ok { Value.Enabled: true }
+                && providersResult is Result<IReadOnlyList<AiProviderOption>, AeroError>.Ok { Value.Count: > 0 };
+        }
+        finally
+        {
+            _aiAvailabilityResolved = true;
+        }
+    }
+
+    /// <summary>Opens the configured manager AI surface from the source or element workspace.</summary>
+    protected Task OpenSourceAiAsync()
+    {
+        if (SourceAiEnabled)
+        {
+            ManagerAssistantState.Toggle();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Opens the manager AI surface from a source-backed fragment tile.</summary>
+    protected Task OpenSourceAiForFragmentAsync(PageRenderedFragmentKind _)
+        => OpenSourceAiAsync();
 
     private async Task LoadRegisteredFragmentCatalogAsync()
     {
@@ -462,6 +685,73 @@ protected override async Task OnInitializedAsync()
         }
     }
 
+    private async Task LoadPageRendererCatalogAsync()
+    {
+        var result = await PagesClient.GetRenderersAsync();
+        switch (result)
+        {
+            case Result<IReadOnlyList<PageRendererDescriptor>, AeroError>.Ok { Value.Count: > 0 } ok:
+                PageRendererDescriptors = ok.Value;
+                if (!PageRendererDescriptors.Any(descriptor =>
+                        string.Equals(descriptor.Id, RendererId, StringComparison.Ordinal)))
+                {
+                    RendererId = PageRendererDescriptors[0].Id;
+                }
+                break;
+            case Result<IReadOnlyList<PageRendererDescriptor>, AeroError>.Failure failure:
+                ShowToast($"Page renderers unavailable: {FormatError(failure.Error)}", "error");
+                break;
+        }
+    }
+
+    private bool RendererUsesSourceEditor(string rendererId)
+        => PageRendererDescriptors.Any(descriptor =>
+               string.Equals(descriptor.Id, rendererId, StringComparison.Ordinal)
+               && descriptor.RequiresSource);
+
+    /// <summary>Retains both visual and source state when a new page changes renderers.</summary>
+    protected Task OnRendererChangedAsync()
+    {
+        _isSourceEditorExpanded = false;
+        MarkDirty();
+        QueuePreviewRefresh();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Accepts live source from the leaf editor without resetting Monaco parameters.</summary>
+    protected Task OnDraftSourceChangedAsync(string source)
+    {
+        if (string.Equals(DraftSource, source, StringComparison.Ordinal))
+        {
+            return Task.CompletedTask;
+        }
+
+        DraftSource = source;
+        MarkDirty();
+        QueuePreviewRefresh();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Owns source workspace expansion independently of Monaco source state.</summary>
+    protected Task SetSourceEditorExpandedAsync(bool isExpanded)
+    {
+        _isSourceEditorExpanded = isExpanded;
+        return Task.CompletedTask;
+    }
+
+    private async Task SynchronizeDraftSourceAsync()
+    {
+        if (UsesSourceEditor && _sourceEditor is not null)
+        {
+            var source = await _sourceEditor.GetValueAsync();
+            if (!string.Equals(DraftSource, source, StringComparison.Ordinal))
+            {
+                DraftSource = source;
+                MarkDirty();
+            }
+        }
+    }
+
     private async Task LoadPageAsync(long id)
     {
         var result = await PagesClient.GetByIdAsync(id);
@@ -474,6 +764,8 @@ protected override async Task OnInitializedAsync()
             }
 
             LoadedPage = page;
+            RendererId = PageRendererIds.NormalizeOrDefault(page.RendererId);
+            DraftSource = string.Empty;
             PageTitle = page.Title;
             PageSlug = page.Slug;
             // A loaded page follows its title until the author explicitly edits
@@ -483,6 +775,7 @@ protected override async Task OnInitializedAsync()
             SeoTitle = page.SeoTitle ?? string.Empty;
             SeoDescription = page.SeoDescription ?? string.Empty;
             PublicationState = page.PublicationState;
+            HasUnpublishedChanges = page.HasUnpublishedChanges;
             ShowInNavMenu = page.ShowInNavMenu; 
             ShowHeaderNavigation = page.ShowHeaderNavigation;
             HideFooter = page.HideFooter;
@@ -494,6 +787,11 @@ protected override async Task OnInitializedAsync()
                 _siteStyleProfile!,
                 page.DraftComposition);
 
+            if (!await LoadDraftSourceAsync(id))
+            {
+                return;
+            }
+
             UpdateLastSaved();
             _pageState = PageState.Clean;
             _loadedPageId = id;
@@ -504,6 +802,41 @@ protected override async Task OnInitializedAsync()
         else
         {
             ShowToast(L["Error loading page"], "error");
+        }
+    }
+
+    private async Task<bool> LoadDraftSourceAsync(long pageId)
+    {
+        _sourceSnapshotPending = false;
+        if (!RendererUsesSourceEditor(RendererId))
+        {
+            DraftSource = string.Empty;
+            return true;
+        }
+
+        var result = await PagesClient.GetSourceAsync(pageId);
+        switch (result)
+        {
+            case Result<PageSourceViewModel, AeroError>.Ok ok
+                when string.Equals(
+                    PageRendererIds.NormalizeOrDefault(ok.Value.RendererId),
+                    RendererId,
+                    StringComparison.Ordinal):
+                DraftSource = ok.Value.Source;
+                _sourceSnapshotPending = true;
+                return true;
+            case Result<PageSourceViewModel, AeroError>.Ok:
+                DraftSource = string.Empty;
+                ShowToast(L["The saved source does not match this page renderer."], "error");
+                return false;
+            case Result<PageSourceViewModel, AeroError>.Failure failure:
+                DraftSource = string.Empty;
+                ShowToast(L["Source unavailable: {0}", FormatError(failure.Error)], "error");
+                return false;
+            default:
+                DraftSource = string.Empty;
+                ShowToast(L["Source unavailable."], "error");
+                return false;
         }
     }
 
@@ -589,10 +922,19 @@ protected Task OnRightSidebarCollapsedChanged(bool isCollapsed)
     /// </summary>
 protected async Task TogglePreview()
     {
+        if (!PreviewMode && UsesSourceEditor)
+        {
+            await SynchronizeDraftSourceAsync();
+        }
+
         PreviewMode = !PreviewMode;
         if (PreviewMode)
         {
-            HtmlEditor.Select(null);
+            if (!UsesSourceEditor)
+            {
+                HtmlEditor.Select(null);
+            }
+
             await RefreshPreviewAsync();
         }
 
@@ -1134,7 +1476,9 @@ protected async Task TogglePreview()
             return Task.CompletedTask;
         }
 
-        if (fragment.Kind == PageRenderedFragmentKind.Scriban)
+        if (fragment.Kind is PageRenderedFragmentKind.Scriban
+            or PageRenderedFragmentKind.SharpTs
+            or PageRenderedFragmentKind.Htmx)
         {
             ScribanFragmentInitialSource = fragment.Source;
             ScribanFragmentError = null;
@@ -1223,6 +1567,77 @@ protected async Task TogglePreview()
         return Task.CompletedTask;
     }
 
+    protected Task ApplyMarkdownFragmentSourceAsync(string source)
+    {
+        if (SelectedRenderedFragment is not { Kind: PageRenderedFragmentKind.Markdown } fragment)
+        {
+            MarkdownFragmentError = "The selected Markdown fragment no longer exists.";
+            return Task.CompletedTask;
+        }
+
+        var conversion = ConvertMarkdownSourceToHtml(source);
+        if (!conversion.Succeeded)
+        {
+            MarkdownFragmentError = conversion.ErrorMessage;
+            return Task.CompletedTask;
+        }
+
+        var updated = HtmlEditor.UpdateRenderedFragmentSource(fragment.NodeId, source);
+        switch (updated)
+        {
+            case Result<PageRenderedFragment>.Ok:
+                MarkdownFragmentEditorOpen = false;
+                MarkdownFragmentInitialHtml = string.Empty;
+                MarkdownFragmentError = null;
+                MarkDirty();
+                ShowToast("Markdown block updated.", "success");
+                break;
+            case Result<PageRenderedFragment>.Failure failure:
+                MarkdownFragmentError = FormatError(failure.Error);
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected FragmentSourceConversionResult ConvertMarkdownSourceToHtml(string markdown)
+    {
+        var imported = CreateMarkdownInterchangeAdapter().Import(markdown);
+        if (imported is Result<HtmlPageContent>.Failure importFailure)
+        {
+            return FragmentSourceConversionResult.Failure(FormatError(importFailure.Error));
+        }
+
+        var rendered = CreateHtmlStaticRenderer().Render(
+            ((Result<HtmlPageContent>.Ok)imported).Value);
+        return rendered switch
+        {
+            Result<string>.Ok ok => FragmentSourceConversionResult.Success(ok.Value),
+            Result<string>.Failure failure =>
+                FragmentSourceConversionResult.Failure(FormatError(failure.Error)),
+            _ => FragmentSourceConversionResult.Failure("The Markdown source could not be rendered.")
+        };
+    }
+
+    protected FragmentSourceConversionResult ConvertMarkdownHtmlToSource(string html)
+    {
+        var imported = CreateHtmlFragmentImporter().Import(html);
+        if (imported is Result<HtmlPageContent>.Failure importFailure)
+        {
+            return FragmentSourceConversionResult.Failure(FormatError(importFailure.Error));
+        }
+
+        var exported = CreateMarkdownInterchangeAdapter().Export(
+            ((Result<HtmlPageContent>.Ok)imported).Value);
+        return exported switch
+        {
+            Result<string>.Ok ok => FragmentSourceConversionResult.Success(ok.Value),
+            Result<string>.Failure failure =>
+                FragmentSourceConversionResult.Failure(FormatError(failure.Error)),
+            _ => FragmentSourceConversionResult.Failure("The visual content could not be converted to Markdown.")
+        };
+    }
+
     protected Task CloseCustomHtmlFragmentEditorAsync()
     {
         CustomHtmlFragmentEditorOpen = false;
@@ -1274,18 +1689,24 @@ protected async Task TogglePreview()
 
     protected async Task ApplyScribanFragmentSourceAsync(string source)
     {
-        if (SelectedRenderedFragment is not { Kind: PageRenderedFragmentKind.Scriban } fragment)
+        if (SelectedRenderedFragment is not
+            {
+                Kind: PageRenderedFragmentKind.Scriban
+                    or PageRenderedFragmentKind.SharpTs
+                    or PageRenderedFragmentKind.Htmx
+            } fragment)
         {
-            ScribanFragmentError = "The selected Scriban fragment no longer exists.";
+            ScribanFragmentError = "The selected source fragment no longer exists.";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(source)
             || source.Length > PageRenderedFragment.MaximumSourceLength)
         {
+            var displayName = RenderedFragmentDisplayName(fragment.Kind);
             ScribanFragmentError = string.IsNullOrWhiteSpace(source)
-                ? "Scriban source cannot be empty."
-                : $"Scriban source cannot exceed {PageRenderedFragment.MaximumSourceLength} characters.";
+                ? $"{displayName} source cannot be empty."
+                : $"{displayName} source cannot exceed {PageRenderedFragment.MaximumSourceLength} characters.";
             return;
         }
 
@@ -1316,7 +1737,7 @@ protected async Task TogglePreview()
                 ScribanFragmentInitialSource = string.Empty;
                 ScribanFragmentError = null;
                 MarkDirty();
-                ShowToast("Scriban block updated.", "success");
+                ShowToast($"{RenderedFragmentDisplayName(fragment.Kind)} block updated.", "success");
                 break;
             case Result<PageRenderedFragment>.Failure failure:
                 ScribanFragmentError = FormatError(failure.Error);
@@ -1329,13 +1750,33 @@ protected async Task TogglePreview()
         PageRenderedFragmentKind.Markdown => "## Markdown block\n\nStart writing here.",
         PageRenderedFragmentKind.CustomHtml => "<p>Custom HTML block</p>",
         PageRenderedFragmentKind.Scriban => "<p>Site {{ site.id }} · {{ page.culture }}</p>",
+        PageRenderedFragmentKind.SharpTs => """
+            export function render(context: any) {
+                return html`<p>${context.page.title}</p>`;
+            }
+            """,
+        PageRenderedFragmentKind.Htmx => """
+            <section>
+              <button type="button" hx-get="/api/example" hx-target="#htmx-result">Load content</button>
+              <div id="htmx-result" aria-live="polite"></div>
+            </section>
+            """,
         _ => "Rendered block"
     };
 
     private static string RenderedFragmentDisplayName(PageRenderedFragmentKind kind) => kind switch
     {
         PageRenderedFragmentKind.CustomHtml => "Custom HTML",
+        PageRenderedFragmentKind.SharpTs => "TS",
+        PageRenderedFragmentKind.Htmx => "HTMX",
         _ => kind.ToString()
+    };
+
+    private static string RenderedFragmentLanguage(PageRenderedFragmentKind kind) => kind switch
+    {
+        PageRenderedFragmentKind.SharpTs => "typescript",
+        PageRenderedFragmentKind.Htmx => "html",
+        _ => "liquid"
     };
 
     protected Task ApplyHtmlRichTextAsync(IReadOnlyList<HtmlNode> children)
@@ -1598,13 +2039,21 @@ protected async Task TogglePreview()
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            await SynchronizeDraftSourceAsync();
             var culture = LoadedPage?.Culture
                 ?? CurrentSite?.DefaultCulture
                 ?? CultureInfo.CurrentUICulture.Name;
             var result = await PreviewClient.RenderPageFragmentAsync(
-                HtmlEditor.Content,
-                HtmlEditor.Composition,
-                culture,
+                new PreviewPageFragmentRequest(
+                    Content: HtmlEditor.Content,
+                    Composition: HtmlEditor.Composition,
+                    Culture: culture,
+                    RendererId: RendererId,
+                    PageId: Id,
+                    Title: PageTitle,
+                    Slug: PageSlug,
+                    Path: BuildCurrentPreviewPath(),
+                    Source: UsesSourceEditor ? DraftSource : null),
                 cancellationToken);
             switch (result)
             {
@@ -1631,6 +2080,20 @@ protected async Task TogglePreview()
             IsPreviewRendering = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private string BuildCurrentPreviewPath()
+    {
+        var parentPath = ParentSlugPrefix.Trim('/');
+        var slug = PageSlug.Trim('/');
+        if (string.IsNullOrWhiteSpace(parentPath))
+        {
+            return string.IsNullOrWhiteSpace(slug) ? "/" : $"/{slug}";
+        }
+
+        return string.IsNullOrWhiteSpace(slug)
+            ? $"/{parentPath}"
+            : $"/{parentPath}/{slug}";
     }
 
     private async Task ResolvePreviewBaseUriAsync()
@@ -2186,12 +2649,16 @@ protected string FormatCulture(string? culture)
 
     private async Task AutoSaveAsync()
     {
-        if (_pageState != PageState.Dirty || _routeDecisionPending) return;
+        if (!_pageTypeSelectionComplete || _pageState != PageState.Dirty || _routeDecisionPending) return;
+
+        await SynchronizeDraftSourceAsync();
 
         if (Id == 0 || Id is null)
         {
             // New page: only auto-create if there's actual content
-            if (HtmlEditor.Content.Root.Children.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
+            if (HtmlEditor.Content.Root.Children.Count == 0
+                && string.IsNullOrWhiteSpace(PageTitle)
+                && (!UsesSourceEditor || string.IsNullOrWhiteSpace(DraftSource)))
                 return;
 
             await SavePageCore(showSuccessToast: false);
@@ -2206,6 +2673,8 @@ protected string FormatCulture(string? culture)
     private async Task SavePageCore(bool showSuccessToast)
     {
         if (IsSaving) return;
+
+        await SynchronizeDraftSourceAsync();
 
         if (!await EnsureSiteStyleProfileAsync())
         {
@@ -2252,13 +2721,16 @@ protected string FormatCulture(string? culture)
                     ShowChatAgent,
                     DraftContent: HtmlEditor.Content,
                     PreviousPathBehavior: routeDecision.Behavior,
-                    DraftComposition: DraftComposition
+                    DraftComposition: DraftComposition,
+                    RendererId: RendererId,
+                    DraftSource: UsesSourceEditor ? DraftSource : null
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
                 if (result is Result<CmsPageDetail, AeroError>.Ok ok)
                 {
                     LoadedPage = ok.Value;
+                    HasUnpublishedChanges = ok.Value.HasUnpublishedChanges;
                     UpdateLastSaved();
                     _pageState = PageState.Clean;
                     await LoadPageTranslationsAsync();
@@ -2287,7 +2759,9 @@ protected string FormatCulture(string? culture)
                     HideFooter,
                     ShowChatAgent,
                     DraftContent: HtmlEditor.Content,
-                    DraftComposition: DraftComposition
+                    DraftComposition: DraftComposition,
+                    RendererId: RendererId,
+                    DraftSource: UsesSourceEditor ? DraftSource : null
                 );
 
                 var result = await PagesClient.CreateAsync(request);
@@ -2295,6 +2769,7 @@ protected string FormatCulture(string? culture)
                 {
                     Id = createOk.Value.Id;
                     LoadedPage = createOk.Value;
+                    HasUnpublishedChanges = createOk.Value.HasUnpublishedChanges;
                     _loadedPageId = Id;
                     _isPersistedPageLoaded = true;
                     // Keep following the title unless the author explicitly
@@ -2362,47 +2837,25 @@ protected string FormatCulture(string? culture)
         if (!isManualSave)
             return (false, null);
 
-        var affectedCount = impact.PreviouslyPublishedRoutes.Count;
-        var keepRedirects = await DialogService.Confirm(
-            L[
-                affectedCount == 1
-                    ? "This page has already been published at '{0}'. Keep that URL working by creating a permanent redirect to '{1}'?"
-                    : "This change affects {2} previously published URLs, beginning with '{0}'. Keep them working by creating permanent redirects to their new URLs?",
-                impact.OldPath,
-                impact.NewPath,
-                affectedCount],
-            L["Preserve Published URLs"],
-            new ConfirmOptions
+        var decision = await DialogService.OpenAsync<PageRouteChangeDialog>(
+            L["Change Page URL"],
+            new Dictionary<string, object?>
             {
-                OkButtonText = L["Keep Old URLs"],
-                CancelButtonText = L["Don't Keep"]
+                [nameof(PageRouteChangeDialog.Impact)] = impact
+            },
+            new DialogOptions
+            {
+                Width = "34rem",
+                Resizable = false,
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
             });
 
-        if (keepRedirects == true)
-        {
-            _routeDecisionPending = false;
-            return (true, PreviousPathBehavior.CreatePermanentRedirect);
-        }
-
-        var discardConfirmed = await DialogService.Confirm(
-            L[
-                affectedCount == 1
-                    ? "Continue without a redirect? Existing links to '{0}' will stop working."
-                    : "Continue without redirects? Existing links to {1} published URLs will stop working.",
-                impact.OldPath,
-                affectedCount],
-            L["Discard Published URLs"],
-            new ConfirmOptions
-            {
-                OkButtonText = L["Continue Without Redirects"],
-                CancelButtonText = L["Cancel Save"]
-            });
-
-        if (discardConfirmed != true)
+        if (decision is not PreviousPathBehavior behavior)
             return (false, null);
 
         _routeDecisionPending = false;
-        return (true, PreviousPathBehavior.Discard);
+        return (true, behavior);
     }
 
         /// <summary>
@@ -2434,6 +2887,7 @@ protected async Task PublishPage()
             if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
                 PublicationState = ok.Value.PublicationState;
+                HasUnpublishedChanges = ok.Value.HasUnpublishedChanges;
                 _pageState = PageState.Clean;
                 ShowToast(L["Page published!"], "success");
             }
@@ -2455,6 +2909,7 @@ protected async Task UnpublishPage()
             if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
                 PublicationState = ok.Value.PublicationState;
+                HasUnpublishedChanges = ok.Value.HasUnpublishedChanges;
                 _pageState = PageState.Clean;
                 ShowToast(L["Page unpublished"], "success");
             }

@@ -74,7 +74,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                     t.Alias, t.Name, t.Description, t.Category,
                     t.AllowPublicUrl, t.HideFromSearch, fields.Count,
                     !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount,
-                    Id: t.Id));
+                    Id: t.Id,
+                    Cardinality: t.Cardinality,
+                    Structure: t.Structure,
+                    HierarchyRules: t.HierarchyRules));
             }
 
             return TypedResults.Ok(summaries);
@@ -142,6 +145,9 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 Description = request.Description,
                 Category = request.Category,
                 Icon = request.Icon,
+                Cardinality = request.Cardinality,
+                Structure = request.Structure,
+                HierarchyRules = request.HierarchyRules ?? new ContentHierarchyRules(),
                 AllowPublicUrl = request.AllowPublicUrl,
                 HideFromSearch = request.HideFromSearch,
                 FieldsJson = JsonSerializer.Serialize(
@@ -193,6 +199,9 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.Description = request.Description;
             existing.Category = request.Category;
             existing.Icon = request.Icon;
+            existing.Cardinality = request.Cardinality;
+            existing.Structure = request.Structure;
+            existing.HierarchyRules = request.HierarchyRules ?? new ContentHierarchyRules();
             existing.AllowPublicUrl = request.AllowPublicUrl;
             existing.HideFromSearch = request.HideFromSearch;
             existing.FieldsJson = JsonSerializer.Serialize(
@@ -256,7 +265,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             vm.Alias, vm.Name, vm.Description, vm.Category,
             vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
             vm.ScheduleConfig,
-            Id: vm.Id);
+            Id: vm.Id,
+            Cardinality: vm.Cardinality,
+            Structure: vm.Structure,
+            HierarchyRules: vm.HierarchyRules);
     }
 
     /// <summary>

@@ -19,6 +19,8 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentTypeEditor
 {
+    private const int MaximumHierarchyDepthLimit = 32;
+
         /// <summary>
     /// Gets or sets the Alias.
     /// </summary>
@@ -55,6 +57,7 @@ public partial class ContentTypeEditor
     private int _entriesCount;
     private bool _entriesLoading;
     private string _entriesSearchText = string.Empty;
+    private IReadOnlyList<ContentTypeSummary> _availableParentContentTypes = [];
 
     private string Name { get; set; } = string.Empty;
     private string AliasValue { get; set; } = string.Empty;
@@ -62,6 +65,13 @@ public partial class ContentTypeEditor
     private string? Category { get; set; }
     private bool AllowPublicUrl { get; set; }
     private bool HideFromSearch { get; set; }
+    private ContentCardinality Cardinality { get; set; } = ContentCardinality.Collection;
+    private ContentStructure Structure { get; set; } = ContentStructure.Flat;
+    private bool AllowRootItems { get; set; } = true;
+    private int MaximumHierarchyDepth { get; set; } = 8;
+    private bool RequireSameTypeParent { get; set; } = true;
+    private IReadOnlyList<long> AllowedParentContentTypeIds { get; set; } = [];
+    private string HierarchyOrdering { get; set; } = "sortOrder,title";
     private string? ScribanTemplate { get; set; }
     private List<ContentFieldDefinition> Fields { get; set; } = [];
 
@@ -81,6 +91,8 @@ public partial class ContentTypeEditor
     /// </summary>
 protected override async Task OnInitializedAsync()
     {
+        await LoadParentContentTypeOptionsAsync();
+
         if (IsNew)
         {
             _isLoading = false;
@@ -97,6 +109,14 @@ protected override async Task OnInitializedAsync()
             Category = detail.Category;
             AllowPublicUrl = detail.AllowPublicUrl;
             HideFromSearch = detail.HideFromSearch;
+            Cardinality = detail.Cardinality;
+            Structure = detail.Structure;
+            var hierarchyRules = detail.HierarchyRules ?? new ContentHierarchyRules();
+            AllowRootItems = hierarchyRules.AllowRootItems;
+            MaximumHierarchyDepth = hierarchyRules.MaximumDepth;
+            RequireSameTypeParent = hierarchyRules.RequireSameTypeParent;
+            AllowedParentContentTypeIds = hierarchyRules.AllowedParentContentTypeIds;
+            HierarchyOrdering = hierarchyRules.DefaultOrdering;
             ScribanTemplate = detail.ScribanTemplate;
             _useCustomTemplate = !string.IsNullOrWhiteSpace(detail.ScribanTemplate);
             Fields = detail.Fields.Select(CloneField).ToList();
@@ -110,6 +130,19 @@ protected override async Task OnInitializedAsync()
 
         _isLoading = false;
     }
+
+    private async Task LoadParentContentTypeOptionsAsync()
+    {
+        var result = await ContentTypesApi.GetAllAsync();
+        _availableParentContentTypes = result switch
+        {
+            Result<IReadOnlyList<ContentTypeSummary>, AeroError>.Ok ok => ok.Value,
+            _ => []
+        };
+    }
+
+    private void SetAllowedParentContentTypes(IReadOnlyList<long> selectedIds)
+        => AllowedParentContentTypeIds = selectedIds;
 
     private void OnNameChanged(string value)
     {
@@ -333,7 +366,17 @@ protected override async Task OnInitializedAsync()
                 HideFromSearch,
                 Fields,
                 _useCustomTemplate ? ScribanTemplate : null,
-                null);
+                null,
+                Cardinality,
+                Structure,
+                new ContentHierarchyRules
+                {
+                    AllowRootItems = AllowRootItems,
+                    MaximumDepth = MaximumHierarchyDepth,
+                    RequireSameTypeParent = RequireSameTypeParent,
+                    AllowedParentContentTypeIds = AllowedParentContentTypeIds,
+                    DefaultOrdering = HierarchyOrdering
+                });
 
             var result = IsNew
                 ? await ContentTypesApi.CreateAsync(request)
@@ -372,6 +415,17 @@ protected override async Task OnInitializedAsync()
         {
             Notify(NotificationSeverity.Warning, "No fields", "Add at least one field so editors have something to fill out.");
             _activeTab = EditorTab.Fields;
+            return false;
+        }
+
+        if (Structure == ContentStructure.Hierarchical
+            && MaximumHierarchyDepth is < 1 or > MaximumHierarchyDepthLimit)
+        {
+            Notify(
+                NotificationSeverity.Warning,
+                "Invalid hierarchy depth",
+                $"Hierarchy depth must be between 1 and {MaximumHierarchyDepthLimit}.");
+            _activeTab = EditorTab.Basics;
             return false;
         }
 

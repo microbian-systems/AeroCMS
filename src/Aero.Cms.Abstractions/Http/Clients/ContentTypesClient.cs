@@ -123,6 +123,22 @@ Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(s
     /// ForkToCultureAsync method.
     /// </summary>
 Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default);
+    /// <summary>Gets the bounded manager hierarchy for a content type and culture.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> GetHierarchyAsync(
+        string alias,
+        string? culture = null,
+        CancellationToken ct = default);
+    /// <summary>Atomically moves an item and normalizes both affected sibling collections.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> MoveAsync(
+        string alias,
+        long id,
+        MoveContentItemRequest request,
+        CancellationToken ct = default);
+    /// <summary>Atomically replaces the order of one exact sibling collection.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> ReorderAsync(
+        string alias,
+        ReorderContentSiblingsRequest request,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -193,6 +209,42 @@ public Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslations
 public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default)
         => PostAsync<ForkContentItemCultureRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/translations", request, ct);
 
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> GetHierarchyAsync(
+        string alias,
+        string? culture = null,
+        CancellationToken ct = default)
+    {
+        var url = $"{Uri.EscapeDataString(alias)}/hierarchy";
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            url += $"?culture={Uri.EscapeDataString(culture)}";
+        }
+
+        return GetAsync<ContentHierarchyTreeResult>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> MoveAsync(
+        string alias,
+        long id,
+        MoveContentItemRequest request,
+        CancellationToken ct = default)
+        => PutAsync<MoveContentItemRequest, ContentHierarchyTreeResult>(
+            $"{Uri.EscapeDataString(alias)}/{id}/move",
+            request,
+            ct);
+
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> ReorderAsync(
+        string alias,
+        ReorderContentSiblingsRequest request,
+        CancellationToken ct = default)
+        => PutAsync<ReorderContentSiblingsRequest, ContentHierarchyTreeResult>(
+            $"{Uri.EscapeDataString(alias)}/hierarchy/reorder",
+            request,
+            ct);
+
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
         var response = await task;
@@ -221,7 +273,10 @@ public record ContentTypeSummary(
     int FieldCount,
     bool HasCustomTemplate,
     long ItemCount,
-    long Id = 0);
+    long Id = 0,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Detailed information for a content type definition.</summary>
 public record ContentTypeDetail(
@@ -235,7 +290,10 @@ public record ContentTypeDetail(
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
     ContentTypeScheduleConfig? ScheduleConfig,
-    long Id = 0);
+    long Id = 0,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Request to create or update a content type definition.</summary>
 public record CreateContentTypeRequest(
@@ -248,7 +306,10 @@ public record CreateContentTypeRequest(
     bool HideFromSearch,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    ContentTypeScheduleConfig? ScheduleConfig);
+    ContentTypeScheduleConfig? ScheduleConfig,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Summary information for a content item.</summary>
 public record ContentItemSummary(
@@ -262,7 +323,9 @@ public record ContentItemSummary(
     int VersionNumber,
     string Culture,
     long? TranslationGroupId,
-    long? SourceItemId);
+    long? SourceItemId,
+    long? ParentId = null,
+    int SortOrder = 0);
 
 /// <summary>Detailed information for a content item.</summary>
 public record ContentItemDetail(
@@ -278,7 +341,9 @@ public record ContentItemDetail(
     DateTimeOffset? ScheduleUnpublishUtc,
     string Culture,
     long? TranslationGroupId,
-    long? SourceItemId);
+    long? SourceItemId,
+    long? ParentId = null,
+    int SortOrder = 0);
 
 /// <summary>Request to create or update a content item.</summary>
 public record CreateContentItemRequest(
@@ -287,9 +352,45 @@ public record CreateContentItemRequest(
     IReadOnlyDictionary<string, JsonElement> Fields,
     DateTimeOffset? SchedulePublishUtc,
     DateTimeOffset? ScheduleUnpublishUtc,
-    string? Culture = null);
+    string? Culture = null,
+    long? ParentId = null,
+    int SortOrder = 0);
 
 /// <summary>
 /// Represents a record for ForkContentItemCultureRequest.
 /// </summary>
 public record ForkContentItemCultureRequest(string Culture, string Slug);
+
+/// <summary>One immutable manager-facing node in a bounded content hierarchy.</summary>
+public sealed record ContentHierarchyTreeNode(
+    long Id,
+    string Title,
+    string Slug,
+    string ContentTypeAlias,
+    string Culture,
+    string PublicationState,
+    long? ParentId,
+    int SortOrder,
+    int Depth,
+    bool IsTargetType,
+    bool CanAcceptChildren,
+    IReadOnlyList<ContentHierarchyTreeNode> Children);
+
+/// <summary>A bounded, pre-shaped manager hierarchy selected for one type and culture.</summary>
+public sealed record ContentHierarchyTreeResult(
+    string ContentTypeAlias,
+    string Culture,
+    int TotalCount,
+    IReadOnlyList<ContentHierarchyTreeNode> Roots);
+
+/// <summary>Moves one item to a parent and zero-based position in one transaction.</summary>
+public sealed record MoveContentItemRequest(
+    long? NewParentId,
+    int TargetIndex,
+    string? Culture = null);
+
+/// <summary>Replaces one exact sibling order in one transaction.</summary>
+public sealed record ReorderContentSiblingsRequest(
+    long? ParentId,
+    IReadOnlyList<long> OrderedIds,
+    string? Culture = null);

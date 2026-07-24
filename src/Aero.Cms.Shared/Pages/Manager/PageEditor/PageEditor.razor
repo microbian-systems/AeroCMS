@@ -39,12 +39,63 @@
                               IsSaving="@IsSaving"
                               IsDirty="@(_pageState == PageState.Dirty)"
                               PublicationState="@PublicationState"
+                              HasUnpublishedChanges="@HasUnpublishedChanges"
                               OnTitleChanged="OnTitleChanged"
                               OnTogglePreview="TogglePreview"
                               OnSave="SavePage"
                               OnPublish="PublishPage"
                               OnUnpublish="UnpublishPage" />
+        }
 
+        @if (UsesSourceEditor)
+        {
+            @if (!PreviewMode)
+            {
+                <div class="pe-living-toolbar pe-source-main-toolbar"
+                     role="toolbar"
+                     aria-label="@($"{SelectedPageRenderer?.DisplayName ?? "Source"} page commands")">
+                    <span class="pe-source-main-toolbar__tooltip"
+                          title="@SourceAiButtonTitle">
+                        <button type="button"
+                                class="pe-btn pe-btn-ghost pe-btn-sm pe-source-main-toolbar__ai"
+                                disabled="@(!SourceAiEnabled)"
+                                aria-disabled="@(!SourceAiEnabled)"
+                                aria-label="Open AI assistant"
+                                @onclick="OpenSourceAiAsync">
+                            AI
+                        </button>
+                    </span>
+                    <span class="pe-living-toolbar__divider" aria-hidden="true"></span>
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="TogglePreview">
+                        @L["Preview"]
+                    </button>
+                </div>
+            }
+
+            <section class="@SourceWorkspaceCssClass"
+                     aria-label="@SourceEditorAccessibleLabel">
+                <ExpandableMonacoSourceEditor @key="SourceEditorKey"
+                                              @ref="_sourceEditor"
+                                              EditorId="@SourceEditorId"
+                                              Language="@SourceEditorLanguage"
+                                              AccessibleLabel="@SourceEditorAccessibleLabel"
+                                              RendererLabel="@(SelectedPageRenderer?.DisplayName ?? "Source")"
+                                              InitialSource="@DraftSource"
+                                              SourceChanged="OnDraftSourceChangedAsync"
+                                              AiEnabled="@SourceAiEnabled"
+                                              AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                              AiRequested="OpenSourceAiAsync"
+                                              PreviewRequested="TogglePreview"
+                                              IsExpanded="_isSourceEditorExpanded"
+                                              IsExpandedChanged="SetSourceEditorExpandedAsync" />
+            </section>
+        }
+        else
+        {
+            @if (!PreviewMode)
+            {
             <div class="pe-living-toolbar" role="toolbar" aria-label="Page editing commands">
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
                         aria-keyshortcuts="Control+Z Meta+Z"
@@ -78,22 +129,27 @@
                     @L["Preview"]
                 </button>
             </div>
-        }
+            }
 
-        <HtmlPageEditorCanvas Content="HtmlEditor.Content"
-                              Catalog="HtmlCatalog"
-                              ContentPolicy="HtmlContentPolicy"
-                              SelectedNodeId="HtmlEditor.SelectedNodeId"
-                              CompiledStyles="HtmlEditor.CompiledStyles"
-                              PreviewMode="PreviewMode"
-                              CanMoveSelectedUp="HtmlEditor.CanMoveSelectedUp"
-                              CanMoveSelectedDown="HtmlEditor.CanMoveSelectedDown"
-                              SelectionChanged="SelectHtmlNodeAsync"
-                              NodeEditRequested="OpenHtmlElementEditorForNodeAsync"
-                              SortMoveRequested="MoveHtmlNodeAsync"
-                              PaletteInsertRequested="InsertHtmlPaletteItemAsync"
-                              EditorCommandRequested="ApplyHtmlEditorCommandAsync"
-                              ElementRequested="AddHtmlElementAsync" />
+            <HtmlPageEditorCanvas Content="HtmlEditor.Content"
+                                  Catalog="HtmlCatalog"
+                                  ContentPolicy="HtmlContentPolicy"
+                                  SelectedNodeId="HtmlEditor.SelectedNodeId"
+                                  CompiledStyles="HtmlEditor.CompiledStyles"
+                                  PreviewMode="PreviewMode"
+                                  CanMoveSelectedUp="HtmlEditor.CanMoveSelectedUp"
+                                  CanMoveSelectedDown="HtmlEditor.CanMoveSelectedDown"
+                                  ShowSelectedSourceAi="@SelectedRenderedFragmentSupportsAi"
+                                  AiEnabled="@SourceAiEnabled"
+                                  AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                  AiRequested="OpenSourceAiAsync"
+                                  SelectionChanged="SelectHtmlNodeAsync"
+                                  NodeEditRequested="OpenHtmlElementEditorForNodeAsync"
+                                  SortMoveRequested="MoveHtmlNodeAsync"
+                                  PaletteInsertRequested="InsertHtmlPaletteItemAsync"
+                                  EditorCommandRequested="ApplyHtmlEditorCommandAsync"
+                                  ElementRequested="AddHtmlElementAsync" />
+        }
     }
 }
 else if (ActiveTab == "metadata")
@@ -142,6 +198,29 @@ else if (ActiveTab == "metadata")
                                     ExcludePageId="@Id"
                                     Placeholder="@L["(root — no parent)"]" />
                     <PathPreview ParentId="ParentId" Slug="@PageSlug" ExcludePageId="@Id" />
+                </div>
+                <div>
+                    <span class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Page type"]</span>
+                    <div class="pe-page-renderer-summary">
+                        <div>
+                            <strong>@(SelectedPageRenderer?.DisplayName ?? RendererId)</strong>
+                            @if (SelectedPageRenderer?.IsExperimental == true)
+                            {
+                                <span class="pe-page-renderer-summary__badge">@L["Experimental"]</span>
+                            }
+                        </div>
+                        @if (CanChangeNewPageType)
+                        {
+                            <button type="button"
+                                    class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="ChangeNewPageTypeAsync">
+                                @L["Change page type"]
+                            </button>
+                        }
+                    </div>
+                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">
+                        @L["Page type is chosen when the page is created."]
+                    </p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Summary / Excerpt"]</label>
@@ -436,6 +515,8 @@ else if (ActiveTab == "translations")
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
+    @if (!UsesSourceEditor)
+    {
     <AeroSidebar Title="@RightSidebarTitle"
                  Side="SidebarSide.Right"
                  IsCollapsed="RightSidebarCollapsed"
@@ -467,7 +548,7 @@ else if (ActiveTab == "translations")
                                              ContentItemTotalCount="ContentItemTotalCount"
                                              IsLoading="IsContentPaletteLoading"
                                              IsItemsLoading="IsContentItemsLoading"
-                                             ErrorMessage="ContentPaletteError"
+                                             ErrorMessage="@ContentPaletteError"
                                              SelectedAliasChanged="SelectContentTypeAsync"
                                              SelectedContentItemIdChanged="SelectContentItemAsync"
                                              ItemSearchRequested="SearchContentItemsAsync"
@@ -484,7 +565,7 @@ else if (ActiveTab == "translations")
                         {
                             <HtmlContentListQueryEditor Scope="selectedContentList"
                                                         Fields="SelectedContentListFields"
-                                                        ErrorMessage="ContentListSettingsError"
+                                                        ErrorMessage="@ContentListSettingsError"
                                                         SettingsChanged="UpdateContentListSettingsAsync" />
                         }
 
@@ -508,13 +589,18 @@ else if (ActiveTab == "translations")
                                 </button>
                             </div>
                         }
-                        else if (SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Scriban })
+                        else if (SelectedRenderedFragment is
+                            {
+                                Kind: PageRenderedFragmentKind.Scriban
+                                    or PageRenderedFragmentKind.SharpTs
+                                    or PageRenderedFragmentKind.Htmx
+                            } sourceFragment)
                         {
                             <div class="p-4 border-b" style="border-color: var(--pe-border);">
                                 <button type="button"
                                         class="pe-btn pe-btn-primary pe-btn-sm"
                                         @onclick="() => OpenRenderedFragmentEditorForNodeAsync(selectedNode.NodeId)">
-                                    Edit Scriban
+                                    Edit @RenderedFragmentDisplayName(sourceFragment.Kind)
                                 </button>
                             </div>
                         }
@@ -531,7 +617,7 @@ else if (ActiveTab == "translations")
 
                         <HtmlElementPropertyPanel Node="selectedNode"
                                                   Definition="selectedDefinition"
-                                                  ErrorMessage="HtmlPropertyError"
+                                                  ErrorMessage="@HtmlPropertyError"
                                                   PropertiesChanged="ApplyHtmlPropertiesAsync"
                                                   SelectionCleared="ClearHtmlSelectionAsync"
                                                   RichTextRequested="OpenHtmlRichTextEditorAsync"
@@ -550,6 +636,9 @@ else if (ActiveTab == "translations")
                 default:
                     <HtmlElementPalette Elements="HtmlElementDefinitions"
                                         RegisteredFragments="RegisteredFragmentDescriptors"
+                                        AiEnabled="@SourceAiEnabled"
+                                        AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                        AiRequested="OpenSourceAiForFragmentAsync"
                                         ElementRequested="AddHtmlElementAsync"
                                         LayoutRequested="AddHtmlLayoutAsync"
                                         ComponentRequested="AddHtmlComponentAsync"
@@ -561,6 +650,7 @@ else if (ActiveTab == "translations")
             </div>
         }
     </AeroSidebar>
+    }
 </SectionContent>
 
 @if (HtmlElementEditorOpen
@@ -570,7 +660,7 @@ else if (ActiveTab == "translations")
     <HtmlElementEditorDialog @key="elementEditorNode.NodeId"
                              Node="elementEditorNode"
                              Definition="elementEditorDefinition"
-                             ErrorMessage="HtmlPropertyError"
+                             ErrorMessage="@HtmlPropertyError"
                              Closed="CloseHtmlElementEditorAsync"
                              PropertiesChanged="ApplyHtmlPropertiesAsync"
                              RichTextRequested="OpenHtmlRichTextEditorAsync"
@@ -584,14 +674,14 @@ else if (ActiveTab == "translations")
 {
     <HtmlRichTextEditorDialog @key="richTextNode.NodeId"
                               Node="richTextNode"
-                              ErrorMessage="HtmlRichTextError"
+                              ErrorMessage="@HtmlRichTextError"
                               Closed="CloseHtmlRichTextEditorAsync"
                               ContentSaved="ApplyHtmlRichTextAsync" />
 }
 
 @if (HtmlFragmentImportOpen)
 {
-    <HtmlFragmentImportDialog ErrorMessage="HtmlFragmentImportError"
+    <HtmlFragmentImportDialog ErrorMessage="@HtmlFragmentImportError"
                               ImportRequested="ImportHtmlFragmentAsync"
                               Closed="CloseHtmlFragmentImportAsync" />
 }
@@ -599,8 +689,8 @@ else if (ActiveTab == "translations")
 @if (MarkdownInterchangeOpen)
 {
     <MarkdownInterchangeDialog Mode="MarkdownMode"
-                                 InitialValue="MarkdownInterchangeText"
-                                 ErrorMessage="MarkdownInterchangeError"
+                                 InitialValue="@MarkdownInterchangeText"
+                                 ErrorMessage="@MarkdownInterchangeError"
                                  ImportRequested="ImportMarkdownAsync"
                                  Closed="CloseMarkdownInterchangeAsync" />
 }
@@ -608,27 +698,47 @@ else if (ActiveTab == "translations")
 @if (MarkdownFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Markdown } markdownFragment)
 {
     <MarkdownFragmentEditorDialog @key="markdownFragment.NodeId"
-                                  InitialHtml="MarkdownFragmentInitialHtml"
-                                  ErrorMessage="MarkdownFragmentError"
+                                  InitialHtml="@MarkdownFragmentInitialHtml"
+                                  InitialSource="@markdownFragment.Source"
+                                  ErrorMessage="@MarkdownFragmentError"
+                                  HtmlToMarkdown="@ConvertMarkdownHtmlToSource"
+                                  MarkdownToHtml="@ConvertMarkdownSourceToHtml"
+                                  AiEnabled="@SourceAiEnabled"
+                                  AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                  AiRequested="OpenSourceAiAsync"
                                   HtmlSaved="ApplyMarkdownFragmentHtmlAsync"
+                                  SourceSaved="ApplyMarkdownFragmentSourceAsync"
                                   Closed="CloseMarkdownFragmentEditorAsync" />
 }
 
 @if (CustomHtmlFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.CustomHtml } customHtmlFragment)
 {
     <CustomHtmlFragmentEditorDialog @key="customHtmlFragment.NodeId"
-                                    InitialSource="CustomHtmlFragmentInitialSource"
-                                    ErrorMessage="CustomHtmlFragmentError"
+                                    InitialSource="@CustomHtmlFragmentInitialSource"
+                                    ErrorMessage="@CustomHtmlFragmentError"
+                                    AiEnabled="@SourceAiEnabled"
+                                    AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                    AiRequested="OpenSourceAiAsync"
                                     SourceSaved="ApplyCustomHtmlFragmentSourceAsync"
                                     Closed="CloseCustomHtmlFragmentEditorAsync" />
 }
 
-@if (ScribanFragmentEditorOpen && SelectedRenderedFragment is { Kind: PageRenderedFragmentKind.Scriban } scribanFragment)
+@if (ScribanFragmentEditorOpen && SelectedRenderedFragment is
+    {
+        Kind: PageRenderedFragmentKind.Scriban
+            or PageRenderedFragmentKind.SharpTs
+            or PageRenderedFragmentKind.Htmx
+    } sourceFragment)
 {
-    <ScribanFragmentEditorDialog @key="scribanFragment.NodeId"
-                                 NodeId="scribanFragment.NodeId"
-                                 InitialSource="ScribanFragmentInitialSource"
-                                 ErrorMessage="ScribanFragmentError"
+    <ScribanFragmentEditorDialog @key="sourceFragment.NodeId"
+                                 NodeId="sourceFragment.NodeId"
+                                 Kind="sourceFragment.Kind"
+                                 Language="@RenderedFragmentLanguage(sourceFragment.Kind)"
+                                 InitialSource="@ScribanFragmentInitialSource"
+                                 ErrorMessage="@ScribanFragmentError"
+                                 AiEnabled="@SourceAiEnabled"
+                                 AiUnavailableMessage="@SourceAiUnavailableMessage"
+                                 AiRequested="OpenSourceAiAsync"
                                  SourceSaved="ApplyScribanFragmentSourceAsync"
                                  Closed="CloseScribanFragmentEditorAsync" />
 }
@@ -640,7 +750,7 @@ else if (ActiveTab == "translations")
     <RegisteredFragmentEditorDialog @key="registeredFragment.NodeId"
                                     Descriptor="registeredDescriptor"
                                     Fragment="registeredFragment"
-                                    ErrorMessage="RegisteredFragmentError"
+                                    ErrorMessage="@RegisteredFragmentError"
                                     ParametersSaved="ApplyRegisteredFragmentParametersAsync"
                                     Closed="CloseRegisteredFragmentEditorAsync" />
 }

@@ -228,6 +228,11 @@ public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProvide
         }
 
         var config = ((Result<AiSettingsConfiguration, AeroError>.Ok)configResult).Value;
+        if (!config.Enabled)
+        {
+            return Array.Empty<AiProviderOption>();
+        }
+
         var options = config.Providers
             .Where(provider => provider.Enabled && provider.SupportsContentEnhancement && IsConfigured(provider))
             .Select(provider => new AiProviderOption(

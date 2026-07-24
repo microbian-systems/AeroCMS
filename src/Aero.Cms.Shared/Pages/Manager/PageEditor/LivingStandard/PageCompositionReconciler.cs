@@ -49,7 +49,10 @@ internal static class PageCompositionReconciler
             ContentItems = contentItems,
             FieldBindings = fieldBindings,
             RenderedFragments = renderedFragments,
-            RegisteredFragments = registeredFragments
+            RegisteredFragments = registeredFragments,
+            ContentQueries = (composition.ContentQueries ?? [])
+                .Select(query => query is null ? null! : query.CreateSnapshot())
+                .ToArray()
         };
     }
 

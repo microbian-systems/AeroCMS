@@ -172,7 +172,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 Culture = ResolveRequestCulture(request.Culture),
                 FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options),
                 SchedulePublishUtc = request.SchedulePublishUtc,
-                ScheduleUnpublishUtc = request.ScheduleUnpublishUtc
+                ScheduleUnpublishUtc = request.ScheduleUnpublishUtc,
+                ParentId = request.ParentId,
+                SortOrder = request.SortOrder
             };
 
             var result = await contentActor.SaveDraftAsync(vm, siteId, ct);
@@ -230,6 +232,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             existingVm.FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options);
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;
+            existingVm.ParentId = request.ParentId;
+            existingVm.SortOrder = request.SortOrder;
 
             var result = await contentActor.SaveDraftAsync(existingVm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -460,6 +464,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 TranslationGroupId = groupId,
                 Culture = culture,
                 SourceItemId = source.data.Id,
+                ParentId = null,
+                SortOrder = source.data.SortOrder,
                 PublicationState = ContentPublicationState.Draft
             };
 
@@ -490,7 +496,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             vm.Id, vm.Title ?? string.Empty, vm.Slug, vm.ContentTypeAlias,
             fields, vm.PublicationState.ToString(), vm.PublishedOn,
             vm.VersionNumber, vm.SchedulePublishUtc, vm.ScheduleUnpublishUtc,
-            vm.Culture, vm.TranslationGroupId, vm.SourceItemId);
+            vm.Culture, vm.TranslationGroupId, vm.SourceItemId,
+            vm.ParentId, vm.SortOrder);
     }
 
     /// <summary>
@@ -513,7 +520,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.Id, item.Title ?? string.Empty, item.Slug,
             item.ContentTypeAlias, firstFieldValue,
             item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber,
-            item.Culture, item.TranslationGroupId, item.SourceItemId);
+            item.Culture, item.TranslationGroupId, item.SourceItemId,
+            item.ParentId, item.SortOrder);
     }
 
     /// <summary>
@@ -530,7 +538,8 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.Id, item.Title ?? string.Empty, item.Slug,
             item.ContentTypeAlias, firstFieldValue,
             item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber,
-            item.Culture, item.TranslationGroupId, item.SourceItemId);
+            item.Culture, item.TranslationGroupId, item.SourceItemId,
+            item.ParentId, item.SortOrder);
     }
 
     /// <summary>
@@ -550,7 +559,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             item.ScheduleUnpublishUtc,
             item.Culture,
             item.TranslationGroupId,
-            item.SourceItemId);
+            item.SourceItemId,
+            item.ParentId,
+            item.SortOrder);
 
     /// <summary>
     /// Trims culture input without validating or canonicalizing it.

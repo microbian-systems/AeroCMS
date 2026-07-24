@@ -24,6 +24,8 @@ internal static class ContentCacheSnapshot
             TranslationGroupId = source.TranslationGroupId,
             Culture = source.Culture,
             SourceItemId = source.SourceItemId,
+            ParentId = source.ParentId,
+            SortOrder = source.SortOrder,
             Fields = source.Fields.ToDictionary(
                 static pair => pair.Key,
                 static pair => pair.Value.Clone(),
@@ -52,6 +54,13 @@ internal static class ContentCacheSnapshot
             Description = source.Description,
             Category = source.Category,
             Icon = source.Icon,
+            Cardinality = source.Cardinality,
+            Structure = source.Structure,
+            HierarchyRules = source.HierarchyRules with
+            {
+                AllowedParentContentTypeIds =
+                    source.HierarchyRules.AllowedParentContentTypeIds.ToArray()
+            },
             AllowPublicUrl = source.AllowPublicUrl,
             HideFromSearch = source.HideFromSearch,
             Fields = source.Fields.Select(Clone).ToList(),

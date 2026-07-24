@@ -14,23 +14,35 @@
             <div class="pe-preview-overlay-toolbar">
                 <div class="flex items-center gap-3">
                     <div class="pe-preview-devices">
-                        <button class="pe-device-btn @(Device == "desktop" ? "active" : "")"
-                                @onclick='() => Device = "desktop"' title="Desktop">
+                        <button type="button"
+                                class="pe-device-btn @(Device == "desktop" ? "active" : "")"
+                                @onclick='() => Device = "desktop"'
+                                aria-label="Preview at desktop width"
+                                aria-pressed="@(Device == "desktop" ? "true" : "false")"
+                                title="Desktop (fluid width)">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                                 <line x1="8" y1="21" x2="16" y2="21"/>
                                 <line x1="12" y1="17" x2="12" y2="21"/>
                             </svg>
                         </button>
-                        <button class="pe-device-btn @(Device == "tablet" ? "active" : "")"
-                                @onclick='() => Device = "tablet"' title="Tablet">
+                        <button type="button"
+                                class="pe-device-btn @(Device == "tablet" ? "active" : "")"
+                                @onclick='() => Device = "tablet"'
+                                aria-label="Preview at tablet width"
+                                aria-pressed="@(Device == "tablet" ? "true" : "false")"
+                                title="Tablet (768 px)">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
                                 <line x1="12" y1="18" x2="12.01" y2="18"/>
                             </svg>
                         </button>
-                        <button class="pe-device-btn @(Device == "mobile" ? "active" : "")"
-                                @onclick='() => Device = "mobile"' title="Mobile">
+                        <button type="button"
+                                class="pe-device-btn @(Device == "mobile" ? "active" : "")"
+                                @onclick='() => Device = "mobile"'
+                                aria-label="Preview at mobile width"
+                                aria-pressed="@(Device == "mobile" ? "true" : "false")"
+                                title="Mobile (375 px)">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                                 <line x1="12" y1="18" x2="12.01" y2="18"/>
@@ -58,47 +70,50 @@
             </div>
 
             @* Preview frame *@
-            <div class="pe-preview-overlay-frame @("device-" + Device)">
-                @if (IsLoading)
-                {
-                    <div class="pe-preview-status">
-                        <svg class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
-                        </svg>
-                        <span>Rendering preview...</span>
-                    </div>
-                }
-                else if (!string.IsNullOrWhiteSpace(Error))
-                {
-                    <div class="pe-preview-status error">
-                        <h3>Preview unavailable</h3>
-                        <p>@Error</p>
-                    </div>
-                }
-                else if (!string.IsNullOrWhiteSpace(FrameUrl))
-                {
-                    <iframe class="pe-preview-iframe"
-                            src="@FrameUrl"
-                            sandbox="@FrameUrlSandbox"
-                            data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
-                            title="@Title"
-                            @key="FrameUrl"></iframe>
-                }
-                else if (!string.IsNullOrWhiteSpace(FrameDocument))
-                {
-                    <iframe class="pe-preview-iframe"
-                            srcdoc="@FrameDocument"
-                            sandbox="@FrameDocumentSandbox"
-                            data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
-                            title="@Title"
-                            @key="FrameDocument"></iframe>
-                }
-                else
-                {
-                    <div class="pe-preview-status">
-                        <h3>No preview content</h3>
-                    </div>
-                }
+            <div class="pe-preview-overlay-frame">
+                <div class="pe-preview-device-viewport @("device-" + Device)"
+                     data-preview-device="@Device">
+                    @if (IsLoading)
+                    {
+                        <div class="pe-preview-status">
+                            <svg class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                            </svg>
+                            <span>Rendering preview...</span>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Error))
+                    {
+                        <div class="pe-preview-status error">
+                            <h3>Preview unavailable</h3>
+                            <p>@Error</p>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(FrameUrl))
+                    {
+                        <iframe class="pe-preview-iframe"
+                                src="@FrameUrl"
+                                sandbox="@FrameUrlSandbox"
+                                data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
+                                title="@Title"
+                                @key="FrameUrl"></iframe>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(FrameDocument))
+                    {
+                        <iframe class="pe-preview-iframe"
+                                srcdoc="@FrameDocument"
+                                sandbox="@FrameDocumentSandbox"
+                                data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
+                                title="@Title"
+                                @key="FrameDocument"></iframe>
+                    }
+                    else
+                    {
+                        <div class="pe-preview-status">
+                            <h3>No preview content</h3>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>

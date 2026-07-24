@@ -1,0 +1,88 @@
+.aero-page-type-dialog {
+    display: grid;
+    gap: 1rem;
+    color: var(--pe-text-primary);
+}
+
+.aero-page-type-dialog__intro,
+.aero-page-type-dialog__details p {
+    margin: 0;
+    color: var(--pe-text-secondary);
+    line-height: 1.5;
+}
+
+.aero-page-type-dialog label {
+    font-size: .875rem;
+    font-weight: 700;
+}
+
+.aero-page-type-dialog__select {
+    width: 100%;
+    min-height: 2.75rem;
+    border: 1px solid var(--pe-border);
+    border-radius: .625rem;
+    padding: .625rem .75rem;
+    color: var(--pe-text-primary);
+    background: var(--pe-bg-primary);
+}
+
+.aero-page-type-dialog__select:focus-visible {
+    border-color: var(--pe-primary);
+    outline: 3px solid color-mix(in srgb, var(--pe-primary) 20%, transparent);
+}
+
+.aero-page-type-dialog__details {
+    display: grid;
+    gap: .75rem;
+    border: 1px solid var(--pe-border);
+    border-radius: .75rem;
+    padding: 1rem;
+    background: var(--pe-bg-tertiary);
+}
+
+.aero-page-type-dialog__heading,
+.aero-page-type-dialog__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.aero-page-type-dialog__badge {
+    border-radius: 999px;
+    padding: .2rem .5rem;
+    color: var(--pe-primary);
+    background: color-mix(in srgb, var(--pe-primary) 12%, transparent);
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.aero-page-type-dialog__details dl {
+    display: grid;
+    gap: .35rem;
+    margin: 0;
+}
+
+.aero-page-type-dialog__details dl div {
+    display: flex;
+    gap: .5rem;
+}
+
+.aero-page-type-dialog__details dt {
+    color: var(--pe-text-muted);
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.aero-page-type-dialog__details dd {
+    margin: 0;
+    color: var(--pe-text-secondary);
+    font-size: .8rem;
+}
+
+.aero-page-type-dialog__actions {
+    justify-content: flex-end;
+    padding-top: .25rem;
+}

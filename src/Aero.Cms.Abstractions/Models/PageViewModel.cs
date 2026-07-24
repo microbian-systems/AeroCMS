@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Pages.Rendering;
 
 namespace Aero.Cms.Abstractions.Models;
 
@@ -167,6 +168,14 @@ public record PageViewModel : AeroEntityViewModel
     /// </summary>
     [Id(34)]
     public string? PublishedCompositionJson { get; init; }
+
+    /// <summary>Gets the stable rendering strategy identifier selected for this page.</summary>
+    [Id(35)]
+    public string RendererId { get; init; } = PageRendererIds.AeroComposition;
+
+    /// <summary>Gets whether the editable draft differs from the last published snapshot.</summary>
+    [Id(36)]
+    public bool HasUnpublishedChanges { get; init; }
 }
 
 /// <summary>

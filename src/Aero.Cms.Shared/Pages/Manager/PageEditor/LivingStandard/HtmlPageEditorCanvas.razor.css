@@ -62,6 +62,19 @@
     opacity: 0.42;
 }
 
+.aero-page-canvas__selection-toolbar .aero-page-canvas__ai-tooltip {
+    display: inline-flex;
+    border-inline-end: 1px solid rgb(255 255 255 / 24%);
+}
+
+.aero-page-canvas__selection-toolbar .aero-page-canvas__toolbar-ai {
+    width: 2.25rem;
+    border-inline-end: 0;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
 .aero-page-canvas__selection-toolbar .aero-page-canvas__drag-handle {
     cursor: grab;
     touch-action: none;

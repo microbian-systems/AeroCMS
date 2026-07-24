@@ -317,6 +317,8 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         TranslationGroupId = item.TranslationGroupId,
         Culture = item.Culture,
         SourceItemId = item.SourceItemId,
+        ParentId = item.ParentId,
+        SortOrder = item.SortOrder,
         FieldsJson = JsonSerializer.Serialize(
             item.Fields,
             ContentJsonContext.Default.DictionaryStringJsonElement),
@@ -352,6 +354,8 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
             TranslationGroupId = vm.TranslationGroupId,
             Culture = CultureInfo.GetCultureInfo(vm.Culture).Name,
             SourceItemId = vm.SourceItemId,
+            ParentId = vm.ParentId,
+            SortOrder = vm.SortOrder,
             Fields = fields,
             PublicationState = vm.PublicationState,
             PublishedOn = vm.PublishedOn,

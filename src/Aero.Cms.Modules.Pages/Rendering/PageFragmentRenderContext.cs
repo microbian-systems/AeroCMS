@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Pages.Composition;
+
 namespace Aero.Cms.Modules.Pages.Rendering;
 
 /// <summary>
@@ -22,4 +24,11 @@ public sealed record PageFragmentRenderContext
 
     /// <summary>Gets the optional canonical page path.</summary>
     public string? Path { get; init; }
+
+    /// <summary>Gets immutable named hierarchy results resolved before rendering.</summary>
+    public PageContentQueryResolution ContentQueries { get; init; } =
+        PageContentQueryResolution.Empty;
+
+    /// <summary>Gets whether the trusted caller is rendering an unsaved or draft preview.</summary>
+    public bool IsPreview { get; init; }
 }

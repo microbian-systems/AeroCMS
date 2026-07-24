@@ -32,4 +32,37 @@ public sealed class ContentTypeServiceScopeTests
         await using var verify = await harness.Store.QuerySessionAsync();
         await Assert.That((await verify.LoadAsync<ContentTypeDocument>(1))!.SiteId).IsEqualTo(2);
     }
+
+    [Test]
+    public async Task Existing_content_type_alias_requires_an_explicit_conversion_workflow()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 10,
+            SiteId = 1,
+            Alias = "article",
+            Name = "Article"
+        });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator());
+
+        var result = await service.SaveAsync(new ContentTypeDefinition
+        {
+            Id = 10,
+            SiteId = 1,
+            Alias = "renamed-article",
+            Name = "Article"
+        });
+
+        await Assert.That(result.IsFailure).IsTrue();
+        await using var verify = await harness.Store.QuerySessionAsync();
+        await Assert.That((await verify.LoadAsync<ContentTypeDocument>(10))!.Alias)
+            .IsEqualTo("article");
+    }
 }

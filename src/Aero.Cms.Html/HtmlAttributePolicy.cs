@@ -6,6 +6,17 @@ namespace Aero.Cms.Html;
 /// </summary>
 public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
 {
+    private static readonly HashSet<string> HtmxAttributes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hx-get", "hx-post", "hx-put", "hx-patch", "hx-delete",
+        "hx-trigger", "hx-target", "hx-swap", "hx-indicator",
+        "hx-include", "hx-select", "hx-vals", "hx-headers",
+        "hx-push-url", "hx-replace-url", "hx-disabled-elt",
+        "hx-confirm", "hx-boost", "hx-sync", "hx-params",
+        "hx-preserve", "hx-history", "hx-history-elt",
+        "hx-disable", "hx-encoding", "hx-request"
+    };
+
     /// <inheritdoc />
     public HtmlAttributePolicyDecision CanRender(
         HtmlElementDefinition element,
@@ -27,6 +38,21 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         if (string.Equals(attributeName, "style", StringComparison.OrdinalIgnoreCase))
         {
             return HtmlAttributePolicyDecision.Deny("Inline style attributes are not supported; use the style model instead.");
+        }
+
+        // Deliberate alpha exception: hx-on:* values are executable client-side JavaScript.
+        // Keep this narrower than a general hx-* allowance and revisit it through
+        // .docs/aero-scripting-security.md before granting scripting to ordinary authors.
+        if (IsHtmxEventHandlerAttribute(attributeName))
+        {
+            return attributeValue.Length <= 4_096
+                ? HtmlAttributePolicyDecision.Allow()
+                : HtmlAttributePolicyDecision.Deny("The HTMX event handler exceeds the supported length.");
+        }
+
+        if (IsHtmxAttribute(attributeName))
+        {
+            return ValidateHtmxAttribute(attributeName, attributeValue);
         }
 
         if (IsGlobalAttribute(attributeName)
@@ -57,6 +83,59 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         || attributeName.Equals("role", StringComparison.OrdinalIgnoreCase)
         || attributeName.StartsWith("aria-", StringComparison.OrdinalIgnoreCase)
         || attributeName.StartsWith("data-", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Recognizes the temporarily supported HTMX event-handler namespace, including
+    /// the <c>hx-on::event</c> shorthand, while rejecting an empty <c>hx-on:</c> name.
+    /// </summary>
+    private static bool IsHtmxEventHandlerAttribute(string attributeName) =>
+        attributeName.StartsWith("hx-on:", StringComparison.OrdinalIgnoreCase)
+        && attributeName.Length > "hx-on:".Length;
+
+    private static bool IsHtmxAttribute(string attributeName) =>
+        HtmxAttributes.Contains(attributeName);
+
+    private static HtmlAttributePolicyDecision ValidateHtmxAttribute(
+        string attributeName,
+        string attributeValue)
+    {
+        if (attributeValue.Length > 4_096
+            || attributeValue.Any(char.IsControl))
+        {
+            return HtmlAttributePolicyDecision.Deny(
+                $"The {attributeName} value exceeds the supported HTMX limits.");
+        }
+
+        if (attributeName.Equals("hx-get", StringComparison.OrdinalIgnoreCase)
+            || attributeName.Equals("hx-post", StringComparison.OrdinalIgnoreCase)
+            || attributeName.Equals("hx-put", StringComparison.OrdinalIgnoreCase)
+            || attributeName.Equals("hx-patch", StringComparison.OrdinalIgnoreCase)
+            || attributeName.Equals("hx-delete", StringComparison.OrdinalIgnoreCase))
+        {
+            var value = attributeValue.Trim();
+            if (string.IsNullOrWhiteSpace(value)
+                || value.StartsWith("//", StringComparison.Ordinal)
+                || Uri.TryCreate(value, UriKind.Absolute, out _))
+            {
+                return HtmlAttributePolicyDecision.Deny(
+                    $"The {attributeName} request must use a relative same-origin URL.");
+            }
+        }
+
+        if (attributeName.Equals("hx-vals", StringComparison.OrdinalIgnoreCase)
+            || attributeName.Equals("hx-headers", StringComparison.OrdinalIgnoreCase))
+        {
+            var value = attributeValue.TrimStart();
+            if (value.StartsWith("js:", StringComparison.OrdinalIgnoreCase)
+                || value.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
+            {
+                return HtmlAttributePolicyDecision.Deny(
+                    $"Executable {attributeName} values are not supported.");
+            }
+        }
+
+        return HtmlAttributePolicyDecision.Allow();
+    }
 
     /// <summary>Recognizes attributes whose values must cross the shared URL-policy boundary.</summary>
     private static bool IsUrlAttribute(string attributeName) =>

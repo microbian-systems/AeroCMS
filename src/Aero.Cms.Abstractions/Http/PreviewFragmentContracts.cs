@@ -1,5 +1,6 @@
 using Aero.Cms.Html;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 
 namespace Aero.Cms.Abstractions.Http;
 
@@ -7,9 +8,15 @@ namespace Aero.Cms.Abstractions.Http;
 /// Request payload for rendering an unsaved page preview fragment.
 /// </summary>
 public sealed record PreviewPageFragmentRequest(
-    HtmlPageContent Content,
+    HtmlPageContent? Content,
     PageCompositionDocument? Composition = null,
-    string? Culture = null);
+    string? Culture = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    long? PageId = null,
+    string? Title = null,
+    string? Slug = null,
+    string? Path = null,
+    string? Source = null);
 
 /// <summary>
 /// Response payload for a rendered page preview fragment.

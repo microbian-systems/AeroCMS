@@ -1,6 +1,6 @@
 # Neo Rendering and Content Types Strategy
 
-**Status:** Proposed consolidated implementation strategy  
+**Status:** In progress — Aero, Scriban, experimental interpreted SharpTS, HTMX, and content hierarchy slices implemented
 **Date:** 2026-07-24  
 **Scope:** Page rendering, page fragments, runtime templates, content hierarchies, and script-facing data contracts  
 **Canonical path:** This document supersedes conflicting rendering decisions in older exploratory notes.
@@ -43,19 +43,155 @@ This strategy distinguishes live behavior from proposed work.
 | --- | --- | --- |
 | Aero visual composition | Implemented | Retain as `aero.composition` |
 | Markdown fragment | Implemented | Retain through the fragment registry |
-| Custom HTML fragment | Implemented and already present in the element palette | Keep one element; rename only if useful and replace its textarea with Monaco |
-| Scriban fragment | Implemented | Retain and expose hierarchy query results |
-| Scriban Monaco editor | Implemented | Extract a reusable expandable source-editor experience |
-| Pure Scriban public page | Partially represented by page metadata, but not dispatched as a first-class public renderer | Implement through `IPageRenderer` |
-| SharpTS page or fragment | Compatibility spike exists; production renderer is not implemented | Add full-page and fragment renderers |
-| HTMX page or fragment | HTMX is loaded by the shell, but first-class page/fragment models are not implemented | Add full-page renderer, island fragment, endpoint registry, and policy |
-| Content hierarchy fields and query | Not implemented | Add `ParentId`, ordering, hierarchy rules, and bounded query projections |
+| Custom HTML fragment | Implemented in the existing element palette with the shared expandable Monaco editor | Keep one element and preserve strict HTML validation |
+| Scriban fragment | Implemented; named eager hierarchy results are available under `content.<name>` | Retain the same closed script-data boundary |
+| Scriban Monaco editor | Implemented through the shared expandable source-editor component | Reuse the component for later source-backed renderers |
+| Page renderer registry and metadata | Implemented for `aero.composition`, `aero.scriban`, `aero.sharpts`, and `aero.htmx`; persisted stable IDs, API discovery, editor selection, publication validation, preview, and public dispatch are live | Keep renderer-specific behavior behind registered strategies |
+| Pure Scriban public page | Implemented end to end with immutable Sable source versions, closed script scopes, secure execution, strict HTML import, publication snapshots, draft/public selection, and full-page Monaco authoring | Retain as the reference source-renderer implementation |
+| SharpTS page or fragment | Experimental interpreted full-page and Aero-fragment renderers are implemented with a host `html` tag, detached context, denied imports, bounded output, and strict HTML import | Replace the in-process trusted-author runtime with a killable worker before untrusted authoring |
+| HTMX page or fragment | Full-page and Aero-fragment renderers are implemented; a bounded same-origin HTMX attribute set plus the accepted `hx-on:*` exception passes through strict HTML import | Add the logical endpoint/action registry, antiforgery conventions, and capability gating |
+| Content hierarchy fields, query, and manager UI | Persisted hierarchy rules and named queries, bounded Sable traversal, Scriban projection, expandable manager tree, breadcrumbs, search, drag/drop and explicit move controls, and cross-content-type parent selection are implemented | Add visual page-query authoring and query-input bindings |
 | Runtime SharpTS-to-RazorEngineCore call | TUnit compatibility spike passes in interpreted and in-memory compiled SharpTS modes | Promote the concept behind an Aero-owned capability boundary |
 | Framework-specific template CSS | Not implemented as a coherent feature | Keep separate from this delivery |
 
-The existing `PageRenderedFragmentKind` enum and `IPageFragmentRenderer.Kind` dispatch are a closed set. They are acceptable as current code, but SharpTS and HTMX should not be added by continuing that pattern.
+The existing `PageRenderedFragmentKind` enum and `IPageFragmentRenderer.Kind` dispatch remain a closed set. The persisted ordinals are explicit and SharpTS/HTMX were appended for this alpha slice; migration to stable fragment renderer IDs remains the extensibility direction.
 
 The project is using Sable. Old Marten-named files and documentation are obsolete naming, not a persistence direction.
+
+### 2.1 Implementation checkpoint — 2026-07-24
+
+The first implementation slice intentionally registers only functionality that can
+render safely today:
+
+- `aero.composition` is resolved through `IPageRendererRegistry`; `Page.cshtml.cs`
+  delegates to the selected renderer and remains the deployment-owned shell.
+- Page documents, HTTP/Orleans contracts, validation, the manager metadata editor,
+  and the renderer-discovery endpoint carry stable renderer IDs. Unknown IDs fail
+  closed, and changing a persisted page's renderer requires a future explicit
+  conversion workflow.
+- The Content module persists explicit cardinality, structure, hierarchy rules,
+  parent IDs, and sibling order. Draft/publish validation enforces singleton,
+  placement, tenancy, cycle, depth, and publication invariants. The existing
+  content-type and item editors preserve and edit the initial same-type hierarchy
+  settings, parent, and sibling order.
+- `IContentHierarchyQueryService` uses Sable and returns `Result<ContentQueryResult>`.
+  Results are eager, immutable, culture/site/publication scoped, projected, and
+  bounded by node count, depth, and approximate output size. Snowflake IDs cross
+  this engine-neutral result boundary as canonical decimal strings.
+- Page composition now persists bounded named `ContentQueryDefinition` entries
+  using a stable content-type ID and diagnostic alias. Pages resolves them
+  sequentially with authoritative site, culture, and preview state before
+  renderer dispatch; invalid public declarations fail with 500 and unsaved
+  fragment preview rejects them with 400.
+- The hierarchy service now issues traversal-specific root/parent queries, so a
+  requested branch is not lost when the same type contains more than 500 other
+  items. Empty results still return the authoritative current content-type alias
+  for output-cache dependency tagging.
+- Content-type aliases are immutable until an explicit conversion workflow can
+  update every dependent content item and route atomically. Hierarchy move
+  validation includes the existing descendant subtree, so reparenting cannot
+  push hidden descendants beyond the configured depth bound.
+- Aero composition passes immutable results to fragments. Scriban receives only
+  `content.<name>.roots`, `total_items`, and `was_truncated`, with eager recursive
+  children and canonical string IDs; scripts receive no resolver or session.
+- Custom HTML and Scriban fragments share one expandable Monaco source-editor
+  component. The component owns Monaco state and accessible expand/restore
+  behavior, while each dialog retains its engine-specific help, validation, and
+  apply callback. Custom HTML still passes through the strict importer and
+  Scriban still validates through the bounded server preview.
+- New pages open a required renderer-selection modal before autosave can create
+  a document. The modal is populated only from registered executable renderers,
+  defaults to Aero, and starts the draft as `New Page`. A persisted page shows
+  its renderer as immutable metadata.
+- Hierarchical content types now use a manager tree rather than the flat data
+  grid. The tree is site/culture scoped and bounded, supports search,
+  expand/collapse, breadcrumbs, drag/drop placement, accessible move
+  alternatives, root/child creation, and a selected-entry details panel.
+  Moves normalize both affected sibling collections in one Sable commit.
+- Content-type editing includes a searchable allowed-parent-type selector when
+  same-type parents are not required. Entry editing uses the same server-shaped
+  hierarchy for eligible parent choices and excludes the current subtree.
+- Full-page source and Scriban-fragment surfaces expose an **Open AI assistant**
+  entry point. It is enabled only when global AI and a usable content provider
+  are enabled; otherwise it remains disabled with explanatory hover text. A
+  source-aware review/apply contract remains a later enhancement, so the current
+  control does not promise direct generation or overwrite Monaco content.
+- The SharpTS/RazorEngineCore compatibility test uses the normal
+  `dotnet:Aero.Cms.Rendering.Interop.Tests.RazorTemplateTestBridge` import in both
+  interpreted and in-memory compiled modes. A test policy rejects non-allowlisted
+  `dotnet:` imports and `@DotNetType`.
+- Source-renderer behavior is descriptor-driven. Scriban, TypeScript, and HTMX
+  use the same immutable draft/published source-version lifecycle, full-page
+  Monaco workspace, preview endpoint, publication validation, and public
+  renderer dispatch. The descriptor supplies Monaco language and initial source,
+  preventing a newly selected source page from saving an empty draft.
+- `aero.sharpts` is an explicitly experimental, trusted-author,
+  in-process **InterpretOnly** renderer. Its first capability profile rejects
+  imports, CommonJS imports, and `@DotNetType`; exposes detached page, site,
+  content, and preview values with Snowflake IDs as strings; supplies the
+  encoding `html` tag; bounds output; and validates returned markup. It does not
+  yet provide compilation, binary caching, RazorEngineCore, or a hard CPU-kill
+  boundary.
+- `aero.htmx` validates source through the HTML importer. Request attributes
+  require relative same-origin URLs; executable `hx-vals` and `hx-headers` forms
+  are rejected; native `on*`, scripts, unsafe URLs, and unsupported elements
+  remain denied. `hx-on:*` remains the documented alpha trusted-author exception.
+- Aero composition now appends persisted fragment kinds `SharpTs = 3` and
+  `Htmx = 4` after the original `Markdown = 0`, `CustomHtml = 1`, and
+  `Scriban = 2`. The palette labels are **TS** and **HTMX**; both use expandable
+  Monaco and authoritative server preview before apply.
+
+Visual page-query authoring, SharpTS worker isolation, query-input bindings,
+logical HTMX endpoint registration, RazorEngineCore promotion, and output
+caching remain later slices below.
+
+### 2.2 Production Scriban page checkpoint — 2026-07-24
+
+The first complete source-renderer slice is now live:
+
+- `PageSourceVersion` stores an exact, immutable inline source snapshot with
+  site, page, renderer, SHA-256, and audit metadata. `PageDocument` holds
+  independent draft and published source-version pointers.
+- The Pages service stages a new source version and its page pointer in the same
+  Sable session, then calls `SaveChangesAsync` once. Identical source reuses the
+  existing version. Culture forks create a new version owned by the target page.
+- Raw source is absent from `PageViewModel`, page lists, ordinary page details,
+  page events, and MCP-facing metadata. It travels only through create/update
+  authoring requests and the site-scoped manager source endpoint.
+- `IPageRenderer` receives immutable page metadata, an optional preloaded source,
+  selected HTML/composition snapshots, eager content-query results, and preview
+  state. It receives no Sable session, Orleans actor, `HttpContext`, or mutable
+  `PageDocument`.
+- Pure Scriban exposes only `page`, `site`, `content`, and `is_preview`. Snowflake
+  IDs are canonical decimal strings. Content-item globals such as `item`,
+  `content_type`, and `fields` are intentionally absent.
+- The secure Scriban runtime deep-clones the application-owned global scope while
+  retaining strict variables, parsed-template caching, member restrictions,
+  disabled template loading, execution/output limits, cancellation, and HTML
+  sanitization.
+- Save preview and publication both execute the selected renderer. Publication
+  resolves content queries with drafts excluded and validates the exact draft
+  source before copying the source pointer and content snapshots in one commit.
+  A failed render leaves all published state unchanged.
+- Translation-group publication uses the same site-scoped workflow as single-page
+  publication. Every variant is validated before mutation, then all variants are
+  snapshotted in one Sable commit; one failed render leaves the entire group
+  unchanged.
+- Public rendering selects only `PublishedSourceVersionId`; authorized draft
+  preview selects only `DraftSourceVersionId`. Missing or cross-owned source
+  fails closed. Direct `DraftId` selection at the public PageModel now requires
+  the manager read policy before any page lookup.
+- Unsaved preview is renderer-aware and server-controls site, culture, and
+  preview state. A persisted page cannot be previewed through a different
+  renderer without the explicit conversion workflow.
+- `PageEditor` uses the renderer descriptor to retain the Aero visual canvas or
+  show a primary full-page Monaco source workspace. The parent owns draft source;
+  Monaco reports changes upward and is read authoritatively before preview/save.
+  Source survives tab changes, expand/restore, creation, save, and reload.
+
+Compile and focused TUnit coverage are green. The focused Playwright scenario is
+present and discovered, but its shared fixture currently fails before the test
+body because `Aero.Cms.Modules.EntraExternalId` is missing from the E2E output.
 
 ## 3. Goals
 
@@ -194,14 +330,19 @@ The page metadata stores:
 - optional linked style asset
 - renderer settings that are safe to persist
 
-The create-page flow should present the renderer dropdown before opening the main editing surface:
+The create-page flow presents a required renderer modal before opening the main editing surface:
 
 - **Aero** opens the visual PageEditor.
 - **Scriban** opens a full-page Scriban Monaco editor.
 - **TypeScript (SharpTS)** opens a full-page TypeScript Monaco editor.
 - **HTMX** opens a full-page HTML Monaco editor plus an interaction/endpoint panel.
 
-The dropdown is populated from `IPageRendererRegistry.GetDescriptors()`. This avoids hard-coded UI switches and permits a module to contribute a renderer and its editor descriptor through explicit registration or source generation.
+The modal dropdown is populated from `IPageRendererRegistry.GetDescriptors()`.
+Only registered executable renderers are shown, so the current UI offers Aero
+and Scriban. SharpTS and HTMX appear automatically after their production
+renderers are registered. This avoids hard-coded UI switches and permits a
+module to contribute a renderer and its editor descriptor through explicit
+registration or source generation.
 
 Changing renderer type later can destroy renderer-specific source. The initial policy should be:
 
@@ -247,7 +388,7 @@ The HTMX element represents an island, not an arbitrary URL and script injection
 - loading/fallback markup
 - optional initial server-rendered fragment
 
-The renderer materializes same-origin routes from registered endpoint keys. Authors do not persist unrestricted endpoint URLs, `hx-on:*` JavaScript, arbitrary request headers, or inline event handlers.
+The renderer materializes same-origin routes from registered endpoint keys. During the alpha, trusted authors may also persist `hx-on:*` JavaScript through the generic HTML policy. This is a deliberate, temporary executable-code capability rather than safe markup. Unrestricted endpoint URLs, arbitrary request headers, and native inline `on*` handlers remain unsupported. See [AeroCMS Scripting Security](../aero-scripting-security.md).
 
 ## 9. Expandable Monaco authoring
 
@@ -401,16 +542,22 @@ The final fragment still passes the renderer's HTML policy before reaching `Page
 
 ### 12.2 RazorEngineCore from the same SharpTS source
 
-A SharpTS source can use both the `html` tag and an approved RazorEngineCore template:
+A SharpTS source can use both the `html` tag and an approved RazorEngineCore template. The
+production API is imported through SharpTS's normal `dotnet:` module syntax:
 
 ```typescript
+import { AeroRenderFacade } from "dotnet:Aero.Cms.Rendering.AeroRenderFacade";
+
 export async function render(context: PageRenderContext): Promise<HtmlFragment> {
     const model = {
         title: context.page.title,
         items: context.content.get("featured").roots
     };
 
-    const cards = await context.razor.render("shared.featured-cards", model);
+    const cards = await AeroRenderFacade.renderRazor(
+        context.executionToken,
+        "shared.featured-cards",
+        model);
 
     return html`
         <main class="aero-page">
@@ -436,6 +583,62 @@ SharpTS receives only the logical key and a pre-shaped model. It does not receiv
 
 The Aero host resolves the key, verifies site ownership and the published version, renders it, validates the markup, and returns an `HtmlFragment`.
 
+### 12.3 SharpTS references and capability profiles
+
+`dotnet:` imports are the default SharpTS-to-.NET interoperability mechanism in both interpreted
+and compiled modes. Aero should use that supported surface rather than making
+`@DotNetType` declarations the normal authoring model.
+
+Each execution is assigned a host-owned capability profile such as
+`rendering.safe-v1`. The host generates the `sharpts.json` manifest for that profile:
+
+```json
+{
+  "references": ["./Aero.Cms.Rendering.Contracts.dll"],
+  "packages": {}
+}
+```
+
+The manifest is not author-controlled. CMS authors cannot:
+
+- upload or edit `sharpts.json`;
+- add NuGet packages;
+- pass `-r` assembly references;
+- select arbitrary assembly paths; or
+- opt into a broader capability profile.
+
+The initial safe profile references only the small Aero rendering-contract assembly. It does not
+reference RazorEngineCore directly. The Aero facade checks the execution token, site, published
+asset version, model shape, timeout, and output budget before invoking the isolated Razor worker.
+
+A manifest is dependency resolution, not a security boundary. SharpTS can also resolve BCL types
+and public types from assemblies already loaded by its process. Therefore Aero must parse the
+SharpTS module graph and validate every static `dotnet:` import against the selected profile before
+type checking, interpretation, or compilation. Unapproved imports fail publication and execution.
+Dynamic `dotnet:` imports are rejected by SharpTS; Aero additionally rejects or explicitly validates
+`@DotNetType` declarations so they cannot bypass the module-import policy.
+
+Example policy:
+
+```text
+rendering.safe-v1
+├── Aero.Cms.Rendering.AeroRenderFacade
+├── Aero.Cms.Rendering.HtmlFragment
+└── selected immutable context/value contracts
+
+Denied by default
+├── System.IO.*
+├── System.Net.*
+├── System.Reflection.*
+├── System.Diagnostics.Process
+├── Microsoft.Extensions.DependencyInjection.*
+└── persistence, Orleans, and HTTP host types
+```
+
+The allowlist is defense in depth and API minimization. CMS-authored SharpTS still runs outside the
+web process under a restricted OS identity because any in-process .NET execution profile is trusted
+code from the CLR's point of view.
+
 ## 13. RazorEngineCore runtime templates
 
 RazorEngineCore is appropriate here because its host API is ordinary .NET and it can compile Razor/C# source at runtime. A SharpTS program can invoke an Aero-owned .NET facade in both interpreted and compiled execution modes.
@@ -446,7 +649,13 @@ The completed compatibility spike proves:
 - an in-memory compiled SharpTS program can invoke the same bridge; and
 - the bridge can render a RazorEngineCore template.
 
-The spike is evidence of interoperability, not the production hosting API. The tested SharpTS package is distributed as a .NET tool, so the test's direct assembly consumption must not become an accidental production dependency strategy. Production adoption must choose a supported SharpTS hosting distribution, such as an upstream library package, approved source/project integration, or a separately hosted execution worker.
+The spike is evidence of interoperability, not the production hosting API. The tested SharpTS
+package is distributed as a .NET tool rather than a conventional library package, but MSBuild can
+consume its assemblies through an explicit `PackageDownload` plus `Reference`. That is acceptable
+inside the dedicated execution-worker project when the SharpTS version, assembly paths, copied
+runtime dependencies, and upgrade tests are owned deliberately. It should not leak into the web
+application as an incidental direct reference. An upstream library package can replace this
+packaging adapter later without changing the renderer or capability contracts.
 
 ### 13.1 Trust boundary
 
@@ -502,7 +711,7 @@ HTMX fragments use Minimal API endpoints or Razor handlers registered by modules
 
 ### 14.1 Attribute policy
 
-The current generic HTML policy does not allow `hx-*`, and it should not be relaxed globally.
+The current generic HTML policy temporarily allows only the `hx-on:*` namespace as a trusted-author alpha feature. Other `hx-*` attributes remain denied unless a catalog element or a future dedicated HTMX policy explicitly allows them. Native inline `on*` handlers remain denied. The exception and its removal criteria are recorded in [AeroCMS Scripting Security](../aero-scripting-security.md).
 
 Create a dedicated HTMX policy that allowlists required attributes, for example:
 
@@ -519,10 +728,11 @@ Persist logical action keys and materialize routes server-side. Reject:
 
 - external or protocol-relative URLs
 - `javascript:` and other executable schemes
-- `hx-on:*`
 - arbitrary request headers
 - inline event handlers
 - arbitrary extensions
+
+The target hardened policy removes `hx-on:*` from ordinary author permissions. Executable authoring uses the site-scoped `site:script` policy described in [AeroCMS Scripting Security](../aero-scripting-security.md). A script mutation requires both the ordinary content mutation policy and `site:script`; the scripting permission does not grant general content write access.
 
 Mutation endpoints require authorization and antiforgery protection. GET fragment responses may be cached only from declared dependencies and allowed query inputs. Mutations should normally be `no-store`.
 
@@ -602,16 +812,17 @@ Supported query shapes should include:
 Conceptual contracts:
 
 ```csharp
-public sealed record ContentQueryDefinition(
-    string Name,
-    long ContentTypeId,
-    ContentTraversal Traversal,
-    int MaximumDepth,
-    int MaximumItems,
-    ImmutableArray<ContentFilter> Filters,
-    ImmutableArray<ContentSort> Sort,
-    ImmutableArray<string> Projection,
-    ImmutableArray<QueryInputBinding> Inputs);
+public sealed record ContentQueryDefinition
+{
+    public string Name { get; init; }
+    public long ContentTypeId { get; init; }
+    public string ContentTypeAlias { get; init; } // diagnostics only
+    public ContentTraversal Traversal { get; init; }
+    public long? RootId { get; init; }
+    public int MaximumDepth { get; init; }
+    public int MaximumItems { get; init; }
+    public ImmutableArray<string> Projection { get; init; }
+}
 
 public interface IContentHierarchyQueryService
 {
@@ -630,6 +841,7 @@ The service uses Sable's `IDocumentSession`. No public contract should mention M
 ```csharp
 public sealed record ContentQueryResult(
     string Name,
+    string ContentTypeAlias,
     ImmutableArray<ContentNode> Roots,
     int TotalItems,
     bool WasTruncated);
@@ -832,49 +1044,55 @@ Additional engine rules:
 - **RazorEngineCore:** treat authors as trusted code authors; isolate the worker and restrict the model.
 - **HTMX:** allowlist attributes and endpoint keys; protect mutations with authorization and antiforgery.
 
+Custom HTML/HTMX, Scriban, and SharpTS use the same `site:script` authoring permission for administrators and explicitly empowered site users. Each engine still has a separate site-level enablement setting and runtime containment profile. API credentials must be bound to the same tenant, site, and scripting capability before they can create, preview, convert, or publish executable source.
+
 Preview and publication use the same renderer and validation pipeline. Preview may select draft source/content, but it must not bypass safety rules.
 
 ## 21. Proposed implementation phases
 
 ### Phase 1 — Renderer foundation and metadata
 
-- Add `PageRendererId`, descriptors, registry, and `IPageRenderer`.
+- Add `PageRendererId`, descriptors, registry, and `IPageRenderer`. **Implemented.**
 - Add `PageFragmentRendererId` and migrate fragment dispatch away from the persisted enum.
-- Persist the selected page renderer ID in page metadata.
-- Add the Aero/Scriban/TypeScript/HTMX creation dropdown.
-- Make `Page.cshtml.cs` dispatch through the registry while `Page.cshtml` remains the shell.
-- Add versioned template/source storage abstractions.
+- Persist the selected page renderer ID in page metadata. **Implemented.**
+- Add a registry-backed creation modal. **Implemented for Aero, Scriban, TypeScript, and HTMX.**
+- Make `Page.cshtml.cs` dispatch through the registry while `Page.cshtml` remains the shell. **Implemented for all four registered renderers.**
+- Add versioned template/source storage abstractions. **Implemented for inline page source versions; managed assets remain.**
 
 ### Phase 2 — Editor foundation
 
-- Extract the Scriban Monaco setup into a reusable expandable source editor.
-- Upgrade existing Custom HTML to Monaco; do not add a duplicate element.
-- Add full-page source editor surfaces.
-- Add validation, preview, unsaved-change handling, and renderer-specific diagnostics.
+- Extract the Scriban Monaco setup into a reusable expandable source editor. **Implemented for Aero fragments.**
+- Upgrade existing Custom HTML to Monaco; do not add a duplicate element. **Implemented.**
+- Add full-page source editor surfaces. **Implemented for Scriban, TypeScript, and HTMX.**
+- Add validation, preview, unsaved-change handling, and renderer-specific diagnostics. **Implemented for the registered source renderers.**
 
 ### Phase 3 — Content hierarchy and query contracts
 
-- Add explicit `ContentCardinality` and `ContentStructure`.
-- Add `ParentId`, `SortOrder`, hierarchy rules, commands, and validation.
-- Add the Sable-backed hierarchy query service returning `Result<ContentQueryResult>`.
-- Add named declarative query bindings to pages/fragments.
+- Add explicit `ContentCardinality` and `ContentStructure`. **Implemented.**
+- Add `ParentId`, `SortOrder`, hierarchy rules, commands, and validation. **Implemented.**
+- Add the Sable-backed hierarchy query service returning `Result<ContentQueryResult>`. **Implemented.**
+- Add named declarative query bindings to pages/fragments. **Implemented for page composition and Aero/Scriban fragments; visual authoring remains.**
 - Add culture and allowlisted query-string inputs to resolution.
-- Add content tree editing/reordering UI separately from the renderer UI.
+- Add content tree editing/reordering UI separately from the renderer UI. **Implemented with breadcrumbs, drag/drop, explicit move controls, and cross-type parent selection.**
 
 ### Phase 4 — Scriban and Custom HTML integration
 
-- Feed named hierarchy results into Scriban.
-- Normalize script-facing IDs.
-- Add full-page Scriban dispatch.
-- Preserve the strict HTML importer for Scriban and Custom HTML.
+- Feed named hierarchy results into Scriban. **Implemented for Aero Scriban fragments.**
+- Normalize script-facing IDs. **Implemented.**
+- Add full-page Scriban dispatch. **Implemented.**
+- Preserve the strict HTML importer for Scriban and Custom HTML. **Implemented.**
 
 ### Phase 5 — SharpTS
 
-- Choose a supported SharpTS production hosting/distribution model.
+- Add the trusted-author interpret-only renderer with an explicit tool-package assembly reference. **Implemented experimentally in-process.**
+- Add the Aero `html` tagged-template API. **Implemented.**
+- Add full-page and fragment renderers. **Implemented.**
+- Add a dedicated SharpTS worker that owns the explicit tool-package assembly reference.
+- Add host-generated `sharpts.json` manifests and versioned capability profiles.
+- Add AST validation for all `dotnet:` imports and reject policy bypasses.
 - Add the isolated SharpTS execution worker and execution settings.
-- Add the Aero `html` tagged-template API.
-- Add full-page and fragment renderers.
-- Cache compiled artifacts and worker-local loaded entry points.
+- Cache compiled artifacts and worker-local loaded entry points. Artifact keys include the
+  capability-profile version and generated-manifest fingerprint.
 - Verify interpreted and compiled modes against the same conformance suite.
 
 ### Phase 6 — RazorEngineCore capability
@@ -887,9 +1105,9 @@ Preview and publication use the same renderer and validation pipeline. Preview m
 
 ### Phase 7 — HTMX
 
-- Add the HTMX full-page renderer and Aero island element.
+- Add the HTMX full-page renderer and Aero island element. **Implemented.**
 - Add the endpoint/action registry.
-- Add the dedicated HTMX attribute policy.
+- Add the initial bounded HTMX attribute policy. **Implemented in the shared alpha policy; provenance-specific policy remains.**
 - Add antiforgery, authorization, and fragment response conventions.
 - Add cache variation by declared input/dependency.
 
@@ -919,6 +1137,10 @@ Run the same fixtures against Scriban and SharpTS:
 - output limits
 - timeout/cancellation
 - deterministic diagnostics
+- approved `dotnet:` imports in interpreted and compiled modes
+- rejected BCL, host, persistence, HTTP, and Orleans imports
+- rejected author manifests, packages, `-r` references, and `@DotNetType` bypasses
+- cache invalidation when the capability profile or generated manifest changes
 
 ### 22.2 Content hierarchy tests
 
@@ -952,8 +1174,10 @@ Retain the existing compatibility spike as a focused regression test, then add p
 ### 22.4 HTMX tests
 
 - accepted and rejected `hx-*` attributes
+- current acceptance and preservation of `hx-on:*` for trusted alpha authoring
+- continued rejection of native inline `on*` handlers
 - same-origin action materialization
-- rejection of arbitrary URLs and `hx-on:*`
+- rejection of arbitrary URLs
 - antiforgery for mutations
 - authorization failures
 - initial fallback markup
@@ -995,6 +1219,8 @@ Defaults:
 
 - default page renderer: `aero.composition`
 - SharpTS mode: `Disabled` until the isolated worker is configured
+- SharpTS capability profile: host-owned `rendering.safe-v1`
+- SharpTS references: generated manifest, empty package set, no author `-r`
 - RazorEngineCore mode: `Disabled`
 - source storage: Sable inline versions first, managed asset provider second
 - IDs at script boundaries: decimal strings
@@ -1003,8 +1229,10 @@ Defaults:
 
 Implementation decisions still requiring a focused design review:
 
-1. The supported production distribution/hosting mechanism for SharpTS, because the currently tested package is tool-packaged.
-2. The process/container boundary and capability set for SharpTS and RazorEngineCore workers.
+1. Whether the first dedicated SharpTS worker consumes the pinned tool package through the proven
+   MSBuild adapter or vendors an approved upstream source/project reference.
+2. The process/container boundary and exact first-version capability allowlist for SharpTS and
+   RazorEngineCore workers.
 3. The exact typed `ContentValue` model used instead of unrestricted `object`.
 4. The managed asset provider and artifact retention policy.
 5. The first approved set of HTMX action descriptors and attributes.

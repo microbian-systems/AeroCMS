@@ -87,7 +87,9 @@ public sealed class ScribanPageFragmentRenderer(
             cancellationToken,
             new Dictionary<string, ScriptObject>(StringComparer.Ordinal)
             {
-                ["page"] = page
+                ["page"] = page,
+                ["content"] = ContentQueryToScribanMapper.CreateContentScope(
+                    context.ContentQueries)
             });
         if (output is Result<string, AeroError>.Failure failure)
         {

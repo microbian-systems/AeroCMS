@@ -340,6 +340,240 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task CustomHtmlFragmentMonacoExpandsAppliesAndRetainsSource()
+    {
+        var page = await OpenNewEditorAsync();
+        await OpenPaletteAsync(page);
+        var uniqueHeading =
+            $"Custom HTML Monaco {DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+        var source =
+            $"<section><h2>{uniqueHeading}</h2><p>Source survives resize and reopen.</p></section>";
+
+        await page.Locator(
+                "[data-aero-palette-kind='renderedfragment'][data-aero-palette-value='CustomHtml']")
+            .ClickAsync();
+
+        const string dialogSelector = ".aero-custom-html-dialog";
+        var dialog = page.Locator(dialogSelector);
+        await dialog.WaitForAsync(Visible());
+        var monacoEditor = dialog.Locator(".monaco-editor");
+        await monacoEditor.WaitForAsync(Visible());
+        await Assertions.Expect(monacoEditor).ToHaveCountAsync(1);
+        await SetDialogMonacoValueAsync(page, dialogSelector, source);
+
+        var expansionButton = dialog.Locator(".aero-monaco-source-editor__expand");
+        await Assertions.Expect(expansionButton)
+            .ToHaveAttributeAsync("aria-pressed", "false");
+        await expansionButton.ClickAsync();
+        await Assertions.Expect(expansionButton)
+            .ToHaveAttributeAsync("aria-pressed", "true");
+        await Assertions.Expect(dialog)
+            .ToHaveClassAsync(new Regex("aero-custom-html-dialog--expanded"));
+        (await GetDialogMonacoValueAsync(page, dialogSelector)).Should().Be(source);
+
+        await expansionButton.ClickAsync();
+        await Assertions.Expect(expansionButton)
+            .ToHaveAttributeAsync("aria-pressed", "false");
+        await Assertions.Expect(dialog)
+            .ToHaveClassAsync(new Regex("^aero-custom-html-dialog$"));
+        (await GetDialogMonacoValueAsync(page, dialogSelector)).Should().Be(source);
+
+        await dialog.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Apply HTML",
+            Exact = true
+        }).ClickAsync();
+        await dialog.WaitForAsync(new()
+        {
+            State = WaitForSelectorState.Detached,
+            Timeout = 10_000
+        });
+
+        await page.Locator(".pe-living-toolbar")
+            .GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
+            .ClickAsync();
+        var preview = page.Locator("iframe[title='Page preview']");
+        await preview.WaitForAsync(new()
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 30_000
+        });
+        await page.FrameLocator("iframe[title='Page preview']")
+            .GetByRole(AriaRole.Heading, new()
+            {
+                Name = uniqueHeading,
+                Exact = true
+            })
+            .WaitForAsync(new()
+            {
+                State = WaitForSelectorState.Visible,
+                Timeout = 30_000
+            });
+
+        await page.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Close Preview",
+            Exact = true
+        }).ClickAsync();
+        await preview.WaitForAsync(new()
+        {
+            State = WaitForSelectorState.Detached,
+            Timeout = 10_000
+        });
+
+        var fragment = page.Locator(
+            ".aero-page-canvas__surface > section[data-aero-node-id]");
+        await Assertions.Expect(fragment).ToHaveCountAsync(1);
+        await fragment.EvaluateAsync(
+            "element => element.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))");
+
+        dialog = page.Locator(dialogSelector);
+        await dialog.WaitForAsync(Visible());
+        await dialog.Locator(".monaco-editor").WaitForAsync(Visible());
+        (await GetDialogMonacoValueAsync(page, dialogSelector)).Should().Be(source);
+    }
+
+    [Test]
+    public async Task PreviewDeviceControlsApplyDistinctViewportWidths()
+    {
+        var page = await OpenNewEditorAsync();
+
+        await page.Locator(".pe-living-toolbar")
+            .GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
+            .ClickAsync();
+
+        var viewport = page.Locator(".pe-preview-device-viewport");
+        await viewport.WaitForAsync(Visible());
+        await Assertions.Expect(viewport)
+            .ToHaveAttributeAsync("data-preview-device", "desktop");
+
+        var desktopWidth = (await viewport.BoundingBoxAsync())!.Width;
+
+        var tabletButton = page.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Preview at tablet width",
+            Exact = true
+        });
+        await tabletButton.ClickAsync();
+        await Assertions.Expect(tabletButton)
+            .ToHaveAttributeAsync("aria-pressed", "true");
+        await page.WaitForFunctionAsync(
+            "() => Math.abs(document.querySelector('.pe-preview-device-viewport')?.getBoundingClientRect().width - 768) < 1");
+        var tabletWidth = (await viewport.BoundingBoxAsync())!.Width;
+
+        var mobileButton = page.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Preview at mobile width",
+            Exact = true
+        });
+        await mobileButton.ClickAsync();
+        await Assertions.Expect(mobileButton)
+            .ToHaveAttributeAsync("aria-pressed", "true");
+        await page.WaitForFunctionAsync(
+            "() => Math.abs(document.querySelector('.pe-preview-device-viewport')?.getBoundingClientRect().width - 375) < 1");
+        var mobileWidth = (await viewport.BoundingBoxAsync())!.Width;
+
+        desktopWidth.Should().BeGreaterThan(tabletWidth);
+        tabletWidth.Should().BeApproximately(768, 1);
+        mobileWidth.Should().BeApproximately(375, 1);
+        tabletWidth.Should().BeGreaterThan(mobileWidth);
+
+        await page.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Close Preview",
+            Exact = true
+        }).ClickAsync();
+    }
+
+    [Test]
+    public async Task FullPageScribanSourceSurvivesSurfaceChangesPreviewSaveAndReload()
+    {
+        var page = await OpenNewEditorAsync("aero.scriban");
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var title = $"Scriban Source {suffix}";
+        var renderedText = $"Source preview {suffix}";
+        var source = $"<main><h1>{{{{ page.title }}}}</h1><p>{renderedText}</p></main>";
+
+        const string workspaceSelector = ".pe-source-workspace";
+        var workspace = page.Locator(workspaceSelector);
+        await workspace.WaitForAsync(Visible());
+        await workspace.Locator(".monaco-editor").WaitForAsync(Visible());
+        await SetDialogMonacoValueAsync(page, workspaceSelector, source);
+        await page.Locator(".pe-page-title-input:visible").Last.FillAsync(title);
+
+        var expansionButton = workspace.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Expand Scriban editor",
+            Exact = true
+        });
+        await expansionButton.ClickAsync();
+        await Assertions.Expect(workspace)
+            .ToHaveClassAsync(new Regex("pe-source-workspace--expanded"));
+        (await GetDialogMonacoValueAsync(page, workspaceSelector)).Should().Be(source);
+        await workspace.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Restore Scriban editor",
+            Exact = true
+        }).ClickAsync();
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Metadata", Exact = true })
+            .ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Content Editor", Exact = true })
+            .ClickAsync();
+        await workspace.Locator(".monaco-editor").WaitForAsync(Visible());
+        (await GetDialogMonacoValueAsync(page, workspaceSelector)).Should().Be(source);
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
+            .ClickAsync();
+        var preview = page.Locator("iframe[title='Page preview']");
+        await preview.WaitForAsync(new()
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 30_000
+        });
+        await page.FrameLocator("iframe[title='Page preview']")
+            .GetByText(renderedText, new() { Exact = true })
+            .WaitForAsync(new()
+            {
+                State = WaitForSelectorState.Visible,
+                Timeout = 30_000
+            });
+        await page.GetByRole(AriaRole.Button, new()
+        {
+            Name = "Close Preview",
+            Exact = true
+        }).ClickAsync();
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true })
+            .ClickAsync();
+        await page.WaitForURLAsync(new Regex(@"/manager/page/editor/\d+$"), new()
+        {
+            Timeout = 30_000
+        });
+        await page.GetByText("Page created successfully", new() { Exact = true })
+            .WaitForAsync(Visible());
+
+        var pageId = long.Parse(page.Url[(page.Url.LastIndexOf('/') + 1)..]);
+        var sourceResponse = await page.APIRequest.GetAsync(
+            $"{Fixture.BaseUrl}/api/v1/admin/pages/{pageId}/source");
+        var sourceBody = await sourceResponse.TextAsync();
+        sourceResponse.Status.Should().Be(200, sourceBody);
+        using (var sourceDocument = JsonDocument.Parse(sourceBody))
+        {
+            sourceDocument.RootElement.GetProperty("source").GetString().Should().Be(source);
+        }
+
+        await page.ReloadAsync(new() { WaitUntil = WaitUntilState.Load, Timeout = 30_000 });
+        workspace = page.Locator(workspaceSelector);
+        await workspace.Locator(".monaco-editor").WaitForAsync(new()
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 30_000
+        });
+        (await GetDialogMonacoValueAsync(page, workspaceSelector)).Should().Be(source);
+    }
+
+    [Test]
     public async Task FeatureComparisonTableRendersAsCompactSemanticTableOnMobilePreview()
     {
         var page = await OpenNewEditorAsync();
@@ -1332,7 +1566,8 @@ public sealed class EditorSmokeTests
         await page.WaitForTimeoutAsync(75);
     }
 
-    private static async Task<IPage> OpenNewEditorAsync()
+    private static async Task<IPage> OpenNewEditorAsync(
+        string rendererId = "aero.composition")
     {
         await Fixture.LoginAsync();
         await Fixture.WarmUpBlazorAsync();
@@ -1344,7 +1579,28 @@ public sealed class EditorSmokeTests
             Timeout = 30_000
         });
 
-        await page.Locator(".aero-page-canvas__surface").WaitForAsync(Visible());
+        await page.GetByText("Choose a page type", new() { Exact = true })
+            .WaitForAsync(Visible());
+        await Assertions.Expect(page.GetByLabel("Page type", new() { Exact = true }))
+            .ToHaveValueAsync("aero.composition");
+        await page.GetByLabel("Page type", new() { Exact = true })
+            .SelectOptionAsync(rendererId);
+        await page.GetByRole(AriaRole.Button, new()
+            {
+                Name = "Create page",
+                Exact = true
+            })
+            .ClickAsync();
+
+        await Assertions.Expect(page.Locator(".pe-page-title-input:visible").Last)
+            .ToHaveValueAsync("New Page");
+        var editorSurface = string.Equals(
+            rendererId,
+            "aero.composition",
+            StringComparison.Ordinal)
+            ? ".aero-page-canvas__surface"
+            : ".pe-source-workspace";
+        await page.Locator(editorSurface).WaitForAsync(Visible());
         return page;
     }
 
@@ -1672,6 +1928,70 @@ public sealed class EditorSmokeTests
             """);
         overflowingElements.Should().BeEmpty();
     }
+
+    private static async Task SetDialogMonacoValueAsync(
+        IPage page,
+        string dialogSelector,
+        string source)
+    {
+        await WaitForDialogMonacoAsync(page, dialogSelector);
+        await page.EvaluateAsync(
+            """
+            args => {
+                const editor = globalThis.monaco.editor.getEditors()
+                    .filter(candidate => {
+                        const node = candidate.getDomNode();
+                        return node?.isConnected && node.closest(args.dialogSelector);
+                    });
+                if (editor.length !== 1) {
+                    throw new Error(
+                        `Expected one live Monaco editor in ${args.dialogSelector}, found ${editor.length}.`);
+                }
+
+                editor[0].setValue(args.source);
+            }
+            """,
+            new { dialogSelector, source });
+    }
+
+    private static async Task<string> GetDialogMonacoValueAsync(
+        IPage page,
+        string dialogSelector)
+    {
+        await WaitForDialogMonacoAsync(page, dialogSelector);
+        return await page.EvaluateAsync<string>(
+            """
+            dialogSelector => {
+                const editor = globalThis.monaco.editor.getEditors()
+                    .filter(candidate => {
+                        const node = candidate.getDomNode();
+                        return node?.isConnected && node.closest(dialogSelector);
+                    });
+                if (editor.length !== 1) {
+                    throw new Error(
+                        `Expected one live Monaco editor in ${dialogSelector}, found ${editor.length}.`);
+                }
+
+                return editor[0].getValue();
+            }
+            """,
+            dialogSelector);
+    }
+
+    private static Task WaitForDialogMonacoAsync(
+        IPage page,
+        string dialogSelector) =>
+        page.WaitForFunctionAsync(
+            """
+            dialogSelector => Boolean(
+                globalThis.monaco?.editor?.getEditors?.()
+                    .filter(editor => {
+                        const node = editor.getDomNode();
+                        return node?.isConnected && node.closest(dialogSelector);
+                    }).length === 1)
+            """,
+            dialogSelector,
+            new() { Timeout = 30_000 });
 
     private static Task WaitForNodeCountAsync(IPage page, int expected) =>
         page.WaitForFunctionAsync(

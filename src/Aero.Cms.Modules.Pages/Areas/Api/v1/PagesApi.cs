@@ -1,5 +1,8 @@
 using System.Text.Encodings.Web;
+using System.Collections.Immutable;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
@@ -8,10 +11,12 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Http;
+using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;
@@ -49,6 +54,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         group.MapGet("/{id:long}", GetPageById)
             .WithName("GetPageById")
             .RequireAuthorization("site:read");
+
+        group.MapGet("/{id:long}/source", GetPageSource)
+            .WithName("GetPageSource")
+            .RequireAuthorization("site:update");
         
         group.MapGet("/slug/{*slug}", GetPageBySlug)
             .WithName("GetPageBySlug")
@@ -60,6 +69,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
 
         group.MapGet("/registered-fragments", ListRegisteredFragments)
             .WithName("ListRegisteredPageFragments")
+            .RequireAuthorization("site:read");
+
+        group.MapGet("/renderers", ListPageRenderers)
+            .WithName("ListPageRenderers")
             .RequireAuthorization("site:read");
         
         group.MapPost("/", CreatePage)
@@ -136,6 +149,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromServices] IPageRegisteredFragmentRegistry registry)
         => TypedResults.Ok(registry.Descriptors);
 
+    private static IResult ListPageRenderers(
+        [FromServices] IPageRendererRegistry registry)
+        => TypedResults.Ok(registry.Descriptors);
+
     private static async Task<IResult> ListPages(
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
@@ -188,6 +205,18 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             : TypedResults.Ok(MapToDetail(result.data));
     }
 
+    private static async Task<IResult> GetPageSource(
+        long id,
+        [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        var source = await pagesActor.GetSourceAsync(id, siteContext.SiteId, ct);
+        return source is null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(source);
+    }
+
     private static async Task<IResult> PreviewDraftPage(
         long id,
         [FromServices] IAeroPageActor pagesActor,
@@ -210,11 +239,23 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] ISiteContext siteContext,
+        [FromServices] IPageRendererRegistry rendererRegistry,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
+            var normalizedRendererId = PageRendererIds.NormalizeOrDefault(request.RendererId);
+            if (rendererRegistry.Resolve(normalizedRendererId) is Result<IPageRenderer>.Failure rendererFailure)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid page renderer",
+                    Detail = rendererFailure.Error.ToString(),
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
             if (request.ParentId is > 0)
             {
                 var parent = await pagesActor.GetByIdAsync(
@@ -239,7 +280,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.ShowChatAgent,
                 siteContext.SiteId,
                 DraftContentJson: SerializeDraftContent(request.DraftContent),
-                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition));
+                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition),
+                RendererId: normalizedRendererId,
+                DraftSource: request.DraftSource);
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -264,11 +307,23 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] ISiteContext siteContext,
+        [FromServices] IPageRendererRegistry rendererRegistry,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
+            var normalizedRendererId = PageRendererIds.NormalizeOrDefault(request.RendererId);
+            if (rendererRegistry.Resolve(normalizedRendererId) is Result<IPageRenderer>.Failure rendererFailure)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid page renderer",
+                    Detail = rendererFailure.Error.ToString(),
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
             var grainRequest = new GrainUpdateRequest(
                 id,
                 request.Title,
@@ -284,11 +339,24 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.ShowChatAgent,
                 DraftContentJson: SerializeDraftContent(request.DraftContent),
                 PreviousPathBehavior: request.PreviousPathBehavior,
-                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition));
+                DraftCompositionJson: SerializeDraftComposition(request.DraftComposition),
+                RendererId: normalizedRendererId,
+                DraftSource: request.DraftSource);
 
             var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
             if (!string.IsNullOrWhiteSpace(existing.error.Message))
                 return TypedResults.NotFound(existing.error);
+
+            var existingRendererId = PageRendererIds.NormalizeOrDefault(existing.data.RendererId);
+            if (!string.Equals(existingRendererId, normalizedRendererId, StringComparison.Ordinal))
+            {
+                return TypedResults.Conflict(new ProblemDetails
+                {
+                    Title = "Page renderer conversion is required",
+                    Detail = "Changing an existing page renderer requires an explicit conversion workflow.",
+                    Status = StatusCodes.Status409Conflict
+                });
+            }
 
             if (request.ParentId is > 0)
             {
@@ -540,16 +608,60 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         };
     }
 
-    private static Task<IResult> PublishTranslationGroup(
+    private static async Task<IResult> PublishTranslationGroup(
         long translationGroupId,
         [FromServices] IPageContentService pageService,
+        [FromServices] IPagePublishingWorkflowService publishingWorkflow,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
-        return SetPageTranslationGroupPublicationStateAsync(
-            translationGroupId,
-            ContentPublicationState.Published,
-            pageService,
+        var variantsResult = await pageService.ListCultureVariantsAsync(translationGroupId, ct);
+        if (variantsResult is Result<IReadOnlyList<PageDocument>, AeroError>.Failure variantsFailure)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to load page translations",
+                Detail = variantsFailure.Error.ToString(),
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var variants = variantsResult is Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok
+            ? ok.Value
+            : [];
+
+        if (variants.Count == 0)
+        {
+            return TypedResults.NotFound(new ProblemDetails
+            {
+                Title = "No page translations found",
+                Detail = $"No translated pages were found for translation group '{translationGroupId}'.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        var publishResult = await publishingWorkflow.PublishBatchAsync(
+            variants.Select(page => page.Id).ToArray(),
+            siteContext.SiteId,
             ct);
+        if (publishResult is Result<bool, AeroError>.Failure publishFailure)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to publish page translations",
+                Detail = publishFailure.Error.ToString(),
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var items = variants
+            .Select(page => new PublicationBulkItem(
+                page.Id,
+                page.Culture,
+                page.Title,
+                Published: true))
+            .ToList();
+        return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
 
     private static Task<IResult> UnpublishTranslationGroup(
@@ -740,7 +852,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             DeserializeDraftContent(vm.DraftContentJson),
             DeserializeDraftContent(vm.PublishedContentJson),
             DeserializeDraftComposition(vm.DraftCompositionJson),
-            DeserializeDraftComposition(vm.PublishedCompositionJson)
+            DeserializeDraftComposition(vm.PublishedCompositionJson),
+            vm.RendererId,
+            vm.HasUnpublishedChanges
         );
     }
 
@@ -770,7 +884,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             document.DraftContent,
             document.PublishedContent,
             document.DraftComposition,
-            document.PublishedComposition);
+            document.PublishedComposition,
+            PageRendererIds.NormalizeOrDefault(document.RendererId),
+            document.HasUnpublishedChanges);
 
     private static string? SerializeDraftContent(HtmlPageContent? content) => content is null
         ? null
@@ -985,46 +1101,109 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
         [FromServices] ISiteContext siteContext,
-        [FromServices] ISiteStyleProfileResolver styleProfileResolver,
-        [FromServices] IStyleCompiler styleCompiler,
-        [FromServices] PageCompositionExpander compositionExpander,
-        [FromServices] HtmlStaticRenderer renderer,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IPageContentQueryResolver contentQueryResolver,
+        [FromServices] IPageRendererRegistry rendererRegistry,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var culture = string.IsNullOrWhiteSpace(request.Culture)
-                ? CultureInfo.CurrentUICulture.Name
-                : request.Culture;
-            var expandedResult = await compositionExpander.ExpandAsync(
+            PageDocument? persistedPage = null;
+            if (request.PageId is { } pageId)
+            {
+                var pageResult = await pageService.LoadAsync(pageId, ct);
+                if (pageResult is not Result<PageDocument?, AeroError>.Ok { Value: not null } loadedPage)
+                {
+                    return TypedResults.NotFound();
+                }
+
+                persistedPage = loadedPage.Value;
+            }
+
+            var rendererId = PageRendererIds.NormalizeOrDefault(request.RendererId);
+            var rendererResult = rendererRegistry.Resolve(rendererId);
+            if (rendererResult is Result<IPageRenderer>.Failure rendererFailure)
+            {
+                return TypedResults.BadRequest(new { error = DescribeError(rendererFailure.Error) });
+            }
+
+            if (persistedPage is not null
+                && !string.Equals(
+                    PageRendererIds.NormalizeOrDefault(persistedPage.RendererId),
+                    rendererId,
+                    StringComparison.Ordinal))
+            {
+                return TypedResults.Conflict(new ProblemDetails
+                {
+                    Title = "Page renderer conversion is required",
+                    Detail = "The preview renderer must match the persisted page renderer.",
+                    Status = StatusCodes.Status409Conflict
+                });
+            }
+
+            string culture;
+            try
+            {
+                culture = CultureInfo.GetCultureInfo(
+                    string.IsNullOrWhiteSpace(request.Culture)
+                        ? persistedPage?.Culture ?? CultureInfo.CurrentUICulture.Name
+                        : request.Culture).Name;
+            }
+            catch (CultureNotFoundException)
+            {
+                return TypedResults.BadRequest(new { error = "The preview culture is invalid." });
+            }
+
+            if (string.Equals(rendererId, PageRendererIds.AeroComposition, StringComparison.Ordinal)
+                && request.Source is not null)
+            {
+                return TypedResults.BadRequest(
+                    new { error = "Aero composition previews cannot include page source." });
+            }
+
+            var content = request.Content ?? new HtmlPageContent();
+            var contentQueriesResult = await contentQueryResolver.ResolveAsync(
                 siteContext.SiteId,
                 culture,
-                request.Content,
-                request.Composition,
-                pageNumbers: null,
+                request.Composition?.ContentQueries,
+                includeDrafts: true,
                 ct);
-            if (expandedResult is Result<PageCompositionExpansion, AeroError>.Failure expansionFailure)
-                return TypedResults.BadRequest(new { error = expansionFailure.Error.ToString() });
+            if (contentQueriesResult is Result<PageContentQueryResolution>.Failure queryFailure)
+                return TypedResults.BadRequest(new { error = DescribeError(queryFailure.Error) });
 
-            var expandedContent = ((Result<PageCompositionExpansion, AeroError>.Ok)expandedResult).Value.Content;
-            var profileResult = await styleProfileResolver.ResolveAsync(siteContext.SiteId, ct);
-            if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
-                return TypedResults.BadRequest(new { error = profileFailure.Error.ToString() });
+            var contentQueries =
+                ((Result<PageContentQueryResolution>.Ok)contentQueriesResult).Value;
+            PageRenderSource? source = request.Source is null
+                ? null
+                : new PageRenderSource(
+                    0,
+                    rendererId,
+                    request.Source,
+                    ComputeSourceHash(request.Source));
+            var pageRenderer = ((Result<IPageRenderer>.Ok)rendererResult).Value;
+            var rendered = await pageRenderer.RenderAsync(
+                new PageRenderRequest(
+                    new PageRenderMetadata(
+                        persistedPage?.Id,
+                        siteContext.SiteId,
+                        rendererId,
+                        request.Title ?? persistedPage?.Title ?? "Preview",
+                        request.Slug ?? persistedPage?.Slug ?? "preview",
+                        request.Path ?? persistedPage?.Path ?? "/preview",
+                        culture),
+                    source,
+                    content,
+                    request.Composition,
+                    ImmutableDictionary<long, int>.Empty,
+                    contentQueries,
+                    IsPreview: true),
+                ct);
+            if (rendered is Result<RenderedPage>.Failure renderFailure)
+                return TypedResults.BadRequest(new { error = DescribeError(renderFailure.Error) });
 
-            var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-            var styles = styleCompiler.Compile(expandedContent, styleProfile);
-            if (styles is Result<CompiledPageStyles>.Failure styleFailure)
-                return TypedResults.BadRequest(new { error = styleFailure.Error.ToString() });
-
-            var rendered = renderer.RenderPage(
-                expandedContent,
-                ((Result<CompiledPageStyles>.Ok)styles).Value);
-            if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
-                return TypedResults.BadRequest(new { error = renderFailure.Error.ToString() });
-
-            var page = ((Result<RenderedHtmlPage>.Ok)rendered).Value;
+            var page = ((Result<RenderedPage>.Ok)rendered).Value;
             var html = string.IsNullOrWhiteSpace(page.CssText)
                 ? page.Markup
                 : $"<style data-aero-page-styles>{page.CssText}</style>{page.Markup}";
@@ -1039,6 +1218,31 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     }
 
     // ── Preview helpers ─────────────────────────────────────────────────
+
+    private static string ComputeSourceHash(string source)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)))
+            .ToLowerInvariant();
+
+    private static string DescribeError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        AeroError.Error value => value.msg,
+        AeroError.Cancelled value => value.msg,
+        AeroError.NotAllowed value => value.msg,
+        AeroError.NotFound value => value.msg,
+        AeroError.Conflict value => value.msg,
+        AeroError.Database value => value.msg,
+        AeroError.Unauthorized value => value.msg,
+        AeroError.Forbidden value => value.msg,
+        AeroError.Timeout value => value.msg,
+        AeroError.InvalidRequest value => value.msg,
+        AeroError.BadRequest value => value.msg,
+        AeroError.Exists value => value.msg,
+        AeroError.NullReferro value => value.msg,
+        AeroError.HttpRequest value => value.msg ?? value.code.ToString(),
+        AeroError.Configuration value => value.msg,
+        _ => "The preview could not be rendered."
+    };
 
     private static string RenderPreviewHtml(IHtmlContent content)
     {

@@ -1,7 +1,8 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@implements IAsyncDisposable
 
 <div class="aero-custom-html-overlay" @onclick="CloseAsync">
-    <section class="aero-custom-html-dialog"
+    <section class="@DialogCssClass"
              tabindex="-1"
              role="dialog"
              aria-modal="true"
@@ -14,24 +15,79 @@
                 <span>Rendered content</span>
                 <h2 id="aero-custom-html-title">Edit Custom HTML</h2>
             </div>
-            <button type="button" class="aero-custom-html-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+            <div class="aero-custom-html-dialog__header-actions">
+                <span title="@AiButtonTitle">
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm aero-custom-html-dialog__ai"
+                            disabled="@(!AiEnabled)"
+                            aria-disabled="@(!AiEnabled)"
+                            @onclick="RequestAiAsync">
+                        AI
+                    </button>
+                </span>
+                <button type="button" class="aero-custom-html-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+            </div>
         </header>
 
         <div class="aero-custom-html-dialog__body">
             <p>
-                Supported semantic HTML and safe attributes are accepted. Scripts, event handlers,
-                unsafe URLs, unsupported elements, and parser-repaired markup are rejected.
+                Use Visual for supported rich content or Show Code for full semantic HTML control.
+                The same server-side HTML policy validates either view when you apply the block.
             </p>
-            <label for="aero-custom-html-source">HTML fragment</label>
-            <textarea id="aero-custom-html-source"
-                      spellcheck="false"
-                      @bind="_source"
-                      @bind:event="oninput"></textarea>
+
+            <div class="aero-custom-html-dialog__mode-bar" role="toolbar" aria-label="Custom HTML editor view">
+                <strong>@(_showCode ? "HTML code" : "Visual editor")</strong>
+                <button type="button"
+                        class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@_isSwitchingMode"
+                        aria-pressed="@_showCode"
+                        @onclick="ToggleModeAsync">
+                    @(_showCode ? "Show Visual" : "Show Code")
+                </button>
+            </div>
+
+            @if (_showCode)
+            {
+                <div class="aero-custom-html-dialog__editor">
+                    <ExpandableMonacoSourceEditor @ref="_editor"
+                                                  EditorId="aero-custom-html-source"
+                                                  Language="html"
+                                                  AccessibleLabel="HTML editor"
+                                                  RendererLabel="Custom HTML"
+                                                  InitialSource="@_source"
+                                                  IsExpanded="@_isExpanded"
+                                                  IsExpandedChanged="SetExpandedAsync" />
+                </div>
+            }
+            else
+            {
+                <div class="aero-custom-html-fragment-toolbar" role="toolbar" aria-label="Custom HTML formatting">
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("undo")'>↶</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("redo")'>↷</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("paragraph")'>Text</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("heading2")'>H2</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("heading3")'>H3</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("bulletList")'>• List</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("orderedList")'>1. List</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("blockquote")'>“”</button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("bold")'><strong>B</strong></button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("italic")'><em>I</em></button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("strike")'><s>S</s></button>
+                    <button type="button" disabled="@(!_isVisualReady)" @onclick='() => ExecuteAsync("code")'>&lt;/&gt;</button>
+                </div>
+                <div class="aero-custom-html-dialog__visual">
+                    @if (!_isVisualReady && string.IsNullOrWhiteSpace(EffectiveError))
+                    {
+                        <div class="aero-custom-html-dialog__loading">Loading visual editor…</div>
+                    }
+                    <div @ref="_visualEditorElement" class="aero-custom-html-dialog__visual-surface"></div>
+                </div>
+            }
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        @if (!string.IsNullOrWhiteSpace(EffectiveError))
         {
-            <div class="aero-custom-html-dialog__error" role="alert">@ErrorMessage</div>
+            <div class="aero-custom-html-dialog__error" role="alert">@EffectiveError</div>
         }
 
         <footer class="aero-custom-html-dialog__footer">

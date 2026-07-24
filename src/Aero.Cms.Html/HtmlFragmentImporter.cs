@@ -127,11 +127,16 @@ public sealed class HtmlFragmentImporter : IHtmlFragmentImporter
     private HtmlNode ConvertElement(IElement element, HtmlNode parent, int depth, ref int nodeCount)
     {
         if (!string.Equals(element.NamespaceUri, "http://www.w3.org/1999/xhtml", StringComparison.Ordinal)
-            || !IsCanonicalLowerCase(element.LocalName)
-            || !_catalog.TryGet(element.LocalName, out var definition)
-            || definition is null)
+            || !IsCanonicalLowerCase(element.LocalName))
         {
             throw new HtmlFragmentImportException("The HTML fragment contains an unsupported or non-HTML element.");
+        }
+
+        if (!_catalog.TryGet(element.LocalName, out var definition)
+            || definition is null)
+        {
+            throw new HtmlFragmentImportException(
+                $"The '<{element.LocalName}>' element is not supported in page fragments.");
         }
 
         nodeCount++;

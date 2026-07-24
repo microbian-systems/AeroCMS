@@ -32,6 +32,10 @@ public sealed partial class PageEditorHeader : ComponentBase
     /// Gets or sets the Publication State.
     /// </summary>
 [Parameter] public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    /// <summary>
+    /// Gets or sets a value indicating whether the editable draft differs from the public snapshot.
+    /// </summary>
+    [Parameter] public bool HasUnpublishedChanges { get; set; }
 
         /// <summary>
     /// Gets or sets the On Title Changed.

@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Html;
 using Aero.Core.Data;
 using AeroDB.Sable;
@@ -42,6 +43,18 @@ public string Culture { get; set; } = SitesModel.DefaultCultureName;
     /// Gets or sets the page kind used by consuming code.
     /// </summary>
 public PageKind Kind { get; set; } = PageKind.Standard;
+    /// <summary>
+    /// Gets or sets the stable page-rendering strategy identifier.
+    /// </summary>
+public string RendererId { get; set; } = PageRendererIds.AeroComposition;
+        /// <summary>
+    /// Gets or sets the append-only source version currently associated with the editable draft.
+    /// </summary>
+public long? DraftSourceVersionId { get; set; }
+        /// <summary>
+    /// Gets or sets the source version captured by the most recent publication.
+    /// </summary>
+public long? PublishedSourceVersionId { get; set; }
         /// <summary>
     /// Gets or sets the route slug; normalization and uniqueness are external concerns.
     /// </summary>
@@ -157,6 +170,8 @@ public string? SeoDescription { get; set; }
     {
         PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(DraftContent);
         PublishedComposition = DraftComposition.CreateSnapshot();
+        PublishedSourceVersionId = DraftSourceVersionId;
+        PublishedContentRevision = ContentRevision;
         PublicationState = ContentPublicationState.Published;
         PublishedOn = publishedOn;
         PublishedVersion = checked(PublishedVersion + 1);
@@ -180,6 +195,11 @@ public string? SeoDescription { get; set; }
     /// </summary>
     public long ContentRevision { get; set; }
 
+    /// <summary>
+    /// Gets or sets the draft content revision captured by the most recent publication.
+    /// </summary>
+    public long PublishedContentRevision { get; set; }
+
         /// <summary>
     /// Gets or sets the lifecycle state used by public-visibility checks.
     /// </summary>
@@ -200,6 +220,15 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
     [JsonIgnore]
     public bool IsPubliclyVisible =>
         PublicationState == ContentPublicationState.Published && !Deleted;
+
+    /// <summary>
+    /// Gets whether the currently editable content or source differs from the last published snapshot.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasUnpublishedChanges =>
+        PublicationState == ContentPublicationState.Published
+        && (ContentRevision != PublishedContentRevision
+            || DraftSourceVersionId != PublishedSourceVersionId);
 
     /// <summary>
     /// Gets or sets whether this page should be displayed in the main navigation menu.
@@ -265,6 +294,7 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         Title = Title,
         Slug = Slug,
         Kind = Kind,
+        RendererId = PageRendererIds.NormalizeOrDefault(RendererId),
         Summary = Summary,
         SeoTitle = SeoTitle,
         SeoDescription = SeoDescription,
@@ -284,6 +314,7 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         HideFooter = HideFooter,
         ShowChatAgent = ShowChatAgent,
         ContentRevision = ContentRevision,
+        HasUnpublishedChanges = HasUnpublishedChanges,
         DraftContentJson = JsonSerializer.Serialize(DraftContent, HtmlJsonContext.Default.HtmlPageContent),
         PublishedContentJson = PublishedContent is null
             ? null

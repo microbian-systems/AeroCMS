@@ -41,6 +41,15 @@
             </button>
             @if (PublicationState == ContentPublicationState.Published)
             {
+                @if (HasUnpublishedChanges || IsDirty)
+                {
+                    <button type="button" class="pe-btn pe-btn-success pe-btn-sm" @onclick="OnPublish" disabled="@IsSaving">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        @L["Publish changes"]
+                    </button>
+                }
                 <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="OnUnpublish" disabled="@IsSaving">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="20 6 9 17 4 12"/>

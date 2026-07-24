@@ -31,6 +31,8 @@ public partial class ContentItemEditor
     /// Gets or sets the Requested Tab.
     /// </summary>
 [SupplyParameterFromQuery(Name = "tab")] public string? RequestedTab { get; set; }
+    /// <summary>Optional hierarchy parent preselected when creating a child from the tree.</summary>
+    [SupplyParameterFromQuery(Name = "parentId")] public long? RequestedParentId { get; set; }
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
@@ -65,6 +67,9 @@ public partial class ContentItemEditor
     private string _culture = string.Empty;
     private long? _translationGroupId;
     private long? _sourceItemId;
+    private long? _parentId;
+    private int _sortOrder;
+    private IReadOnlyList<ContentParentOption> _parentOptions = [];
 
     private IReadOnlyList<string> SupportedCultures =>
         _currentSite?.SupportedCultures is { Count: > 0 } cultures
@@ -114,6 +119,8 @@ protected override async Task OnInitializedAsync()
         _typeDefinition = typeOk.Value;
         _typeName = _typeDefinition.Name;
         _allowPublicUrl = _typeDefinition.AllowPublicUrl;
+        _culture = _currentSite?.DefaultCulture
+            ?? System.Globalization.CultureInfo.CurrentUICulture.Name;
         InitializeFieldDictionaries();
 
         if (Id.HasValue)
@@ -129,6 +136,12 @@ protected override async Task OnInitializedAsync()
                 Notify(NotificationSeverity.Error, "Load failed", failure.Error.ToString());
             }
         }
+        else if (RequestedParentId is > 0)
+        {
+            _parentId = RequestedParentId;
+        }
+
+        await LoadParentOptionsAsync();
     }
 
     private async Task LoadCurrentSiteAsync()
@@ -175,7 +188,87 @@ protected override async Task OnInitializedAsync()
         _culture = detail.Culture;
         _translationGroupId = detail.TranslationGroupId;
         _sourceItemId = detail.SourceItemId;
+        _parentId = detail.ParentId;
+        _sortOrder = detail.SortOrder;
         PopulateFieldValues(detail.Fields);
+    }
+
+    private async Task LoadParentOptionsAsync()
+    {
+        if (_typeDefinition?.Structure != ContentStructure.Hierarchical)
+        {
+            _parentOptions = [];
+            return;
+        }
+
+        var result = await ContentItemsApi.GetHierarchyAsync(Alias, _culture);
+        if (result is Result<ContentHierarchyTreeResult, AeroError>.Ok ok)
+        {
+            var blockedIds = Id is { } currentId
+                ? FindSubtreeIds(ok.Value.Roots, currentId)
+                : new HashSet<long>();
+            _parentOptions = FlattenParentOptions(ok.Value.Roots)
+                .Where(option => !blockedIds.Contains(option.Id))
+                .Where(option => option.CanAcceptChildren)
+                .ToArray();
+        }
+        else if (result is Result<ContentHierarchyTreeResult, AeroError>.Failure failure)
+        {
+            Notify(
+                NotificationSeverity.Warning,
+                "Hierarchy unavailable",
+                failure.Error.ToString());
+        }
+    }
+
+    private static IEnumerable<ContentParentOption> FlattenParentOptions(
+        IEnumerable<ContentHierarchyTreeNode> nodes,
+        string parentPath = "")
+    {
+        foreach (var node in nodes)
+        {
+            var path = string.IsNullOrWhiteSpace(parentPath)
+                ? node.Title
+                : $"{parentPath} / {node.Title}";
+            yield return new ContentParentOption(
+                node.Id,
+                node.Title,
+                node.ContentTypeAlias,
+                path,
+                node.CanAcceptChildren);
+
+            foreach (var child in FlattenParentOptions(node.Children, path))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private static HashSet<long> FindSubtreeIds(
+        IEnumerable<ContentHierarchyTreeNode> roots,
+        long currentId)
+    {
+        var blocked = new HashSet<long> { currentId };
+        var current = FlattenNodes(roots).FirstOrDefault(node => node.Id == currentId);
+        if (current is not null)
+        {
+            blocked.UnionWith(FlattenNodes(current.Children).Select(node => node.Id));
+        }
+
+        return blocked;
+    }
+
+    private static IEnumerable<ContentHierarchyTreeNode> FlattenNodes(
+        IEnumerable<ContentHierarchyTreeNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenNodes(node.Children))
+            {
+                yield return child;
+            }
+        }
     }
 
     private void PopulateFieldValues(IReadOnlyDictionary<string, JsonElement> source)
@@ -246,7 +339,10 @@ protected override async Task OnInitializedAsync()
                 _allowPublicUrl ? _slug : GenerateSlug(_title),
                 BuildFieldsDictionary(),
                 null,
-                null);
+                null,
+                _culture,
+                _parentId,
+                _sortOrder);
 
             var result = Id.HasValue
                 ? await ContentItemsApi.UpdateAsync(Alias, Id.Value, request)
@@ -622,4 +718,11 @@ protected override async Task OnInitializedAsync()
             Detail = detail,
             Duration = 4000
         });
+
+    private sealed record ContentParentOption(
+        long Id,
+        string Title,
+        string ContentTypeAlias,
+        string Breadcrumb,
+        bool CanAcceptChildren);
 }

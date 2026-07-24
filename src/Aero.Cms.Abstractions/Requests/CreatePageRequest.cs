@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Pages.Rendering;
 
 namespace Aero.Cms.Abstractions.Requests;
 
@@ -19,6 +20,8 @@ namespace Aero.Cms.Abstractions.Requests;
 /// <param name="SiteId">The owning site identifier.</param>
 /// <param name="DraftContentJson">Optional JSON transport for the living-standard draft content.</param>
 /// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
+/// <param name="RendererId">The stable registered page-renderer identifier.</param>
+/// <param name="DraftSource">The exact optional source text for a source-rendered draft.</param>
 [GenerateSerializer]
 [Alias("CreatePageRequest")]
 public record CreatePageRequest(
@@ -35,7 +38,9 @@ public record CreatePageRequest(
     bool ShowChatAgent = true,
     long SiteId = 0,
     string? DraftContentJson = null,
-    string? DraftCompositionJson = null
+    string? DraftCompositionJson = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    string? DraftSource = null
 ) : IRequest;
 
 /// <summary>
@@ -56,6 +61,8 @@ public record CreatePageRequest(
 /// <param name="DraftContentJson">Optional JSON transport for the living-standard draft content.</param>
 /// <param name="PreviousPathBehavior">Optional instruction for handling the page's prior route when its path changes.</param>
 /// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
+/// <param name="RendererId">The stable registered page-renderer identifier.</param>
+/// <param name="DraftSource">The exact replacement source text, or <see langword="null"/> to preserve it.</param>
 [GenerateSerializer]
 [Alias("UpdatePageRequest")]
 public record UpdatePageRequest(
@@ -73,7 +80,9 @@ public record UpdatePageRequest(
     bool ShowChatAgent = true,
     string? DraftContentJson = null,
     PreviousPathBehavior? PreviousPathBehavior = null,
-    string? DraftCompositionJson = null
+    string? DraftCompositionJson = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    string? DraftSource = null
 ) : IRequest;
 
 /// <summary>

@@ -80,7 +80,17 @@ public partial class HtmlElementPalette
             PageRenderedFragmentKind.Scriban,
             "Scriban",
             "A bounded server-rendered template with explicit page and site context",
-            "{{ }}")
+            "{{ }}"),
+        new(
+            PageRenderedFragmentKind.SharpTs,
+            "TS",
+            "A server-rendered TypeScript fragment using Aero's html tagged template",
+            "TS"),
+        new(
+            PageRenderedFragmentKind.Htmx,
+            "HTMX",
+            "Validated HTML with same-origin HTMX interactions",
+            "hx")
     ];
 
     private IReadOnlyList<ElementGroup> _groups = [];
@@ -121,6 +131,19 @@ public partial class HtmlElementPalette
     /// </summary>
     [Parameter]
     public EventCallback<PageRenderedFragmentKind> RenderedFragmentRequested { get; set; }
+
+    /// <summary>Gets or sets whether an enabled, configured AI provider is available.</summary>
+    [Parameter]
+    public bool AiEnabled { get; set; }
+
+    /// <summary>Gets or sets the explanatory disabled-state tooltip for AI actions.</summary>
+    [Parameter]
+    public string AiUnavailableMessage { get; set; }
+        = "Configure and enable an AI provider to generate this fragment.";
+
+    /// <summary>Gets or sets the source-fragment AI action callback.</summary>
+    [Parameter]
+    public EventCallback<PageRenderedFragmentKind> AiRequested { get; set; }
 
     /// <summary>Gets the server-supplied registered application-fragment catalog.</summary>
     [Parameter]
@@ -261,6 +284,16 @@ public partial class HtmlElementPalette
     /// <summary>Forwards a source-rendered fragment request to the owning editor.</summary>
     private Task RequestRenderedFragmentAsync(PageRenderedFragmentKind kind) =>
         RenderedFragmentRequested.InvokeAsync(kind);
+
+    private Task RequestAiAsync(PageRenderedFragmentKind kind) =>
+        AiEnabled ? AiRequested.InvokeAsync(kind) : Task.CompletedTask;
+
+    private static bool IsAiEligible(PageRenderedFragmentKind kind) =>
+        kind is PageRenderedFragmentKind.Markdown
+            or PageRenderedFragmentKind.CustomHtml
+            or PageRenderedFragmentKind.Scriban
+            or PageRenderedFragmentKind.SharpTs
+            or PageRenderedFragmentKind.Htmx;
 
     private Task RequestRegisteredFragmentAsync(string key) =>
         RegisteredFragmentRequested.InvokeAsync(key);

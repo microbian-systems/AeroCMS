@@ -40,17 +40,32 @@
             <div class="aero-element-palette__grid">
                 @foreach (var option in FilteredRenderedFragmentOptions)
                 {
-                    <button @key="option.Kind"
-                            type="button"
-                            class="aero-element-palette__item aero-element-palette__item--component"
-                            title="@($"{option.Description}. Click to add or drag onto the page.")"
-                            data-aero-palette-kind="renderedfragment"
-                            data-aero-palette-value="@option.Kind"
-                            data-aero-palette-label="@option.Label"
-                            @onclick="() => RequestRenderedFragmentAsync(option.Kind)">
-                        <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
-                        <span>@option.Label</span>
-                    </button>
+                    <div @key="option.Kind" class="aero-element-palette__source-item">
+                        <button type="button"
+                                class="aero-element-palette__item aero-element-palette__item--component"
+                                title="@($"{option.Description}. Click to add or drag onto the page.")"
+                                data-aero-palette-kind="renderedfragment"
+                                data-aero-palette-value="@option.Kind"
+                                data-aero-palette-label="@option.Label"
+                                @onclick="() => RequestRenderedFragmentAsync(option.Kind)">
+                            <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
+                            <span>@option.Label</span>
+                        </button>
+                        @if (AiRequested.HasDelegate && IsAiEligible(option.Kind))
+                        {
+                            <span class="aero-element-palette__ai-tooltip"
+                                  title="@(AiEnabled ? "Open AI assistant" : AiUnavailableMessage)">
+                                <button type="button"
+                                        class="aero-element-palette__ai"
+                                        disabled="@(!AiEnabled)"
+                                        aria-disabled="@(!AiEnabled)"
+                                        aria-label="Open AI assistant"
+                                        @onclick="() => RequestAiAsync(option.Kind)">
+                                    AI
+                                </button>
+                            </span>
+                        }
+                    </div>
                 }
             </div>
         </div>

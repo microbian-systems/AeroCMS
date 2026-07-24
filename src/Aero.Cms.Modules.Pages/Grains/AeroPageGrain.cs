@@ -1,11 +1,14 @@
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
+using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Templating;
 using Aero.Cms.Services;
 using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core;
@@ -64,6 +67,13 @@ public AeroPageGrain(
         var aliasWriter = _services.GetService<IPageRouteAliasWriter>();
         var contentReferenceValidator = _services.GetService<IContentCompositionReferenceValidator>();
         var registeredFragmentRegistry = _services.GetService<IPageRegisteredFragmentRegistry>();
+        var pageRendererRegistry = _services.GetRequiredService<IPageRendererRegistry>();
+        var contentTypeService = new AeroContentTypeService(
+            session,
+            _services.GetServices<IFieldTemplateSnippet>(),
+            _services.GetRequiredService<ScribanTemplateValidator>());
+        var contentQueryResolver = new PageContentQueryResolver(
+            new ContentHierarchyQueryService(session, contentTypeService));
         var fixedSiteContext = new FixedSiteContext(siteId);
         var pageTreeService = new PageTreeService(
             session,
@@ -84,7 +94,10 @@ public AeroPageGrain(
             pageTreeService,
             aliasWriter,
             contentReferenceValidator,
-            registeredFragmentRegistry);
+            registeredFragmentRegistry,
+            pageRendererRegistry,
+            new PageSourceVersionStore(session),
+            contentQueryResolver);
     }
 
     // ── IHaveState<PageViewModel> ────────────────────────────────────
@@ -118,6 +131,24 @@ public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
             Result<PageDocument?, AeroError>.Ok { Value: not null } ok => Ok(ok.Value.ToViewModel()),
             _ => NotFound($"Page {id} not found")
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<PageSourceViewModel?> GetSourceAsync(
+        long id,
+        long siteId,
+        CancellationToken ct)
+    {
+        await using var session = await _store.LightweightSessionAsync();
+        var pageService = CreatePageService(session, siteId);
+        var result = await pageService.LoadDraftSourceAsync(id, ct);
+        return result is Result<PageSourceVersionSnapshot, AeroError>.Ok source
+            ? new PageSourceViewModel(
+                source.Value.Id,
+                source.Value.RendererId,
+                source.Value.SourceHash,
+                source.Value.Source)
+            : null;
     }
 
     /// <inheritdoc />

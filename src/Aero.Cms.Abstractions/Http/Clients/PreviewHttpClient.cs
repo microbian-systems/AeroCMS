@@ -1,6 +1,7 @@
 using Aero.Cms.Html;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -39,6 +40,11 @@ public interface IPreviewHttpClient
         HtmlPageContent content,
         PageCompositionDocument? composition,
         string? culture,
+        CancellationToken ct = default);
+
+    /// <summary>Renders a renderer-aware unsaved page preview request.</summary>
+    Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        PreviewPageFragmentRequest request,
         CancellationToken ct = default);
 
     /// <summary>
@@ -81,15 +87,25 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
         PageCompositionDocument? composition,
         string? culture,
         CancellationToken ct = default)
+        => await RenderPageFragmentAsync(
+            new PreviewPageFragmentRequest(content, composition, culture),
+            ct);
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        PreviewPageFragmentRequest request,
+        CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
             "pages/render-fragment",
-            new PreviewPageFragmentRequest(content, composition, culture),
+            request,
             ct);
 
         if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)
             return new Result<string, AeroError>.Ok(ok.Value.Html);
-        return new Result<string, AeroError>.Failure(((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error);
+        return new Result<string, AeroError>.Failure(
+            NormalizePreviewError(
+                ((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error));
     }
 
     /// <inheritdoc />
@@ -103,6 +119,35 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
         if (result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok)
             return new Result<string, AeroError>.Ok(ok.Value.Html);
         return new Result<string, AeroError>.Failure(((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error);
+    }
+
+    private static AeroError NormalizePreviewError(AeroError error)
+    {
+        if (error is not AeroError.HttpRequest { msg: { Length: > 0 } body })
+            return error;
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            foreach (var propertyName in new[] { "error", "detail", "title" })
+            {
+                if (root.TryGetProperty(propertyName, out var property)
+                    && property.ValueKind == JsonValueKind.String
+                    && property.GetString() is { Length: > 0 } message)
+                {
+                    return AeroError.ValidationError([message]);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // The transport may return plain text. Preserve it as the actionable
+            // message rather than exposing the HttpRequest record representation.
+            return AeroError.ValidationError([body]);
+        }
+
+        return error;
     }
 
 }

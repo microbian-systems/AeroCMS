@@ -1,7 +1,6 @@
 namespace Aero.Cms.Modules.Pages;
 
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Shared.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
@@ -22,9 +21,9 @@ public static class PageRouteHandler
     /// </summary>
     /// <param name="app">The endpoint route builder to extend.</param>
     /// <remarks>
-    /// The catch-all handler removes a leading culture segment before performing the
-    /// site-scoped slug lookup. Service failures and missing pages are both returned
-    /// as HTTP 404 responses by these handlers.
+    /// Culture-prefix resolution is handled by the request pipeline. The catch-all
+    /// handler performs an exact, site-scoped slug lookup. Service failures and missing
+    /// pages are both returned as HTTP 404 responses by these handlers.
     /// </remarks>
     public static void MapPageRoutes(this IEndpointRouteBuilder app)
     {
@@ -65,8 +64,9 @@ public static class PageRouteHandler
         IPageContentService pageService,
         CancellationToken cancellationToken)
     {
-        // Normalize slug - remove leading slash if present for consistency
-        var normalizedSlug = AeroCultureRoute.StripLeadingCulture(slug);
+        // Culture-prefix resolution belongs to the request pipeline. Treat the
+        // catch-all value as an exact page path at this data-service boundary.
+        var normalizedSlug = slug.Trim().Trim('/');
 
         var result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
 

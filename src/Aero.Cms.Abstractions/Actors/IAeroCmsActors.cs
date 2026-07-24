@@ -109,6 +109,8 @@ public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
     /// <summary>Gets a page only when it belongs to the authorized site.</summary>
     Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
+    /// <summary>Gets the exact editable source only when the page and source belong to the authorized site.</summary>
+    Task<PageSourceViewModel?> GetSourceAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Updates a page only when it belongs to the authorized site.</summary>
     Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, long siteId, CancellationToken ct);
     /// <summary>Deletes a page only when it belongs to the authorized site.</summary>

@@ -1,6 +1,8 @@
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content.Templating;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
@@ -76,6 +78,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var aliasWriter = sp.GetService<IPageRouteAliasWriter>();
             var contentReferenceValidator = sp.GetService<IContentCompositionReferenceValidator>();
             var registeredFragmentRegistry = sp.GetService<IPageRegisteredFragmentRegistry>();
+            var pageRendererRegistry = sp.GetRequiredService<IPageRendererRegistry>();
+            var pageSourceVersionStore = sp.GetRequiredService<IPageSourceVersionStore>();
+            var pageContentQueryResolver = sp.GetRequiredService<IPageContentQueryResolver>();
             var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
             var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
             var styleProfileResolver = sp.GetRequiredService<ISiteStyleProfileResolver>();
@@ -93,7 +98,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 pageTreeService,
                 aliasWriter,
                 contentReferenceValidator,
-                registeredFragmentRegistry);
+                registeredFragmentRegistry,
+                pageRendererRegistry,
+                pageSourceVersionStore,
+                pageContentQueryResolver);
         });
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroPageActor>(sp =>
@@ -105,6 +113,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
         // Publishing workflow over the tracked PageDocument aggregate.
         services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
+        services.AddScoped<IPageSourceVersionStore, PageSourceVersionStore>();
 
         // HTML page model, validation, and native style compilation.
         services.AddSingleton(_ => HtmlElementCatalog.CreateDefault());
@@ -124,10 +133,21 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.TryAddSingleton<SecureScribanTemplateOptions>();
         services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
         services.AddSingleton<IPageFragmentRenderer, ScribanPageFragmentRenderer>();
+        services.AddSingleton<ISharpTsExecutor, SharpTsExecutor>();
+        services.AddSingleton<IPageFragmentRenderer, SharpTsPageFragmentRenderer>();
+        services.AddSingleton<IPageFragmentRenderer, HtmxPageFragmentRenderer>();
         services.AddPageRegisteredFragment<SiteNoticePageRegisteredFragmentProvider>();
         services.AddSingleton<IPageRegisteredFragmentRegistry, PageRegisteredFragmentRegistry>();
         services.TryAddScoped<IContentCompositionResolver, UnavailableContentCompositionResolver>();
+        services.TryAddScoped<IContentHierarchyQueryService, UnavailableContentHierarchyQueryService>();
+        services.AddScoped<IPageContentQueryResolver, PageContentQueryResolver>();
         services.AddScoped<PageCompositionExpander>();
+        services.AddScoped<PageMarkupRenderer>();
+        services.AddScoped<IPageRenderer, AeroCompositionPageRenderer>();
+        services.AddScoped<IPageRenderer, ScribanPageRenderer>();
+        services.AddScoped<IPageRenderer, SharpTsPageRenderer>();
+        services.AddScoped<IPageRenderer, HtmxPageRenderer>();
+        services.AddScoped<IPageRendererRegistry, PageRendererRegistry>();
 
         // FluentValidation
         services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();
@@ -208,6 +228,14 @@ public void Configure(StoreOptions opts)
 
         // DuplicateField for DateTimeOffset (computed indexes don't support this type)
         opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
+
+        // ── PageSourceVersion ─────────────────────────────────────────────
+        opts.Schema.For<PageSourceVersion>().Identity(x => x.Id);
+        opts.Schema.For<PageSourceVersion>().SetSchemaMode(SchemaMode.Flexible);
+        opts.Schema.For<PageSourceVersion>().Index(x => x.SiteId);
+        opts.Schema.For<PageSourceVersion>().Index(x => x.PageId);
+        opts.Schema.For<PageSourceVersion>().Index(x => x.RendererId);
+        opts.Schema.For<PageSourceVersion>().Index(x => new { x.SiteId, x.PageId, x.RendererId });
 
         // ── ContentSlugDocument ───────────────────────────────────────────
         // DocumentAlias not available in AeroDB

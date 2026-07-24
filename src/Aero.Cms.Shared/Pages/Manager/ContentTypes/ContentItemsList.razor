@@ -13,10 +13,13 @@
             <p class="mt-1 text-sm pe-description">@HeaderDescription</p>
         </div>
         <div class="flex gap-3">
-            <RadzenTextBox Placeholder="@L["Search {0}...", _typeName.ToLowerInvariant()]"
-                           Value="@_searchText"
-                           ValueChanged="@OnSearchChanged"
-                           class="w-64" />
+            @if (!_isHierarchical)
+            {
+                <RadzenTextBox Placeholder="@L["Search {0}...", _typeName.ToLowerInvariant()]"
+                               Value="@_searchText"
+                               ValueChanged="@OnSearchChanged"
+                               class="w-64" />
+            }
             <RadzenButton Icon="add"
                           Text="@L["New {0}", _typeName]"
                           ButtonStyle="ButtonStyle.Primary"
@@ -24,7 +27,13 @@
         </div>
     </div>
 
-    <RadzenDataGrid @ref="_grid"
+    @if (_isHierarchical)
+    {
+        <ContentHierarchyManager Alias="@Alias" Title="@_typeName" />
+    }
+    else
+    {
+        <RadzenDataGrid @ref="_grid"
                     Data="@_items"
                     TItem="ContentItemSummary"
                     Count="@_count"
@@ -111,5 +120,6 @@
                 </Template>
             </RadzenDataGridColumn>
         </Columns>
-    </RadzenDataGrid>
+        </RadzenDataGrid>
+    }
 </div>

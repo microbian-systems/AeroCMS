@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Content.Composition;
 
@@ -35,13 +36,27 @@ public sealed class ContentCompositionReferenceValidator(
         var lists = composition.ContentLists ?? [];
         var items = composition.ContentItems ?? [];
         var bindings = composition.FieldBindings ?? [];
+        var queryDeclarations = composition.ContentQueries ?? [];
+        if (queryDeclarations.Any(query => query is null))
+        {
+            errors.Add("Content query declarations cannot be null.");
+        }
+
+        var queries = queryDeclarations
+            .Where(query => query is not null)
+            .Select(query => query!)
+            .ToArray();
         var scopes = lists
             .Select(scope => (scope.NodeId, scope.ContentTypeId))
             .Concat(items.Select(scope => (scope.NodeId, scope.ContentTypeId)))
             .ToArray();
         var definitions = new Dictionary<long, ContentTypeDefinition>();
 
-        foreach (var contentTypeId in scopes.Select(scope => scope.ContentTypeId).Distinct())
+        var referencedTypeIds = scopes
+            .Select(scope => scope.ContentTypeId)
+            .Concat(queries.Select(query => query.ContentTypeId))
+            .Distinct();
+        foreach (var contentTypeId in referencedTypeIds)
         {
             var result = await contentTypes.GetByIdAsync(siteId, contentTypeId, ct);
             if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
@@ -124,6 +139,74 @@ public sealed class ContentCompositionReferenceValidator(
             }
         }
 
+        var normalizedCulture = CultureInfo.GetCultureInfo(culture).Name;
+        foreach (var query in queries)
+        {
+            if (!definitions.TryGetValue(query.ContentTypeId, out var definition))
+            {
+                continue;
+            }
+
+            if (definition.Structure != ContentStructure.Hierarchical)
+            {
+                errors.Add(
+                    $"Content query '{query.Name}' requires hierarchical content type '{definition.Name}'.");
+            }
+
+            foreach (var fieldName in query.Projection.IsDefault ? [] : query.Projection)
+            {
+                ValidateQueryField(definition, fieldName, query.Name, errors);
+            }
+
+            if (query.Traversal is not (
+                    ContentTraversal.Children
+                    or ContentTraversal.Descendants
+                    or ContentTraversal.Ancestors)
+                || query.RootId is not > 0)
+            {
+                continue;
+            }
+
+            var rootResult = await contentItems.LoadAsync(siteId, query.RootId.Value, ct);
+            if (rootResult is not Result<ContentItem, AeroError>.Ok root)
+            {
+                errors.Add(
+                    $"Content root referenced by query '{query.Name}' no longer exists.");
+                continue;
+            }
+
+            if (!string.Equals(
+                    root.Value.ContentTypeAlias,
+                    definition.Alias,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add(
+                    $"Content root '{root.Value.Id}' for query '{query.Name}' does not belong to content type '{definition.Name}'.");
+            }
+
+            if (root.Value.SiteId != siteId)
+            {
+                errors.Add(
+                    $"Content root '{root.Value.Id}' for query '{query.Name}' does not belong to the current site.");
+            }
+
+            if (!string.Equals(
+                    root.Value.Culture,
+                    normalizedCulture,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add(
+                    $"Content root '{root.Value.Id}' for query '{query.Name}' does not belong to culture '{normalizedCulture}'.");
+            }
+
+            if (mode == ContentReferenceValidationMode.Publishing
+                && root.Value.PublicationState != ContentPublicationState.Published)
+            {
+                errors.Add(
+                    $"Content root '{root.Value.Id}' for query '{query.Name}' must be published before this page can be published.");
+            }
+        }
+
         return errors.Count == 0
             ? Prelude.Ok<bool, AeroError>(true)
             : Prelude.Fail<bool, AeroError>(
@@ -147,6 +230,20 @@ public sealed class ContentCompositionReferenceValidator(
         {
             errors.Add(
                 $"Content {referenceKind} field '{fieldName}' in scope '{scopeNodeId}' does not exist on content type '{definition.Name}'.");
+        }
+    }
+
+    private static void ValidateQueryField(
+        ContentTypeDefinition definition,
+        string fieldName,
+        string queryName,
+        ISet<string> errors)
+    {
+        if (!definition.Fields.Any(field =>
+                string.Equals(field.Name, fieldName, StringComparison.OrdinalIgnoreCase)))
+        {
+            errors.Add(
+                $"Content query field '{fieldName}' in query '{queryName}' does not exist on content type '{definition.Name}'.");
         }
     }
 }

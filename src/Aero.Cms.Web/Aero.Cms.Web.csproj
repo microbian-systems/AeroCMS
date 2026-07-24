@@ -13,6 +13,7 @@
 		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
 		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
 		<UserSecretsId>Aero.Cms.Web</UserSecretsId>
+		<SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
 	</PropertyGroup>
 
   <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
@@ -41,6 +42,15 @@
     <PackageReference Include="RazorSlices" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />
+    <!--
+      SharpTS is distributed as a dotnet tool. A raw assembly reference in the
+      Pages module is not transitive into this executable's dependency context,
+      so the host must declare the runtime assembly as well.
+    -->
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS"
+               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
+               Private="true" />
   </ItemGroup>
 
   <ItemGroup>

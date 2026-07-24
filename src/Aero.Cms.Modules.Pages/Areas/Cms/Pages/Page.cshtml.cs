@@ -6,11 +6,14 @@ using Aero.Cms.Shared.Components;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -26,10 +29,9 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 /// <param name="pageActor">The actor used for page and culture-variant lookups.</param>
 /// <param name="siteContext">The current site scope.</param>
 /// <param name="documentStore">The store used to load the selected HTML snapshot.</param>
-/// <param name="compositionExpander">Expands typed-content scopes into an ephemeral HTML tree.</param>
-/// <param name="htmlRenderer">Renders the validated HTML tree.</param>
-/// <param name="styleCompiler">Compiles page-scoped styles against the site profile.</param>
-/// <param name="styleProfileResolver">Resolves the site's allowed style profile.</param>
+/// <param name="rendererRegistry">Resolves the page's explicitly registered rendering strategy.</param>
+/// <param name="contentQueryResolver">Resolves declared content queries before renderer dispatch.</param>
+/// <param name="authorizationService">Enforces manager authorization before draft selection.</param>
 /// <param name="logger">The page logger.</param>
 /// <remarks>
 /// Draft selection is controlled by <see cref="DraftId"/> and is scoped to the
@@ -41,10 +43,9 @@ public class DynamicPageModel(
     IAeroPageActor pageActor,
     ISiteContext siteContext,
     IDocumentStore documentStore,
-    PageCompositionExpander compositionExpander,
-    HtmlStaticRenderer htmlRenderer,
-    IStyleCompiler styleCompiler,
-    ISiteStyleProfileResolver styleProfileResolver,
+    IPageRendererRegistry rendererRegistry,
+    IPageContentQueryResolver contentQueryResolver,
+    IAuthorizationService authorizationService,
     ILogger<DynamicPageModel> logger) : PageModel
 {
     /// <summary>
@@ -134,10 +135,34 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
     {
         AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
+        if (DraftId is null
+            && long.TryParse(
+                HttpContext.Request.RouteValues["draftId"]?.ToString(),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var routeDraftId)
+            && routeDraftId > 0)
+        {
+            DraftId = routeDraftId;
+        }
+
         var requestedSlug = Slug ?? HttpContext.Request.RouteValues["slug"]?.ToString();
 
         if (DraftId is { } draftId)
         {
+            var authorization = await authorizationService.AuthorizeAsync(
+                User,
+                resource: null,
+                "site:read");
+            if (!authorization.Succeeded)
+            {
+                logger.LogWarning(
+                    "Unauthorized draft preview request for PageId={PageId}, SiteId={SiteId}",
+                    draftId,
+                    siteContext.SiteId);
+                return Forbid();
+            }
+
             result = await pageActor.GetByIdAsync(draftId, siteContext.SiteId, cancellationToken);
         }
         else if (string.IsNullOrWhiteSpace(requestedSlug))
@@ -190,7 +215,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
         CanonicalUrl = BuildCultureUrl(RenderedCulture, vm.Slug);
 
-        await using (var session = await documentStore.QuerySessionAsync())
+        await using (var session = await documentStore.LightweightSessionAsync())
         {
             var document = await session.LoadAsync<PageDocument>(vm.Id, cancellationToken);
             if (document is null || document.SiteId != siteContext.SiteId)
@@ -202,6 +227,14 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                     requestedSlug);
                 return NotFound();
             }
+
+            var renderCulture = CultureInfo.GetCultureInfo(document.Culture).Name;
+            RenderedCulture = renderCulture;
+            IsCultureFallback = !string.Equals(
+                RequestedCulture,
+                renderCulture,
+                StringComparison.OrdinalIgnoreCase);
+            CanonicalUrl = BuildCultureUrl(renderCulture, document.Slug);
 
             var content = DraftId is not null
                 ? document.DraftContent
@@ -220,76 +253,111 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                 return NotFound();
             }
 
-            var expansionResult = await compositionExpander.ExpandAsync(
+            var contentQueriesResult = await contentQueryResolver.ResolveAsync(
                 document.SiteId,
-                vm.Culture,
-                content,
-                composition,
-                ResolveContentPageNumbers(composition),
-                cancellationToken,
-                new PageFragmentRenderContext
-                {
-                    SiteId = document.SiteId,
-                    Culture = vm.Culture,
-                    PageId = document.Id,
-                    Title = document.Title,
-                    Slug = document.Slug,
-                    Path = document.Path
-                });
-            if (expansionResult is Result<PageCompositionExpansion, AeroError>.Failure expansionFailure)
-            {
-                logger.LogError(
-                    "Typed content expansion failed for page {PageId} on site {SiteId}: {Error}",
-                    vm.Id,
-                    document.SiteId,
-                    expansionFailure.Error);
-                return StatusCode(StatusCodes.Status500InternalServerError);
-            }
-
-            var expansion = ((Result<PageCompositionExpansion, AeroError>.Ok)expansionResult).Value;
-            var expandedContent = expansion.Content;
-            if (expansion.ContentTypeAliases.Count > 0)
-            {
-                HttpContext.Items["AeroCms.ContentTypeAliases"] = expansion.ContentTypeAliases;
-            }
-
-            var profileResult = await styleProfileResolver.ResolveAsync(
-                document.SiteId,
+                renderCulture,
+                composition?.ContentQueries,
+                includeDrafts: DraftId is not null,
                 cancellationToken);
-            if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
+            if (contentQueriesResult is Result<PageContentQueryResolution>.Failure queryFailure)
             {
                 logger.LogError(
-                    "Style-profile resolution failed for page {PageId} on site {SiteId}: {Error}",
+                    "Content-query resolution failed for page {PageId} on site {SiteId}: {Error}",
                     vm.Id,
                     document.SiteId,
-                    profileFailure.Error);
+                    queryFailure.Error);
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
-            var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
-            var compiled = styleCompiler.Compile(expandedContent, styleProfile);
-            if (compiled is Result<CompiledPageStyles>.Failure styleFailure)
+            var contentQueries =
+                ((Result<PageContentQueryResolution>.Ok)contentQueriesResult).Value;
+
+            var rendererResult = rendererRegistry.Resolve(document.RendererId);
+            if (rendererResult is Result<IPageRenderer>.Failure rendererFailure)
             {
                 logger.LogError(
-                    "Published HTML style compilation failed for page {PageId}: {Error}",
+                    "Page renderer resolution failed for page {PageId} on site {SiteId}: {Error}",
                     vm.Id,
-                    styleFailure.Error);
+                    document.SiteId,
+                    rendererFailure.Error);
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
-            var rendered = htmlRenderer.RenderPage(
-                expandedContent,
-                ((Result<CompiledPageStyles>.Ok)compiled).Value);
-            if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
+            var renderer = ((Result<IPageRenderer>.Ok)rendererResult).Value;
+            PageRenderSource? source = null;
+            if (renderer.Descriptor.RequiresSource)
+            {
+                var rendererId = PageRendererIds.NormalizeOrDefault(document.RendererId);
+                var sourceVersionId = DraftId is not null
+                    ? document.DraftSourceVersionId
+                    : document.PublishedSourceVersionId;
+                var sourceResult = await new PageSourceVersionStore(session).LoadAsync(
+                    sourceVersionId,
+                    document.SiteId,
+                    document.Id,
+                    rendererId,
+                    cancellationToken);
+                if (sourceResult is Result<PageSourceVersionSnapshot?>.Failure sourceFailure)
+                {
+                    logger.LogWarning(
+                        "Page source selection failed for page {PageId} on site {SiteId}: {Error}",
+                        document.Id,
+                        document.SiteId,
+                        sourceFailure.Error);
+                    return NotFound();
+                }
+
+                if (((Result<PageSourceVersionSnapshot?>.Ok)sourceResult).Value is not { } snapshot)
+                {
+                    logger.LogWarning(
+                        "Page {PageId} on site {SiteId} has no selected {SourceKind} source version.",
+                        document.Id,
+                        document.SiteId,
+                        DraftId is not null ? "draft" : "published");
+                    return NotFound();
+                }
+
+                source = new PageRenderSource(
+                    snapshot.Id,
+                    snapshot.RendererId,
+                    snapshot.Source,
+                    snapshot.SourceHash);
+            }
+
+            var rendered = await renderer.RenderAsync(
+                new PageRenderRequest(
+                    new PageRenderMetadata(
+                        document.Id,
+                        document.SiteId,
+                        document.RendererId,
+                        document.Title,
+                        document.Slug,
+                        document.Path,
+                        renderCulture),
+                    source,
+                    content,
+                    composition,
+                    ResolveContentPageNumbers(composition),
+                    contentQueries,
+                    IsPreview: DraftId is not null),
+                cancellationToken);
+            if (rendered is Result<RenderedPage>.Failure renderFailure)
             {
                 logger.LogError(
-                    "Published HTML rendering failed for page {PageId}: {Error}",
+                    "Page rendering failed for page {PageId} on site {SiteId} with renderer {RendererId}: {Error}",
                     vm.Id,
-                    renderFailure.Error);
+                    document.SiteId,
+                    renderer.Id.Value,
+                    FormatError(renderFailure.Error));
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
-            var renderedPage = ((Result<RenderedHtmlPage>.Ok)rendered).Value;
+            var renderedPage = ((Result<RenderedPage>.Ok)rendered).Value;
+            if (renderedPage.ContentTypeAliases.Count > 0)
+            {
+                HttpContext.Items["AeroCms.ContentTypeAliases"] = renderedPage.ContentTypeAliases;
+            }
+
             RenderedMarkup = renderedPage.Markup;
             RenderedCss = renderedPage.CssText;
             HttpContext.Items["AeroCms.SiteId"] = document.SiteId;
@@ -480,6 +548,12 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             Response.StatusCode = reExecuteFeature.OriginalStatusCode;
         }
     }
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        _ => error.ToString() ?? error.GetType().Name
+    };
 
     private void ApplyResponseCacheHeaders()
     {

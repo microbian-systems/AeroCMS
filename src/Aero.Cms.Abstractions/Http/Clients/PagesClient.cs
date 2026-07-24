@@ -2,7 +2,9 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Html;
 
 using Aero.Core.Railway;
@@ -31,6 +33,9 @@ public interface IPagesHttpClient
     /// <returns>The page detail or an error.</returns>
     Task<Result<PageDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
 
+    /// <summary>Gets the exact editable source through the manager-only authoring endpoint.</summary>
+    Task<Result<PageSourceViewModel, AeroError>> GetSourceAsync(long id, CancellationToken ct = default);
+
     /// <summary>
     /// Gets a page detail by its slug.
     /// </summary>
@@ -41,6 +46,10 @@ public interface IPagesHttpClient
 
     /// <summary>Gets the explicitly registered application-fragment catalog.</summary>
     Task<Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>> GetRegisteredFragmentsAsync(
+        CancellationToken ct = default);
+
+    /// <summary>Gets the explicitly registered full-page renderer catalog.</summary>
+    Task<Result<IReadOnlyList<PageRendererDescriptor>, AeroError>> GetRenderersAsync(
         CancellationToken ct = default);
 
     /// <summary>
@@ -189,6 +198,12 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     }
 
     /// <inheritdoc />
+    public Task<Result<PageSourceViewModel, AeroError>> GetSourceAsync(
+        long id,
+        CancellationToken ct = default)
+        => GetAsync<PageSourceViewModel>($"{id}/source", ct);
+
+    /// <inheritdoc />
     public Task<Result<PageDetail, AeroError>> GetBySlugAsync(string slug, CancellationToken ct = default)
     {
         return GetAsync<PageDetail>($"slug/{Uri.EscapeDataString(slug)}", ct);
@@ -216,6 +231,11 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     public Task<Result<IReadOnlyList<PageRegisteredFragmentDescriptor>, AeroError>> GetRegisteredFragmentsAsync(
         CancellationToken ct = default)
         => GetAsync<IReadOnlyList<PageRegisteredFragmentDescriptor>>("registered-fragments", ct);
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<PageRendererDescriptor>, AeroError>> GetRenderersAsync(
+        CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<PageRendererDescriptor>>("renderers", ct);
 
     /// <inheritdoc />
     public Task<Result<PageRouteChangeImpact, AeroError>> GetRouteChangeImpactAsync(
@@ -454,7 +474,9 @@ public record PageDetail(
     HtmlPageContent? DraftContent = null,
     HtmlPageContent? PublishedContent = null,
     PageCompositionDocument? DraftComposition = null,
-    PageCompositionDocument? PublishedComposition = null);
+    PageCompositionDocument? PublishedComposition = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    bool HasUnpublishedChanges = false);
 
 /// <summary>
 /// Request to create a new page.
@@ -472,7 +494,9 @@ public record CreatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     HtmlPageContent? DraftContent = null,
-    PageCompositionDocument? DraftComposition = null);
+    PageCompositionDocument? DraftComposition = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    string? DraftSource = null);
 
 /// <summary>
 /// Request to update an existing page.
@@ -491,7 +515,9 @@ public record UpdatePageRequest(
     bool ShowChatAgent = true,
     HtmlPageContent? DraftContent = null,
     PreviousPathBehavior? PreviousPathBehavior = null,
-    PageCompositionDocument? DraftComposition = null);
+    PageCompositionDocument? DraftComposition = null,
+    string RendererId = PageRendererIds.AeroComposition,
+    string? DraftSource = null);
 
 /// <summary>Proposed route inputs used to calculate redirect impact.</summary>
 public sealed record PageRouteChangeRequest(string Slug, long? ParentId);

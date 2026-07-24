@@ -45,6 +45,48 @@ public sealed class HtmlFragmentImporterTests
     }
 
     [Test]
+    public async Task Import_identifies_the_unsupported_style_element()
+    {
+        var result = CreateImporter().Import("<style>.card { color: red; }</style><div class=\"card\">Card</div>");
+
+        var failure = result as Result<HtmlPageContent>.Failure;
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(Describe(failure!.Error))
+            .IsEqualTo("The '<style>' element is not supported in page fragments.");
+    }
+
+    [Test]
+    public async Task Import_accepts_hx_on_handlers_but_keeps_native_inline_handlers_blocked()
+    {
+        var allowed = CreateImporter().Import(
+            "<button type=\"button\" hx-on:click=\"this.remove()\">Dismiss</button>");
+        var shorthand = CreateImporter().Import(
+            "<button type=\"button\" hx-on::before-request=\"this.disabled = true\">Load</button>");
+        var blocked = CreateImporter().Import(
+            "<button type=\"button\" onclick=\"this.remove()\">Dismiss</button>");
+        var emptyHandlerName = CreateImporter().Import(
+            "<button type=\"button\" hx-on:=\"this.remove()\">Dismiss</button>");
+        var declarativeHtmxAttribute = CreateImporter().Import(
+            "<button type=\"button\" hx-get=\"/fragment\">Load</button>");
+        var externalHtmxRequest = CreateImporter().Import(
+            "<button type=\"button\" hx-get=\"https://attacker.example/fragment\">Load</button>");
+        var executableValues = CreateImporter().Import(
+            "<button type=\"button\" hx-vals=\"js:{ token: document.cookie }\">Load</button>");
+
+        var imported = allowed as Result<HtmlPageContent>.Ok;
+        await Assert.That(imported).IsNotNull();
+        await Assert.That(imported!.Value.Root.Children.Single().Attributes["hx-on:click"])
+            .IsEqualTo("this.remove()");
+        await Assert.That(Validator.Validate(imported.Value)).IsTypeOf<Result<bool>.Ok>();
+        await Assert.That(shorthand).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(blocked).IsTypeOf<Result<HtmlPageContent>.Failure>();
+        await Assert.That(emptyHandlerName).IsTypeOf<Result<HtmlPageContent>.Failure>();
+        await Assert.That(declarativeHtmxAttribute).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(externalHtmxRequest).IsTypeOf<Result<HtmlPageContent>.Failure>();
+        await Assert.That(executableValues).IsTypeOf<Result<HtmlPageContent>.Failure>();
+    }
+
+    [Test]
     public async Task Import_rejects_content_model_violations_before_returning_a_tree()
     {
         var result = CreateImporter().Import("<span><section><p>Invalid nesting</p></section></span>");

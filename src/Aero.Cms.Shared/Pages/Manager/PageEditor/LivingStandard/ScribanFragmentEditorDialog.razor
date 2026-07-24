@@ -1,33 +1,44 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
-@using BlazorMonaco.Editor
 
 <div class="aero-scriban-fragment-overlay" @onclick="CloseAsync">
-    <section class="aero-scriban-fragment-dialog"
+    <section class="@DialogCssClass"
              tabindex="-1"
              role="dialog"
              aria-modal="true"
-             aria-labelledby="aero-scriban-fragment-title"
+             aria-labelledby="@TitleId"
              @onclick:stopPropagation="true"
              @onkeydown="HandleKeyDownAsync"
              @onkeydown:stopPropagation="true">
         <header class="aero-scriban-fragment-dialog__header">
             <div>
                 <span>Rendered content</span>
-                <h2 id="aero-scriban-fragment-title">Edit Scriban template</h2>
+                <h2 id="@TitleId">Edit @DisplayName</h2>
             </div>
-            <button type="button" class="aero-scriban-fragment-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+            <div class="aero-scriban-fragment-dialog__header-actions">
+                <span title="@AiButtonTitle">
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm aero-scriban-fragment-dialog__ai"
+                            disabled="@(!AiEnabled)"
+                            aria-disabled="@(!AiEnabled)"
+                            @onclick="RequestAiAsync">
+                        AI
+                    </button>
+                </span>
+                <button type="button" class="aero-scriban-fragment-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+            </div>
         </header>
 
-        <div class="aero-scriban-fragment-dialog__context">
-            Available scopes: <code>page.id</code>, <code>page.title</code>, <code>page.slug</code>,
-            <code>page.path</code>, <code>page.culture</code>, and <code>site.id</code>.
-        </div>
+        <div class="aero-scriban-fragment-dialog__context">@((MarkupString)ContextHelp)</div>
 
         <div class="aero-scriban-fragment-dialog__body">
-            <StandaloneCodeEditor @ref="_editor"
-                                  Id="@EditorId"
-                                  ConstructionOptions="EditorConstructionOptions"
-                                  OnDidChangeModelContent="OnEditorContentChangedAsync" />
+            <ExpandableMonacoSourceEditor @ref="_editor"
+                                          EditorId="@EditorId"
+                                          Language="@Language"
+                                          AccessibleLabel="@($"{DisplayName} editor")"
+                                          RendererLabel="@DisplayName"
+                                          InitialSource="@InitialSource"
+                                          IsExpanded="@_isExpanded"
+                                          IsExpandedChanged="SetExpandedAsync" />
         </div>
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
@@ -36,12 +47,12 @@
         }
 
         <footer class="aero-scriban-fragment-dialog__footer">
-            <span>Validation and rendering run on the server through the bounded Scriban runtime.</span>
+            <span>@RuntimeHelp</span>
             <div>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
                 <button type="button" class="pe-btn pe-btn-primary pe-btn-sm"
                         disabled="@_isSaving" @onclick="SaveAsync">
-                    @(_isSaving ? "Validating…" : "Apply Scriban")
+                    @(_isSaving ? "Validating…" : $"Apply {DisplayName}")
                 </button>
             </div>
         </footer>

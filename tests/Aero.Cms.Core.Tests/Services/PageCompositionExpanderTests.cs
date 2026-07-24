@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
@@ -377,6 +379,198 @@ public sealed class PageCompositionExpanderTests
     }
 
     [Test]
+    public async Task ExpandAsync_renders_mixed_author_fragments_from_a_saved_aero_page()
+    {
+        var catalog = HtmlElementCatalog.CreateDefault();
+        var content = new HtmlPageContent();
+        var fragments = new List<PageRenderedFragment>();
+
+        AddFragment(
+            PageRenderedFragmentKind.CustomHtml,
+            "<p>Custom <strong>HTML</strong> block</p>");
+        AddFragment(
+            PageRenderedFragmentKind.Scriban,
+            "<p>Site {{ site.id }} · {{ page.culture }}</p>");
+        AddFragment(
+            PageRenderedFragmentKind.Htmx,
+            """
+            <section>
+              <button type="button" hx-get="/api/example" hx-target="#htmx-result">Load content</button>
+              <div id="htmx-result" aria-live="polite"></div>
+            </section>
+            """);
+        AddFragment(
+            PageRenderedFragmentKind.SharpTs,
+            """
+            export function render(context: any) {
+                return html`<p>${context.page.title}</p>`;
+            }
+            """);
+        AddFragment(
+            PageRenderedFragmentKind.Markdown,
+            "## Markdown block\n\nStart writing here.");
+
+        var validator = CreateValidator(catalog);
+        var importer = new HtmlFragmentImporter(
+            catalog,
+            new HtmlAttributePolicy(),
+            new HtmlContentModelPolicy(catalog),
+            validator);
+        var expander = new PageCompositionExpander(
+            Substitute.For<IContentCompositionResolver>(),
+            validator,
+            [
+                new CustomHtmlPageFragmentRenderer(importer),
+                new ScribanPageFragmentRenderer(new SecureScribanRenderer(), importer),
+                new HtmxPageFragmentRenderer(importer),
+                new SharpTsPageFragmentRenderer(new SharpTsExecutor(), importer),
+                new MarkdownPageFragmentRenderer(
+                    new MarkdownInterchangeAdapter(importer, validator))
+            ]);
+
+        var result = await expander.ExpandAsync(
+            1_529_706_005_277_655_041,
+            "en-US",
+            content,
+            new PageCompositionDocument { RenderedFragments = fragments },
+            fragmentContext: new PageFragmentRenderContext
+            {
+                SiteId = 1_529_706_005_277_655_041,
+                Culture = "en-US",
+                PageId = 1_530_221_140_281_556_994,
+                Title = "Troy",
+                Slug = "troy",
+                Path = "/troy",
+                IsPreview = true
+            });
+
+        if (result is Result<PageCompositionExpansion, AeroError>.Failure failure)
+        {
+            throw new InvalidOperationException(FormatError(failure.Error));
+        }
+
+        var expansion = ((Result<PageCompositionExpansion, AeroError>.Ok)result).Value;
+        expansion.Content.Root.Children.Count.ShouldBe(5);
+        expansion.Content.Root.Children[0].Children.Single().TagName.ShouldBe("p");
+        expansion.Content.Root.Children[1].Children.Single().TagName.ShouldBe("p");
+        expansion.Content.Root.Children[2].Children.Single().TagName.ShouldBe("section");
+        expansion.Content.Root.Children[3].Children.Single().TagName.ShouldBe("p");
+        expansion.Content.Root.Children[4].Children[0].TagName.ShouldBe("h2");
+
+        var compiled = new NativeCssStyleCompiler().Compile(
+            expansion.Content,
+            new NativeStyleProfile());
+        if (compiled is Result<CompiledPageStyles>.Failure compileFailure)
+        {
+            throw new InvalidOperationException(FormatError(compileFailure.Error));
+        }
+
+        var rendered = new HtmlStaticRenderer(
+            catalog,
+            new HtmlContentModelPolicy(catalog),
+            new HtmlAttributePolicy(),
+            validator).RenderPage(
+                expansion.Content,
+                ((Result<CompiledPageStyles>.Ok)compiled).Value);
+        if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
+        {
+            throw new InvalidOperationException(FormatError(renderFailure.Error));
+        }
+
+        void AddFragment(PageRenderedFragmentKind kind, string source)
+        {
+            var target = catalog.CreateElement("section");
+            target.Children.Add(HtmlNode.CreateText($"{kind} block — double-click to edit"));
+            content.Root.Children.Add(target);
+            fragments.Add(new PageRenderedFragment
+            {
+                NodeId = target.NodeId,
+                Kind = kind,
+                Source = source
+            });
+        }
+    }
+
+    [Test]
+    public async Task ExpandAsync_exposes_eager_hierarchy_to_scriban_with_string_ids()
+    {
+        var catalog = HtmlElementCatalog.CreateDefault();
+        var target = catalog.CreateElement("section");
+        var content = new HtmlPageContent();
+        content.Root.Children.Add(target);
+        var composition = new PageCompositionDocument
+        {
+            RenderedFragments =
+            [
+                new PageRenderedFragment
+                {
+                    NodeId = target.NodeId,
+                    Kind = PageRenderedFragmentKind.Scriban,
+                    Source = "{{ for topic in content.topics.roots }}<p>{{ topic.id }}|{{ topic.title }}|{{ topic.fields.summary }}|{{ topic.children[0].id }}</p>{{ end }}"
+                }
+            ]
+        };
+        var fields = ImmutableDictionary<string, JsonElement>.Empty
+            .Add("summary", JsonSerializer.SerializeToElement("hello"));
+        var child = new ContentNode(
+            "9007199254740995",
+            "topics",
+            "Child",
+            "child",
+            ImmutableDictionary<string, JsonElement>.Empty,
+            []);
+        var root = new ContentNode(
+            "9007199254740993",
+            "topics",
+            "Root",
+            "root",
+            fields,
+            [child]);
+        var query = new ContentQueryResult(
+            "topics",
+            "topics",
+            [root],
+            2,
+            false);
+        var queryResolution = new PageContentQueryResolution
+        {
+            Results = ImmutableDictionary<string, ContentQueryResult>.Empty
+                .WithComparers(StringComparer.OrdinalIgnoreCase)
+                .Add("topics", query),
+            ContentTypeAliases = ["topics"]
+        };
+        var validator = CreateValidator(catalog);
+        var importer = new HtmlFragmentImporter(
+            catalog,
+            new HtmlAttributePolicy(),
+            new HtmlContentModelPolicy(catalog),
+            validator);
+        var expander = new PageCompositionExpander(
+            Substitute.For<IContentCompositionResolver>(),
+            validator,
+            [new ScribanPageFragmentRenderer(new SecureScribanRenderer(), importer)]);
+
+        var result = await expander.ExpandAsync(
+            42,
+            "en-US",
+            content,
+            composition,
+            fragmentContext: new PageFragmentRenderContext
+            {
+                SiteId = 42,
+                Culture = "en-US",
+                ContentQueries = queryResolution
+            });
+
+        var success = result.ShouldBeOfType<Result<PageCompositionExpansion, AeroError>.Ok>();
+        var expandedTarget = HtmlTreeOperations.FindById(
+            success.Value.Content.Root,
+            target.NodeId)!;
+        expandedTarget.Children.Single().Children.Single().Text.ShouldBe(
+            "9007199254740993|Root|hello|9007199254740995");
+    }
+
+    [Test]
     public async Task Scriban_renderer_rejects_dynamic_evaluation_before_html_import()
     {
         var catalog = HtmlElementCatalog.CreateDefault();
@@ -460,6 +654,12 @@ public sealed class PageCompositionExpanderTests
         var policy = new HtmlContentModelPolicy(catalog);
         return new HtmlContentValidator(catalog, policy, new HtmlAttributePolicy());
     }
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        _ => error.ToString() ?? error.GetType().Name
+    };
 
     private static IEnumerable<HtmlNode> Descendants(HtmlNode node)
     {

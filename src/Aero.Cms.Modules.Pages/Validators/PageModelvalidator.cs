@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Pages.Validators;
@@ -22,6 +23,9 @@ public PageDocumentValidator()
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.SiteId).GreaterThan(0);
         RuleFor(x => x.Title).NotNull().NotEmpty();
+        RuleFor(x => x.RendererId)
+            .Must(rendererId => PageRendererIds.IsValid(PageRendererIds.NormalizeOrDefault(rendererId)))
+            .WithMessage("The page renderer identifier is invalid.");
         
         // Slug validation — homepage uses "/", exempted from the segment pattern
         RuleFor(x => x.Slug)

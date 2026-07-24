@@ -10,14 +10,31 @@
 }
 
 .aero-custom-html-dialog {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     width: min(62rem, 100%);
+    height: min(46rem, calc(100vh - 3rem));
+    height: min(46rem, calc(100dvh - 3rem));
     max-height: calc(100vh - 3rem);
-    overflow: auto;
+    max-height: calc(100dvh - 3rem);
+    overflow: hidden;
     border: 1px solid #dbe3ef;
     border-radius: 1rem;
     color: #172033;
     background: #fff;
     box-shadow: 0 28px 80px rgb(15 23 42 / 28%);
+}
+
+.aero-custom-html-dialog--expanded {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
 }
 
 .aero-custom-html-dialog__header,
@@ -32,10 +49,56 @@
 .aero-custom-html-dialog__header { border-bottom: 1px solid #e2e8f0; }
 .aero-custom-html-dialog__header span { color: #7c3aed; font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .aero-custom-html-dialog__header h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.aero-custom-html-dialog__header-actions { display: flex; align-items: center; gap: .5rem; }
+.aero-custom-html-dialog__header-actions > span { display: inline-flex; }
+.aero-custom-html-dialog__ai { color: #7c3aed; font-weight: 750; }
+.aero-custom-html-dialog__ai:disabled { cursor: not-allowed; opacity: .5; }
 .aero-custom-html-dialog__close { border: 0; color: #64748b; background: transparent; font-size: 1.5rem; cursor: pointer; }
-.aero-custom-html-dialog__body { padding: 1.25rem; }
+.aero-custom-html-dialog__body { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 1.25rem; }
 .aero-custom-html-dialog__body p { margin: 0 0 1rem; color: #64748b; font-size: .82rem; }
 .aero-custom-html-dialog__body label { display: block; margin-bottom: .45rem; font-size: .8rem; font-weight: 700; }
-.aero-custom-html-dialog__body textarea { width: 100%; min-height: 24rem; resize: vertical; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .9rem; color: #e2e8f0; background: #0f172a; font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; tab-size: 2; }
+.aero-custom-html-dialog__mode-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .65rem; }
+.aero-custom-html-dialog__mode-bar strong { font-size: .8rem; }
+.aero-custom-html-dialog__editor { flex: 1; min-height: 18rem; }
+.aero-custom-html-fragment-toolbar { display: flex; align-items: center; gap: .35rem; overflow-x: auto; padding: .55rem; border: 1px solid #dbe3ef; border-bottom: 0; border-radius: .65rem .65rem 0 0; background: #f8fafc; }
+.aero-custom-html-fragment-toolbar button { min-width: 2.25rem; height: 2.25rem; white-space: nowrap; border: 1px solid #dbe3ef; border-radius: .45rem; padding: 0 .6rem; color: #334155; background: #fff; cursor: pointer; }
+.aero-custom-html-fragment-toolbar button:disabled { cursor: wait; opacity: .45; }
+.aero-custom-html-dialog__visual { flex: 1; min-height: 18rem; overflow: auto; border: 1px solid #dbe3ef; border-radius: 0 0 .65rem .65rem; padding: 1rem; background: #fff; }
+.aero-custom-html-dialog__visual-surface { min-height: 16rem; }
+.aero-custom-html-dialog__visual-surface ::deep .aero-tiptap-markdown-prosemirror { min-height: 16rem; outline: none; }
+.aero-custom-html-dialog__loading { margin-bottom: .75rem; color: #64748b; font-size: .8rem; }
 .aero-custom-html-dialog__error { margin: 0 1.25rem .75rem; border-radius: .5rem; padding: .75rem; color: #991b1b; background: #fef2f2; font-size: .8rem; }
 .aero-custom-html-dialog__footer { justify-content: flex-end; border-top: 1px solid #e2e8f0; }
+
+@media (max-width: 40rem) {
+    .aero-custom-html-overlay {
+        padding: .75rem;
+    }
+
+    .aero-custom-html-dialog {
+        height: calc(100vh - 1.5rem);
+        height: calc(100dvh - 1.5rem);
+        max-height: calc(100vh - 1.5rem);
+        max-height: calc(100dvh - 1.5rem);
+    }
+
+    .aero-custom-html-dialog--expanded {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+    }
+
+    .aero-custom-html-dialog__header,
+    .aero-custom-html-dialog__footer {
+        padding: .75rem;
+    }
+
+    .aero-custom-html-dialog__body {
+        padding: .75rem;
+    }
+
+    .aero-custom-html-dialog__editor {
+        min-height: 12rem;
+    }
+}

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,15 @@
     <PackageReference Include="TickerQ" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS"
+               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
+               Private="true" />
+    <Content Include="$(SharpTsToolDirectory)\*.dll"
+             Exclude="$(SharpTsToolDirectory)\SharpTS.dll"
+             Link="%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

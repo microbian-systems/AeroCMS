@@ -187,6 +187,40 @@ public sealed class PageContentServiceTests
     }
 
     [Test]
+    public async Task FindBySlugAsync_DoesNotTreatCultureShapedSlugAsCulturePrefix()
+    {
+        var homepage = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 42,
+            Title = "Homepage",
+            Slug = "/",
+            Path = "/",
+            Culture = "en-US",
+            PublicationState = ContentPublicationState.Published
+        };
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 42,
+            Title = "My Page",
+            Slug = "my-page",
+            Path = "/my-page",
+            Culture = "en-US",
+            PublicationState = ContentPublicationState.Published
+        };
+        _harness.Session.Store(homepage);
+        _harness.Session.Store(page);
+        await _harness.Session.SaveChangesAsync();
+
+        var result = await _service.FindBySlugAsync("my-page", "en-US");
+
+        result.ShouldBeOfType<Result<PageDocument?, AeroError>.Ok>()
+            .Value.ShouldNotBeNull()
+            .Id.ShouldBe(page.Id);
+    }
+
+    [Test]
     public async Task SaveAsync_ExplicitCrossSiteId_IsRejected()
     {
         var page = new PageDocument

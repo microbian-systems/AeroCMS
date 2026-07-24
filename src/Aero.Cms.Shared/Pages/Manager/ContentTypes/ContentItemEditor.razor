@@ -1,4 +1,5 @@
 @page "/manager/content/{alias}/editor/{id:long?}"
+@using Aero.Cms.Abstractions.Content
 @using Aero.Cms.Shared.Layout
 @using Aero.Cms.Shared.Components
 @using Microsoft.Extensions.Localization
@@ -193,6 +194,35 @@
                         <span class="pe-property-label">@L["Title"]</span>
                         <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@L["Untitled {0}", _typeName]" Class="w-full" />
                     </label>
+                    @if (_typeDefinition.Structure == ContentStructure.Hierarchical)
+                    {
+                        <label class="pe-property-group">
+                            <span class="pe-property-label">@L["Parent entry"]</span>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    @bind="_parentId">
+                                <option value="">@L["(root entry)"]</option>
+                                @if (_parentId.HasValue && _parentOptions.All(option => option.Id != _parentId.Value))
+                                {
+                                    <option value="@_parentId.Value">@L["Current parent #{0}", _parentId.Value]</option>
+                                }
+                                @foreach (var option in _parentOptions)
+                                {
+                                    <option value="@option.Id">@option.Title — @option.ContentTypeAlias — @option.Breadcrumb</option>
+                                }
+                            </select>
+                            <span class="text-xs ci-muted">@L["Eligible parents are shown with their content type and breadcrumb."]</span>
+                        </label>
+                        <label class="pe-property-group">
+                            <span class="pe-property-label">@L["Sibling order"]</span>
+                            <input type="number"
+                                   min="0"
+                                   class="w-full rounded-md shadow-sm sm:text-sm"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                   @bind="_sortOrder" />
+                            <span class="text-xs ci-muted">@L["Lower values appear first; titles break ties."]</span>
+                        </label>
+                    }
                     @if (_allowPublicUrl)
                     {
                         <label class="pe-property-group">
