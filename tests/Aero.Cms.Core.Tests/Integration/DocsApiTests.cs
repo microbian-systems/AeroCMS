@@ -75,6 +75,36 @@ public sealed class DocsApiTests
         await actor.DidNotReceive().SaveAsync(Arg.Any<DocViewModel>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task Delete_MapsChildProtectionToConflict_AndMissingToNotFound()
+    {
+        var actor = Substitute.For<IAeroDocsActor>();
+        actor.DeleteDocAsync(10, 42, Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<DocViewModel>(
+                new(),
+                new DocErrorViewModel
+                {
+                    Message = "A documentation section with child sections cannot be deleted.",
+                    Errors = ["A documentation section with child sections cannot be deleted."]
+                }));
+        actor.DeleteDocAsync(11, 42, Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<DocViewModel>(
+                new(),
+                new DocErrorViewModel { Message = "not found" }));
+        await using var app = await CreateAppAsync(actor);
+
+        var protectedDelete = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/admin/docs/10");
+        protectedDelete.WithTestUser(42);
+        using var protectedResponse = await app.GetTestClient().SendAsync(protectedDelete);
+
+        var missingDelete = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/admin/docs/11");
+        missingDelete.WithTestUser(42);
+        using var missingResponse = await app.GetTestClient().SendAsync(missingDelete);
+
+        await Assert.That(protectedResponse.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+        await Assert.That(missingResponse.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
     private static async Task<WebApplication> CreateAppAsync(IAeroDocsActor actor)
     {
         var builder = WebApplication.CreateBuilder(); builder.WebHost.UseTestServer(); builder.Services.AddLogging(); builder.Services.AddTestAuthentication(); builder.Services.AddSingleton(actor);

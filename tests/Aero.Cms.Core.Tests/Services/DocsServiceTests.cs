@@ -172,6 +172,71 @@ public sealed class DocsServiceTests
     }
 
     [Test]
+    public async Task DeleteAsync_OwnSiteParent_IsRejectedWithoutMutationOrEvents()
+    {
+        const long parentId = 210;
+        const long childId = 211;
+        var parent = new DocsPage
+        {
+            Id = parentId,
+            Title = "Parent",
+            Slug = "docs/parent",
+            SiteId = 42,
+            PublicationState = ContentPublicationState.Published
+        };
+        var child = new DocsPage
+        {
+            Id = childId,
+            ParentId = parentId,
+            Title = "Child",
+            Slug = "docs/parent/child",
+            SiteId = 42,
+            PublicationState = ContentPublicationState.Published
+        };
+        _session.Store(parent, child);
+        await _session.SaveChangesAsync();
+
+        var result = await _service.DeleteAsync(parentId, CancellationToken.None);
+
+        result.IsFailure.ShouldBeTrue();
+        (await _session.LoadAsync<DocsPage>(parentId)).ShouldNotBeNull();
+        (await _session.LoadAsync<DocsPage>(childId)).ShouldNotBeNull();
+        await _bus.DidNotReceive().PublishAsync(Arg.Any<DocViewModelDeleted>());
+        await _bus.DidNotReceive().PublishAsync(Arg.Any<DocsPageContentUpdatedEvent>());
+    }
+
+    [Test]
+    public async Task DeleteAsync_OwnSiteLeaf_WithForeignChildIdReference_Succeeds()
+    {
+        const long pageId = 220;
+        _session.Store(
+            new DocsPage
+            {
+                Id = pageId,
+                Title = "Local leaf",
+                Slug = "docs/local-leaf",
+                SiteId = 42,
+                PublicationState = ContentPublicationState.Published
+            },
+            new DocsPage
+            {
+                Id = 221,
+                ParentId = pageId,
+                Title = "Foreign child",
+                Slug = "docs/foreign-child",
+                SiteId = 99,
+                PublicationState = ContentPublicationState.Published
+            });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.DeleteAsync(pageId, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        (await _session.LoadAsync<DocsPage>(pageId)).ShouldBeNull();
+        (await _session.LoadAsync<DocsPage>(221)).ShouldNotBeNull();
+    }
+
+    [Test]
     public async Task GetPublishedAsync_ReturnsSeededHierarchyForSiteAndCulture()
     {
         var root = new DocsPage

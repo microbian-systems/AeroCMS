@@ -53,6 +53,24 @@ public sealed class AeroDocsGrainScopeTests
         await Assert.That(deleteForeign.error.Message).IsNotEmpty();
     }
 
+    [Test]
+    public async Task ScopedDelete_ParentWithChild_ReturnsValidationAndPreservesHierarchy()
+    {
+        await using var harness = new SableTestHarness().WithSchema<DocsPage>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(
+            new DocsPage { Id = 1101, SiteId = 10, Title = "Parent", Slug = "docs/parent" },
+            new DocsPage { Id = 1102, SiteId = 10, ParentId = 1101, Title = "Child", Slug = "docs/parent/child" });
+        await harness.Session.SaveChangesAsync();
+        var grain = new AeroDocsGrain(Substitute.For<ILogger<AeroActor>>(), harness.Store, CreateServices());
+
+        var result = await grain.DeleteDocAsync(1101, 10, CancellationToken.None);
+
+        await Assert.That(result.error.Errors).Contains("A documentation section with child sections cannot be deleted.");
+        await Assert.That(await harness.Session.LoadAsync<DocsPage>(1101)).IsNotNull();
+        await Assert.That(await harness.Session.LoadAsync<DocsPage>(1102)).IsNotNull();
+    }
+
     private static IServiceProvider CreateServices()
     {
         var services = new ServiceCollection();

@@ -290,6 +290,15 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
             if (page is null || page.SiteId != _siteContext.SiteId)
                 return Fail<bool, AeroError>(AeroError.NotFoundError($"Doc with id '{id}' not found or access denied"));
 
+            var child = await _session.Query<DocsPage>()
+                .FirstOrDefaultAsync(
+                    candidate => candidate.SiteId == _siteContext.SiteId
+                        && candidate.ParentId == id,
+                    ct);
+            if (child is not null)
+                return Fail<bool, AeroError>(
+                    AeroError.ValidationError(["A documentation section with child sections cannot be deleted."]));
+
             var slug = page.Slug;
             _session.Delete<DocsPage>(id);
             await _session.SaveChangesAsync(ct);

@@ -1,0 +1,258 @@
+@namespace Aero.Cms.Shared.Components.MarkdownEditor
+@implements IAsyncDisposable
+
+<div class="aero-markdown-editor-shell">
+    <div class="aero-markdown-editor-card">
+        <div class="aero-markdown-toolbar" role="toolbar" aria-label="@L["Markdown formatting"]">
+            <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["History"]">
+                <button type="button" class="aero-markdown-tool" disabled="@(!_isReady)"
+                        title="@L["Undo"]" aria-label="@L["Undo"]"
+                        @onclick='() => ExecuteAsync("undo")'>↶</button>
+                <button type="button" class="aero-markdown-tool" disabled="@(!_isReady)"
+                        title="@L["Redo"]" aria-label="@L["Redo"]"
+                        @onclick='() => ExecuteAsync("redo")'>↷</button>
+            </div>
+
+            <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["Text style"]">
+                <button type="button" class="@ToolClass(_formatting.Paragraph)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Paragraph"
+                        @onclick='() => ExecuteAsync("paragraph")'>@L["Text"]</button>
+                <button type="button" class="@ToolClass(_formatting.Heading2)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Heading2"
+                        title="@L["Heading 2"]" aria-label="@L["Heading 2"]"
+                        @onclick='() => ExecuteAsync("heading2")'>H2</button>
+                <button type="button" class="@ToolClass(_formatting.Heading3)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Heading3"
+                        title="@L["Heading 3"]" aria-label="@L["Heading 3"]"
+                        @onclick='() => ExecuteAsync("heading3")'>H3</button>
+            </div>
+
+            <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["Document structure"]">
+                <button type="button" class="@ToolClass(_formatting.BulletList)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.BulletList"
+                        title="@L["Bulleted list"]" aria-label="@L["Bulleted list"]"
+                        @onclick='() => ExecuteAsync("bulletList")'>• @L["List"]</button>
+                <button type="button" class="@ToolClass(_formatting.OrderedList)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.OrderedList"
+                        title="@L["Numbered list"]" aria-label="@L["Numbered list"]"
+                        @onclick='() => ExecuteAsync("orderedList")'>1. @L["List"]</button>
+                <button type="button" class="@ToolClass(_formatting.Blockquote)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Blockquote"
+                        title="@L["Block quote"]" aria-label="@L["Block quote"]"
+                        @onclick='() => ExecuteAsync("blockquote")'>“”</button>
+                <button type="button" class="@ToolClass(_formatting.CodeBlock)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.CodeBlock"
+                        title="@L["Code block"]" aria-label="@L["Code block"]"
+                        @onclick='() => ExecuteAsync("codeBlock")'>{ }</button>
+                <button type="button" class="aero-markdown-tool" disabled="@(!_isReady)"
+                        title="@L["Horizontal rule"]" aria-label="@L["Horizontal rule"]"
+                        @onclick='() => ExecuteAsync("horizontalRule")'>—</button>
+                <button type="button" class="aero-markdown-tool" disabled="@(!_isReady)"
+                        title="@L["Insert callout"]" aria-label="@L["Insert callout"]"
+                        @onclick='() => ExecuteAsync("callout")'>@L["Callout"]</button>
+            </div>
+
+            <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["Inline formatting"]">
+                <button type="button" class="@ToolClass(_formatting.Bold)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Bold"
+                        title="@L["Bold"]" aria-label="@L["Bold"]"
+                        @onclick='() => ExecuteAsync("bold")'><strong>B</strong></button>
+                <button type="button" class="@ToolClass(_formatting.Italic)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Italic"
+                        title="@L["Italic"]" aria-label="@L["Italic"]"
+                        @onclick='() => ExecuteAsync("italic")'><em>I</em></button>
+                <button type="button" class="@ToolClass(_formatting.Strike)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Strike"
+                        title="@L["Strikethrough"]" aria-label="@L["Strikethrough"]"
+                        @onclick='() => ExecuteAsync("strike")'><s>S</s></button>
+                <button type="button" class="@ToolClass(_formatting.Code)"
+                        disabled="@(!_isReady)" aria-pressed="@_formatting.Code"
+                        title="@L["Inline code"]" aria-label="@L["Inline code"]"
+                        @onclick='() => ExecuteAsync("code")'>&lt;/&gt;</button>
+            </div>
+
+            <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["Insert content"]">
+                <button type="button" class="@ToolClass(_showImagePanel)"
+                        disabled="@(!_isReady)" aria-pressed="@_showImagePanel"
+                        title="@L["Insert image"]" aria-label="@L["Insert image"]"
+                        @onclick="ToggleImagePanel">Image</button>
+                <button type="button" class="@ToolClass(_showTablePanel)"
+                        disabled="@(!_isReady)" aria-pressed="@_showTablePanel"
+                        title="@L["Insert table"]" aria-label="@L["Insert table"]"
+                        @onclick="ToggleTablePanel">Table</button>
+                <button type="button" class="@ToolClass(_showLinkPanel)"
+                        disabled="@(!_isReady)" aria-pressed="@(_showLinkPanel || _formatting.Link)"
+                        title="@L["Edit link"]" aria-label="@L["Edit link"]"
+                        @onclick="ToggleLinkPanelAsync">Link</button>
+            </div>
+
+            @if (_formatting.Table)
+            {
+                <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["Edit table"]">
+                    <button type="button" class="aero-markdown-tool" title="@L["Add row before"]"
+                            @onclick='() => ExecuteAsync("addRowBefore")'>Row ↑</button>
+                    <button type="button" class="aero-markdown-tool" title="@L["Add row after"]"
+                            @onclick='() => ExecuteAsync("addRowAfter")'>Row ↓</button>
+                    <button type="button" class="aero-markdown-tool" title="@L["Delete row"]"
+                            @onclick='() => ExecuteAsync("deleteRow")'>− Row</button>
+                    <button type="button" class="aero-markdown-tool" title="@L["Add column before"]"
+                            @onclick='() => ExecuteAsync("addColumnBefore")'>Column ←</button>
+                    <button type="button" class="aero-markdown-tool" title="@L["Add column after"]"
+                            @onclick='() => ExecuteAsync("addColumnAfter")'>Column →</button>
+                    <button type="button" class="aero-markdown-tool" title="@L["Delete column"]"
+                            @onclick='() => ExecuteAsync("deleteColumn")'>− Column</button>
+                    <button type="button" class="aero-markdown-tool aero-markdown-tool--danger"
+                            title="@L["Delete table"]"
+                            @onclick='() => ExecuteAsync("deleteTable")'>Delete table</button>
+                </div>
+            }
+
+            @if (EnhanceRequested.HasDelegate)
+            {
+                <div class="aero-markdown-toolbar__group" role="group" aria-label="@L["AI tools"]">
+                    <button type="button" class="aero-markdown-tool aero-markdown-tool--ai"
+                            disabled="@(!_isReady || !AiEnabled)"
+                            title="@(AiEnabled ? L["Enhance content with AI"] : L[AiUnavailableMessage])"
+                            aria-label="@L["Enhance content with AI"]"
+                            @onclick="RequestEnhancementAsync">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 3l1.8 5.4L19 10.2l-5.2 1.8L12 17l-1.8-5L5 10.2l5.2-1.8L12 3z"/>
+                            <path d="M5 16l.9 2.6L8.5 19.5l-2.6.9L5 23l-.9-2.6-2.6-.9 2.6-.9L5 16z"/>
+                        </svg>
+                        <span>@L["Enhance"]</span>
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (_showLinkPanel)
+        {
+            <section class="aero-markdown-insert-panel" aria-labelledby="@($"{EditorId}-link-title")">
+                <div class="aero-markdown-insert-panel__header">
+                    <div>
+                        <h3 id="@($"{EditorId}-link-title")">@L["Edit link"]</h3>
+                        <p>@L["Select text first, or enter visible link text below."]</p>
+                    </div>
+                    <button type="button" class="aero-markdown-panel-close"
+                            title="@L["Close"]" aria-label="@L["Close"]"
+                            @onclick="ToggleLinkPanelAsync">×</button>
+                </div>
+                <div class="aero-markdown-insert-grid">
+                    <label>
+                        <span>@L["Visible text"]</span>
+                        <input type="text" @bind="_linkText" @bind:event="oninput" />
+                    </label>
+                    <label>
+                        <span>@L["URL"]</span>
+                        <input type="url" @bind="_linkUrl" @bind:event="oninput"
+                               placeholder="@L["https://example.com"]" />
+                    </label>
+                    <label>
+                        <span>@L["Title (optional)"]</span>
+                        <input type="text" @bind="_linkTitle" @bind:event="oninput" />
+                    </label>
+                </div>
+                <div class="aero-markdown-insert-panel__actions">
+                    @if (_linkWasActive)
+                    {
+                        <button type="button" class="pe-btn pe-btn-ghost"
+                                @onclick="RemoveLinkAsync">@L["Remove link"]</button>
+                    }
+                    <button type="button" class="pe-btn pe-btn-primary"
+                            disabled="@(!CanApplyLink)"
+                            @onclick="ApplyLinkAsync">@L["Apply link"]</button>
+                </div>
+            </section>
+        }
+
+        @if (_showImagePanel)
+        {
+            <section class="aero-markdown-insert-panel" aria-labelledby="@($"{EditorId}-image-title")">
+                <div class="aero-markdown-insert-panel__header">
+                    <h3 id="@($"{EditorId}-image-title")">@L["Insert image"]</h3>
+                    <button type="button" class="aero-markdown-panel-close"
+                            title="@L["Close"]" aria-label="@L["Close"]"
+                            @onclick="ToggleImagePanel">×</button>
+                </div>
+                <div class="aero-markdown-insert-grid">
+                    <label>
+                        <span>@L["Image URL"]</span>
+                        <input type="url" @bind="_imageUrl" placeholder="/media/image.jpg" />
+                    </label>
+                    @if (ChooseMediaRequested.HasDelegate)
+                    {
+                        <button type="button" class="pe-btn pe-btn-secondary"
+                                @onclick="RequestMediaAsync">@L["Choose media"]</button>
+                    }
+                    <label>
+                        <span>@L["Alternative text"]</span>
+                        <input type="text" @bind="_imageAlt"
+                               disabled="@_imageDecorative"
+                               placeholder="@L["Describe the image"]" />
+                    </label>
+                    <label>
+                        <span>@L["Title (optional)"]</span>
+                        <input type="text" @bind="_imageTitle" />
+                    </label>
+                    <label class="aero-markdown-check">
+                        <input type="checkbox" @bind="_imageDecorative" />
+                        <span>@L["Decorative image (empty alternative text)"]</span>
+                    </label>
+                </div>
+                <div class="aero-markdown-insert-panel__actions">
+                    <button type="button" class="pe-btn pe-btn-primary"
+                            disabled="@(!CanInsertImage)"
+                            @onclick="InsertImageAsync">@L["Insert image"]</button>
+                </div>
+            </section>
+        }
+
+        @if (_showTablePanel)
+        {
+            <section class="aero-markdown-insert-panel" aria-labelledby="@($"{EditorId}-table-title")">
+                <div class="aero-markdown-insert-panel__header">
+                    <div>
+                        <h3 id="@($"{EditorId}-table-title")">@L["Insert table"]</h3>
+                        <p>@L["Tables include one header row and use Markdown-compatible cells."]</p>
+                    </div>
+                    <button type="button" class="aero-markdown-panel-close"
+                            title="@L["Close"]" aria-label="@L["Close"]"
+                            @onclick="ToggleTablePanel">×</button>
+                </div>
+                <div class="aero-markdown-table-size">
+                    <label>
+                        <span>@L["Rows"]</span>
+                        <input type="number" min="2" max="10" @bind="_tableRows" />
+                    </label>
+                    <label>
+                        <span>@L["Columns"]</span>
+                        <input type="number" min="1" max="10" @bind="_tableColumns" />
+                    </label>
+                    <button type="button" class="pe-btn pe-btn-primary"
+                            @onclick="InsertTableAsync">@L["Insert table"]</button>
+                </div>
+            </section>
+        }
+
+        @if (!_isReady)
+        {
+            <span class="sr-only" aria-live="polite">@L["Loading Markdown editor..."]</span>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="aero-markdown-error" role="alert">
+                <span>@_error</span>
+                @if (!_isReady)
+                {
+                    <button type="button" class="aero-markdown-retry"
+                            @onclick="RetryAsync">@L["Retry editor"]</button>
+                }
+            </div>
+        }
+
+        <div @ref="_editorElement"
+             class="aero-markdown-editor"
+             aria-label="@AriaLabel"></div>
+    </div>
+</div>

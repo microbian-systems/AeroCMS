@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @using BlazorMonaco.Editor
 @using Aero.Cms.Shared.Components
+@using Aero.Cms.Shared.Components.MarkdownEditor
 @using Microsoft.Extensions.Localization
 
 <HeadContent>
@@ -51,13 +52,6 @@
                 </span>
             </div>
             <div class="pe-meta-right">
-                <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="OpenEnhancePanel" title="@L["Enhance selected post field"]">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 3l1.8 5.4L19 10.2l-5.2 1.8L12 17l-1.8-5L5 10.2l5.2-1.8L12 3z"/>
-                        <path d="M5 16l.9 2.6L8.5 19.5l-2.6.9L5 23l-.9-2.6-2.6-.9 2.6-.9L5 16z"/>
-                    </svg>
-                    @L["Enhance"]
-                </button>
                 <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview" title="@L["Full page preview"]">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -126,210 +120,18 @@
 
         @* ── Tab: Editor (TipTap visual Markdown authoring) ── *@
         @* Kept mounted between tabs so selection, undo history, and JS state survive. *@
-        <div class="pe-editor-tab post-tiptap-shell" style="@(ActiveTab == "editor" ? "" : "display:none")">
-            <div class="post-tiptap-card">
-                <div class="post-tiptap-toolbar" role="toolbar" aria-label="@L["Post formatting"]">
-                    <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["History"]">
-                        <button type="button" class="post-tiptap-tool" disabled="@(!_tiptapReady)"
-                                title="@L["Undo"]" aria-label="@L["Undo"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("undo")'>↶</button>
-                        <button type="button" class="post-tiptap-tool" disabled="@(!_tiptapReady)"
-                                title="@L["Redo"]" aria-label="@L["Redo"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("redo")'>↷</button>
-                    </div>
-
-                    <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["Text style"]">
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Paragraph)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Paragraph"
-                                @onclick='() => ExecuteTiptapCommandAsync("paragraph")'>@L["Text"]</button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Heading2)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Heading2"
-                                aria-label="@L["Heading 2"]" title="@L["Heading 2"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("heading2")'>H2</button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Heading3)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Heading3"
-                                aria-label="@L["Heading 3"]" title="@L["Heading 3"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("heading3")'>H3</button>
-                    </div>
-
-                    <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["Document structure"]">
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.BulletList)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.BulletList"
-                                title="@L["Bulleted list"]" aria-label="@L["Bulleted list"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("bulletList")'>• @L["List"]</button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.OrderedList)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.OrderedList"
-                                title="@L["Numbered list"]" aria-label="@L["Numbered list"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("orderedList")'>1. @L["List"]</button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Blockquote)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Blockquote"
-                                title="@L["Block quote"]" aria-label="@L["Block quote"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("blockquote")'>“”</button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.CodeBlock)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.CodeBlock"
-                                title="@L["Code block"]" aria-label="@L["Code block"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("codeBlock")'>{ }</button>
-                        <button type="button" class="post-tiptap-tool" disabled="@(!_tiptapReady)"
-                                title="@L["Horizontal rule"]" aria-label="@L["Horizontal rule"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("horizontalRule")'>—</button>
-                    </div>
-
-                    <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["Inline formatting"]">
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Bold)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Bold"
-                                title="@L["Bold"]" aria-label="@L["Bold"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("bold")'><strong>B</strong></button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Italic)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Italic"
-                                title="@L["Italic"]" aria-label="@L["Italic"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("italic")'><em>I</em></button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Strike)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Strike"
-                                title="@L["Strikethrough"]" aria-label="@L["Strikethrough"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("strike")'><s>S</s></button>
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Code)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Code"
-                                title="@L["Inline code"]" aria-label="@L["Inline code"]"
-                                @onclick='() => ExecuteTiptapCommandAsync("code")'>&lt;/&gt;</button>
-                    </div>
-
-                    <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["Insert content"]">
-                        <button type="button" class="@TiptapToolClass(ShowTiptapImagePanel)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@ShowTiptapImagePanel"
-                                title="@L["Insert image"]" aria-label="@L["Insert image"]"
-                                @onclick="ToggleTiptapImagePanel">Image</button>
-                        <button type="button" class="@TiptapToolClass(ShowTiptapTablePanel)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@ShowTiptapTablePanel"
-                                title="@L["Insert table"]" aria-label="@L["Insert table"]"
-                                @onclick="ToggleTiptapTablePanel">Table</button>
-                    </div>
-
-                    @if (TiptapFormatting.Table)
-                    {
-                        <div class="post-tiptap-toolbar__group" role="group" aria-label="@L["Edit table"]">
-                            <button type="button" class="post-tiptap-tool" title="@L["Add row before"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("addRowBefore")'>Row ↑</button>
-                            <button type="button" class="post-tiptap-tool" title="@L["Add row after"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("addRowAfter")'>Row ↓</button>
-                            <button type="button" class="post-tiptap-tool" title="@L["Delete row"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("deleteRow")'>− Row</button>
-                            <button type="button" class="post-tiptap-tool" title="@L["Add column before"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("addColumnBefore")'>Column ←</button>
-                            <button type="button" class="post-tiptap-tool" title="@L["Add column after"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("addColumnAfter")'>Column →</button>
-                            <button type="button" class="post-tiptap-tool" title="@L["Delete column"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("deleteColumn")'>− Column</button>
-                            <button type="button" class="post-tiptap-tool post-tiptap-tool--danger"
-                                    title="@L["Delete table"]"
-                                    @onclick='() => ExecuteTiptapCommandAsync("deleteTable")'>Delete table</button>
-                        </div>
-                    }
-
-                    <div class="post-tiptap-toolbar__group post-tiptap-toolbar__links" role="group" aria-label="@L["Links"]">
-                        <label class="sr-only" for="post-tiptap-link-url">@L["Link destination"]</label>
-                        <input id="post-tiptap-link-url" type="url" class="post-tiptap-link-input"
-                               placeholder="@L["https://example.com"]"
-                               @bind="TiptapLinkUrl" @bind:event="oninput" />
-                        <button type="button" class="@TiptapToolClass(TiptapFormatting.Link)"
-                                disabled="@(!_tiptapReady)" aria-pressed="@TiptapFormatting.Link"
-                                @onclick='() => ExecuteTiptapCommandAsync("link", TiptapLinkUrl)'>@L["Link"]</button>
-                        <button type="button" class="post-tiptap-tool"
-                                disabled="@(!_tiptapReady || !TiptapFormatting.Link)"
-                                @onclick='() => ExecuteTiptapCommandAsync("unlink")'>@L["Unlink"]</button>
-                    </div>
-                </div>
-
-                @if (ShowTiptapImagePanel)
-                {
-                    <section class="post-tiptap-insert-panel" aria-labelledby="post-tiptap-image-title">
-                        <div class="post-tiptap-insert-panel__header">
-                            <h3 id="post-tiptap-image-title">@L["Insert image"]</h3>
-                            <button type="button" class="post-tiptap-panel-close"
-                                    title="@L["Close"]" aria-label="@L["Close"]"
-                                    @onclick="ToggleTiptapImagePanel">×</button>
-                        </div>
-                        <div class="post-tiptap-insert-grid">
-                            <label>
-                                <span>@L["Image URL"]</span>
-                                <input type="url" @bind="TiptapImageUrl" placeholder="/media/image.jpg" />
-                            </label>
-                            <button type="button" class="pe-btn pe-btn-secondary"
-                                    @onclick="OpenBodyMediaSelector">@L["Choose media"]</button>
-                            <label>
-                                <span>@L["Alternative text"]</span>
-                                <input type="text" @bind="TiptapImageAlt"
-                                       disabled="@TiptapImageDecorative"
-                                       placeholder="@L["Describe the image"]" />
-                            </label>
-                            <label>
-                                <span>@L["Title (optional)"]</span>
-                                <input type="text" @bind="TiptapImageTitle" />
-                            </label>
-                            <label class="post-tiptap-check">
-                                <input type="checkbox" @bind="TiptapImageDecorative" />
-                                <span>@L["Decorative image (empty alternative text)"]</span>
-                            </label>
-                        </div>
-                        <div class="post-tiptap-insert-panel__actions">
-                            <button type="button" class="pe-btn pe-btn-primary"
-                                    disabled="@(!CanInsertTiptapImage)"
-                                    @onclick="InsertTiptapImageAsync">@L["Insert image"]</button>
-                        </div>
-                    </section>
-                }
-
-                @if (ShowTiptapTablePanel)
-                {
-                    <section class="post-tiptap-insert-panel" aria-labelledby="post-tiptap-table-title">
-                        <div class="post-tiptap-insert-panel__header">
-                            <div>
-                                <h3 id="post-tiptap-table-title">@L["Insert table"]</h3>
-                                <p>@L["Tables include one header row and use Markdown-compatible cells."]</p>
-                            </div>
-                            <button type="button" class="post-tiptap-panel-close"
-                                    title="@L["Close"]" aria-label="@L["Close"]"
-                                    @onclick="ToggleTiptapTablePanel">×</button>
-                        </div>
-                        <div class="post-tiptap-table-size">
-                            <label>
-                                <span>@L["Rows"]</span>
-                                <input type="number" min="2" max="10" @bind="TiptapTableRows" />
-                            </label>
-                            <label>
-                                <span>@L["Columns"]</span>
-                                <input type="number" min="1" max="10" @bind="TiptapTableColumns" />
-                            </label>
-                            <button type="button" class="pe-btn pe-btn-primary"
-                                    @onclick="InsertTiptapTableAsync">@L["Insert table"]</button>
-                        </div>
-                    </section>
-                }
-
-                @if (!_contentInitialized || !_tiptapReady)
-                {
-                    <span class="sr-only" aria-live="polite">@L["Loading Markdown editor..."]</span>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(TiptapError))
-                {
-                    <div class="post-tiptap-error" role="alert">
-                        <span>@TiptapError</span>
-                        @if (!_tiptapReady)
-                        {
-                            <button type="button"
-                                    class="post-tiptap-retry"
-                                    @onclick="RetryTiptapAsync">@L["Retry editor"]</button>
-                        }
-                    </div>
-                }
-
-                <div @ref="_tiptapElement"
-                     class="post-tiptap-editor"
-                     aria-label="@L["Post body"]"></div>
-            </div>
+        <div class="pe-editor-tab" style="@(ActiveTab == "editor" ? "" : "display:none")">
+            <AeroMarkdownEditor @ref="_markdownEditor"
+                                EditorId="post-markdown-editor-visual"
+                                Markdown="@Content"
+                                MarkdownChanged="OnMarkdownEditorSynchronized"
+                                ContentChanged="OnMarkdownEditorContentChanged"
+                                ChooseMediaRequested="OpenBodyMediaSelector"
+                                EnhanceRequested="OpenEnhancePanel"
+                                AiEnabled="@(AiProviderOptions.Count > 0)"
+                                AriaLabel="@L["Post body"]" />
         </div>
 
-        @* ── Tab: Code (BlazorMonaco) ─────────────────── *@
         @* Always rendered (CSS hidden) so Monaco stays initialized *@
         <div class="pe-editor-tab" style="@(ActiveTab == "code" ? "" : "display:none")">
             <StandaloneCodeEditor @ref="_editor"

@@ -3,6 +3,8 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Shared.Components.MarkdownEditor;
+using Aero.Cms.Shared.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
@@ -60,6 +62,8 @@ protected OutlineNode? SelectedNode { get; private set; }
     /// Gets or sets the Active Tab.
     /// </summary>
 protected string ActiveTab { get; set; } = "content";
+    /// <summary>Gets or sets the active document inspector panel.</summary>
+    protected string InspectorTab { get; set; } = "structure";
         /// <summary>
     /// Gets or sets the Preview Mode.
     /// </summary>
@@ -126,6 +130,8 @@ protected IEnumerable<string> AvailableTranslationCultures =>
     private bool _multiSelect;
     private string _outlineSearch = string.Empty;
     private long? _loadedParentId;
+    private long _previewRefreshVersion;
+    private AeroMarkdownEditor? _markdownEditor;
     private readonly HashSet<long> _selectedIds = [];
 
         /// <summary>
@@ -351,17 +357,25 @@ protected override async Task OnParametersSetAsync()
         }
     }
 
-    private async Task SaveCurrentAsync()
+    private async Task SaveCurrentFromUiAsync()
+        => _ = await SaveCurrentAsync();
+
+    private async Task<bool> SaveCurrentAsync()
     {
         if (Current is null)
         {
-            return;
+            return false;
+        }
+
+        if (!await SynchronizeMarkdownEditorAsync())
+        {
+            return false;
         }
 
         if (string.IsNullOrWhiteSpace(Current.Title) || string.IsNullOrWhiteSpace(Current.Slug))
         {
             NotifyError("Missing fields", "Title and slug are required.");
-            return;
+            return false;
         }
 
         _isSaving = true;
@@ -373,7 +387,7 @@ protected override async Task OnParametersSetAsync()
                 if (page.ParentId is null)
                 {
                     NotifyError("Missing parent", "Sections must stay inside the current docs space.");
-                    return;
+                    return false;
                 }
 
                 var moveResult = await DocsClient.MoveAsync(SpaceId, page.Id, new DocsMoveRequest(page.ParentId.Value, page.Order));
@@ -384,7 +398,7 @@ protected override async Task OnParametersSetAsync()
                 else if (moveResult is Result<DocsDetail, AeroError>.Failure moveFailure)
                 {
                     NotifyError("Move failed", moveFailure.Error.ToString());
-                    return;
+                    return false;
                 }
             }
 
@@ -394,7 +408,7 @@ protected override async Task OnParametersSetAsync()
                 Current = ok.Value;
                 NotificationService.Notify(NotificationSeverity.Success, "Saved", ok.Value.Title);
                 await LoadAsync();
-                return;
+                return true;
             }
 
             if (result is Result<DocsDetail, AeroError>.Failure failure)
@@ -406,6 +420,8 @@ protected override async Task OnParametersSetAsync()
         {
             _isSaving = false;
         }
+
+        return false;
     }
 
     private async Task LoadDocTranslationsAsync()
@@ -503,7 +519,10 @@ protected void OpenTranslation(long docId)
 
         if (_dirty)
         {
-            await SaveCurrentAsync();
+            if (!await SaveCurrentAsync())
+            {
+                return;
+            }
         }
 
         var result = await DocsClient.PublishAsync(Current.Id);
@@ -592,8 +611,16 @@ protected void OpenTranslation(long docId)
             return;
         }
 
+        if ((SelectedNode?.ChildCount ?? 0) > 0)
+        {
+            NotifyError(
+                "Section has children",
+                "Move or delete the child sections before deleting this section.");
+            return;
+        }
+
         var confirmed = await DialogService.Confirm(
-            $"Delete '{Current.Title}' and any child sections?",
+            $"Delete '{Current.Title}'?",
             "Delete section",
             new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
 
@@ -619,7 +646,8 @@ protected void OpenTranslation(long docId)
     private void EditNodeAttributes(OutlineNode node)
     {
         SelectNode(node);
-        ActiveTab = "attributes";
+        ActiveTab = "content";
+        InspectorTab = "attributes";
         PreviewMode = false;
     }
 
@@ -684,8 +712,17 @@ protected void OpenTranslation(long docId)
             return;
         }
 
+        var node = Outline.FirstOrDefault(item => item.Id == nodeId);
+        if ((node?.ChildCount ?? 0) > 0)
+        {
+            NotifyError(
+                "Section has children",
+                "Move or delete the child sections before deleting this section.");
+            return;
+        }
+
         var confirmed = await DialogService.Confirm(
-            $"Delete '{detail.Title}' and any child sections?",
+            $"Delete '{detail.Title}'?",
             "Delete section",
             new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
 
@@ -721,7 +758,11 @@ protected void OpenTranslation(long docId)
 
     private async Task DeleteSelectedAsync()
     {
-        var ids = _selectedIds.Where(id => id != SpaceId).ToList();
+        var ids = Outline
+            .Where(node => node.Id != SpaceId && _selectedIds.Contains(node.Id))
+            .OrderByDescending(node => node.Depth)
+            .Select(node => node.Id)
+            .ToList();
         if (ids.Count == 0)
         {
             return;
@@ -768,10 +809,27 @@ protected void OpenTranslation(long docId)
         Navigation.NavigateTo("/manager/docs");
     }
 
-    private void TogglePreview()
+    private async Task TogglePreviewAsync()
     {
-        PreviewMode = !PreviewMode;
-        ActiveTab = PreviewMode ? "preview" : "content";
+        if (PreviewMode)
+        {
+            await ClosePreviewAsync();
+            return;
+        }
+
+        if (!await SynchronizeMarkdownEditorAsync())
+            return;
+
+        _previewRefreshVersion++;
+        PreviewMode = true;
+        ActiveTab = "preview";
+    }
+
+    private Task ClosePreviewAsync()
+    {
+        PreviewMode = false;
+        ActiveTab = "content";
+        return Task.CompletedTask;
     }
 
     private void ToggleMultiSelect(ChangeEventArgs args)
@@ -815,9 +873,43 @@ protected void OpenTranslation(long docId)
         UpdateCurrent(current => current.Slug = args.Value?.ToString() ?? string.Empty);
     }
 
-    private void OnMarkdownChanged(ChangeEventArgs args)
+    private Task OnMarkdownEditorContentChanged()
     {
-        UpdateCurrent(current => current.MarkdownContent = args.Value?.ToString());
+        _dirty = true;
+        HasUnpublishedChanges = true;
+        return Task.CompletedTask;
+    }
+
+    private Task OnMarkdownEditorSynchronized(string markdown)
+    {
+        if (Current is not null
+            && !string.Equals(Current.MarkdownContent, markdown, StringComparison.Ordinal))
+        {
+            UpdateCurrent(current => current.MarkdownContent = markdown);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> SynchronizeMarkdownEditorAsync()
+    {
+        if (_markdownEditor is null)
+        {
+            return true;
+        }
+
+        var result = await _markdownEditor.SynchronizeAsync();
+        if (result is Result<string>.Ok)
+        {
+            return true;
+        }
+
+        if (result is Result<string>.Failure failure)
+        {
+            NotifyError("Markdown could not be synchronized", failure.Error.ToString());
+        }
+
+        return false;
     }
 
     private void OnOrderChanged(ChangeEventArgs args)
@@ -1010,6 +1102,10 @@ protected string NodeClass(OutlineNode node)
 protected string TabClass(string tab)
         => ActiveTab == tab ? "active" : string.Empty;
 
+    /// <summary>Returns the active class for an inspector tab.</summary>
+    protected string InspectorTabClass(string tab)
+        => InspectorTab == tab ? "active" : string.Empty;
+
         /// <summary>
     /// StatusClass method.
     /// </summary>
@@ -1028,7 +1124,41 @@ protected bool IsSpaceNode(OutlineNode node)
     /// PublicUrl method.
     /// </summary>
 protected string PublicUrl(DocsDetail doc)
-        => $"/docs/{doc.Slug}";
+        => AeroCultureRoute.BuildCulturePath(doc.Culture, doc.Slug);
+
+    /// <summary>
+    /// Gets the full-site, authenticated draft URL displayed by the shared preview overlay.
+    /// </summary>
+protected string? PreviewFrameUrl => Current is null
+        ? null
+        : BuildAbsoluteUrl(
+            $"_cms/preview/docs/drafts/{Current.Id}?previewVersion={_previewRefreshVersion}",
+            ResolvePreviewBaseUri(CurrentSite));
+
+    private string BuildAbsoluteUrl(string relativeUrl, string? baseUri = null)
+        => new Uri(new Uri(baseUri ?? Navigation.BaseUri), relativeUrl.TrimStart('/')).ToString();
+
+    private string? ResolvePreviewBaseUri(SiteViewModel? site)
+    {
+        var host = site?.PrimaryHost;
+        if (string.IsNullOrWhiteSpace(host))
+            host = site?.Hosts?.FirstOrDefault(static candidate => !string.IsNullOrWhiteSpace(candidate));
+
+        if (string.IsNullOrWhiteSpace(host))
+            return null;
+
+        host = host.Trim().TrimEnd('/');
+        var currentUri = new Uri(Navigation.BaseUri);
+        var siteUri = Uri.TryCreate(host, UriKind.Absolute, out var absoluteUri)
+            ? absoluteUri
+            : new Uri($"{currentUri.Scheme}://{host}");
+
+        if (siteUri.Port != currentUri.Port)
+            siteUri = new UriBuilder(siteUri) { Port = currentUri.Port }.Uri;
+
+        var resolved = siteUri.ToString();
+        return resolved.EndsWith("/", StringComparison.Ordinal) ? resolved : $"{resolved}/";
+    }
 
     private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
     {

@@ -47,6 +47,12 @@ public DocModel(IDocsService docsService, IDocsTreeService docsTreeService)
     public string? Slug { get; set; }
 
     /// <summary>
+    /// Gets or sets the draft identifier supplied by the authenticated manager preview route.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
+    public long? DraftId { get; set; }
+
+    /// <summary>
     /// Gets the published page selected for rendering.
     /// </summary>
 public DocsPage? MarkdownPage { get; private set; }
@@ -113,13 +119,24 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
-        // The localized route has already consumed both the culture and the "docs"
-        // prefix. Treat the catch-all as a document path, not as another culture-aware
-        // URL; valid path segments such as "api" can also be accepted by CultureInfo.
-        var documentPath = Slug?.Trim().Trim('/');
-        var pageSlug = string.IsNullOrWhiteSpace(documentPath) ? "docs" : $"docs/{documentPath}";
+        global::Aero.Core.Railway.Result<DocsPage?, AeroError> result;
 
-        var result = await _docsService.GetPublishedBySlugAsync(pageSlug, RequestedCulture, cancellationToken);
+        if (DraftId is { } draftId)
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+                return Unauthorized();
+
+            result = await _docsService.GetByIdAsync(draftId, cancellationToken);
+        }
+        else
+        {
+            // The localized route has already consumed both the culture and the "docs"
+            // prefix. Treat the catch-all as a document path, not as another culture-aware
+            // URL; valid path segments such as "api" can also be accepted by CultureInfo.
+            var documentPath = Slug?.Trim().Trim('/');
+            var pageSlug = string.IsNullOrWhiteSpace(documentPath) ? "docs" : $"docs/{documentPath}";
+            result = await _docsService.GetPublishedBySlugAsync(pageSlug, RequestedCulture, cancellationToken);
+        }
 
         if (result is not global::Aero.Core.Railway.Result<DocsPage?, AeroError>.Ok ok || ok.Value is null)
             return NotFound();
@@ -211,7 +228,24 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         HttpContext.Items["AeroCms.DocId"] = MarkdownPage.Id;
         HttpContext.Items["AeroCms.DocSlug"] = MarkdownPage.Slug;
 
+        ApplyResponseCacheHeaders();
         return Page();
+    }
+
+    /// <summary>
+    /// Prevents authenticated draft previews from being stored by browsers or intermediary caches.
+    /// </summary>
+    private void ApplyResponseCacheHeaders()
+    {
+        if (DraftId is not null)
+        {
+            Response.Headers.CacheControl = "no-store, no-cache";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers.Expires = "0";
+            return;
+        }
+
+        Response.Headers.CacheControl = "public,max-age=600";
     }
 
     private static List<DocsSidebarNode> BuildSidebarTree(IReadOnlyList<DocsPage> pages, long activeId)

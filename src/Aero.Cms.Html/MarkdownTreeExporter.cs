@@ -105,10 +105,53 @@ internal sealed class MarkdownTreeExporter(
     private static string RenderBlockquote(HtmlNode node)
     {
         EnsureAttributes(node);
+
+        if (TryGetCanonicalCalloutMarker(node, out var marker))
+        {
+            var lines = new List<string> { $"> {marker}" };
+            if (node.Children.Count > 1)
+            {
+                lines.Add(">");
+                var calloutBody = RenderBlocks(node.Children.Skip(1));
+                lines.AddRange(
+                    calloutBody.Split('\n').Select(line => line.Length == 0 ? ">" : $"> {line}"));
+            }
+
+            return string.Join("\n", lines);
+        }
+
         var body = RenderBlocks(node.Children);
         return string.Join(
             "\n",
             body.Split('\n').Select(line => line.Length == 0 ? ">" : $"> {line}"));
+    }
+
+    /// <summary>
+    /// Preserves the bounded GitHub-style callout marker syntax instead of escaping it as
+    /// ordinary paragraph text. Unknown markers remain ordinary blockquote content.
+    /// </summary>
+    private static bool TryGetCanonicalCalloutMarker(HtmlNode node, out string marker)
+    {
+        marker = string.Empty;
+        if (node.Children.Count == 0)
+        {
+            return false;
+        }
+
+        var paragraph = node.Children[0];
+        if (paragraph.Kind is not HtmlNodeKind.Element
+            || paragraph.TagName != "p"
+            || paragraph.Children.Count != 1
+            || paragraph.Children[0].Kind is not HtmlNodeKind.Text)
+        {
+            return false;
+        }
+
+        EnsureNoPresentation(paragraph);
+        EnsureAttributes(paragraph);
+
+        marker = paragraph.Children[0].Text ?? string.Empty;
+        return marker is "[!NOTE]" or "[!TIP]" or "[!IMPORTANT]" or "[!WARNING]" or "[!CAUTION]";
     }
 
     /// <summary>Renders an attribute-free, childless thematic break.</summary>

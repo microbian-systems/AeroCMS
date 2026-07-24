@@ -7,15 +7,13 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Html;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
+using Aero.Cms.Shared.Components.MarkdownEditor;
 using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
 using BlazorMonaco.Editor;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
-using Microsoft.JSInterop;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PostEditor;
@@ -86,9 +84,6 @@ public partial class PostEditor : ComponentBase, IAsyncDisposable
     /// Gets or sets the Dialog Service.
     /// </summary>
 [Inject] protected DialogService DialogService { get; set; } = default!;
-    /// <summary>Gets or sets the JavaScript runtime used by the TipTap Markdown editor.</summary>
-    [Inject] protected IJSRuntime JS { get; set; } = default!;
-
     // ──────────────────────────────────────────────────────────
     // Editor state
     // ──────────────────────────────────────────────────────────
@@ -105,9 +100,6 @@ protected string PostSlug { get; set; } = string.Empty;
     /// Gets or sets the Content.
     /// </summary>
 protected string Content { get; set; } = string.Empty;
-    private static readonly HtmlElementCatalog PostMarkdownHtmlCatalog = HtmlElementCatalog.CreateDefault();
-    private static readonly IHtmlContentModelPolicy PostMarkdownContentPolicy =
-        new HtmlContentModelPolicy(PostMarkdownHtmlCatalog);
         /// <summary>
     /// Gets or sets the Excerpt.
     /// </summary>
@@ -259,27 +251,8 @@ protected List<SeriesSummary> Series { get; set; } = [];
 protected StandaloneCodeEditor? _editor;
     private bool _editorReady;
 
-    // TipTap visual Markdown editor
-    protected ElementReference _tiptapElement;
-    private TiptapMarkdownEditorInterop? _tiptapEditor;
-    private DotNetObjectReference<PostEditor>? _tiptapCallbackReference;
-    private bool _tiptapInitializationAttempted;
-    private bool _tiptapHasUnsynchronizedChanges;
-    protected bool _tiptapReady;
-    protected string? TiptapError { get; set; }
-    protected string? TiptapLinkUrl { get; set; }
-    protected bool ShowTiptapImagePanel { get; set; }
-    protected string? TiptapImageUrl { get; set; }
-    protected string? TiptapImageAlt { get; set; }
-    protected string? TiptapImageTitle { get; set; }
-    protected bool TiptapImageDecorative { get; set; }
-    protected bool ShowTiptapTablePanel { get; set; }
-    protected int TiptapTableRows { get; set; } = 3;
-    protected int TiptapTableColumns { get; set; } = 3;
-    protected TiptapMarkdownFormattingState TiptapFormatting { get; set; } = new();
-    protected bool CanInsertTiptapImage =>
-        !string.IsNullOrWhiteSpace(TiptapImageUrl)
-        && (TiptapImageDecorative || !string.IsNullOrWhiteSpace(TiptapImageAlt));
+    // Reusable visual Markdown editor
+    protected AeroMarkdownEditor? _markdownEditor;
 
     // Guards against RadzenTextArea @bind-Value firing ValueChanged("") 
     // during initialization and overwriting async-loaded content
@@ -403,6 +376,7 @@ protected override async Task OnInitializedAsync()
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
         await LoadReferenceDataAsync();
+        await LoadAiProviderOptionsAsync();
 
         if (Id.HasValue)
         {
@@ -440,10 +414,6 @@ protected override async Task OnAfterRenderAsync(bool firstRender)
             _editorReady = true;
         }
 
-        if (_contentInitialized && !_tiptapReady && !_tiptapInitializationAttempted)
-        {
-            await InitializeTiptapAsync();
-        }
     }
 
         /// <summary>
@@ -455,12 +425,6 @@ public async ValueTask DisposeAsync()
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
 
-        if (_tiptapEditor is not null)
-        {
-            await _tiptapEditor.DisposeAsync();
-        }
-
-        _tiptapCallbackReference?.Dispose();
     }
 
     private async Task LoadReferenceDataAsync()
@@ -524,216 +488,65 @@ public async ValueTask DisposeAsync()
     }
 
     // ──────────────────────────────────────────────────────────
-    // TipTap visual Markdown integration
+    // Reusable visual Markdown integration
     // ──────────────────────────────────────────────────────────
 
-    private static IHtmlFragmentImporter CreatePostMarkdownHtmlImporter()
+    private async Task<bool> FlushMarkdownEditorAsync()
     {
-        var attributePolicy = new HtmlAttributePolicy();
-        return new HtmlFragmentImporter(
-            PostMarkdownHtmlCatalog,
-            attributePolicy,
-            PostMarkdownContentPolicy,
-            new HtmlContentValidator(
-                PostMarkdownHtmlCatalog,
-                PostMarkdownContentPolicy,
-                attributePolicy));
-    }
-
-    private static IMarkdownInterchangeAdapter CreatePostMarkdownAdapter()
-    {
-        var attributePolicy = new HtmlAttributePolicy();
-        return new MarkdownInterchangeAdapter(
-            CreatePostMarkdownHtmlImporter(),
-            new HtmlContentValidator(
-                PostMarkdownHtmlCatalog,
-                PostMarkdownContentPolicy,
-                attributePolicy));
-    }
-
-    private static HtmlStaticRenderer CreatePostMarkdownRenderer()
-    {
-        var attributePolicy = new HtmlAttributePolicy();
-        return new HtmlStaticRenderer(
-            PostMarkdownHtmlCatalog,
-            PostMarkdownContentPolicy,
-            attributePolicy,
-            new HtmlContentValidator(
-                PostMarkdownHtmlCatalog,
-                PostMarkdownContentPolicy,
-                attributePolicy));
-    }
-
-    private static Result<string> ConvertMarkdownToTiptapHtml(string markdown)
-    {
-        if (string.IsNullOrWhiteSpace(markdown))
-        {
-            return new Result<string>.Ok(string.Empty);
-        }
-
-        var imported = CreatePostMarkdownAdapter().Import(markdown);
-        if (imported is Result<HtmlPageContent>.Failure importFailure)
-        {
-            return importFailure.Error;
-        }
-
-        return CreatePostMarkdownRenderer().Render(
-            ((Result<HtmlPageContent>.Ok)imported).Value);
-    }
-
-    private static Result<string> ConvertTiptapHtmlToMarkdown(string html)
-    {
-        if (IsEmptyTiptapHtml(html))
-        {
-            return new Result<string>.Ok(string.Empty);
-        }
-
-        var imported = CreatePostMarkdownHtmlImporter().Import(html);
-        if (imported is Result<HtmlPageContent>.Failure importFailure)
-        {
-            return importFailure.Error;
-        }
-
-        return CreatePostMarkdownAdapter().Export(
-            ((Result<HtmlPageContent>.Ok)imported).Value);
-    }
-
-    private static bool IsEmptyTiptapHtml(string html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
+        if (_markdownEditor is null)
         {
             return true;
         }
 
-        return Regex.IsMatch(
-            html,
-            @"^(?:\s*<p>\s*(?:<br\s*/?>)?\s*</p>\s*)+$",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    }
-
-    private async Task InitializeTiptapAsync()
-    {
-        _tiptapInitializationAttempted = true;
-        var rendered = ConvertMarkdownToTiptapHtml(Content);
-        if (rendered is Result<string>.Failure failure)
+        var synchronized = await _markdownEditor.SynchronizeAsync();
+        if (synchronized is Result<string>.Failure)
         {
-            TiptapError = $"The Markdown content cannot be opened safely: {FormatError(failure.Error)}";
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        try
-        {
-            _tiptapEditor = new TiptapMarkdownEditorInterop(JS);
-            _tiptapCallbackReference = DotNetObjectReference.Create(this);
-            await _tiptapEditor.InitializeAsync(
-                _tiptapElement,
-                ((Result<string>.Ok)rendered).Value,
-                _tiptapCallbackReference);
-            _tiptapHasUnsynchronizedChanges = false;
-            _tiptapReady = true;
-            TiptapError = null;
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (JSException exception)
-        {
-            TiptapError = $"The browser Markdown editor could not be loaded: {exception.Message}";
-            if (_tiptapEditor is not null)
-            {
-                await _tiptapEditor.DisposeAsync();
-                _tiptapEditor = null;
-            }
-
-            _tiptapCallbackReference?.Dispose();
-            _tiptapCallbackReference = null;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    protected async Task RetryTiptapAsync()
-    {
-        _tiptapInitializationAttempted = false;
-        TiptapError = null;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task<bool> FlushTiptapAsync()
-    {
-        if (_tiptapEditor is null || !_tiptapReady)
-        {
-            _tiptapInitializationAttempted = false;
-            return true;
-        }
-
-        if (!_tiptapHasUnsynchronizedChanges)
-        {
-            return true;
-        }
-
-        try
-        {
-            var exported = ConvertTiptapHtmlToMarkdown(await _tiptapEditor.GetHtmlAsync());
-            if (exported is Result<string>.Failure failure)
-            {
-                TiptapError = $"The edited content cannot be saved as Markdown: {FormatError(failure.Error)}";
-                await InvokeAsync(StateHasChanged);
-                return false;
-            }
-
-            var synchronizedMarkdown = ((Result<string>.Ok)exported).Value;
-            if (!string.Equals(Content, synchronizedMarkdown, StringComparison.Ordinal))
-            {
-                Content = synchronizedMarkdown;
-                MarkDirty();
-            }
-
-            _tiptapHasUnsynchronizedChanges = false;
-            TiptapError = null;
-            return true;
-        }
-        catch (JSException exception)
-        {
-            TiptapError = $"The edited Markdown content could not be read: {exception.Message}";
-            await InvokeAsync(StateHasChanged);
-            return false;
-        }
-    }
-
-    private async Task<bool> SetTiptapMarkdownAsync(string markdown)
-    {
-        if (_tiptapEditor is null || !_tiptapReady)
-        {
-            return true;
-        }
-
-        var rendered = ConvertMarkdownToTiptapHtml(markdown);
-        if (rendered is Result<string>.Failure failure)
-        {
-            TiptapError = $"The Markdown content cannot be shown visually: {FormatError(failure.Error)}";
-            await InvokeAsync(StateHasChanged);
             return false;
         }
 
-        try
+        var markdown = ((Result<string>.Ok)synchronized).Value;
+        if (!string.Equals(Content, markdown, StringComparison.Ordinal))
         {
-            await _tiptapEditor.SetHtmlAsync(((Result<string>.Ok)rendered).Value);
-            _tiptapHasUnsynchronizedChanges = false;
-            TiptapError = null;
+            Content = markdown;
+            MarkDirty();
+        }
+
+        return true;
+    }
+
+    private async Task<bool> SetMarkdownEditorAsync(string markdown)
+    {
+        if (_markdownEditor is null)
+        {
             return true;
         }
-        catch (JSException exception)
+
+        return await _markdownEditor.SetMarkdownAsync(markdown)
+            is Result<string>.Ok;
+    }
+
+    protected Task OnMarkdownEditorSynchronized(string markdown)
+    {
+        if (!string.Equals(Content, markdown, StringComparison.Ordinal))
         {
-            TiptapError = $"The visual Markdown editor could not be updated: {exception.Message}";
-            await InvokeAsync(StateHasChanged);
-            return false;
+            Content = markdown;
+            MarkDirty();
         }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task OnMarkdownEditorContentChanged()
+    {
+        MarkDirty();
+        return Task.CompletedTask;
     }
 
     private async Task<bool> FlushActiveEditorAsync()
     {
         if (ActiveTab == "editor")
         {
-            return await FlushTiptapAsync();
+            return await FlushMarkdownEditorAsync();
         }
 
         if (ActiveTab == "code" && _editor is not null)
@@ -749,49 +562,6 @@ public async ValueTask DisposeAsync()
         return true;
     }
 
-    protected async Task ExecuteTiptapCommandAsync(string command, string? argument = null)
-    {
-        if (_tiptapEditor is null || !_tiptapReady)
-        {
-            return;
-        }
-
-        try
-        {
-            TiptapError = null;
-            if (await _tiptapEditor.ExecuteAsync(command, argument))
-            {
-                _tiptapHasUnsynchronizedChanges = true;
-                MarkDirty();
-            }
-        }
-        catch (JSException exception)
-        {
-            TiptapError = $"The Markdown formatting command failed: {exception.Message}";
-        }
-    }
-
-    /// <summary>Marks the post dirty when TipTap reports a user edit.</summary>
-    [JSInvokable]
-    public Task OnTiptapContentChanged()
-    {
-        _tiptapHasUnsynchronizedChanges = true;
-        MarkDirty();
-        return Task.CompletedTask;
-    }
-
-    /// <summary>Updates active-format state reported by TipTap.</summary>
-    [JSInvokable]
-    public Task OnTiptapFormattingStateChanged(TiptapMarkdownFormattingState state)
-    {
-        TiptapFormatting = state;
-        return InvokeAsync(StateHasChanged);
-    }
-
-    protected static string TiptapToolClass(bool active) =>
-        active ? "post-tiptap-tool is-active" : "post-tiptap-tool";
-
-    // ──────────────────────────────────────────────────────────
     // BlazorMonaco integration
     // ──────────────────────────────────────────────────────────
 
@@ -850,7 +620,7 @@ protected async Task SwitchToTab(string tab)
         }
 
         if (tab == "editor" && ActiveTab != "editor"
-            && !await SetTiptapMarkdownAsync(Content))
+            && !await SetMarkdownEditorAsync(Content))
         {
             ShowToast("The Markdown content cannot be opened in the visual editor.", "error");
             return;
@@ -897,7 +667,7 @@ protected async Task TogglePreview()
         else
         {
             ActiveTab = "editor";
-            await SetTiptapMarkdownAsync(Content);
+            await SetMarkdownEditorAsync(Content);
         }
     }
 
@@ -1867,17 +1637,16 @@ protected void OpenMediaSelector()
         MediaModalOpen = false;
     }
 
-    protected void OnConfirmMediaSelection(List<MediaItem> items)
+protected async Task OnConfirmMediaSelection(List<MediaItem> items)
     {
         if (items.Count > 0)
         {
             var selected = items[0];
             if (_mediaSelectionTarget is MediaSelectionTarget.PostBodyImage)
             {
-                TiptapImageUrl = selected.Src;
-                if (string.IsNullOrWhiteSpace(TiptapImageAlt))
+                if (_markdownEditor is not null)
                 {
-                    TiptapImageAlt = selected.Alt;
+                    await _markdownEditor.SetImageSelectionAsync(selected.Src, selected.Alt);
                 }
             }
             else
@@ -1890,91 +1659,6 @@ protected void OpenMediaSelector()
         MediaModalOpen = false;
     }
 
-    protected void ToggleTiptapImagePanel()
-    {
-        ShowTiptapImagePanel = !ShowTiptapImagePanel;
-        if (ShowTiptapImagePanel)
-        {
-            ShowTiptapTablePanel = false;
-        }
-    }
-
-    protected void ToggleTiptapTablePanel()
-    {
-        ShowTiptapTablePanel = !ShowTiptapTablePanel;
-        if (ShowTiptapTablePanel)
-        {
-            ShowTiptapImagePanel = false;
-        }
-    }
-
-    protected async Task InsertTiptapImageAsync()
-    {
-        if (_tiptapEditor is null || !CanInsertTiptapImage)
-        {
-            TiptapError = "Choose an image and provide alternative text, or mark it decorative.";
-            return;
-        }
-
-        try
-        {
-            var inserted = await _tiptapEditor.InsertImageAsync(
-                TiptapImageUrl!,
-                TiptapImageDecorative ? string.Empty : TiptapImageAlt!.Trim(),
-                TiptapImageTitle);
-            if (!inserted)
-            {
-                TiptapError = "The image could not be inserted at the current selection.";
-                return;
-            }
-
-            TiptapError = null;
-            ShowTiptapImagePanel = false;
-            TiptapImageUrl = null;
-            TiptapImageAlt = null;
-            TiptapImageTitle = null;
-            TiptapImageDecorative = false;
-        }
-        catch (Exception exception)
-        {
-            TiptapError = $"The image could not be inserted: {exception.Message}";
-        }
-    }
-
-    protected async Task InsertTiptapTableAsync()
-    {
-        if (_tiptapEditor is null)
-        {
-            return;
-        }
-
-        if (TiptapTableRows is < 2 or > 10 || TiptapTableColumns is < 1 or > 10)
-        {
-            TiptapError = "Table dimensions must be between 2 and 10 rows and 1 and 10 columns.";
-            return;
-        }
-
-        try
-        {
-            var inserted = await _tiptapEditor.InsertTableAsync(
-                TiptapTableRows,
-                TiptapTableColumns);
-            if (!inserted)
-            {
-                TiptapError = "The table could not be inserted at the current selection.";
-                return;
-            }
-
-            TiptapError = null;
-            ShowTiptapTablePanel = false;
-        }
-        catch (Exception exception)
-        {
-            TiptapError = $"The table could not be inserted: {exception.Message}";
-        }
-    }
-
-    // ──────────────────────────────────────────────────────────
     // AI enhancement
     // ──────────────────────────────────────────────────────────
 
@@ -2081,7 +1765,7 @@ protected async Task ApplyEnhancementAsync()
                 {
                     await _editor.SetValue(Content);
                 }
-                await SetTiptapMarkdownAsync(Content);
+                await SetMarkdownEditorAsync(Content);
                 break;
             case "title":
                 PostTitle = EnhanceSuggestion;
@@ -2203,22 +1887,6 @@ protected async Task ApplyEnhancementAsync()
     /// Represents a record for EnhanceTargetOption.
     /// </summary>
 protected sealed record EnhanceTargetOption(string Value, string Label);
-
-    /// <summary>Describes the TipTap formatting active at the current selection.</summary>
-    public sealed record TiptapMarkdownFormattingState(
-        bool Paragraph = false,
-        bool Heading2 = false,
-        bool Heading3 = false,
-        bool BulletList = false,
-        bool OrderedList = false,
-        bool Blockquote = false,
-        bool CodeBlock = false,
-        bool Bold = false,
-        bool Italic = false,
-        bool Strike = false,
-        bool Code = false,
-        bool Link = false,
-        bool Table = false);
 
     private enum MediaSelectionTarget
     {

@@ -373,7 +373,13 @@ public async Task<AeroRequestResponse<DocViewModel>> DeleteDocAsync(long id, lon
     var load = await service.GetByIdAsync(id, ct);
     if (load is not Result<DocsPage?, AeroError>.Ok { Value: not null } found) return NotFound($"Doc {id} not found");
     var deleted = await service.DeleteAsync(id, ct);
-    return deleted is Result<bool, AeroError>.Ok ? Ok(found.Value.ToViewModel()) : NotFound($"Doc {id} not found");
+    return deleted switch
+    {
+        Result<bool, AeroError>.Ok => Ok(found.Value.ToViewModel()),
+        Result<bool, AeroError>.Failure { Error: AeroError.Validation validation } =>
+            Validation(validation.Errors),
+        _ => NotFound($"Doc {id} not found")
+    };
 }
 
     // ── AeroRequestResponse helpers ──────────────────────────────────────
@@ -389,6 +395,18 @@ public async Task<AeroRequestResponse<DocViewModel>> DeleteDocAsync(long id, lon
     /// </summary>
     private static AeroRequestResponse<DocViewModel> NotFound(string msg)
         => new(new DocViewModel(), new DocErrorViewModel { Message = msg });
+
+    private static AeroRequestResponse<DocViewModel> Validation(IEnumerable<string> errors)
+    {
+        var validationErrors = errors.ToList();
+        return new(
+            new DocViewModel(),
+            new DocErrorViewModel
+            {
+                Message = validationErrors.FirstOrDefault() ?? "The documentation request is invalid.",
+                Errors = validationErrors
+            });
+    }
 
     /// <summary>
     /// Creates an operation-failure response with an empty data model.

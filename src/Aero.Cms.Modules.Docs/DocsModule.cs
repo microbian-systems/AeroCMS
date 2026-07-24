@@ -3,6 +3,7 @@ using Aero.Cms.Web.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
@@ -111,6 +112,21 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         {
             options.Conventions.AddAreaPageRoute("Docs", "/DocsIndex", "/{culture}/docs");
             options.Conventions.AddAreaPageRoute("Docs", "/Doc", "/{culture}/docs/{*slug}");
+            options.Conventions.AddAreaPageRoute("Docs", "/Doc", "/_cms/preview/docs/drafts/{draftId:long}");
+            options.Conventions.AddAreaPageRouteModelConvention("Docs", "/Doc", model =>
+            {
+                foreach (var selector in model.Selectors)
+                {
+                    var template = selector.AttributeRouteModel?.Template;
+                    if (string.Equals(
+                            template?.TrimStart('/'),
+                            "_cms/preview/docs/drafts/{draftId:long}",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        selector.EndpointMetadata.Add(new AuthorizeAttribute("site:read"));
+                    }
+                }
+            });
         });
 
         // Content service — factory resolves ISiteContext + IHttpContextAccessor

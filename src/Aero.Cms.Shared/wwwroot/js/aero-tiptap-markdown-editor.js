@@ -23,6 +23,16 @@ async function loadTiptap() {
 }
 export async function initialize(element, content, dotNetCallback) {
     const { Editor, StarterKit, Link, Image, TableKit } = await loadTiptap();
+    const linkWithTitle = Link.extend({
+        addAttributes() {
+            return {
+                ...(this.parent?.() ?? {}),
+                title: {
+                    default: null,
+                },
+            };
+        },
+    });
     let editor;
     let entry;
     let lastFormattingState = null;
@@ -54,7 +64,7 @@ export async function initialize(element, content, dotNetCallback) {
         autofocus: 'end',
         extensions: [
             StarterKit.configure({ link: false }),
-            Link.configure({
+            linkWithTitle.configure({
                 autolink: true,
                 linkOnPaste: true,
                 openOnClick: false,
@@ -108,6 +118,20 @@ export function execute(handle, command, argument) {
         case 'blockquote': return chain.toggleBlockquote().run();
         case 'codeBlock': return chain.toggleCodeBlock().run();
         case 'horizontalRule': return chain.setHorizontalRule().run();
+        case 'callout':
+            return chain.insertContent({
+                type: 'blockquote',
+                content: [
+                    {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: '[!NOTE]' }],
+                    },
+                    {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Add a clear callout message.' }],
+                    },
+                ],
+            }).run();
         case 'bold': return chain.toggleBold().run();
         case 'italic': return chain.toggleItalic().run();
         case 'strike': return chain.toggleStrike().run();
@@ -126,6 +150,69 @@ export function execute(handle, command, argument) {
         case 'deleteTable': return chain.deleteTable().run();
         default: throw new Error(`Unknown Tiptap Markdown command '${command}'.`);
     }
+}
+export function getLinkContext(handle) {
+    const entry = requireEntry(handle);
+    const editor = entry.editor;
+    if (editor.isActive('link')) {
+        editor.chain().extendMarkRange('link').run();
+    }
+    const selection = editor.state.selection;
+    entry.pendingLinkSelection = {
+        from: selection.from,
+        to: selection.to,
+    };
+    const attributes = editor.getAttributes('link');
+    return {
+        text: editor.state.doc.textBetween(selection.from, selection.to, ' '),
+        href: typeof attributes.href === 'string' ? attributes.href : null,
+        title: typeof attributes.title === 'string' ? attributes.title : null,
+        active: editor.isActive('link'),
+    };
+}
+export function setLink(handle, text, destination, title) {
+    const entry = requireEntry(handle);
+    const visibleText = text.trim();
+    const href = destination.trim();
+    const normalizedTitle = title?.trim();
+    if (!visibleText) {
+        throw new Error('Visible link text is required.');
+    }
+    if (!href) {
+        throw new Error('A link URL is required.');
+    }
+    if (!isSafeLinkDestination(href)) {
+        throw new Error('Links must use HTTP, HTTPS, mailto, tel, an anchor, or a site-relative URL.');
+    }
+    const selection = entry.pendingLinkSelection ?? entry.editor.state.selection;
+    entry.pendingLinkSelection = undefined;
+    const attributes = { href };
+    if (normalizedTitle) {
+        attributes.title = normalizedTitle;
+    }
+    return entry.editor
+        .chain()
+        .focus()
+        .setTextSelection(selection)
+        .deleteSelection()
+        .insertContent({
+        type: 'text',
+        text: visibleText,
+        marks: [{ type: 'link', attrs: attributes }],
+    })
+        .run();
+}
+export function removeLink(handle) {
+    const entry = requireEntry(handle);
+    const selection = entry.pendingLinkSelection ?? entry.editor.state.selection;
+    entry.pendingLinkSelection = undefined;
+    return entry.editor
+        .chain()
+        .focus()
+        .setTextSelection(selection)
+        .extendMarkRange('link')
+        .unsetLink()
+        .run();
 }
 export function insertImage(handle, source, alternativeText, title) {
     const src = source.trim();
@@ -161,6 +248,7 @@ export function getHtml(handle) {
 }
 export function setHtml(handle, content) {
     const entry = requireEntry(handle);
+    entry.pendingLinkSelection = undefined;
     const updated = entry.editor.commands.setContent(content, { emitUpdate: false });
     if (entry.callback) {
         entry.lastFormattingState = null;
@@ -208,6 +296,24 @@ function isSafeImageSource(source) {
     try {
         const url = new URL(source, document.baseURI);
         return url.protocol === 'http:' || url.protocol === 'https:';
+    }
+    catch {
+        return false;
+    }
+}
+function isSafeLinkDestination(destination) {
+    if (/[\u0000-\u001f\u007f\\]/u.test(destination)) {
+        return false;
+    }
+    if (destination.startsWith('#')) {
+        return true;
+    }
+    try {
+        const url = new URL(destination, document.baseURI);
+        return url.protocol === 'http:'
+            || url.protocol === 'https:'
+            || url.protocol === 'mailto:'
+            || url.protocol === 'tel:';
     }
     catch {
         return false;

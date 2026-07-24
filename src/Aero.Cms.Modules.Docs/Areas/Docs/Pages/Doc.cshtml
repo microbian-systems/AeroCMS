@@ -1,6 +1,5 @@
 @page "/docs/{*slug}"
-@using Markdig
-@using Markdig.Extensions.AutoIdentifiers
+@using Aero.Cms.Modules.Docs
 @using Aero.Cms.Modules.Docs.Areas.Docs.Models
 @using Aero.Cms.Shared.Localization
 @model Aero.Cms.Modules.Docs.Areas.Docs.Pages.DocModel
@@ -10,10 +9,6 @@
     ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
     ViewBag.ActiveDocId = pageDoc?.Id ?? 0;
 
-    // Build Markdig pipeline with auto-identifiers for heading anchors
-    var pipeline = new MarkdownPipelineBuilder()
-        .UseAutoIdentifiers()
-        .Build();
 }
 
 @section headPartial {
@@ -113,7 +108,7 @@ else
         {
             <div class="max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 pb-16">
                 <div class="prose prose-slate max-w-none prose-headings:scroll-mt-20 prose-headings:font-semibold prose-a:text-indigo-600 prose-img:rounded-lg prose-pre:bg-slate-900 prose-pre:rounded-lg">
-                    @Html.Raw(Markdown.ToHtml(pageDoc.MarkdownContent, pipeline))
+                    @Html.Raw(Markdig.Markdown.ToHtml(pageDoc.MarkdownContent, DocsMarkdownPipelines.Public))
                 </div>
             </div>
         }

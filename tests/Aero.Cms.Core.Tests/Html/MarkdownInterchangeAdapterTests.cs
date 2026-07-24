@@ -204,6 +204,31 @@ public sealed class MarkdownInterchangeAdapterTests
     }
 
     [Test]
+    public async Task Interchange_preserves_link_titles_and_canonical_callout_markers()
+    {
+        const string markdown = """
+            Read the [installation guide](/docs/getting-started "Install AeroCMS").
+
+            > [!NOTE]
+            >
+            > Save the document before publishing it.
+            """;
+
+        var adapter = CreateAdapter();
+        var imported = RequireOk(adapter.Import(markdown));
+        var exported = RequireOk(adapter.Export(imported));
+
+        await Assert.That(exported)
+            .Contains("""[installation guide](</docs/getting-started> "Install AeroCMS")""")
+            .And.Contains("> [!NOTE]")
+            .And.Contains("> Save the document before publishing it.");
+
+        var renderer = new HtmlStaticRenderer(Catalog, ContentPolicy, AttributePolicy, Validator);
+        await Assert.That(RequireOk(renderer.Render(RequireOk(adapter.Import(exported)))))
+            .IsEqualTo(RequireOk(renderer.Render(imported)));
+    }
+
+    [Test]
     public async Task Export_rejects_table_spans_and_non_rectangular_rows()
     {
         var importer = new HtmlFragmentImporter(

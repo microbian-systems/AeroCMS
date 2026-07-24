@@ -187,9 +187,12 @@ public static void MapDocsApi(this IEndpointRouteBuilder app)
         CancellationToken ct)
     {
         var result = await docsActor.DeleteDocAsync(id, siteContext.SiteId, ct);
-        return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.NotFound(result.error)
-            : TypedResults.NoContent();
+        if (string.IsNullOrWhiteSpace(result.error.Message))
+            return TypedResults.NoContent();
+
+        return result.error.Errors.Count > 0
+            ? TypedResults.Conflict(result.error)
+            : TypedResults.NotFound(result.error);
     }
 
     /// <summary>

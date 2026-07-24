@@ -7,6 +7,10 @@ const TIPTAP_TABLE_URL = `https://esm.sh/@tiptap/extension-table@${TIPTAP_VERSIO
 
 type MarkdownTiptapChain = {
   focus(): MarkdownTiptapChain;
+  deleteSelection(): MarkdownTiptapChain;
+  extendMarkRange(type: string): MarkdownTiptapChain;
+  insertContent(content: string | Record<string, unknown>): MarkdownTiptapChain;
+  setTextSelection(selection: { from: number; to: number }): MarkdownTiptapChain;
   undo(): MarkdownTiptapChain;
   redo(): MarkdownTiptapChain;
   setParagraph(): MarkdownTiptapChain;
@@ -20,7 +24,7 @@ type MarkdownTiptapChain = {
   toggleItalic(): MarkdownTiptapChain;
   toggleStrike(): MarkdownTiptapChain;
   toggleCode(): MarkdownTiptapChain;
-  setLink(attributes: { href: string }): MarkdownTiptapChain;
+  setLink(attributes: { href: string; title?: string | null }): MarkdownTiptapChain;
   unsetLink(): MarkdownTiptapChain;
   setImage(attributes: { src: string; alt: string; title?: string }): MarkdownTiptapChain;
   insertTable(attributes: { rows: number; cols: number; withHeaderRow: boolean }): MarkdownTiptapChain;
@@ -39,8 +43,13 @@ type MarkdownTiptapEditor = {
   commands: {
     setContent(content: string, options?: { emitUpdate?: boolean }): boolean;
   };
+  getAttributes(name: string): Record<string, unknown>;
   getHTML(): string;
   isActive(name: string, attributes?: Record<string, unknown>): boolean;
+  state: {
+    selection: { from: number; to: number };
+    doc: { textBetween(from: number, to: number, separator?: string): string };
+  };
   destroy(): void;
 };
 
@@ -72,6 +81,12 @@ type ConfigurableExtension = {
   configure(options: Record<string, unknown>): unknown;
 };
 
+type ExtendableExtension = ConfigurableExtension & {
+  extend(options: {
+    addAttributes(this: { parent?: () => Record<string, unknown> }): Record<string, unknown>;
+  }): ConfigurableExtension;
+};
+
 type MarkdownTiptapEditorConstructor = new (
   options: Record<string, unknown>,
 ) => MarkdownTiptapEditor;
@@ -80,6 +95,7 @@ type EditorEntry = {
   editor: MarkdownTiptapEditor;
   callback?: DotNetCallback;
   lastFormattingState: string | null;
+  pendingLinkSelection?: { from: number; to: number };
 };
 
 const editors = new Map<string, EditorEntry>();
@@ -87,7 +103,7 @@ const editors = new Map<string, EditorEntry>();
 async function loadTiptap(): Promise<{
   Editor: MarkdownTiptapEditorConstructor;
   StarterKit: ConfigurableExtension;
-  Link: ConfigurableExtension;
+  Link: ExtendableExtension;
   Image: ConfigurableExtension;
   TableKit: ConfigurableExtension;
 }> {
@@ -102,7 +118,7 @@ async function loadTiptap(): Promise<{
   return {
     Editor: coreModule.Editor as MarkdownTiptapEditorConstructor,
     StarterKit: (starterKitModule.StarterKit ?? starterKitModule.default) as ConfigurableExtension,
-    Link: (linkModule.Link ?? linkModule.default) as ConfigurableExtension,
+    Link: (linkModule.Link ?? linkModule.default) as ExtendableExtension,
     Image: (imageModule.Image ?? imageModule.default) as ConfigurableExtension,
     TableKit: (tableModule.TableKit ?? tableModule.default) as ConfigurableExtension,
   };
@@ -114,6 +130,16 @@ export async function initialize(
   dotNetCallback?: DotNetCallback,
 ): Promise<string> {
   const { Editor, StarterKit, Link, Image, TableKit } = await loadTiptap();
+  const linkWithTitle = Link.extend({
+    addAttributes() {
+      return {
+        ...(this.parent?.() ?? {}),
+        title: {
+          default: null,
+        },
+      };
+    },
+  });
   let editor: MarkdownTiptapEditor;
   let entry: EditorEntry;
   let lastFormattingState: string | null = null;
@@ -151,7 +177,7 @@ export async function initialize(
     autofocus: 'end',
     extensions: [
       StarterKit.configure({ link: false }),
-      Link.configure({
+      linkWithTitle.configure({
         autolink: true,
         linkOnPaste: true,
         openOnClick: false,
@@ -208,6 +234,20 @@ export function execute(handle: string, command: string, argument?: string): boo
     case 'blockquote': return chain.toggleBlockquote().run();
     case 'codeBlock': return chain.toggleCodeBlock().run();
     case 'horizontalRule': return chain.setHorizontalRule().run();
+    case 'callout':
+      return chain.insertContent({
+        type: 'blockquote',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: '[!NOTE]' }],
+          },
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Add a clear callout message.' }],
+          },
+        ],
+      }).run();
     case 'bold': return chain.toggleBold().run();
     case 'italic': return chain.toggleItalic().run();
     case 'strike': return chain.toggleStrike().run();
@@ -226,6 +266,90 @@ export function execute(handle: string, command: string, argument?: string): boo
     case 'deleteTable': return chain.deleteTable().run();
     default: throw new Error(`Unknown Tiptap Markdown command '${command}'.`);
   }
+}
+
+export function getLinkContext(handle: string): {
+  text: string;
+  href: string | null;
+  title: string | null;
+  active: boolean;
+} {
+  const entry = requireEntry(handle);
+  const editor = entry.editor;
+
+  if (editor.isActive('link')) {
+    editor.chain().extendMarkRange('link').run();
+  }
+
+  const selection = editor.state.selection;
+  entry.pendingLinkSelection = {
+    from: selection.from,
+    to: selection.to,
+  };
+
+  const attributes = editor.getAttributes('link');
+  return {
+    text: editor.state.doc.textBetween(selection.from, selection.to, ' '),
+    href: typeof attributes.href === 'string' ? attributes.href : null,
+    title: typeof attributes.title === 'string' ? attributes.title : null,
+    active: editor.isActive('link'),
+  };
+}
+
+export function setLink(
+  handle: string,
+  text: string,
+  destination: string,
+  title?: string,
+): boolean {
+  const entry = requireEntry(handle);
+  const visibleText = text.trim();
+  const href = destination.trim();
+  const normalizedTitle = title?.trim();
+
+  if (!visibleText) {
+    throw new Error('Visible link text is required.');
+  }
+  if (!href) {
+    throw new Error('A link URL is required.');
+  }
+  if (!isSafeLinkDestination(href)) {
+    throw new Error('Links must use HTTP, HTTPS, mailto, tel, an anchor, or a site-relative URL.');
+  }
+
+  const selection = entry.pendingLinkSelection ?? entry.editor.state.selection;
+  entry.pendingLinkSelection = undefined;
+
+  const attributes: { href: string; title?: string | null } = { href };
+  if (normalizedTitle) {
+    attributes.title = normalizedTitle;
+  }
+
+  return entry.editor
+    .chain()
+    .focus()
+    .setTextSelection(selection)
+    .deleteSelection()
+    .insertContent({
+      type: 'text',
+      text: visibleText,
+      marks: [{ type: 'link', attrs: attributes }],
+    })
+    .run();
+}
+
+export function removeLink(handle: string): boolean {
+  const entry = requireEntry(handle);
+  const selection = entry.pendingLinkSelection ?? entry.editor.state.selection;
+  entry.pendingLinkSelection = undefined;
+
+  return entry.editor
+    .chain()
+    .focus()
+    .setTextSelection(selection)
+    .extendMarkRange('link')
+    .unsetLink()
+    .run();
 }
 
 export function insertImage(
@@ -273,6 +397,7 @@ export function getHtml(handle: string): string {
 
 export function setHtml(handle: string, content: string): boolean {
   const entry = requireEntry(handle);
+  entry.pendingLinkSelection = undefined;
   const updated = entry.editor.commands.setContent(content, { emitUpdate: false });
   if (entry.callback) {
     entry.lastFormattingState = null;
@@ -327,6 +452,25 @@ function isSafeImageSource(source: string): boolean {
   try {
     const url = new URL(source, document.baseURI);
     return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isSafeLinkDestination(destination: string): boolean {
+  if (/[\u0000-\u001f\u007f\\]/u.test(destination)) {
+    return false;
+  }
+  if (destination.startsWith('#')) {
+    return true;
+  }
+
+  try {
+    const url = new URL(destination, document.baseURI);
+    return url.protocol === 'http:'
+      || url.protocol === 'https:'
+      || url.protocol === 'mailto:'
+      || url.protocol === 'tel:';
   } catch {
     return false;
   }

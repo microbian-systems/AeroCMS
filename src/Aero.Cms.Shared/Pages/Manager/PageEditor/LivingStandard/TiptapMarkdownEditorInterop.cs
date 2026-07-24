@@ -39,6 +39,37 @@ public sealed class TiptapMarkdownEditorInterop(IJSRuntime js) : IAsyncDisposabl
         return await module.InvokeAsync<bool>("execute", _handle, command, argument);
     }
 
+    /// <summary>Reads the selected link text and its editable attributes.</summary>
+    public async ValueTask<TiptapMarkdownLinkContext> GetLinkContextAsync()
+    {
+        var module = RequireInitializedModule();
+        return await module.InvokeAsync<TiptapMarkdownLinkContext>("getLinkContext", _handle);
+    }
+
+    /// <summary>
+    /// Replaces the captured selection with visible linked text and optional title metadata.
+    /// </summary>
+    public async ValueTask<bool> SetLinkAsync(
+        string text,
+        string destination,
+        string? title = null)
+    {
+        var module = RequireInitializedModule();
+        return await module.InvokeAsync<bool>(
+            "setLink",
+            _handle,
+            text,
+            destination,
+            title);
+    }
+
+    /// <summary>Removes the link mark from the captured selection.</summary>
+    public async ValueTask<bool> RemoveLinkAsync()
+    {
+        var module = RequireInitializedModule();
+        return await module.InvokeAsync<bool>("removeLink", _handle);
+    }
+
     /// <summary>Inserts an externally hosted or media-library image at the current selection.</summary>
     public async ValueTask<bool> InsertImageAsync(
         string source,
@@ -100,3 +131,10 @@ public sealed class TiptapMarkdownEditorInterop(IJSRuntime js) : IAsyncDisposabl
         }
     }
 }
+
+/// <summary>Editable link data captured from the current Tiptap selection.</summary>
+public sealed record TiptapMarkdownLinkContext(
+    string? Text,
+    string? Href,
+    string? Title,
+    bool Active);

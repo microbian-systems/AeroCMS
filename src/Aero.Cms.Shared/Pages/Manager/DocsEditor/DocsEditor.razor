@@ -4,6 +4,8 @@
 
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Shared.Components
+@using Aero.Cms.Shared.Components.MarkdownEditor
 @using Microsoft.Extensions.Localization
 @using NeoUI.Blazor
 
@@ -20,14 +22,29 @@
             @if (Current is not null)
             {
                 <a class="pe-btn pe-btn-ghost pe-btn-sm" href="@PublicUrl(Current)" target="_blank" rel="noopener noreferrer">@L["View"]</a>
-                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="TogglePreview">
-                    @(PreviewMode ? L["Edit"] : L["Preview"])
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="TogglePreviewAsync">
+                    @L["Preview"]
                 </button>
-                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveCurrentAsync" disabled="@_isSaving">
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveCurrentFromUiAsync" disabled="@_isSaving">
                     @(_isSaving ? L["Saving..."] : L["Save"])
                 </button>
-                <button type="button" class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishCurrentAsync" disabled="@_isSaving">
-                    @L["Publish"]
+                @if (Current.PublicationState == ContentPublicationState.Published)
+                {
+                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishCurrentAsync" disabled="@_isSaving">
+                        @L["Unpublish"]
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishCurrentAsync" disabled="@_isSaving">
+                        @L["Publish"]
+                    </button>
+                }
+                <button type="button"
+                        class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn"
+                        @onclick="DeleteCurrentAsync"
+                        disabled="@(IsEditingSpaceRoot || _isSaving)">
+                    @L["Delete"]
                 </button>
             }
         </div>
@@ -144,6 +161,8 @@
                             </div>
                         </div>
 
+                        @* Translation controls live in the right document inspector. *@
+                        @*
                         <div class="rounded-md border p-4 space-y-3"
                              style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -223,135 +242,187 @@
                                 <p class="text-sm" style="color: var(--pe-text-muted);">@L["All supported site cultures already have a docs variant."]</p>
                             }
                         </div>
+                        *@
 
                         <div class="pe-doc-editor-tabs" role="tablist">
                             <button type="button" class="@TabClass("content")" @onclick='() => ActiveTab = "content"'>@L["Content"]</button>
-                            <button type="button" class="@TabClass("preview")" @onclick='() => ActiveTab = "preview"'>@L["Preview"]</button>
-                            <button type="button" class="@TabClass("attributes")" @onclick='() => ActiveTab = "attributes"'>@L["Attributes"]</button>
+                            <button type="button" class="@TabClass("preview")" @onclick="TogglePreviewAsync">@L["Preview"]</button>
                         </div>
 
-                        @if (ActiveTab == "content")
-                        {
-                            <div class="pe-doc-write-grid">
-                                <label class="pe-field pe-doc-markdown-field">
-                                    <span>@L["Markdown"]</span>
-                                    <textarea value="@Current.MarkdownContent"
-                                              @oninput="OnMarkdownChanged"
-                                              placeholder="# Start writing..."></textarea>
-                                </label>
-                                <div class="pe-doc-live-preview">
-                                    <div class="pe-doc-preview-label">@L["Live preview"]</div>
-                                    <RadzenMarkdown Text="@Current.MarkdownContent" AllowHtml="true" />
-                                </div>
-                            </div>
-                        }
-                        else if (ActiveTab == "preview" || PreviewMode)
-                        {
-                            <article class="pe-doc-public-preview">
-                                <div class="pe-doc-public-preview-inner">
-                                    <p class="pe-doc-public-eyebrow">@L["Docs"]</p>
-                                    <h1>@Current.Title</h1>
-                                    @if (!string.IsNullOrWhiteSpace(Current.Summary))
-                                    {
-                                        <p class="pe-doc-public-summary">@Current.Summary</p>
-                                    }
-                                    <RadzenMarkdown Text="@Current.MarkdownContent" AllowHtml="true" />
-                                </div>
-                            </article>
-                        }
-                        else if (ActiveTab == "attributes")
-                        {
-                            <div class="pe-doc-attributes-grid">
-                                <label class="pe-field">
-                                    <span>@L["Slug"]</span>
-                                    <input value="@Current.Slug" @oninput="OnSlugChanged" />
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["Parent"]</span>
-                                    <select value="@ParentSelectValue" @onchange="OnParentChanged" disabled="@IsEditingSpaceRoot">
-                                        @foreach (var option in ParentOptions)
-                                        {
-                                            <option value="@option.Id">@option.Label</option>
-                                        }
-                                    </select>
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["Order"]</span>
-                                    <input type="number" value="@Current.Order" @oninput="OnOrderChanged" />
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["Status"]</span>
-                                    <select value="@Current.PublicationState" @onchange="OnStatusChanged">
-                                        <option value="@ContentPublicationState.Draft">@L["Draft"]</option>
-                                        <option value="@ContentPublicationState.Published">@L["Published"]</option>
-                                        <option value="@ContentPublicationState.Archived">@L["Archived"]</option>
-                                    </select>
-                                </label>
-                                <label class="pe-field pe-doc-attributes-wide">
-                                    <span>@L["Summary"]</span>
-                                    <textarea rows="3" value="@Current.Summary" @oninput="e => UpdateCurrent(current => current.Summary = e.Value?.ToString())"></textarea>
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["SEO title"]</span>
-                                    <input value="@Current.SeoTitle" @oninput="e => UpdateCurrent(current => current.SeoTitle = e.Value?.ToString())" />
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["SEO description"]</span>
-                                    <textarea rows="3" value="@Current.SeoDescription" @oninput="e => UpdateCurrent(current => current.SeoDescription = e.Value?.ToString())"></textarea>
-                                </label>
-                                <label class="pe-field">
-                                    <span>@L["Header image URL"]</span>
-                                    <input value="@Current.HeaderImageUrl" @oninput="e => UpdateCurrent(current => current.HeaderImageUrl = e.Value?.ToString())" />
-                                </label>
-                                <label class="pe-doc-toggle">
-                                    <input type="checkbox" checked="@Current.ShowHeaderNavigation" @onchange="OnShowHeaderNavigationChanged" />
-                                    @L["Show site navigation"]
-                                </label>
-                            </div>
-                        }
+                        <div class="pe-doc-markdown-editor">
+                            <AeroMarkdownEditor @key="Current.Id"
+                                                @ref="_markdownEditor"
+                                                EditorId="@($"docs-markdown-{Current.Id}")"
+                                                Markdown="@(Current.MarkdownContent ?? string.Empty)"
+                                                MarkdownChanged="OnMarkdownEditorSynchronized"
+                                                ContentChanged="OnMarkdownEditorContentChanged"
+                                                AriaLabel="@L["Documentation content"]" />
+                        </div>
                     </section>
                 }
             </main>
 
             <aside class="pe-doc-editor-inspector" aria-label="Document tools">
-                <section>
-                    <p class="pe-docs-kicker">@L["Structure"]</p>
-                    <h2>@(Current?.Title ?? Space.Title)</h2>
-                    <dl class="pe-doc-inspector-list">
-                        <div>
-                            <dt>@L["Space"]</dt>
-                            <dd>@Space.Title</dd>
-                        </div>
-                        <div>
-                            <dt>@L["Depth"]</dt>
-                            <dd>@(SelectedNode?.Depth ?? 0)</dd>
-                        </div>
-                        <div>
-                            <dt>@L["Children"]</dt>
-                            <dd>@(SelectedNode?.ChildCount ?? 0)</dd>
-                        </div>
-                    </dl>
-                </section>
+                <div class="pe-doc-inspector-tabs" role="tablist" aria-label="@L["Document inspector"]">
+                    <button type="button"
+                            class="@InspectorTabClass("structure")"
+                            @onclick='() => InspectorTab = "structure"'>@L["Structure"]</button>
+                    <button type="button"
+                            class="@InspectorTabClass("translations")"
+                            @onclick='() => InspectorTab = "translations"'>@L["Translations"]</button>
+                    <button type="button"
+                            class="@InspectorTabClass("attributes")"
+                            @onclick='() => InspectorTab = "attributes"'>@L["Attributes"]</button>
+                </div>
 
-                <section>
-                    <p class="pe-docs-kicker">@L["Content blocks"]</p>
-                    <div class="pe-doc-block-tray">
-                        <button type="button" @onclick='() => InsertSnippet("markdown")'>@L["Markdown"]</button>
-                        <button type="button" @onclick='() => InsertSnippet("code")'>@L["Code"]</button>
-                        <button type="button" @onclick='() => InsertSnippet("callout")'>@L["Callout"]</button>
-                        <button type="button" @onclick='() => InsertSnippet("table")'>@L["Table"]</button>
-                        <button type="button" @onclick='() => InsertSnippet("image")'>@L["Image"]</button>
-                        <button type="button" @onclick='() => InsertSnippet("children")'>@L["Child links"]</button>
-                    </div>
-                </section>
+                @if (InspectorTab == "structure")
+                {
+                    <section>
+                        <p class="pe-docs-kicker">@L["Structure"]</p>
+                        <h2>@(Current?.Title ?? Space.Title)</h2>
+                        <dl class="pe-doc-inspector-list">
+                            <div>
+                                <dt>@L["Space"]</dt>
+                                <dd>@Space.Title</dd>
+                            </div>
+                            <div>
+                                <dt>@L["Depth"]</dt>
+                                <dd>@(SelectedNode?.Depth ?? 0)</dd>
+                            </div>
+                            <div>
+                                <dt>@L["Children"]</dt>
+                                <dd>@(SelectedNode?.ChildCount ?? 0)</dd>
+                            </div>
+                        </dl>
+                    </section>
+
+                    <section>
+                        <p class="pe-docs-kicker">@L["Related content"]</p>
+                        <div class="pe-doc-block-tray">
+                            <button type="button" @onclick='() => InsertSnippet("children")'>@L["Child links"]</button>
+                        </div>
+                    </section>
+                }
+                else if (InspectorTab == "translations" && Current is not null)
+                {
+                    <section class="pe-doc-inspector-stack">
+                        <div>
+                            <p class="pe-docs-kicker">@L["Translations"]</p>
+                            <h2>@FormatCulture(Current.Culture)</h2>
+                            <p class="pe-doc-inspector-help">@string.Format(L["{0} of {1} site cultures created."], DocCultureVariants.Count, SupportedCultures.Count)</p>
+                        </div>
+
+                        @if (Current.TranslationGroupId is { } TranslationGroupId)
+                        {
+                            <code class="pe-doc-translation-set">Set @TranslationGroupId</code>
+                        }
+
+                        @if (IsLoadingTranslations)
+                        {
+                            <p class="pe-doc-inspector-help">@L["Loading translations..."]</p>
+                        }
+                        else
+                        {
+                            <div class="pe-doc-translation-list">
+                                @foreach (var variant in DocCultureVariants)
+                                {
+                                    var isCurrent = Current.Id == variant.Id;
+                                    var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+                                    <button type="button"
+                                            class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
+                                            disabled="@isCurrent"
+                                            @onclick="() => OpenTranslation(variant.Id)">
+                                        @FormatCulture(variant.Culture)@(isDefault ? " · Default" : "")
+                                    </button>
+                                }
+                            </div>
+                        }
+
+                        @if (AvailableTranslationCultures.Any())
+                        {
+                            <label class="pe-field">
+                                <span>@L["Target culture"]</span>
+                                <select @bind="SelectedTranslationCulture">
+                                    @foreach (var culture in AvailableTranslationCultures)
+                                    {
+                                        <option value="@culture">@FormatCulture(culture)</option>
+                                    }
+                                </select>
+                            </label>
+                            <label class="pe-field">
+                                <span>@L["Translated slug"]</span>
+                                <input @bind="TranslationSlug" @bind:event="oninput" placeholder="@Current.Slug" />
+                                <small>@L["Leave blank to copy the current slug."]</small>
+                            </label>
+                            <button type="button"
+                                    class="pe-btn pe-btn-primary pe-btn-sm"
+                                    @onclick="CreateTranslationAsync"
+                                    disabled="@IsCreatingTranslation">
+                                @(IsCreatingTranslation ? L["Creating..."] : L["Create Translation"])
+                            </button>
+                        }
+                        else
+                        {
+                            <p class="pe-doc-inspector-help">@L["All supported site cultures already have a docs variant."]</p>
+                        }
+                    </section>
+                }
+                else if (InspectorTab == "attributes" && Current is not null)
+                {
+                    <section class="pe-doc-inspector-stack">
+                        <p class="pe-docs-kicker">@L["Attributes"]</p>
+                        <label class="pe-field">
+                            <span>@L["Slug"]</span>
+                            <input value="@Current.Slug" @oninput="OnSlugChanged" />
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Parent"]</span>
+                            <select value="@ParentSelectValue" @onchange="OnParentChanged" disabled="@IsEditingSpaceRoot">
+                                @foreach (var option in ParentOptions)
+                                {
+                                    <option value="@option.Id">@option.Label</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Order"]</span>
+                            <input type="number" value="@Current.Order" @oninput="OnOrderChanged" />
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Summary"]</span>
+                            <textarea rows="3" value="@Current.Summary" @oninput="e => UpdateCurrent(current => current.Summary = e.Value?.ToString())"></textarea>
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["SEO title"]</span>
+                            <input value="@Current.SeoTitle" @oninput="e => UpdateCurrent(current => current.SeoTitle = e.Value?.ToString())" />
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["SEO description"]</span>
+                            <textarea rows="3" value="@Current.SeoDescription" @oninput="e => UpdateCurrent(current => current.SeoDescription = e.Value?.ToString())"></textarea>
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Header image URL"]</span>
+                            <input value="@Current.HeaderImageUrl" @oninput="e => UpdateCurrent(current => current.HeaderImageUrl = e.Value?.ToString())" />
+                        </label>
+                        <label class="pe-doc-toggle">
+                            <input type="checkbox" checked="@Current.ShowHeaderNavigation" @onchange="OnShowHeaderNavigationChanged" />
+                            @L["Show site navigation"]
+                        </label>
+                    </section>
+                }
 
                 <section class="pe-doc-danger-zone">
                     <p class="pe-docs-kicker">@L["Actions"]</p>
                     <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="DuplicateCurrentAsync" disabled="@(Current is null)">@L["Duplicate"]</button>
-                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="UnpublishCurrentAsync" disabled="@(Current is null)">@L["Unpublish"]</button>
-                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn" @onclick="DeleteCurrentAsync" disabled="@IsEditingSpaceRoot">@L["Delete"]</button>
                 </section>
             </aside>
         </div>
     }
 </div>
+
+<PreviewOverlay Visible="@PreviewMode"
+                OnClose="ClosePreviewAsync"
+                FrameUrl="@PreviewFrameUrl"
+                UrlBarText="@PreviewFrameUrl"
+                SuppressBrowserLinkErrors="true"
+                Title="@L["Docs preview"]" />
