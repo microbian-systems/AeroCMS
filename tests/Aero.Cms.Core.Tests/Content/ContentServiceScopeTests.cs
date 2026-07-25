@@ -63,6 +63,94 @@ public sealed class ContentServiceScopeTests
     }
 
     [Test]
+    public async Task Create_accepts_an_empty_optional_single_reference()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 35,
+            SiteId = 1,
+            Alias = "article",
+            Name = "Article",
+            Fields =
+            [
+                new ContentFieldDefinition
+                {
+                    Name = "related",
+                    FieldType = "reference",
+                    Required = false
+                }
+            ]
+        });
+        await harness.Session.SaveChangesAsync();
+        using var emptyReference = JsonDocument.Parse("\"\"");
+        var service = new AeroContentService(harness.Session);
+
+        var item = new ContentItem
+        {
+            Id = 0,
+            SiteId = 1,
+            ContentTypeAlias = "article",
+            Culture = "en-US",
+            Slug = "new",
+            Fields = new() { ["related"] = emptyReference.RootElement.Clone() }
+        };
+        var result = await service.SaveAsync(item);
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await Assert.That((await harness.Session.Query<ContentItem>().Where(x => x.Slug == "new").ToListAsync())).HasSingleItem();
+    }
+
+    [Test]
+    public async Task Create_persists_hyphenated_dynamic_field_names()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 36,
+            SiteId = 1,
+            Alias = "article",
+            Name = "Article",
+            Fields =
+            [
+                new ContentFieldDefinition
+                {
+                    Name = "title-2",
+                    FieldType = "short-text"
+                }
+            ]
+        });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentService(harness.Session);
+
+        var item = new ContentItem
+        {
+            Id = 0,
+            SiteId = 1,
+            ContentTypeAlias = "article",
+            Culture = "en-US",
+            Slug = "hyphenated-field",
+            Fields = new()
+            {
+                ["title-2"] = JsonSerializer.SerializeToElement("test")
+            }
+        };
+        var result = await service.SaveAsync(item);
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await using var verify = await harness.Store.QuerySessionAsync();
+        var stored = await verify.LoadAsync<ContentItem>(item.Id);
+        await Assert.That(stored).IsNotNull();
+        await Assert.That(stored!.Fields["title-2"].GetString()).IsEqualTo("test");
+    }
+
+    [Test]
     public async Task Create_rejects_foreign_source_and_translation_group()
     {
         await using var harness = new SableTestHarness()

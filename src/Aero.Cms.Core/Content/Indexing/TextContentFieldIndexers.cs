@@ -95,3 +95,39 @@ public sealed class BooleanFieldIndexer : IContentFieldIndexer
         else if (value.ValueKind == JsonValueKind.False) yield return "false";
     }
 }
+
+/// <summary>Indexes the scalar values in a bounded list field.</summary>
+public sealed class ListFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => ContentFieldTypes.List;
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Array) yield break;
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+                yield return item.GetString() ?? string.Empty;
+            else if (item.ValueKind == JsonValueKind.Number)
+                yield return item.GetRawText();
+        }
+    }
+}
+
+/// <summary>Indexes scalar values, but not keys, in a bounded dictionary field.</summary>
+public sealed class DictionaryFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => ContentFieldTypes.Dictionary;
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object) yield break;
+        foreach (var property in value.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String)
+                yield return property.Value.GetString() ?? string.Empty;
+            else if (property.Value.ValueKind == JsonValueKind.Number)
+                yield return property.Value.GetRawText();
+        }
+    }
+}

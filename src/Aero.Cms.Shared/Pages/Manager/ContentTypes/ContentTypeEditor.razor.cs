@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -37,11 +38,14 @@ public partial class ContentTypeEditor
         new("text", L["Short text"], "title", L["Single line names, headlines, and labels."]),
         new("richtext", L["Rich text"], "notes", L["Longer formatted copy."]),
         new("image", L["Image"], "image", L["Photo or graphic URL."]),
+        new(ContentFieldTypes.Gallery, L["Gallery"], "photo_library", L["Select and order multiple images."]),
         new("number", L["Number"], "pin", L["Prices, counts, rankings, or measurements."]),
+        new(ContentFieldTypes.List, L["List"], "format_list_bulleted", L["Choose from preset text or number values."]),
         new("boolean", L["Yes/No"], "toggle_on", L["A simple on/off choice."]),
         new("url", L["Link"], "link", L["Website or call-to-action URL."]),
         new("date", L["Date"], "event", L["Dates and milestones."]),
-        new("reference", L["Reference"], "account_tree", L["Link to another content entry."])
+        new("reference", L["Reference"], "account_tree", L["Link to another content entry."]),
+        new(ContentFieldTypes.Dictionary, L["Key/value"], "data_object", L["Add a small set of labeled values."])
     ];
 
     private bool IsNew => string.IsNullOrWhiteSpace(Alias);
@@ -165,13 +169,31 @@ protected override async Task OnInitializedAsync()
         var baseLabel = option.Label == "Short text" ? "Title" : option.Label;
         var handle = CreateUniqueFieldName(GenerateHandle(baseLabel));
 
-        Fields.Add(new ContentFieldDefinition
+        var field = new ContentFieldDefinition
         {
             Name = handle,
             FieldType = fieldType,
             Label = baseLabel,
             Placeholder = option.Description
-        });
+        };
+
+        if (fieldType == ContentFieldTypes.List)
+        {
+            SetSetting(field, CompositeContentFieldSettings.ItemType, CompositeContentFieldSettings.Text);
+            SetSetting(field, CompositeContentFieldSettings.MaximumItems, 5);
+            SetAllowedValuesText(field, string.Empty);
+        }
+        else if (fieldType == ContentFieldTypes.Gallery)
+        {
+            SetSetting(field, CompositeContentFieldSettings.MaximumItems, 12);
+        }
+        else if (fieldType == ContentFieldTypes.Dictionary)
+        {
+            SetSetting(field, CompositeContentFieldSettings.ValueType, CompositeContentFieldSettings.Text);
+            SetSetting(field, CompositeContentFieldSettings.MaximumEntries, 10);
+        }
+
+        Fields.Add(field);
 
         _selectedFieldIndex = Fields.Count - 1;
     }
@@ -257,6 +279,35 @@ protected override async Task OnInitializedAsync()
             ? value.GetString()
             : value.GetRawText();
     }
+
+    private string GetAllowedValuesText(ContentFieldDefinition field)
+    {
+        if (!TryGetSetting(field, CompositeContentFieldSettings.AllowedValues, out var value)
+            || value.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(Environment.NewLine,
+            value.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.String)
+                .Select(item => item.GetString())
+                .Where(item => !string.IsNullOrWhiteSpace(item)));
+    }
+
+    private static void SetAllowedValuesText(ContentFieldDefinition field, string? value)
+    {
+        var values = (value ?? string.Empty)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToList();
+        field.Settings[CompositeContentFieldSettings.AllowedValues] = JsonSerializer.SerializeToElement(
+            values,
+            ContentJsonContext.Default.ListString);
+    }
+
+    private static bool IsCompositeField(ContentFieldDefinition field) =>
+        field.FieldType is ContentFieldTypes.List or ContentFieldTypes.Gallery or ContentFieldTypes.Dictionary;
 
     private static bool TryGetSetting(ContentFieldDefinition field, string key, out JsonElement value)
         => field.Settings.TryGetValue(key, out value);
@@ -437,6 +488,60 @@ protected override async Task OnInitializedAsync()
             Notify(NotificationSeverity.Warning, "Duplicate field handle", $"'{duplicate.Key}' is used more than once.");
             _activeTab = EditorTab.Fields;
             return false;
+        }
+
+        foreach (var field in Fields.Where(IsCompositeField))
+        {
+            if (!string.IsNullOrWhiteSpace(field.DefaultValue))
+            {
+                Notify(NotificationSeverity.Warning, "Unsupported default value", $"{FieldLabel(field)} does not support a scalar default value.");
+                _activeTab = EditorTab.Fields;
+                return false;
+            }
+
+            if (field.FieldType == ContentFieldTypes.List)
+            {
+                var allowed = GetAllowedValuesText(field)
+                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (allowed.Length == 0)
+                {
+                    Notify(NotificationSeverity.Warning, "Missing allowed values", $"Add at least one allowed value for {FieldLabel(field)}.");
+                    _activeTab = EditorTab.Fields;
+                    return false;
+                }
+                var effectiveChoiceCount = allowed.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                if (GetStringSetting(field, CompositeContentFieldSettings.ItemType) == CompositeContentFieldSettings.Number)
+                {
+                    var numbers = new List<decimal>(allowed.Length);
+                    foreach (var item in allowed)
+                    {
+                        if (!decimal.TryParse(item, NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
+                        {
+                            Notify(NotificationSeverity.Warning, "Invalid number", $"Every allowed value for {FieldLabel(field)} must be an invariant number.");
+                            _activeTab = EditorTab.Fields;
+                            return false;
+                        }
+
+                        numbers.Add(number);
+                    }
+
+                    effectiveChoiceCount = numbers.Distinct().Count();
+                }
+
+                if (effectiveChoiceCount != allowed.Length)
+                {
+                    Notify(NotificationSeverity.Warning, "Duplicate allowed values", $"Every allowed value for {FieldLabel(field)} must be unique.");
+                    _activeTab = EditorTab.Fields;
+                    return false;
+                }
+                var minimum = GetIntSetting(field, CompositeContentFieldSettings.MinimumItems) ?? 0;
+                if (minimum > effectiveChoiceCount)
+                {
+                    Notify(NotificationSeverity.Warning, "Impossible minimum", $"{FieldLabel(field)} cannot require more selections than its {effectiveChoiceCount} unique choices.");
+                    _activeTab = EditorTab.Fields;
+                    return false;
+                }
+            }
         }
 
         return true;

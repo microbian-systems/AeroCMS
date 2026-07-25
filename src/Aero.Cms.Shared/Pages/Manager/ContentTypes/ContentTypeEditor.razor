@@ -355,16 +355,89 @@
                                     <RadzenTextBox Value="@GetStringSetting(selected, "targetContentType")" ValueChanged="@(v => SetSetting(selected, "targetContentType", v))" Placeholder="team-member" Class="w-full" />
                                 </label>
                             }
+                            else if (selected.FieldType == ContentFieldTypes.List)
+                            {
+                                <label class="pe-property-group">
+                                    <span class="pe-property-label">@L["Item type"]</span>
+                                    <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                            value="@GetStringSetting(selected, CompositeContentFieldSettings.ItemType)"
+                                            @onchange="@(args => SetSetting(selected, CompositeContentFieldSettings.ItemType, args.Value?.ToString()))">
+                                        <option value="text">@L["Short text"]</option>
+                                        <option value="number">@L["Number"]</option>
+                                    </select>
+                                </label>
+                                <label class="pe-property-group">
+                                    <span class="pe-property-label">@L["Allowed values"]</span>
+                                    <RadzenTextArea Value="@GetAllowedValuesText(selected)"
+                                                    ValueChanged="@(value => SetAllowedValuesText(selected, value))"
+                                                    Placeholder="@L["One value per line"]"
+                                                    Rows="6"
+                                                    Class="w-full" />
+                                    <span class="text-xs ct-muted">@L["Editors can select only from these values."]</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Minimum selections"]</span>
+                                        <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MinimumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MinimumItems, v))" Class="w-full" />
+                                    </label>
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Maximum selections"]</span>
+                                        <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MaximumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MaximumItems, v))" Class="w-full" />
+                                    </label>
+                                </div>
+                            }
+                            else if (selected.FieldType == ContentFieldTypes.Gallery)
+                            {
+                                <div class="grid grid-cols-2 gap-3">
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Minimum images"]</span>
+                                        <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MinimumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MinimumItems, v))" Class="w-full" />
+                                    </label>
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Maximum images"]</span>
+                                        <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MaximumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MaximumItems, v))" Class="w-full" />
+                                    </label>
+                                </div>
+                                <p class="ct-help">@L["Editors select images from Media. Selection order is preserved."]</p>
+                            }
+                            else if (selected.FieldType == ContentFieldTypes.Dictionary)
+                            {
+                                <label class="pe-property-group">
+                                    <span class="pe-property-label">@L["Value type"]</span>
+                                    <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                            value="@GetStringSetting(selected, CompositeContentFieldSettings.ValueType)"
+                                            @onchange="@(args => SetSetting(selected, CompositeContentFieldSettings.ValueType, args.Value?.ToString()))">
+                                        <option value="text">@L["Short text"]</option>
+                                        <option value="number">@L["Number"]</option>
+                                    </select>
+                                </label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Minimum entries"]</span>
+                                        <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MinimumEntries)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MinimumEntries, v))" Class="w-full" />
+                                    </label>
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Maximum entries"]</span>
+                                        <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MaximumEntries)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MaximumEntries, v))" Class="w-full" />
+                                    </label>
+                                </div>
+                                <p class="ct-help">@L["Keys are short labels such as calories or serving size."]</p>
+                            }
 
                             <RadzenFieldset Text="@L["Advanced"]" AllowCollapse="true" Collapsed="true">
                                 <label class="pe-property-group">
                                     <span class="pe-property-label">@L["Internal field handle"]</span>
                                     <RadzenTextBox Value="@selected.Name" ValueChanged="@(v => UpdateSelectedName(v))" Class="w-full" />
                                 </label>
-                                <label class="pe-property-group">
-                                    <span class="pe-property-label">@L["Default value"]</span>
-                                    <RadzenTextBox Value="@selected.DefaultValue" ValueChanged="@(v => selected.DefaultValue = v)" Class="w-full" />
-                                </label>
+                                @if (!IsCompositeField(selected))
+                                {
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Default value"]</span>
+                                        <RadzenTextBox Value="@selected.DefaultValue" ValueChanged="@(v => selected.DefaultValue = v)" Class="w-full" />
+                                    </label>
+                                }
                             </RadzenFieldset>
                         </div>
                     }

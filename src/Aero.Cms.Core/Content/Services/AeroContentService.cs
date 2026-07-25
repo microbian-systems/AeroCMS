@@ -88,6 +88,12 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
                 continue;
             var multiple = field.Settings.TryGetValue("allowMultiple", out var setting) &&
                            setting.ValueKind == System.Text.Json.JsonValueKind.True;
+            if (!multiple
+                && value.ValueKind == System.Text.Json.JsonValueKind.String
+                && string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                continue;
+            }
             var values = multiple ? value.EnumerateArray().ToArray() : [value];
             foreach (var reference in values)
             {

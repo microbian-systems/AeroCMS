@@ -84,6 +84,7 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
             && target.ValueKind == JsonValueKind.String
                 ? target.GetString()
                 : null;
+        var isRequired = field.Required && mode == ContentValidationMode.Publish;
 
         if (field.Settings.TryGetValue("allowMultiple", out var multiple)
             && multiple.ValueKind == JsonValueKind.True)
@@ -94,7 +95,15 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
                 return;
             }
 
-            foreach (var item in element.EnumerateArray())
+            var items = element.EnumerateArray().ToArray();
+            if (items.Length == 0)
+            {
+                if (isRequired)
+                    context.AddFailure(field.Name, $"{field.Label ?? field.Name} is required.");
+                return;
+            }
+
+            foreach (var item in items)
             {
                 if (item.ValueKind != JsonValueKind.String || !long.TryParse(item.GetString(), out _))
                 {
@@ -105,6 +114,13 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
         }
         else
         {
+            if (element.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(element.GetString()))
+            {
+                if (isRequired)
+                    context.AddFailure(field.Name, $"{field.Label ?? field.Name} is required.");
+                return;
+            }
+
             if (element.ValueKind != JsonValueKind.String || !long.TryParse(element.GetString(), out _))
                 context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be a valid reference ID.");
         }

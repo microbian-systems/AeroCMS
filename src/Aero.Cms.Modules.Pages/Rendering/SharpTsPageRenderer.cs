@@ -18,7 +18,7 @@ public sealed class SharpTsPageRenderer(
         IsExperimental: true,
         SourceLanguage: "typescript",
         InitialSource: """
-            export function render(context: any) {
+            export function render(context: AeroRenderContext): AeroHtmlFragment {
                 return html`
                     <main class="aero-page">
                         <h1>${context.page.title}</h1>

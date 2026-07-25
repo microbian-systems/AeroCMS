@@ -48,6 +48,12 @@ public sealed class AeroContentTypeService(
     /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTypeDefinition definition, CancellationToken ct = default)
     {
+        var fieldValidation = CompositeContentFieldDefinitionValidator.Validate(definition.Fields);
+        if (fieldValidation is Result<NoneType, AeroError>.Failure fieldFailure)
+        {
+            return fieldFailure.Error;
+        }
+
         var hierarchyValidation = ValidateHierarchy(definition);
         if (hierarchyValidation is Result<NoneType, AeroError>.Failure hierarchyFailure)
         {

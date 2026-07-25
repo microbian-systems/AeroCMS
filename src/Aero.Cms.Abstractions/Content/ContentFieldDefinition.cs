@@ -7,10 +7,12 @@ namespace Aero.Cms.Abstractions.Content;
 /// </summary>
 public sealed class ContentFieldDefinition
 {
+    private Dictionary<string, JsonElement> settings = [];
+
     /// <summary>Field name used as the key in ContentItem.Fields</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Field type alias: "text", "richtext", "image", "url", "number", "date", "boolean", "media"</summary>
+    /// <summary>Field type alias, including bounded composite aliases such as "list", "gallery", and "dictionary".</summary>
     public string FieldType { get; set; } = "text";
 
     /// <summary>Display label for the admin UI</summary>
@@ -28,5 +30,9 @@ public bool Required { get; set; }
     public string? Placeholder { get; set; }
 
     /// <summary>Validation rules, editor hints, etc. consumed by FluentValidation + admin UI</summary>
-    public Dictionary<string, JsonElement> Settings { get; set; } = [];
+    public Dictionary<string, JsonElement> Settings
+    {
+        get => settings;
+        set => settings = value ?? [];
+    }
 }

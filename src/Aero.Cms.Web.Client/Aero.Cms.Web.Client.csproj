@@ -24,6 +24,14 @@
     <IsPackable>false</IsPackable>
     <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
     <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+
+    <!--
+      Aero.Cms.Shared and related projects have distinct server and browser build
+      variants. Visual Studio's Fast Up-to-Date check tracks projects by path and
+      can otherwise skip this client after rebuilding only the server variant.
+      Let MSBuild perform the authoritative incremental check for the WASM client.
+    -->
+    <DisableFastUpToDateCheck Condition="'$(DisableFastUpToDateCheck)' == ''">true</DisableFastUpToDateCheck>
   </PropertyGroup>
 
   <!-- Keep TypeScript build inputs out of NuGet contentFiles; only compiled wwwroot assets should ship. -->
@@ -50,11 +58,84 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=true" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
-    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=true">
+      <AeroBrowserBuildRoot>true</AeroBrowserBuildRoot>
+    </ProjectReference>
+    <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=true">
+      <AeroBrowserBuildLeaf>true</AeroBrowserBuildLeaf>
+    </ProjectReference>
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- IntermediateOutputPath is finalized after this project is evaluated; compose from the already-stable base path instead. -->
+    <AeroBrowserVariantInputManifest>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\aero-browser-variant-inputs.txt</AeroBrowserVariantInputManifest>
+    <AeroBrowserVariantStamp>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\aero-browser-variants.stamp</AeroBrowserVariantStamp>
+    <AeroBrowserVariantPendingStamp>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\aero-browser-variants.pending</AeroBrowserVariantPendingStamp>
+    <AeroBrowserAbstractionsAssembly>$(MSBuildProjectDirectory)\..\Aero.Cms.Abstractions\bin\browser\$(Configuration)\$(TargetFramework)\Aero.Cms.Abstractions.dll</AeroBrowserAbstractionsAssembly>
+    <AeroBrowserSharedAssembly>$(MSBuildProjectDirectory)\..\Aero.Cms.Shared\bin\browser\$(Configuration)\$(TargetFramework)\Aero.Cms.Shared.dll</AeroBrowserSharedAssembly>
+    <AeroBrowserSharedStaticAssets>$(MSBuildProjectDirectory)\..\Aero.Cms.Shared\obj\browser\$(Configuration)\$(TargetFramework)\staticwebassets.build.json</AeroBrowserSharedStaticAssets>
+    <AeroBrowserCommerceAssembly>$(MSBuildProjectDirectory)\..\Aero.Cms.Modules.Commerce.Client\bin\browser\$(Configuration)\$(TargetFramework)\Aero.Cms.Modules.Commerce.Client.dll</AeroBrowserCommerceAssembly>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(DesignTimeBuild)' != 'true' AND '$(BuildingInsideVisualStudio)' == 'true'">
+    <!-- Track the browser build closure, including resources, generated assets, analyzers, and imported build/package policy. -->
+    <AeroBrowserVariantInput Include="$(MSBuildProjectFullPath);..\Directory.Build.props;..\Directory.Packages.props;..\.editorconfig;..\global.json;..\..\global.json;..\Aero.Cms.Abstractions\**\*;..\Aero.Cms.Contracts\**\*;..\Aero.Cms.Html\**\*;..\Aero.Cms.Modules.Commerce.Client\**\*;..\Aero.Cms.Shared\**\*;..\Aero.Cms.SourceGenerators\**\*;..\..\Aero\Directory.Packages.props;..\..\Aero\global.json;..\..\Aero\src\Directory.Build.props;..\..\Aero\src\Aero.Core\**\*;..\..\Aero\src\Aero.Core.Ai\**\*;..\..\Aero\src\Aero.Events\**\*;..\..\Aero\src\Aero.Models\**\*;..\..\AeroDB\src\Directory.Build.props;..\..\AeroDB\src\Directory.Packages.props;..\..\AeroDB\src\AeroDB.Analyzers\**\*"
+                             Exclude="..\**\bin\**;..\**\obj\**;..\**\*.lscache;..\Aero.Cms.Shared\wwwroot\js\**\*;..\..\Aero\src\**\bin\**;..\..\Aero\src\**\obj\**;..\..\Aero\src\**\*.lscache;..\..\AeroDB\src\**\bin\**;..\..\AeroDB\src\**\obj\**;..\..\AeroDB\src\**\*.lscache" />
+  </ItemGroup>
+
+  <!--
+    Visual Studio sets BuildProjectReferences=false because the solution build
+    normally schedules referenced projects itself. That cannot represent two
+    differently-property-conditioned instances of the same project path, so
+    explicitly build the browser variants before resolving client references.
+  -->
+  <Target Name="AeroPrepareBrowserVariantBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(BuildingInsideVisualStudio)' == 'true'">
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(AeroBrowserVariantInputManifest)"
+                      Lines="@(AeroBrowserVariantInput->'%(FullPath)')"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+    <Delete Files="$(AeroBrowserVariantStamp)"
+            Condition="!Exists('$(AeroBrowserAbstractionsAssembly)') OR !Exists('$(AeroBrowserSharedAssembly)') OR !Exists('$(AeroBrowserSharedStaticAssets)') OR !Exists('$(AeroBrowserCommerceAssembly)')" />
+    <ItemGroup>
+      <FileWrites Include="$(AeroBrowserVariantInputManifest);$(AeroBrowserVariantStamp);$(AeroBrowserVariantPendingStamp)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AeroBuildBrowserVariants"
+          BeforeTargets="ResolveProjectReferences"
+          DependsOnTargets="AeroPrepareBrowserVariantBuild"
+          Inputs="@(AeroBrowserVariantInput);$(AeroBrowserVariantInputManifest)"
+          Outputs="$(AeroBrowserVariantStamp)"
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(BuildingInsideVisualStudio)' == 'true'">
+    <!-- Preserve the build-start time so an edit saved during this build remains newer and schedules the next one. -->
+    <Touch Files="$(AeroBrowserVariantPendingStamp)" AlwaysCreate="true" ForceTouch="true" />
+    <!-- Shared builds the browser Abstractions variant and its isolated dependencies. -->
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('AeroBrowserBuildRoot', 'true'))"
+             Targets="Build"
+             BuildInParallel="false"
+             RemoveProperties="BuildProjectReferences;BuildingInsideVisualStudio"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);AeroCmsBrowserClient=true;BuildingInsideVisualStudio=false;BuildProjectReferences=true" />
+    <!-- Commerce consumes the completed Shared browser output; do not traverse it again. -->
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('AeroBrowserBuildLeaf', 'true'))"
+             Targets="Build"
+             BuildInParallel="false"
+             RemoveProperties="BuildProjectReferences;BuildingInsideVisualStudio"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);AeroCmsBrowserClient=true;BuildingInsideVisualStudio=false;BuildProjectReferences=false" />
+    <Error Condition="!Exists('$(AeroBrowserAbstractionsAssembly)')" Text="The browser Aero.Cms.Abstractions assembly was not produced." />
+    <Error Condition="!Exists('$(AeroBrowserSharedAssembly)')" Text="The browser Aero.Cms.Shared assembly was not produced." />
+    <Error Condition="!Exists('$(AeroBrowserSharedStaticAssets)')" Text="The browser Aero.Cms.Shared static-web-assets manifest was not produced." />
+    <Error Condition="!Exists('$(AeroBrowserCommerceAssembly)')" Text="The browser Aero.Cms.Modules.Commerce.Client assembly was not produced." />
+    <Move SourceFiles="$(AeroBrowserVariantPendingStamp)"
+          DestinationFiles="$(AeroBrowserVariantStamp)"
+          OverwriteReadOnlyFiles="true" />
+  </Target>
 
   <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
     <PropertyGroup>

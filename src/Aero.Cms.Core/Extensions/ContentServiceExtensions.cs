@@ -64,6 +64,9 @@ public static class ContentServiceExtensions
         services.AddSingleton<IContentFieldValidator, TextFieldValidator>();
         services.AddSingleton<IContentFieldValidator, NumberFieldValidator>();
         services.AddSingleton<IContentFieldValidator, ReferenceFieldValidator>();
+        services.AddSingleton<IContentFieldValidator, ListFieldValidator>();
+        services.AddSingleton<IContentFieldValidator, GalleryFieldValidator>();
+        services.AddSingleton<IContentFieldValidator, DictionaryFieldValidator>();
 
         // Async validators (scoped — depend on scoped IContentService)
         services.AddScoped<IAsyncContentValidator, UniqueSlugValidator>();
@@ -76,6 +79,9 @@ public static class ContentServiceExtensions
         services.AddSingleton<IFieldTemplateSnippet, UrlFieldSnippet>();
         services.AddSingleton<IFieldTemplateSnippet, NumberFieldSnippet>();
         services.AddSingleton<IFieldTemplateSnippet, BooleanFieldSnippet>();
+        services.AddSingleton<IFieldTemplateSnippet, ListFieldSnippet>();
+        services.AddSingleton<IFieldTemplateSnippet, GalleryFieldSnippet>();
+        services.AddSingleton<IFieldTemplateSnippet, DictionaryFieldSnippet>();
 
         // Search indexers
         services.AddSingleton<IContentFieldIndexer, TextFieldIndexer>();
@@ -83,6 +89,8 @@ public static class ContentServiceExtensions
         services.AddSingleton<IContentFieldIndexer, ReferenceFieldIndexer>();
         services.AddSingleton<IContentFieldIndexer, NumberFieldIndexer>();
         services.AddSingleton<IContentFieldIndexer, BooleanFieldIndexer>();
+        services.AddSingleton<IContentFieldIndexer, ListFieldIndexer>();
+        services.AddSingleton<IContentFieldIndexer, DictionaryFieldIndexer>();
 
         // Background jobs
         services.AddScoped<ScheduledPublishHandler>();

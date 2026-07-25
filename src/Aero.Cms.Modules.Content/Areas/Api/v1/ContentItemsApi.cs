@@ -179,7 +179,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(vm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to create content item")
+                ? ContentMutationFailure(logger, "Failed to create content item", result.error.Message, siteId, alias)
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -237,7 +237,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(existingVm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to update content item")
+                ? ContentMutationFailure(logger, "Failed to update content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -281,7 +281,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.DeleteAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to delete content item")
+                ? ContentMutationFailure(logger, "Failed to delete content item", result.error.Message, siteId, alias, id)
                 : TypedResults.NoContent();
         }
         catch (Exception ex)
@@ -315,7 +315,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.PublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to publish content item")
+                ? ContentMutationFailure(logger, "Failed to publish content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -349,7 +349,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.UnpublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to unpublish content item")
+                ? ContentMutationFailure(logger, "Failed to unpublish content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -471,7 +471,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(fork, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to create content item translation")
+                ? ContentMutationFailure(logger, "Failed to create content item translation", result.error.Message, siteId, alias, id)
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -593,11 +593,26 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             Status = StatusCodes.Status400BadRequest
         });
 
-    private static IResult ContentMutationFailure(string title)
-        => TypedResults.BadRequest(new ProblemDetails
+    private static IResult ContentMutationFailure(
+        ILogger logger,
+        string title,
+        string reason,
+        long siteId,
+        string alias,
+        long? itemId = null)
+    {
+        logger.LogWarning(
+            "Content mutation rejected for site {SiteId}, type {ContentType}, item {ContentItemId}: {Reason}",
+            siteId,
+            alias,
+            itemId,
+            reason);
+
+        return TypedResults.BadRequest(new ProblemDetails
         {
             Title = title,
             Detail = "The requested content mutation could not be completed.",
             Status = StatusCodes.Status400BadRequest
         });
+    }
 }

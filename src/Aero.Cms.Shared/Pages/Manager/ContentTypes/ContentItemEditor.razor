@@ -50,10 +50,21 @@
         background: var(--pe-bg-primary);
     }
 
+    .ci-choice-list { display: grid; gap: .5rem; padding: .75rem; border: 1px solid var(--pe-border); border-radius: var(--pe-radius-md); background: var(--pe-bg-primary); }
+    .ci-gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .75rem; }
+    .ci-gallery-card { position: relative; overflow: hidden; border: 1px solid var(--pe-border); border-radius: var(--pe-radius-md); background: var(--pe-bg-primary); }
+    .ci-gallery-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+    .ci-gallery-remove { position: absolute; top: .35rem; right: .35rem; min-width: 2.75rem; min-height: 2.75rem; border-radius: 999px; background: color-mix(in srgb, var(--pe-bg-primary) 90%, transparent); color: var(--rz-danger); }
+    .ci-gallery-order { display: flex; justify-content: center; gap: .35rem; padding: .5rem; }
+    .ci-empty-composite { border: 1px dashed var(--pe-border); border-radius: var(--pe-radius-md); padding: 1rem; text-align: center; color: var(--pe-text-muted); background: var(--pe-bg-primary); }
+    .ci-key-value-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+
     @@media (max-width: 1024px) {
         .ci-editor-shell {
             grid-template-columns: 1fr;
         }
+
+        .ci-key-value-row { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -174,6 +185,84 @@
                                     break;
                                 case "reference":
                                     <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Referenced entry ID"]" Class="w-full" />
+                                    break;
+                                case ContentFieldTypes.List:
+                                    var allowedValues = GetAllowedValues(field);
+                                    var maximumSelections = GetIntSetting(field, CompositeContentFieldSettings.MaximumItems, 50);
+                                    @if (allowedValues.Count == 0)
+                                    {
+                                        <div class="ci-empty-composite" role="status">@L["This list has no configured choices. Edit the content type to add allowed values."]</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="ci-choice-list" role="group" aria-label="@FieldLabel(field)">
+                                            @foreach (var value in allowedValues)
+                                            {
+                                                <label class="flex items-center gap-3 text-sm" style="color: var(--pe-text-primary);">
+                                                    <input type="checkbox" checked="@IsListValueSelected(field.Name, value)" @onchange="@(args => ToggleListValue(field.Name, value, args.Value))" />
+                                                    <span>@value</span>
+                                                </label>
+                                            }
+                                        </div>
+                                        <p class="ci-help">@L["Choose up to {0}.", maximumSelections]</p>
+                                    }
+                                    break;
+                                case ContentFieldTypes.Gallery:
+                                    var gallery = _galleryValues.GetValueOrDefault(field.Name, []);
+                                    @if (gallery.Count == 0)
+                                    {
+                                        <div class="ci-empty-composite">
+                                            <RadzenIcon Icon="photo_library" />
+                                            <p class="mt-2">@L["No images selected"]</p>
+                                            <RadzenButton Icon="add_photo_alternate" Text="@L["Choose images"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenGallerySelector(field.Name))" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="ci-gallery-grid">
+                                            @for (var galleryIndex = 0; galleryIndex < gallery.Count; galleryIndex++)
+                                            {
+                                                var imageIndex = galleryIndex;
+                                                <div class="ci-gallery-card">
+                                                    <img src="@gallery[imageIndex]" alt="@L["Gallery image {0}", imageIndex + 1]" />
+                                                    <button type="button" class="ci-gallery-remove" title="@L["Remove image"]" aria-label="@L["Remove image {0}", imageIndex + 1]" @onclick="@(() => RemoveGalleryImage(field.Name, imageIndex))">
+                                                        <RadzenIcon Icon="close" />
+                                                    </button>
+                                                    <div class="ci-gallery-order">
+                                                        <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Size="ButtonSize.Small" Disabled="@(imageIndex == 0)" title="@L["Move image earlier"]" Click="@(() => MoveGalleryImage(field.Name, imageIndex, -1))" />
+                                                        <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Size="ButtonSize.Small" Disabled="@(imageIndex == gallery.Count - 1)" title="@L["Move image later"]" Click="@(() => MoveGalleryImage(field.Name, imageIndex, 1))" />
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                        <RadzenButton Icon="add_photo_alternate" Text="@L["Replace selection"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenGallerySelector(field.Name))" />
+                                    }
+                                    break;
+                                case ContentFieldTypes.Dictionary:
+                                    var dictionaryRows = _dictionaryValues.GetValueOrDefault(field.Name, []);
+                                    var numericValues = GetStringSetting(field, CompositeContentFieldSettings.ValueType) == CompositeContentFieldSettings.Number;
+                                    @if (dictionaryRows.Count == 0)
+                                    {
+                                        <div class="ci-empty-composite">@L["Add a label and its value."]</div>
+                                    }
+                                    @for (var rowIndex = 0; rowIndex < dictionaryRows.Count; rowIndex++)
+                                    {
+                                        var currentRowIndex = rowIndex;
+                                        var row = dictionaryRows[currentRowIndex];
+                                        <div class="ci-key-value-row">
+                                            <RadzenTextBox @bind-Value="row.Key" Placeholder="@L["Key"]" Class="w-full" />
+                                            @if (numericValues)
+                                            {
+                                                <input type="number" step="any" inputmode="decimal" class="w-full rounded-md shadow-sm sm:text-sm" style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);" @bind="row.Value" placeholder="@L["Number"]" />
+                                            }
+                                            else
+                                            {
+                                                <RadzenTextBox @bind-Value="row.Value" Placeholder="@L["Value"]" Class="w-full" />
+                                            }
+                                            <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Size="ButtonSize.Small" title="@L["Remove value"]" Click="@(() => RemoveDictionaryRow(field.Name, currentRowIndex))" />
+                                        </div>
+                                    }
+                                    <RadzenButton Icon="add" Text="@L["Add value"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => AddDictionaryRow(field.Name))" />
                                     break;
                                 default:
                                     <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
@@ -387,6 +476,7 @@
                 Title="@L["Content preview"]" />
 
 <MediaSelectorModal Show="@_showMediaSelector"
-                    MultiSelect="false"
+                    MultiSelect="@(_activeGalleryField is not null)"
+                    MaximumSelections="@ActiveGalleryMaximumSelections"
                     OnClose="@CloseMediaSelector"
                     OnConfirm="@ConfirmMediaSelection" />
