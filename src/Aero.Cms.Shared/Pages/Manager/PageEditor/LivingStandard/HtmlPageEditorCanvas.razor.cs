@@ -22,6 +22,8 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     private HtmlSortableInterop? _sortable;
     private DotNetObjectReference<HtmlPageEditorCanvas>? _callbackReference;
     private HtmlNode? _paletteMoveSource;
+    private IReadOnlyDictionary<long, PageRenderedFragmentKind> _renderedFragmentKinds =
+        new Dictionary<long, PageRenderedFragmentKind>();
 
     [Inject]
     private IJSRuntime JS { get; set; } = null!;
@@ -44,6 +46,12 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     /// <remarks>The owner must validate the final insertion again before mutating the tree.</remarks>
     [Parameter, EditorRequired]
     public IHtmlContentModelPolicy ContentPolicy { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the source-backed fragments represented by nodes in the editable document.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<PageRenderedFragment> RenderedFragments { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the node highlighted as the current selection.
@@ -144,6 +152,14 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     private string AiButtonTitle => AiEnabled
         ? "Open AI assistant"
         : AiUnavailableMessage;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        _renderedFragmentKinds = RenderedFragments
+            .GroupBy(fragment => fragment.NodeId)
+            .ToDictionary(group => group.Key, group => group.Last().Kind);
+    }
 
     /// <summary>
     /// Initializes the browser-side sortable integration after the canvas first renders.
