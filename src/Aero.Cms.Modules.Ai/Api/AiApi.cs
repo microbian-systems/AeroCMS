@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using System.Net.ServerSentEvents;
+using System.Runtime.CompilerServices;
 
 namespace Aero.Cms.Modules.Ai.Api;
 
@@ -40,6 +42,9 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
 
         group.MapPost("/content/enhance", EnhanceContent)
             .WithName("EnhanceContent");
+
+        group.MapPost("/content/enhance/stream", StreamEnhancedContent)
+            .WithName("StreamEnhancedContent");
 
         group.MapPost("/content/translate", TranslateContent)
             .WithName("TranslateContent");
@@ -207,6 +212,57 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
             Result<EnhanceContentResponse>.Failure failure => LogFailureAndReturn(logger, failure.Error, elapsed),
             _ => Results.Problem("Unexpected AI enhancement result.")
         };
+    }
+
+    /// <summary>
+    /// Streams a content enhancement over POST-SSE and finishes with a typed, validated response.
+    /// </summary>
+    private static async Task<IResult> StreamEnhancedContent(
+        [FromBody] EnhanceContentRequest request,
+        [FromServices] IValidator<EnhanceContentRequest> validator,
+        [FromServices] IAiContentEnhancementService service,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return Results.ValidationProblem(validation.ToDictionary());
+        }
+
+        var correlationId = string.IsNullOrWhiteSpace(httpContext.TraceIdentifier)
+            ? "ai-enhancement"
+            : httpContext.TraceIdentifier;
+        if (correlationId.Length > 128)
+        {
+            correlationId = correlationId[..128];
+        }
+
+        httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
+        httpContext.Response.Headers.CacheControl = "no-store, no-cache";
+        httpContext.Response.Headers["X-Accel-Buffering"] = "no";
+
+        var result = await service.StreamAsync(request, correlationId, cancellationToken);
+        return result switch
+        {
+            Result<IAsyncEnumerable<EnhanceContentEvent>>.Ok ok =>
+                TypedResults.ServerSentEvents(ToSseAsync(ok.Value, httpContext.RequestAborted)),
+            Result<IAsyncEnumerable<EnhanceContentEvent>>.Failure failure =>
+                ToProblem(failure.Error),
+            _ => Results.Problem("Unexpected AI enhancement stream result.")
+        };
+    }
+
+    private static async IAsyncEnumerable<SseItem<EnhanceContentEvent>> ToSseAsync(
+        IAsyncEnumerable<EnhanceContentEvent> events,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var item in events.WithCancellation(cancellationToken))
+        {
+            yield return new SseItem<EnhanceContentEvent>(
+                item,
+                item.Kind.ToString().ToLowerInvariant());
+        }
     }
 
     /// <summary>

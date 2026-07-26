@@ -605,7 +605,7 @@
 
                         <div class="flex justify-end gap-2">
                             <button class="pe-btn pe-btn-ghost" @onclick="CloseEnhancePanel">@L["Discard"]</button>
-                            <button class="pe-btn pe-btn-primary" @onclick="ApplyEnhancementAsync" disabled="@string.IsNullOrWhiteSpace(EnhanceSuggestion)">@L["Apply"]</button>
+                            <button class="pe-btn pe-btn-primary" @onclick="ApplyEnhancementAsync" disabled="@(IsEnhancing || string.IsNullOrWhiteSpace(EnhanceSuggestion))">@L["Apply"]</button>
                         </div>
                     </div>
                 </div>

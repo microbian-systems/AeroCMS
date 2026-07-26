@@ -25,4 +25,19 @@ public interface IAiContentEnhancementService
 Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Streams a content suggestion while retaining a typed, fully parsed completion event.
+    /// </summary>
+    /// <param name="request">The content, context, provider selection, and user instructions.</param>
+    /// <param name="correlationId">The request correlation identifier exposed in stream events.</param>
+    /// <param name="cancellationToken">A token that observes request abortion and provider cancellation.</param>
+    /// <returns>
+    /// A successful result containing the event stream, or a failure encountered before the SSE response starts.
+    /// Failures after streaming starts are represented by an <see cref="EnhanceContentEventKind.Error"/> event.
+    /// </returns>
+    Task<Result<IAsyncEnumerable<EnhanceContentEvent>>> StreamAsync(
+        EnhanceContentRequest request,
+        string correlationId,
+        CancellationToken cancellationToken = default);
 }

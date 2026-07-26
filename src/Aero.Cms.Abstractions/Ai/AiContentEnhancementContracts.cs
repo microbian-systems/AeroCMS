@@ -111,6 +111,41 @@ public sealed record EnhanceContentResponse(
     AiUsage? Usage);
 
 /// <summary>
+/// Identifies one event in a streamed content-enhancement response.
+/// </summary>
+public enum EnhanceContentEventKind
+{
+    /// <summary>The stream has started and provider metadata is available.</summary>
+    Metadata = 0,
+
+    /// <summary>A validated fragment of the proposed field text is available for preview.</summary>
+    Delta = 1,
+
+    /// <summary>The provider output has been fully parsed and is ready for review.</summary>
+    Complete = 2,
+
+    /// <summary>The stream failed after its HTTP response had already started.</summary>
+    Error = 3
+}
+
+/// <summary>
+/// Typed POST-SSE event emitted while an AI content suggestion is generated.
+/// </summary>
+/// <param name="Kind">The event kind.</param>
+/// <param name="Text">A text delta or a safe error message.</param>
+/// <param name="Response">The fully parsed response, present only for a successful completion.</param>
+/// <param name="CorrelationId">The server correlation identifier for diagnostics.</param>
+/// <param name="Provider">The selected provider display name.</param>
+/// <param name="Model">The selected provider model.</param>
+public sealed record EnhanceContentEvent(
+    EnhanceContentEventKind Kind,
+    string? Text = null,
+    EnhanceContentResponse? Response = null,
+    string? CorrelationId = null,
+    string? Provider = null,
+    string? Model = null);
+
+/// <summary>
 /// Optional provider token usage metadata.
 /// </summary>
 public sealed record AiUsage(

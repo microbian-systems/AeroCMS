@@ -253,10 +253,13 @@
                             <AeroMarkdownEditor @key="Current.Id"
                                                 @ref="_markdownEditor"
                                                 EditorId="@($"docs-markdown-{Current.Id}")"
-                                                Markdown="@(Current.MarkdownContent ?? string.Empty)"
-                                                MarkdownChanged="OnMarkdownEditorSynchronized"
-                                                ContentChanged="OnMarkdownEditorContentChanged"
-                                                AriaLabel="@L["Documentation content"]" />
+                                                 Markdown="@(Current.MarkdownContent ?? string.Empty)"
+                                                 MarkdownChanged="OnMarkdownEditorSynchronized"
+                                                 ContentChanged="OnMarkdownEditorContentChanged"
+                                                 EnhanceRequested="OpenDocsAiAsync"
+                                                 AiEnabled="@DocsAiEnabled"
+                                                 AiUnavailableMessage="@DocsAiUnavailableMessage"
+                                                 AriaLabel="@L["Documentation content"]" />
                         </div>
                     </section>
                 }
