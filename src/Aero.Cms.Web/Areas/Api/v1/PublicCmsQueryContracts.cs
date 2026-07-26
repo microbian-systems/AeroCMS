@@ -41,6 +41,20 @@ public sealed record PublicDocsQueryItem(
     int Order,
     DateTimeOffset? PublishedOn);
 
+public sealed record PublicContentSearchItem(
+    string Id,
+    string Title,
+    string Slug,
+    string Path,
+    string Culture,
+    DateTimeOffset? PublishedOn);
+
+public sealed record PublicContentSearchResult(
+    IReadOnlyList<PublicContentSearchItem> Items,
+    int Skip,
+    int Take,
+    bool HasMore);
+
 /// <summary>
 /// Provides fresh, public-only CMS projections for API and HTMX callers.
 /// Implementations own persistence access; callers receive no session or lazy query.
@@ -69,5 +83,13 @@ public interface IPublicCmsQueryService
         int maximumDepth,
         int maximumItems,
         IReadOnlyList<string>? projection,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<PublicContentSearchResult>> QueryContentSearchAsync(
+        string contentTypeAlias,
+        string query,
+        Aero.Cms.Core.Content.Search.ContentSearchMode mode,
+        int skip,
+        int take,
         CancellationToken cancellationToken = default);
 }

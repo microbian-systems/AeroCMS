@@ -1,3 +1,4 @@
+using System.Globalization;
 using Aero.Cms.Abstractions.Content;
 using Aero.Modular;
 
@@ -69,6 +70,43 @@ public sealed class NumberFieldEditor : IContentFieldEditor, IFieldEditor
         if (decimal.TryParse(value?.ToString(), out var d)) return d;
         return value;
     }
+}
+
+/// <summary>Supplies the built-in bounded integer editor.</summary>
+public sealed class RangeFieldEditor : IContentFieldEditor, IFieldEditor
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Range;
+
+    /// <inheritdoc />
+    public string EditorComponent => "aero-range";
+
+    /// <inheritdoc />
+    public object? Normalize(object? value)
+    {
+        if (value is null) return null;
+        return int.TryParse(
+            value.ToString(),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var parsed)
+            ? parsed
+            : value;
+    }
+}
+
+/// <summary>Supplies the Radzen-backed hexadecimal color editor.</summary>
+public sealed class ColorFieldEditor : IContentFieldEditor, IFieldEditor
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Color;
+
+    /// <inheritdoc />
+    public string EditorComponent => "aero-color-picker";
+
+    /// <inheritdoc />
+    public object? Normalize(object? value) =>
+        value?.ToString()?.Trim();
 }
 
 /// <summary>

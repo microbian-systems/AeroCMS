@@ -38,6 +38,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         group.MapGet("/{alias}/{id:long}", GetContentItem)
             .RequireAuthorization("site:read")
             .WithName("GetContentItem");
+        group.MapGet("/{alias}/reference-options", ListReferenceOptions)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentReferenceOptions");
         group.MapPost("/{alias}", CreateContentItem)
             .RequireAuthorization("site:create")
             .WithName("CreateContentItem");
@@ -614,5 +617,95 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             Detail = "The requested content mutation could not be completed.",
             Status = StatusCodes.Status400BadRequest
         });
+    }
+
+    /// <summary>
+    /// Returns bounded, site-scoped options for flat reference pickers.
+    /// </summary>
+    private static async Task<IResult> ListReferenceOptions(
+        string alias,
+        [FromServices] IContentQueryService queryService,
+        [FromServices] IContentTypeService contentTypeService,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] string? culture = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? filterField = null,
+        [FromQuery] string? filterValue = null,
+        [FromQuery] int take = 100,
+        CancellationToken ct = default)
+    {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0)
+        {
+            return MissingSite();
+        }
+
+        var contentType = await contentTypeService.GetByAliasAsync(
+            siteId,
+            alias,
+            ct);
+        if (contentType is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var filters = new Dictionary<string, string>(
+            StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            filters["__culture"] = culture;
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            filters["__search"] = search;
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterField)
+            || !string.IsNullOrWhiteSpace(filterValue))
+        {
+            if (string.IsNullOrWhiteSpace(filterField)
+                || string.IsNullOrWhiteSpace(filterValue)
+                || !typeOk.Value.Fields.Any(field =>
+                    string.Equals(
+                        field.Name,
+                        filterField,
+                        StringComparison.Ordinal)
+                    && field.FieldType == ContentFieldTypes.Reference))
+            {
+                return TypedResults.BadRequest(
+                    new ProblemDetails
+                    {
+                        Title = "Invalid reference filter",
+                        Detail = "The reference filter must name a reference field on the target content type."
+                    });
+            }
+
+            filters[filterField] = filterValue;
+        }
+
+        var result = await queryService.SearchAsync(
+            siteId,
+            alias,
+            filters,
+            ct);
+        return result switch
+        {
+            Result<IReadOnlyList<ContentItem>, AeroError>.Ok ok =>
+                TypedResults.Ok<IReadOnlyList<ContentReferenceOption>>(
+                    ok.Value
+                        .OrderBy(item => item.Title)
+                        .ThenBy(item => item.Id)
+                        .Take(Math.Clamp(take, 1, 100))
+                        .Select(item => new ContentReferenceOption(
+                            item.Id,
+                            item.Title ?? item.Slug,
+                            item.Slug,
+                            item.Culture))
+                        .ToList()),
+            Result<IReadOnlyList<ContentItem>, AeroError>.Failure failure =>
+                TypedResults.Problem(failure.Error.ToString()),
+            _ => TypedResults.Problem("Unexpected content reference query result.")
+        };
     }
 }

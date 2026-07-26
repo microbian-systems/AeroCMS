@@ -21,6 +21,7 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 public partial class ContentTypeEditor
 {
     private const int MaximumHierarchyDepthLimit = 32;
+    private const string HierarchyReferenceFieldOption = "hierarchy-reference";
 
         /// <summary>
     /// Gets or sets the Alias.
@@ -40,11 +41,14 @@ public partial class ContentTypeEditor
         new("image", L["Image"], "image", L["Photo or graphic URL."]),
         new(ContentFieldTypes.Gallery, L["Gallery"], "photo_library", L["Select and order multiple images."]),
         new("number", L["Number"], "pin", L["Prices, counts, rankings, or measurements."]),
+        new(ContentFieldTypes.Range, L["Range"], "linear_scale", L["Choose one whole number from an inclusive range."]),
         new(ContentFieldTypes.List, L["List"], "format_list_bulleted", L["Choose from preset text or number values."]),
+        new(ContentFieldTypes.Color, L["Color"], "palette", L["Choose a color, with optional transparency."]),
         new("boolean", L["Yes/No"], "toggle_on", L["A simple on/off choice."]),
         new("url", L["Link"], "link", L["Website or call-to-action URL."]),
         new("date", L["Date"], "event", L["Dates and milestones."]),
         new("reference", L["Reference"], "account_tree", L["Link to another content entry."]),
+        new(HierarchyReferenceFieldOption, L["Hierarchy reference"], "family_history", L["Choose an entry from a hierarchy with its full path."]),
         new(ContentFieldTypes.Dictionary, L["Key/value"], "data_object", L["Add a small set of labeled values."])
     ];
 
@@ -62,6 +66,8 @@ public partial class ContentTypeEditor
     private bool _entriesLoading;
     private string _entriesSearchText = string.Empty;
     private IReadOnlyList<ContentTypeSummary> _availableParentContentTypes = [];
+    private readonly Dictionary<string, ContentTypeDetail> _referenceTargetDefinitions =
+        new(StringComparer.Ordinal);
 
     private string Name { get; set; } = string.Empty;
     private string AliasValue { get; set; } = string.Empty;
@@ -69,8 +75,30 @@ public partial class ContentTypeEditor
     private string? Category { get; set; }
     private bool AllowPublicUrl { get; set; }
     private bool HideFromSearch { get; set; }
-    private ContentCardinality Cardinality { get; set; } = ContentCardinality.Collection;
-    private ContentStructure Structure { get; set; } = ContentStructure.Flat;
+    private ContentCardinality _cardinality = ContentCardinality.Collection;
+    private ContentStructure _structure = ContentStructure.Flat;
+    private ContentCardinality Cardinality
+    {
+        get => _cardinality;
+        set => _cardinality = _structure == ContentStructure.Hierarchical
+                              && value == ContentCardinality.Singleton
+            ? ContentCardinality.Collection
+            : value;
+    }
+
+    private ContentStructure Structure
+    {
+        get => _structure;
+        set
+        {
+            _structure = value;
+            if (value == ContentStructure.Hierarchical)
+            {
+                _cardinality = ContentCardinality.Collection;
+            }
+        }
+    }
+
     private bool AllowRootItems { get; set; } = true;
     private int MaximumHierarchyDepth { get; set; } = 8;
     private bool RequireSameTypeParent { get; set; } = true;
@@ -125,6 +153,7 @@ protected override async Task OnInitializedAsync()
             _useCustomTemplate = !string.IsNullOrWhiteSpace(detail.ScribanTemplate);
             Fields = detail.Fields.Select(CloneField).ToList();
             _aliasLocked = true;
+            await LoadReferenceTargetDefinitionsAsync();
         }
         else if (result is Result<ContentTypeDetail, AeroError>.Failure failure)
         {
@@ -168,20 +197,42 @@ protected override async Task OnInitializedAsync()
         var option = GetFieldOption(fieldType);
         var baseLabel = option.Label == "Short text" ? "Title" : option.Label;
         var handle = CreateUniqueFieldName(GenerateHandle(baseLabel));
+        var storedFieldType = fieldType == HierarchyReferenceFieldOption
+            ? ContentFieldTypes.Reference
+            : fieldType;
 
         var field = new ContentFieldDefinition
         {
             Name = handle,
-            FieldType = fieldType,
+            FieldType = storedFieldType,
             Label = baseLabel,
-            Placeholder = option.Description
+            Placeholder = option.Description,
+            Indexed = storedFieldType == ContentFieldTypes.Reference,
+            FullTextSearchable =
+                storedFieldType is ContentFieldTypes.Text or ContentFieldTypes.RichText
         };
 
-        if (fieldType == ContentFieldTypes.List)
+        if (fieldType == HierarchyReferenceFieldOption)
+        {
+            SetSetting(
+                field,
+                ReferenceContentFieldSettings.SelectionMode,
+                ReferenceContentFieldSettings.SelectionModeHierarchy);
+            SetSetting(field, ReferenceContentFieldSettings.SelectLeafOnly, true);
+            SetSetting(field, ReferenceContentFieldSettings.ShowAncestors, true);
+        }
+        else if (fieldType == ContentFieldTypes.List)
         {
             SetSetting(field, CompositeContentFieldSettings.ItemType, CompositeContentFieldSettings.Text);
+            SetSetting(field, CompositeContentFieldSettings.MinimumItems, 0);
             SetSetting(field, CompositeContentFieldSettings.MaximumItems, 5);
             SetAllowedValuesText(field, string.Empty);
+        }
+        else if (fieldType == ContentFieldTypes.Range)
+        {
+            SetSetting(field, RangeContentFieldSettings.Start, 1);
+            SetSetting(field, RangeContentFieldSettings.End, 10);
+            SetSetting(field, RangeContentFieldSettings.AllowNegative, false);
         }
         else if (fieldType == ContentFieldTypes.Gallery)
         {
@@ -259,6 +310,11 @@ protected override async Task OnInitializedAsync()
         => FieldOptions.FirstOrDefault(option => option.Value == fieldType)
             ?? FieldOptions[0];
 
+    private FieldTypeOption GetFieldOption(ContentFieldDefinition field) =>
+        IsHierarchyReference(field)
+            ? GetFieldOption(HierarchyReferenceFieldOption)
+            : GetFieldOption(field.FieldType);
+
     private static string FieldLabel(ContentFieldDefinition field)
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
 
@@ -279,6 +335,129 @@ protected override async Task OnInitializedAsync()
             ? value.GetString()
             : value.GetRawText();
     }
+
+    private async Task OnReferenceTargetChangedAsync(
+        ContentFieldDefinition field,
+        string? targetAlias)
+    {
+        SetSetting(
+            field,
+            ReferenceContentFieldSettings.TargetContentType,
+            targetAlias);
+        field.Indexed = true;
+        field.Settings.Remove(
+            ReferenceContentFieldSettings.TargetFilterField);
+        if (!string.IsNullOrWhiteSpace(targetAlias))
+        {
+            await LoadReferenceTargetDefinitionAsync(targetAlias);
+        }
+    }
+
+    private void OnReferenceDependencyChanged(
+        ContentFieldDefinition field,
+        string? dependencyName)
+    {
+        SetSetting(
+            field,
+            ReferenceContentFieldSettings.DependsOnField,
+            dependencyName);
+        field.Settings.Remove(
+            ReferenceContentFieldSettings.TargetFilterField);
+    }
+
+    private IEnumerable<ContentFieldDefinition> DependencyReferenceFields(
+        ContentFieldDefinition selected)
+    {
+        var selectedIndex = Fields.IndexOf(selected);
+        return Fields
+            .Take(Math.Max(0, selectedIndex))
+            .Where(field => field.FieldType == ContentFieldTypes.Reference);
+    }
+
+    private IEnumerable<ContentFieldDefinition> TargetReferenceFields(
+        ContentFieldDefinition selected)
+    {
+        var targetAlias = GetStringSetting(
+            selected,
+            ReferenceContentFieldSettings.TargetContentType);
+        if (string.Equals(
+                targetAlias,
+                AliasValue,
+                StringComparison.Ordinal))
+        {
+            return Fields.Where(
+                field => field.FieldType == ContentFieldTypes.Reference);
+        }
+
+        return !string.IsNullOrWhiteSpace(targetAlias)
+            && _referenceTargetDefinitions.TryGetValue(
+                targetAlias,
+                out var target)
+                ? target.Fields.Where(
+                    field => field.FieldType == ContentFieldTypes.Reference)
+                : [];
+    }
+
+    private async Task LoadReferenceTargetDefinitionsAsync()
+    {
+        foreach (var targetAlias in Fields
+                     .Where(field =>
+                         field.FieldType == ContentFieldTypes.Reference)
+                     .Select(field => GetStringSetting(
+                         field,
+                         ReferenceContentFieldSettings.TargetContentType))
+                     .Where(alias => !string.IsNullOrWhiteSpace(alias))
+                     .Distinct(StringComparer.Ordinal))
+        {
+            await LoadReferenceTargetDefinitionAsync(targetAlias!);
+        }
+    }
+
+    private async Task LoadReferenceTargetDefinitionAsync(string targetAlias)
+    {
+        if (_referenceTargetDefinitions.ContainsKey(targetAlias))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(AliasValue)
+            && string.Equals(
+                AliasValue,
+                targetAlias,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var result = await ContentTypesApi.GetByAliasAsync(targetAlias);
+        if (result is Result<ContentTypeDetail, AeroError>.Ok ok)
+        {
+            _referenceTargetDefinitions[targetAlias] = ok.Value;
+        }
+    }
+
+    private static bool SupportsFullTextSearch(
+        ContentFieldDefinition field) =>
+        field.FieldType is
+            ContentFieldTypes.Text or
+            ContentFieldTypes.RichText or
+            ContentFieldTypes.Url or
+            ContentFieldTypes.List or
+            ContentFieldTypes.Dictionary;
+
+    private static bool SupportsSemanticSearch(
+        ContentFieldDefinition field) =>
+        field.FieldType is
+            ContentFieldTypes.Text or
+            ContentFieldTypes.RichText;
+
+    private static bool GetBoolSetting(
+        ContentFieldDefinition field,
+        string key,
+        bool fallback = false) =>
+        TryGetSetting(field, key, out var value)
+            ? value.ValueKind == JsonValueKind.True
+            : fallback;
 
     private string GetAllowedValuesText(ContentFieldDefinition field)
     {
@@ -308,6 +487,69 @@ protected override async Task OnInitializedAsync()
 
     private static bool IsCompositeField(ContentFieldDefinition field) =>
         field.FieldType is ContentFieldTypes.List or ContentFieldTypes.Gallery or ContentFieldTypes.Dictionary;
+
+    private int GetRangeStartMinimum(ContentFieldDefinition field) =>
+        GetBoolSetting(field, RangeContentFieldSettings.AllowNegative)
+            ? int.MinValue
+            : 0;
+
+    private static bool IsListOptional(ContentFieldDefinition field) =>
+        !field.Required
+        && (!field.Settings.TryGetValue(
+                CompositeContentFieldSettings.MinimumItems,
+                out var minimum)
+            || !minimum.TryGetInt32(out var minimumValue)
+            || minimumValue == 0);
+
+    private static void SetListOptional(
+        ContentFieldDefinition field,
+        bool optional)
+    {
+        field.Required = !optional;
+        var currentMinimum =
+            field.Settings.TryGetValue(
+                CompositeContentFieldSettings.MinimumItems,
+                out var minimum)
+            && minimum.TryGetInt32(out var parsed)
+                ? parsed
+                : 0;
+        SetSetting(
+            field,
+            CompositeContentFieldSettings.MinimumItems,
+            optional ? 0 : Math.Max(1, currentMinimum));
+    }
+
+    private static void SetRangeAllowNegative(
+        ContentFieldDefinition field,
+        bool allowNegative)
+    {
+        SetSetting(
+            field,
+            RangeContentFieldSettings.AllowNegative,
+            allowNegative);
+        if (allowNegative)
+        {
+            return;
+        }
+
+        if (field.Settings.TryGetValue(
+                RangeContentFieldSettings.Start,
+                out var start)
+            && start.TryGetInt32(out var startValue)
+            && startValue < 0)
+        {
+            SetSetting(field, RangeContentFieldSettings.Start, 0);
+        }
+
+        if (field.Settings.TryGetValue(
+                RangeContentFieldSettings.End,
+                out var end)
+            && end.TryGetInt32(out var endValue)
+            && endValue < 0)
+        {
+            SetSetting(field, RangeContentFieldSettings.End, 0);
+        }
+    }
 
     private static bool TryGetSetting(ContentFieldDefinition field, string key, out JsonElement value)
         => field.Settings.TryGetValue(key, out value);
@@ -350,6 +592,26 @@ protected override async Task OnInitializedAsync()
             value,
             ContentJsonContext.Default.String);
     }
+
+    private static void SetSetting(ContentFieldDefinition field, string key, bool value)
+    {
+        field.Settings[key] = JsonSerializer.SerializeToElement(
+            value,
+            ContentJsonContext.Default.Boolean);
+    }
+
+    private static bool IsHierarchyReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetSettingString(field, ReferenceContentFieldSettings.SelectionMode),
+            ReferenceContentFieldSettings.SelectionModeHierarchy,
+            StringComparison.Ordinal);
+
+    private static string? GetSettingString(ContentFieldDefinition field, string key) =>
+        field.Settings.TryGetValue(key, out var value)
+        && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private StandaloneEditorConstructionOptions ScribanEditorConstructionOptions(StandaloneCodeEditor editor)
         => new()
@@ -470,6 +732,17 @@ protected override async Task OnInitializedAsync()
         }
 
         if (Structure == ContentStructure.Hierarchical
+            && Cardinality == ContentCardinality.Singleton)
+        {
+            Notify(
+                NotificationSeverity.Warning,
+                "Invalid entry organization",
+                "Hierarchical content types must use collection cardinality.");
+            _activeTab = EditorTab.Basics;
+            return false;
+        }
+
+        if (Structure == ContentStructure.Hierarchical
             && MaximumHierarchyDepth is < 1 or > MaximumHierarchyDepthLimit)
         {
             Notify(
@@ -541,6 +814,45 @@ protected override async Task OnInitializedAsync()
                     _activeTab = EditorTab.Fields;
                     return false;
                 }
+            }
+        }
+
+        foreach (var field in Fields.Where(
+                     field => field.FieldType == ContentFieldTypes.Range))
+        {
+            var start = GetIntSetting(field, RangeContentFieldSettings.Start);
+            var end = GetIntSetting(field, RangeContentFieldSettings.End);
+            if (start is null || end is null)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Missing range",
+                    $"Set both Start with and End with for {FieldLabel(field)}.");
+                _activeTab = EditorTab.Fields;
+                return false;
+            }
+
+            if (start > end)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Invalid range",
+                    $"{FieldLabel(field)} must start at or below its ending value.");
+                _activeTab = EditorTab.Fields;
+                return false;
+            }
+
+            if (!GetBoolSetting(
+                    field,
+                    RangeContentFieldSettings.AllowNegative)
+                && start < 0)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Negative range",
+                    $"Enable negative values or start {FieldLabel(field)} at zero or higher.");
+                _activeTab = EditorTab.Fields;
+                return false;
             }
         }
 
@@ -720,6 +1032,9 @@ protected override async Task OnInitializedAsync()
             Required = field.Required,
             DefaultValue = field.DefaultValue,
             Placeholder = field.Placeholder,
+            Indexed = field.Indexed,
+            FullTextSearchable = field.FullTextSearchable,
+            SemanticSearchable = field.SemanticSearchable,
             Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value.Clone())
         };
 

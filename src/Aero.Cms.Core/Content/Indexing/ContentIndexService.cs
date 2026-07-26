@@ -1,76 +1,99 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Content.Search;
-using Aero.Cms.Core.Content.Services;
 using Aero.Core;
-using Aero.Core.Railway;
 
 namespace Aero.Cms.Core.Content.Indexing;
 
-/// <summary>
-/// Builds a search index document from a ContentItem by extracting field-level tokens
-/// using registered IContentFieldIndexer implementations.
-/// </summary>
-/// <remarks>
-/// Indexers are matched to field types case-insensitively. Duplicate registrations for
-/// the same field type cause index construction to fail.
-/// </remarks>
-public sealed class ContentIndexService(
-    IEnumerable<IContentFieldIndexer> indexers,
-    IContentTypeService typeService)
+public sealed record ContentSearchArtifacts(
+    ContentSearchDocument Document,
+    IReadOnlyList<ContentSearchFacet> Facets,
+    string SemanticText);
+
+/// <summary>Pure extraction of persisted search projections from an item and its runtime definition.</summary>
+public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexers)
 {
-    /// <summary>
-    /// Builds a <see cref="ContentSearchDocument"/> for the given content item.
-    /// Returns an identifier-only document if the content type cannot be resolved.
-    /// </summary>
-    /// <param name="item">The content item to index.</param>
-    /// <param name="ct">A token that can cancel content-type resolution.</param>
-    /// <returns>
-    /// A search document containing tokens from fields that have both a value and a
-    /// registered indexer. Hidden content types return metadata without field tokens.
-    /// </returns>
-    /// <remarks>
-    /// Tokens are preserved as returned by each indexer. They are joined with spaces into
-    /// <see cref="ContentSearchDocument.FullText"/>; no additional case or culture
-    /// normalization is applied.
-    /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="item"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Multiple indexers have the same field type, ignoring case.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
-    public async Task<ContentSearchDocument> BuildIndexAsync(ContentItem item, CancellationToken ct = default)
+    public ContentSearchArtifacts BuildIndex(
+        ContentItem item,
+        ContentTypeDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(definition);
 
-        var typeResult = await typeService.GetByAliasAsync(item.SiteId, item.ContentTypeAlias, ct);
-        if (typeResult is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
-            return new ContentSearchDocument { Id = $"content:{item.SiteId}:{item.Id}" };
+        var lookup = indexers.ToDictionary(
+            indexer => indexer.FieldType,
+            StringComparer.OrdinalIgnoreCase);
+        var fullText = new List<string> { item.Title ?? string.Empty, item.Slug };
+        var semanticText = new List<string>();
+        var facets = new List<ContentSearchFacet>();
 
-        var type = typeOk.Value;
-        var doc = new ContentSearchDocument
+        foreach (var field in definition.Fields)
         {
-            Id = $"content:{item.SiteId}:{item.Id}",
-            SiteId = item.SiteId,
-            ContentItemId = item.Id,
-            ContentTypeAlias = item.ContentTypeAlias,
-            Slug = item.Slug,
-            Title = item.Title ?? "",
-            HideFromSearch = type.HideFromSearch
-        };
+            if (!item.Fields.TryGetValue(field.Name, out var value)
+                || !lookup.TryGetValue(field.FieldType, out var indexer))
+            {
+                continue;
+            }
 
-        if (type.HideFromSearch)
-            return doc;
+            var tokens = indexer.GetIndexTokens(field, value)
+                .Where(token => !string.IsNullOrWhiteSpace(token))
+                .Select(token => token.Trim())
+                .ToArray();
 
-        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
+            if (field.Indexed || field.FieldType == ContentFieldTypes.Reference)
+            {
+                for (var ordinal = 0; ordinal < tokens.Length; ordinal++)
+                {
+                    facets.Add(new ContentSearchFacet
+                    {
+                        Id = Snowflake.NewId(),
+                        SiteId = item.SiteId,
+                        ContentItemId = item.Id,
+                        ContentTypeAlias = item.ContentTypeAlias,
+                        Culture = item.Culture,
+                        PublicationState = item.PublicationState,
+                        HideFromSearch = definition.HideFromSearch,
+                        FieldName = field.Name,
+                        NormalizedValue = NormalizeExactValue(tokens[ordinal]),
+                        Ordinal = ordinal
+                    });
+                }
+            }
 
-        foreach (var field in type.Fields)
-        {
-            if (!item.Fields.TryGetValue(field.Name, out var element)) continue;
-            if (!lookup.TryGetValue(field.FieldType, out var indexer)) continue;
+            if (field.FullTextSearchable)
+            {
+                fullText.AddRange(tokens);
+            }
 
-            var tokens = indexer.GetIndexTokens(field, element).ToList();
-            doc.FieldTokens[field.Name] = tokens;
-            doc.FullText += string.Join(" ", tokens) + " ";
+            if (field.SemanticSearchable)
+            {
+                semanticText.AddRange(tokens);
+            }
         }
 
-        return doc;
+        return new ContentSearchArtifacts(
+            new ContentSearchDocument
+            {
+                Id = item.Id,
+                SiteId = item.SiteId,
+                ContentItemId = item.Id,
+                ContentTypeAlias = item.ContentTypeAlias,
+                Culture = item.Culture,
+                PublicationState = item.PublicationState,
+                PublishedOn = item.PublishedOn,
+                VersionNumber = item.VersionNumber,
+                Slug = item.Slug,
+                Title = item.Title ?? string.Empty,
+                HideFromSearch = definition.HideFromSearch,
+                FullText = string.Join(
+                    ' ',
+                    fullText.Where(part => !string.IsNullOrWhiteSpace(part)))
+            },
+            facets,
+            string.Join(
+                ' ',
+                semanticText.Where(part => !string.IsNullOrWhiteSpace(part))));
     }
+
+    public static string NormalizeExactValue(string value)
+        => value.Trim().ToUpperInvariant();
 }

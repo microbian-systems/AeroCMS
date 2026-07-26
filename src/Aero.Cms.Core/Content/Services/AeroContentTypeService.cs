@@ -54,6 +54,32 @@ public sealed class AeroContentTypeService(
             return fieldFailure.Error;
         }
 
+        var scalarFieldValidation =
+            ScalarContentFieldDefinitionValidator.Validate(definition.Fields);
+        if (scalarFieldValidation is Result<NoneType, AeroError>.Failure scalarFieldFailure)
+        {
+            return scalarFieldFailure.Error;
+        }
+
+        foreach (var field in definition.Fields.Where(
+                     field => field.FieldType == ContentFieldTypes.Reference))
+        {
+            field.Indexed = true;
+        }
+
+        var searchFieldValidation =
+            ContentFieldSearchDefinitionValidator.Validate(definition.Fields);
+        if (searchFieldValidation is Result<NoneType, AeroError>.Failure searchFieldFailure)
+        {
+            return searchFieldFailure.Error;
+        }
+
+        var referenceValidation = await ValidateReferenceFieldsAsync(definition, ct);
+        if (referenceValidation is Result<NoneType, AeroError>.Failure referenceFailure)
+        {
+            return referenceFailure.Error;
+        }
+
         var hierarchyValidation = ValidateHierarchy(definition);
         if (hierarchyValidation is Result<NoneType, AeroError>.Failure hierarchyFailure)
         {
@@ -163,6 +189,13 @@ public sealed class AeroContentTypeService(
             return AeroError.ValidationError(["The content structure is invalid."]);
         }
 
+        if (definition.Structure == ContentStructure.Hierarchical
+            && definition.Cardinality == ContentCardinality.Singleton)
+        {
+            return AeroError.ValidationError(
+                ["Hierarchical content types must use collection cardinality because a hierarchy contains multiple entries."]);
+        }
+
         if (definition.HierarchyRules is null)
         {
             return AeroError.ValidationError(["Content hierarchy rules are required."]);
@@ -197,4 +230,138 @@ public sealed class AeroContentTypeService(
 
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
     }
+
+    private async Task<Result<NoneType, AeroError>> ValidateReferenceFieldsAsync(
+        ContentTypeDefinition definition,
+        CancellationToken ct)
+    {
+        var errors = new List<string>();
+
+        foreach (var field in definition.Fields.Where(
+                     field => field.FieldType == ContentFieldTypes.Reference))
+        {
+            var label = field.Label ?? field.Name;
+            var targetAlias = GetStringSetting(
+                field,
+                ReferenceContentFieldSettings.TargetContentType);
+            if (string.IsNullOrWhiteSpace(targetAlias))
+            {
+                errors.Add(
+                    $"Reference field '{label}' must select a target content type.");
+                continue;
+            }
+
+            ContentStructure targetStructure;
+            IReadOnlyList<ContentFieldDefinition> targetFields;
+            if (string.Equals(targetAlias, definition.Alias, StringComparison.Ordinal))
+            {
+                targetStructure = definition.Structure;
+                targetFields = definition.Fields;
+            }
+            else
+            {
+                var target = await session.Query<ContentTypeDocument>()
+                    .FirstOrDefaultAsync(
+                        candidate =>
+                            candidate.SiteId == definition.SiteId
+                            && candidate.Alias == targetAlias,
+                        ct);
+                if (target is null)
+                {
+                    errors.Add(
+                        $"Reference field '{label}' targets an unknown content type '{targetAlias}'.");
+                    continue;
+                }
+
+                targetStructure = target.Structure;
+                targetFields = target.Fields;
+            }
+
+            if (IsHierarchyReference(field)
+                && targetStructure != ContentStructure.Hierarchical)
+            {
+                errors.Add(
+                    $"Hierarchy reference field '{label}' must target a hierarchical content type.");
+            }
+
+            var dependsOnField = GetStringSetting(
+                field,
+                ReferenceContentFieldSettings.DependsOnField);
+            var targetFilterField = GetStringSetting(
+                field,
+                ReferenceContentFieldSettings.TargetFilterField);
+            if (string.IsNullOrWhiteSpace(dependsOnField)
+                && string.IsNullOrWhiteSpace(targetFilterField))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(dependsOnField)
+                || string.IsNullOrWhiteSpace(targetFilterField))
+            {
+                errors.Add(
+                    $"Reference field '{label}' must configure both its dependent field and target relationship field.");
+                continue;
+            }
+
+            var dependency = definition.Fields.FirstOrDefault(
+                candidate => string.Equals(
+                    candidate.Name,
+                    dependsOnField,
+                    StringComparison.Ordinal));
+            if (dependency is null
+                || dependency.FieldType != ContentFieldTypes.Reference)
+            {
+                errors.Add(
+                    $"Reference field '{label}' depends on an unknown or non-reference field '{dependsOnField}'.");
+                continue;
+            }
+
+            var targetRelationship = targetFields.FirstOrDefault(
+                candidate => string.Equals(
+                    candidate.Name,
+                    targetFilterField,
+                    StringComparison.Ordinal));
+            if (targetRelationship is null
+                || targetRelationship.FieldType != ContentFieldTypes.Reference)
+            {
+                errors.Add(
+                    $"Reference field '{label}' filters by an unknown or non-reference target field '{targetFilterField}'.");
+                continue;
+            }
+
+            var dependencyTarget = GetStringSetting(
+                dependency,
+                ReferenceContentFieldSettings.TargetContentType);
+            var relationshipTarget = GetStringSetting(
+                targetRelationship,
+                ReferenceContentFieldSettings.TargetContentType);
+            if (string.IsNullOrWhiteSpace(dependencyTarget)
+                || !string.Equals(
+                    dependencyTarget,
+                    relationshipTarget,
+                    StringComparison.Ordinal))
+            {
+                errors.Add(
+                    $"Reference field '{label}' cannot cascade because '{dependsOnField}' and '{targetAlias}.{targetFilterField}' target different content types.");
+            }
+        }
+
+        return errors.Count == 0
+            ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
+            : AeroError.ValidationError(errors);
+    }
+
+    private static bool IsHierarchyReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.SelectionMode),
+            ReferenceContentFieldSettings.SelectionModeHierarchy,
+            StringComparison.Ordinal);
+
+    private static string? GetStringSetting(ContentFieldDefinition field, string key) =>
+        field.Settings.TryGetValue(key, out var value)
+        && value.ValueKind == System.Text.Json.JsonValueKind.String
+            ? value.GetString()
+            : null;
 }

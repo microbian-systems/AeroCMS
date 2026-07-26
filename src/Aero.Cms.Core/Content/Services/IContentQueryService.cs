@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Core.Content.Search;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -37,13 +38,18 @@ public interface IContentQueryService
     /// <param name="siteId">The owning site identifier.</param><param name="contentTypeAlias">The content type alias.</param><param name="fieldFilters">The field filters to apply.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns>The matching items, ordered by publication timestamp in descending order.</returns>
     /// <remarks>
-    /// Only the <c>__search</c> entry is honored. Other entries in
-    /// <paramref name="fieldFilters"/> are ignored. The site/type result set is loaded before
-    /// case-insensitive in-memory matching against title, slug, and serialized field values.
+    /// The <c>__search</c> entry performs case-insensitive text matching, <c>__culture</c>
+    /// restricts the culture, and remaining entries apply exact field-value filters. The
+    /// site/type result set is loaded before these provider-neutral filters are applied.
     /// </remarks>
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled while loading the result set.</exception>
     Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
         long siteId, string contentTypeAlias, Dictionary<string, string> fieldFilters, CancellationToken ct = default);
+
+    /// <summary>Runs a bounded query against the persisted exact, full-text, or semantic projections.</summary>
+    Task<Result<ContentSearchResult>> SearchIndexAsync(
+        ContentSearchRequest request,
+        CancellationToken ct = default);
 
     /// <summary>Lists the culture variants that share a translation group.</summary>
     /// <param name="siteId">The owning site identifier.</param><param name="contentTypeAlias">The content type alias.</param><param name="translationGroupId">The translation group identifier.</param><param name="ct">A token that can cancel the operation.</param>

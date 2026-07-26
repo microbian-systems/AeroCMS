@@ -39,6 +39,15 @@ internal static class PublicCmsQueryHtmlWriter
                 item.Summary,
                 $"/docs/{item.Slug.Trim('/')}")));
 
+    public static string ContentSearch(PublicContentSearchResult result)
+        => WriteFlatList(
+            "content-search",
+            result.Items.Select(item => (
+                item.Id,
+                item.Title,
+                (string?)null,
+                item.Path)));
+
     public static string Content(ContentQueryResult result)
     {
         var output = new StringBuilder();

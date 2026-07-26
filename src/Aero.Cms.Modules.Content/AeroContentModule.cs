@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Content.Caching;
@@ -116,6 +117,20 @@ public override void Configure(IAeroModuleBuilder builder)
     /// </remarks>
 public void Configure(StoreOptions opts)
     {
+        opts.Schema.Analyzers.DefineAnalyzer(
+            ContentSearchConstants.AnalyzerName,
+            tokenizers:
+            [
+                Search.Tokenizer.Blank,
+                Search.Tokenizer.Class,
+                Search.Tokenizer.Punct
+            ],
+            filters:
+            [
+                Search.Filter.Lowercase,
+                Search.Filter.Ascii
+            ]);
+
         // AeroDB document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
@@ -130,6 +145,41 @@ public void Configure(StoreOptions opts)
 
         opts.Schema.For<ContentItemVersion>()
             .Index(x => x.ContentItemId);
+
+        opts.Schema.For<ContentSearchDocument>()
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId)
+            .Index(x => x.ContentTypeAlias)
+            .Index(x => x.Culture)
+            .Index(x => x.PublicationState)
+            .FullTextIndex(
+                x => x.FullText,
+                ContentSearchConstants.AnalyzerName);
+
+        opts.Schema.For<ContentSearchFacet>()
+            .Identity(x => x.Id)
+            .Index(x => x.ContentItemId)
+            .Index(x => x.Culture)
+            .Index(x => x.PublicationState)
+            .Index(x => new
+            {
+                x.SiteId,
+                x.ContentTypeAlias,
+                x.FieldName,
+                x.NormalizedValue
+            });
+
+        opts.Schema.For<ContentSemanticDocument>()
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId)
+            .Index(x => x.ContentTypeAlias)
+            .Index(x => x.Culture)
+            .Index(x => x.PublicationState)
+            .Index(x => x.ModelId)
+            .HnswIndex(
+                x => x.Embedding,
+                ContentSearchConstants.VectorDimensions,
+                Search.Distance.Cosine);
     }
 
         /// <summary>

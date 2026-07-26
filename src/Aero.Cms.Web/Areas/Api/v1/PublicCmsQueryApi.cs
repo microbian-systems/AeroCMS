@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Core.Content.Search;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -34,6 +35,10 @@ public static class PublicCmsQueryApi
         group.MapGet("/content/{contentTypeAlias}", QueryContentAsync)
             .WithName("QueryPublishedContentHierarchy")
             .Produces<ContentQueryResult>();
+
+        group.MapGet("/content/{contentTypeAlias}/search", QueryContentSearchAsync)
+            .WithName("SearchPublishedContent")
+            .Produces<PublicContentSearchResult>();
 
         return endpoints;
     }
@@ -92,6 +97,38 @@ public static class PublicCmsQueryApi
                 SplitFields(fields),
                 cancellationToken),
             PublicCmsQueryHtmlWriter.Content);
+
+    private static async Task<IResult> QueryContentSearchAsync(
+        HttpContext httpContext,
+        IPublicCmsQueryService service,
+        string contentTypeAlias,
+        string q,
+        string mode = "fulltext",
+        int skip = 0,
+        int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<ContentSearchMode>(mode, ignoreCase: true, out var parsedMode)
+            || !Enum.IsDefined(parsedMode))
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]>
+                {
+                    ["mode"] = ["Mode must be 'fulltext' or 'semantic'."]
+                });
+        }
+
+        return ToResponse(
+            httpContext,
+            await service.QueryContentSearchAsync(
+                contentTypeAlias,
+                q,
+                parsedMode,
+                skip,
+                take,
+                cancellationToken),
+            PublicCmsQueryHtmlWriter.ContentSearch);
+    }
 
     private static IReadOnlyList<string>? SplitFields(string? fields)
         => string.IsNullOrWhiteSpace(fields)

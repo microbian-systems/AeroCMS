@@ -140,8 +140,15 @@
                                 style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
                                 @bind="Cardinality">
                             <option value="@ContentCardinality.Collection">@L["Collection — many entries"]</option>
-                            <option value="@ContentCardinality.Singleton">@L["Singleton — one entry per culture"]</option>
+                            <option value="@ContentCardinality.Singleton"
+                                    disabled="@(Structure == ContentStructure.Hierarchical)">
+                                @L["Singleton — one entry per culture"]
+                            </option>
                         </select>
+                        @if (Structure == ContentStructure.Hierarchical)
+                        {
+                            <span class="text-xs ct-muted">@L["Hierarchies use collection cardinality so they can contain parent and child entries."]</span>
+                        }
                     </label>
                     <label class="pe-property-group">
                         <span class="pe-property-label">@L["Structure"]</span>
@@ -254,7 +261,7 @@
                             {
                                 var index = i;
                                 var field = Fields[index];
-                                var option = GetFieldOption(field.FieldType);
+                                var option = GetFieldOption(field);
                                 <div class="ct-field-card @(_selectedFieldIndex == index ? "selected" : "")" @onclick="@(() => SelectField(index))">
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-2">
@@ -303,7 +310,7 @@
                     else
                     {
                         var selected = SelectedField;
-                        var selectedOption = GetFieldOption(selected.FieldType);
+                        var selectedOption = GetFieldOption(selected);
                         <div class="space-y-4">
                             <div>
                                 <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@selectedOption.Label @L["settings"]</h2>
@@ -317,10 +324,13 @@
                                 <span class="pe-property-label">@L["Help text"]</span>
                                 <RadzenTextArea Value="@selected.Placeholder" ValueChanged="@(v => selected.Placeholder = v)" Rows="2" Class="w-full" />
                             </label>
-                            <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
-                                <RadzenCheckBox TValue="bool" @bind-Value="selected.Required" />
-                                @L["Editors must fill this out before publishing"]
-                            </label>
+                            @if (selected.FieldType != ContentFieldTypes.List)
+                            {
+                                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                    <RadzenCheckBox TValue="bool" @bind-Value="selected.Required" />
+                                    @L["Editors must fill this out before publishing"]
+                                </label>
+                            }
 
                             @if (selected.FieldType is "text" or "richtext")
                             {
@@ -348,15 +358,113 @@
                                     </label>
                                 </div>
                             }
+                            else if (selected.FieldType == ContentFieldTypes.Range)
+                            {
+                                <div class="grid grid-cols-2 gap-3">
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Start with"]</span>
+                                        <RadzenNumeric TValue="int?"
+                                                       Min="@GetRangeStartMinimum(selected)"
+                                                       Value="@GetIntSetting(selected, RangeContentFieldSettings.Start)"
+                                                       ValueChanged="@(v => SetSetting(selected, RangeContentFieldSettings.Start, v))"
+                                                       Class="w-full" />
+                                    </label>
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["End with"]</span>
+                                        <RadzenNumeric TValue="int?"
+                                                       Min="@GetRangeStartMinimum(selected)"
+                                                       Value="@GetIntSetting(selected, RangeContentFieldSettings.End)"
+                                                       ValueChanged="@(v => SetSetting(selected, RangeContentFieldSettings.End, v))"
+                                                       Class="w-full" />
+                                    </label>
+                                </div>
+                                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                    <RadzenCheckBox TValue="bool"
+                                                    Value="@GetBoolSetting(selected, RangeContentFieldSettings.AllowNegative)"
+                                                    ValueChanged="@(v => SetRangeAllowNegative(selected, v))" />
+                                    @L["Allow negative values"]
+                                </label>
+                                <p class="ct-help">@L["Entries store one whole number inside this inclusive range."]</p>
+                            }
+                            else if (selected.FieldType == ContentFieldTypes.Color)
+                            {
+                                <p class="ct-help">@L["Entries use the Radzen color picker and store a hexadecimal color. Transparency is stored as an optional alpha pair."]</p>
+                            }
                             else if (selected.FieldType == "reference")
                             {
                                 <label class="pe-property-group">
-                                    <span class="pe-property-label">@L["Reference type"]</span>
-                                    <RadzenTextBox Value="@GetStringSetting(selected, "targetContentType")" ValueChanged="@(v => SetSetting(selected, "targetContentType", v))" Placeholder="team-member" Class="w-full" />
+                                    <span class="pe-property-label">@L["Target content type"]</span>
+                                    <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                            value="@GetStringSetting(selected, ReferenceContentFieldSettings.TargetContentType)"
+                                            @onchange="@(args => OnReferenceTargetChangedAsync(selected, args.Value?.ToString()))">
+                                        <option value="">@L["Choose a content type"]</option>
+                                        @foreach (var contentType in _availableParentContentTypes.Where(contentType => !IsHierarchyReference(selected) || contentType.Structure == ContentStructure.Hierarchical))
+                                        {
+                                            <option value="@contentType.Alias">@contentType.Name</option>
+                                        }
+                                    </select>
                                 </label>
+                                @if (IsHierarchyReference(selected))
+                                {
+                                    <p class="ct-help">@L["Editors see a searchable path picker. The entry stores only the selected item ID."]</p>
+                                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                        <RadzenCheckBox TValue="bool"
+                                                        Value="@GetBoolSetting(selected, ReferenceContentFieldSettings.SelectLeafOnly, true)"
+                                                        ValueChanged="@(v => SetSetting(selected, ReferenceContentFieldSettings.SelectLeafOnly, v))" />
+                                        @L["Allow only leaf entries"]
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                        <RadzenCheckBox TValue="bool"
+                                                        Value="@GetBoolSetting(selected, ReferenceContentFieldSettings.ShowAncestors, true)"
+                                                        ValueChanged="@(v => SetSetting(selected, ReferenceContentFieldSettings.ShowAncestors, v))" />
+                                        @L["Show the full ancestor path"]
+                                    </label>
+                                }
+                                else
+                                {
+                                    <p class="ct-help">@L["Editors see a searchable entry picker. The entry stores only the selected item ID."]</p>
+                                    <label class="pe-property-group">
+                                        <span class="pe-property-label">@L["Depends on another field"]</span>
+                                        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                                value="@GetStringSetting(selected, ReferenceContentFieldSettings.DependsOnField)"
+                                                @onchange="@(args => OnReferenceDependencyChanged(selected, args.Value?.ToString()))">
+                                            <option value="">@L["No dependency"]</option>
+                                            @foreach (var dependency in DependencyReferenceFields(selected))
+                                            {
+                                                <option value="@dependency.Name">@FieldLabel(dependency)</option>
+                                            }
+                                        </select>
+                                        <span class="text-xs ct-muted">@L["Optional. Editors must choose this earlier reference before this picker is enabled."]</span>
+                                    </label>
+                                    @if (!string.IsNullOrWhiteSpace(GetStringSetting(selected, ReferenceContentFieldSettings.DependsOnField)))
+                                    {
+                                        <label class="pe-property-group">
+                                            <span class="pe-property-label">@L["Target relationship field"]</span>
+                                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                                    value="@GetStringSetting(selected, ReferenceContentFieldSettings.TargetFilterField)"
+                                                    @onchange="@(args => SetSetting(selected, ReferenceContentFieldSettings.TargetFilterField, args.Value?.ToString()))">
+                                                <option value="">@L["Choose the matching target field"]</option>
+                                                @foreach (var targetField in TargetReferenceFields(selected))
+                                                {
+                                                    <option value="@targetField.Name">@FieldLabel(targetField)</option>
+                                                }
+                                            </select>
+                                            <span class="text-xs ct-muted">@L["Only target entries linked to the dependent selection will be offered."]</span>
+                                        </label>
+                                    }
+                                }
                             }
                             else if (selected.FieldType == ContentFieldTypes.List)
                             {
+                                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                    <RadzenCheckBox TValue="bool"
+                                                    Value="@IsListOptional(selected)"
+                                                    ValueChanged="@(v => SetListOptional(selected, v))" />
+                                    @L["Allow editors to leave this list empty"]
+                                </label>
                                 <label class="pe-property-group">
                                     <span class="pe-property-label">@L["Item type"]</span>
                                     <select class="w-full rounded-md shadow-sm sm:text-sm"
@@ -377,10 +485,13 @@
                                     <span class="text-xs ct-muted">@L["Editors can select only from these values."]</span>
                                 </label>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <label class="pe-property-group">
-                                        <span class="pe-property-label">@L["Minimum selections"]</span>
-                                        <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MinimumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MinimumItems, v))" Class="w-full" />
-                                    </label>
+                                    @if (!IsListOptional(selected))
+                                    {
+                                        <label class="pe-property-group">
+                                            <span class="pe-property-label">@L["Minimum selections"]</span>
+                                            <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MinimumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MinimumItems, v))" Class="w-full" />
+                                        </label>
+                                    }
                                     <label class="pe-property-group">
                                         <span class="pe-property-label">@L["Maximum selections"]</span>
                                         <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(selected, CompositeContentFieldSettings.MaximumItems)" ValueChanged="@(v => SetSetting(selected, CompositeContentFieldSettings.MaximumItems, v))" Class="w-full" />
@@ -427,6 +538,31 @@
                             }
 
                             <RadzenFieldset Text="@L["Advanced"]" AllowCollapse="true" Collapsed="true">
+                                <div class="space-y-2">
+                                    <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Search and indexing"]</h3>
+                                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                        <RadzenCheckBox TValue="bool"
+                                                        Value="@(selected.FieldType == ContentFieldTypes.Reference || selected.Indexed)"
+                                                        ValueChanged="@(value => selected.Indexed = selected.FieldType == ContentFieldTypes.Reference || value)"
+                                                        Disabled="@(selected.FieldType == ContentFieldTypes.Reference)" />
+                                        @L["Index for filtering and sorting"]
+                                    </label>
+                                    @if (SupportsFullTextSearch(selected))
+                                    {
+                                        <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                            <RadzenCheckBox TValue="bool" @bind-Value="selected.FullTextSearchable" />
+                                            @L["Include in full-text search"]
+                                        </label>
+                                    }
+                                    @if (SupportsSemanticSearch(selected))
+                                    {
+                                        <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                            <RadzenCheckBox TValue="bool" @bind-Value="selected.SemanticSearchable" />
+                                            @L["Include in semantic search"]
+                                        </label>
+                                    }
+                                    <p class="ct-help">@L["Aero selects the supported full-text and vector index implementation for the active Sable provider."]</p>
+                                </div>
                                 <label class="pe-property-group">
                                     <span class="pe-property-label">@L["Internal field handle"]</span>
                                     <RadzenTextBox Value="@selected.Name" ValueChanged="@(v => UpdateSelectedName(v))" Class="w-full" />

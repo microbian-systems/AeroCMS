@@ -1,13 +1,17 @@
 using Aero.Core.Data;
-using AeroDB.Sable;
 
 namespace Aero.Cms.Abstractions.Content;
 
 /// <summary>
 /// Represents a class for ContentTypeDefinition.
 /// </summary>
-public sealed class ContentTypeDefinition : SableDocument, IAuditable
+public sealed class ContentTypeDefinition : IAuditable
 {
+    /// <summary>
+    /// Gets or sets the persisted content-type identifier. A value of zero represents a new definition.
+    /// </summary>
+    public long Id { get; set; }
+
         /// <summary>
     /// Gets or sets the Site Id.
     /// </summary>

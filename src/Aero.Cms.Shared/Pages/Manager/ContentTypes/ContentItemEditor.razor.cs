@@ -45,6 +45,7 @@ public partial class ContentItemEditor
     private ContentTypeDetail? _typeDefinition;
     private readonly Dictionary<string, string> _fieldValues = [];
     private readonly Dictionary<string, decimal?> _numberValues = [];
+    private readonly Dictionary<string, int?> _rangeValues = [];
     private readonly Dictionary<string, bool> _boolValues = [];
     private readonly Dictionary<string, DateTime?> _dateValues = [];
     private readonly Dictionary<string, List<string>> _listValues = [];
@@ -75,6 +76,87 @@ public partial class ContentItemEditor
     private long? _parentId;
     private int _sortOrder;
     private IReadOnlyList<ContentParentOption> _parentOptions = [];
+
+    private static bool IsHierarchyReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.SelectionMode),
+            ReferenceContentFieldSettings.SelectionModeHierarchy,
+            StringComparison.Ordinal);
+
+    private static bool GetBoolSetting(
+        ContentFieldDefinition field,
+        string key,
+        bool fallback = false) =>
+        field.Settings.TryGetValue(key, out var value)
+            ? value.ValueKind == JsonValueKind.True
+            : fallback;
+
+    private string? GetDependentReferenceValue(ContentFieldDefinition field)
+    {
+        var dependencyName = GetStringSetting(
+            field,
+            ReferenceContentFieldSettings.DependsOnField);
+        return !string.IsNullOrWhiteSpace(dependencyName)
+            && _fieldValues.TryGetValue(dependencyName, out var value)
+                ? value
+                : null;
+    }
+
+    private string GetDependencyLabel(ContentFieldDefinition field)
+    {
+        var dependencyName = GetStringSetting(
+            field,
+            ReferenceContentFieldSettings.DependsOnField);
+        var dependency = _typeDefinition?.Fields.FirstOrDefault(
+            candidate => string.Equals(
+                candidate.Name,
+                dependencyName,
+                StringComparison.Ordinal));
+        return dependency is null
+            ? "the parent selection"
+            : FieldLabel(dependency);
+    }
+
+    private async Task OnReferenceValueChangedAsync(
+        ContentFieldDefinition field,
+        string? value)
+    {
+        _fieldValues[field.Name] = value ?? string.Empty;
+        ClearDependentReferences(field.Name);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearDependentReferences(string changedFieldName)
+    {
+        if (_typeDefinition is null)
+        {
+            return;
+        }
+
+        var pending = new Queue<string>();
+        pending.Enqueue(changedFieldName);
+        while (pending.TryDequeue(out var dependencyName))
+        {
+            foreach (var dependent in _typeDefinition.Fields.Where(
+                         candidate => candidate.FieldType == ContentFieldTypes.Reference
+                             && string.Equals(
+                                 GetStringSetting(
+                                     candidate,
+                                     ReferenceContentFieldSettings.DependsOnField),
+                                 dependencyName,
+                                 StringComparison.Ordinal)))
+            {
+                if (_fieldValues.TryGetValue(dependent.Name, out var current)
+                    && !string.IsNullOrWhiteSpace(current))
+                {
+                    _fieldValues[dependent.Name] = string.Empty;
+                }
+
+                pending.Enqueue(dependent.Name);
+            }
+        }
+    }
 
     private IReadOnlyList<string> SupportedCultures =>
         _currentSite?.SupportedCultures is { Count: > 0 } cultures
@@ -168,6 +250,17 @@ protected override async Task OnInitializedAsync()
             {
                 case "number":
                     _numberValues.TryAdd(field.Name, TryParseDecimal(field.DefaultValue));
+                    break;
+                case ContentFieldTypes.Range:
+                    _rangeValues.TryAdd(
+                        field.Name,
+                        int.TryParse(
+                            field.DefaultValue,
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out var rangeValue)
+                            ? rangeValue
+                            : null);
                     break;
                 case "boolean":
                     _boolValues.TryAdd(field.Name, bool.TryParse(field.DefaultValue, out var value) && value);
@@ -297,6 +390,13 @@ protected override async Task OnInitializedAsync()
             {
                 case "number":
                     _numberValues[field.Name] = element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ? null : element.GetDecimal();
+                    break;
+                case ContentFieldTypes.Range:
+                    _rangeValues[field.Name] =
+                        element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
+                        || !element.TryGetInt32(out var rangeValue)
+                            ? null
+                            : rangeValue;
                     break;
                 case "boolean":
                     _boolValues[field.Name] = element.ValueKind == JsonValueKind.True;
@@ -628,9 +728,9 @@ protected override async Task OnInitializedAsync()
             _slug = GenerateSlug(_title);
         }
 
-        if (!ValidateCompositeEditorValues())
+        if (!ValidateEditorValues())
         {
-            Notify(NotificationSeverity.Warning, "Invalid field values", "Correct the highlighted composite fields before saving.");
+            Notify(NotificationSeverity.Warning, "Invalid field values", "Correct the highlighted fields before saving.");
             return false;
         }
 
@@ -660,6 +760,7 @@ protected override async Task OnInitializedAsync()
         => field.FieldType switch
         {
             "number" => !_numberValues.TryGetValue(field.Name, out var value) || value is null,
+            ContentFieldTypes.Range => !_rangeValues.TryGetValue(field.Name, out var range) || range is null,
             "boolean" => false,
             "date" => !_dateValues.TryGetValue(field.Name, out var value) || value is null,
             ContentFieldTypes.List => !_listValues.TryGetValue(field.Name, out var list) || list.Count == 0,
@@ -679,6 +780,9 @@ protected override async Task OnInitializedAsync()
             {
                 "number" => JsonSerializer.SerializeToElement(
                     _numberValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.Options),
+                ContentFieldTypes.Range => JsonSerializer.SerializeToElement(
+                    _rangeValues.GetValueOrDefault(field.Name),
                     ContentJsonContext.Default.Options),
                 "boolean" => JsonSerializer.SerializeToElement(
                     _boolValues.GetValueOrDefault(field.Name),
@@ -808,6 +912,9 @@ protected override async Task OnInitializedAsync()
         if (_galleryValues.TryGetValue(fieldName, out var values) && index >= 0 && index < values.Count) values.RemoveAt(index);
     }
 
+    private void ClearColor(string fieldName) =>
+        _fieldValues[fieldName] = string.Empty;
+
     private void MoveGalleryImage(string fieldName, int index, int direction)
     {
         if (!_galleryValues.TryGetValue(fieldName, out var values)) return;
@@ -862,7 +969,7 @@ protected override async Task OnInitializedAsync()
         return JsonSerializer.SerializeToElement(textValues, ContentJsonContext.Default.Options);
     }
 
-    private bool ValidateCompositeEditorValues()
+    private bool ValidateEditorValues()
     {
         if (_typeDefinition is null) return false;
         foreach (var field in _typeDefinition.Fields)
@@ -896,6 +1003,31 @@ protected override async Task OnInitializedAsync()
                 else if (GetStringSetting(field, CompositeContentFieldSettings.ValueType) != CompositeContentFieldSettings.Number
                     && rows.Any(row => row.Value.Length > 1024))
                     _fieldErrors[field.Name] = "Text values cannot exceed 1,024 characters.";
+            }
+            else if (field.FieldType == ContentFieldTypes.Range
+                     && _rangeValues.GetValueOrDefault(field.Name) is { } range)
+            {
+                var start = GetIntSetting(
+                    field,
+                    RangeContentFieldSettings.Start,
+                    0);
+                var end = GetIntSetting(
+                    field,
+                    RangeContentFieldSettings.End,
+                    10);
+                if (range < start || range > end)
+                {
+                    _fieldErrors[field.Name] =
+                        $"Choose a whole number from {start} through {end}.";
+                }
+                else if (!GetBoolSetting(
+                             field,
+                             RangeContentFieldSettings.AllowNegative)
+                         && range < 0)
+                {
+                    _fieldErrors[field.Name] =
+                        "Negative values are not allowed.";
+                }
             }
         }
         return _fieldErrors.Count == 0;

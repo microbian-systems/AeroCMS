@@ -15,8 +15,9 @@ public static class ContentTypeSchemaGenerator
     /// <param name="definition">The content type definition to project.</param>
     /// <returns>A new <see cref="JsonDocument"/> owned by the caller.</returns>
     /// <remarks>
-    /// Number and Boolean fields map to their corresponding JSON types; bounded collection
-    /// fields map to arrays or objects; reference fields map to <c>integer</c>; every other field type maps to <c>string</c>. The current reference
+    /// Number, Range, and Boolean fields map to their corresponding JSON types; bounded
+    /// collection fields map to arrays or objects; reference fields map to <c>integer</c>;
+    /// every other field type maps to <c>string</c>. The current reference
     /// field validators store identifiers as JSON strings, so generated reference schemas do
     /// not match that storage shape. Field names and labels are written through
     /// <see cref="Utf8JsonWriter"/> and are JSON-escaped.
@@ -35,7 +36,7 @@ public static class ContentTypeSchemaGenerator
             writer.WriteStartObject(field.Name);
             writer.WriteString("type", MapFieldType(field.FieldType));
             writer.WriteString("title", field.Label ?? field.Name);
-            WriteCompositeConstraints(writer, field);
+            WriteFieldConstraints(writer, field);
             writer.WriteEndObject();
         }
 
@@ -63,16 +64,34 @@ public static class ContentTypeSchemaGenerator
 
     private static string MapFieldType(string ft) => ft switch
     {
-        "number" => "number", "boolean" => "boolean",
+        "number" => "number", "range" or "reference" => "integer", "boolean" => "boolean",
         "list" or "gallery" => "array",
         "dictionary" => "object",
-        "reference" => "integer",
         _ => "string"
     };
 
-    private static void WriteCompositeConstraints(Utf8JsonWriter writer, ContentFieldDefinition field)
+    private static void WriteFieldConstraints(Utf8JsonWriter writer, ContentFieldDefinition field)
     {
-        if (field.FieldType == ContentFieldTypes.List)
+        if (field.FieldType == ContentFieldTypes.Range)
+        {
+            WriteIntegerSetting(
+                writer,
+                "minimum",
+                field,
+                RangeContentFieldSettings.Start);
+            WriteIntegerSetting(
+                writer,
+                "maximum",
+                field,
+                RangeContentFieldSettings.End);
+        }
+        else if (field.FieldType == ContentFieldTypes.Color)
+        {
+            writer.WriteString(
+                "pattern",
+                "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$");
+        }
+        else if (field.FieldType == ContentFieldTypes.List)
         {
             var itemType = GetStringSetting(field, CompositeContentFieldSettings.ItemType);
             writer.WriteStartObject("items");

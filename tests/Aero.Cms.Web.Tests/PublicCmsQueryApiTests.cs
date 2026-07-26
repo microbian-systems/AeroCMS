@@ -118,6 +118,7 @@ public sealed class PublicCmsQueryApiTests
             Substitute.For<ISiteContext>(),
             Substitute.For<IContentTypeService>(),
             Substitute.For<IContentHierarchyQueryService>(),
+            Substitute.For<IContentQueryService>(),
             Substitute.For<ILogger<PublicCmsQueryService>>());
 
         var result = await service.QueryPagesAsync(
@@ -126,6 +127,101 @@ public sealed class PublicCmsQueryApiTests
 
         result.Should().BeOfType<
             Result<PublicQueryPage<PublicPageQueryItem>>.Failure>();
+    }
+
+    [Test]
+    public async Task Content_search_endpoint_returns_encoded_htmx_and_rejects_undefined_modes()
+    {
+        var service = Substitute.For<IPublicCmsQueryService>();
+        service.QueryContentSearchAsync(
+                "animal",
+                "wolf",
+                Aero.Cms.Core.Content.Search.ContentSearchMode.FullText,
+                0,
+                10,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<PublicContentSearchResult>>(
+                new PublicContentSearchResult(
+                    [
+                        new PublicContentSearchItem(
+                            "9007199254740993",
+                            "<script>Wolf</script>",
+                            "wolf",
+                            "/content/animal/wolf",
+                            "en-US",
+                            null)
+                    ],
+                    0,
+                    10,
+                    false)));
+        await using var app = await CreateAppAsync(service);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/v1/query/content/animal/search?q=wolf&take=10");
+        request.Headers.Add("HX-Request", "true");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
+        body.Should().Contain("&lt;script&gt;Wolf&lt;/script&gt;");
+        body.Should().NotContain("<script>");
+
+        using var invalidMode = await app.GetTestClient()
+            .GetAsync("/api/v1/query/content/animal/search?q=wolf&mode=99");
+        invalidMode.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await service.Received(1)
+            .QueryContentSearchAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Aero.Cms.Core.Content.Search.ContentSearchMode>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Query_service_honors_the_current_content_type_visibility_setting()
+    {
+        var siteContext = Substitute.For<ISiteContext>();
+        siteContext.SiteId.Returns(42);
+        var contentTypeService = Substitute.For<IContentTypeService>();
+        contentTypeService.GetByAliasAsync(
+                42,
+                "animal",
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                new Result<ContentTypeDefinition, AeroError>.Ok(
+                    new ContentTypeDefinition
+                    {
+                        SiteId = 42,
+                        Alias = "animal",
+                        Name = "Animal",
+                        HideFromSearch = true
+                    })));
+        var contentQueryService = Substitute.For<IContentQueryService>();
+        var service = new PublicCmsQueryService(
+            Substitute.For<IDocumentSession>(),
+            siteContext,
+            contentTypeService,
+            Substitute.For<IContentHierarchyQueryService>(),
+            contentQueryService,
+            Substitute.For<ILogger<PublicCmsQueryService>>());
+
+        var result = await service.QueryContentSearchAsync(
+            "animal",
+            "wolf",
+            Aero.Cms.Core.Content.Search.ContentSearchMode.FullText,
+            0,
+            10);
+
+        var success = result.Should()
+            .BeOfType<Result<PublicContentSearchResult>.Ok>()
+            .Subject;
+        success.Value.Items.Should().BeEmpty();
+        success.Value.HasMore.Should().BeFalse();
+        await contentQueryService.DidNotReceiveWithAnyArgs()
+            .SearchIndexAsync(default!, default);
     }
 
     private static async Task<WebApplication> CreateAppAsync(

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Ai.Assistant;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Modules.AiAssistant;
@@ -21,6 +22,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Shouldly;
+using IRequest = Aero.Core.Commands.IRequest;
 
 namespace Aero.Cms.Core.Tests.Ai;
 
@@ -197,18 +199,32 @@ public sealed class ManagerAssistantBoundaryTests
     }
 
     [Test]
-    public async Task Read_only_tools_reject_unbounded_queries_and_foreign_site_results()
+    public async Task Cms_tools_reject_unbounded_queries_and_foreign_site_results()
     {
         var actor = Substitute.For<IAeroPageActor>();
         var sites = Substitute.For<ISiteLookupService>();
-        var executor = new AeroCmsReadOnlyToolExecutor(actor, sites);
+        var authorization = Substitute.For<IAuthorizationService>();
+        authorization.AuthorizeAsync(
+                Arg.Any<ClaimsPrincipal>(),
+                Arg.Any<object?>(),
+                Arg.Any<string>())
+            .Returns(AuthorizationResult.Success());
+        var executor = new AeroCmsToolExecutor(
+            actor,
+            Substitute.For<IAeroPostActor>(),
+            Substitute.For<IAeroDocsActor>(),
+            Substitute.For<IAeroContentTypeActor>(),
+            Substitute.For<IAeroContentItemActor>(),
+            Substitute.For<IContentHierarchyQueryService>(),
+            sites,
+            authorization);
         var context = Context(siteId: 11);
 
         var unbounded = await executor.ExecuteAsync(
-            AeroCmsReadOnlyToolExecutor.PagesListTool,
+            AeroCmsToolExecutor.PagesListTool,
             JsonSerializer.SerializeToElement(new { take = 26 }),
             context);
-        unbounded.ShouldBeOfType<Result<AeroCmsReadOnlyToolResult>.Failure>();
+        unbounded.ShouldBeOfType<Result<AeroCmsToolResult>.Failure>();
         await actor.DidNotReceive().GetAllPagesAsync(
             Arg.Any<long>(),
             Arg.Any<int>(),
@@ -221,12 +237,51 @@ public sealed class ManagerAssistantBoundaryTests
                 new PageViewModel { Id = 41, SiteId = 99 },
                 new PageErrorViewModel()));
         var foreign = await executor.ExecuteAsync(
-            AeroCmsReadOnlyToolExecutor.PageGetTool,
+            AeroCmsToolExecutor.PageGetTool,
             JsonSerializer.SerializeToElement(new { id = 41 }),
             context);
 
-        foreign.ShouldBeOfType<Result<AeroCmsReadOnlyToolResult>.Failure>();
+        foreign.ShouldBeOfType<Result<AeroCmsToolResult>.Failure>();
         await actor.Received(1).GetByIdAsync(41, 11, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Cms_creation_tools_require_site_create_before_calling_an_actor()
+    {
+        var actor = Substitute.For<IAeroPageActor>();
+        var authorization = Substitute.For<IAuthorizationService>();
+        authorization.AuthorizeAsync(
+                Arg.Any<ClaimsPrincipal>(),
+                Arg.Any<object?>(),
+                "site:create")
+            .Returns(AuthorizationResult.Failed());
+        var executor = new AeroCmsToolExecutor(
+            actor,
+            Substitute.For<IAeroPostActor>(),
+            Substitute.For<IAeroDocsActor>(),
+            Substitute.For<IAeroContentTypeActor>(),
+            Substitute.For<IAeroContentItemActor>(),
+            Substitute.For<IContentHierarchyQueryService>(),
+            Substitute.For<ISiteLookupService>(),
+            authorization);
+
+        var result = await executor.ExecuteAsync(
+            AeroCmsToolExecutor.PageCreateTool,
+            JsonSerializer.SerializeToElement(new
+            {
+                title = "New page",
+                slug = "new-page"
+            }),
+            Context(siteId: 11));
+
+        result.ShouldBeOfType<Result<AeroCmsToolResult>.Failure>();
+        await authorization.Received(1).AuthorizeAsync(
+            Arg.Any<ClaimsPrincipal>(),
+            Arg.Any<object?>(),
+            "site:create");
+        await actor.DidNotReceive().CreateAsync(
+            Arg.Any<IRequest>(),
+            Arg.Any<CancellationToken>());
     }
 
     private static AeroCmsAssistantRequest Request(string text)

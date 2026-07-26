@@ -3,6 +3,7 @@ using System.Globalization;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Core.Http;
@@ -20,6 +21,7 @@ public sealed class PublicCmsQueryService(
     ISiteContext siteContext,
     IContentTypeService contentTypeService,
     IContentHierarchyQueryService contentHierarchyQueryService,
+    IContentQueryService contentQueryService,
     ILogger<PublicCmsQueryService> logger) : IPublicCmsQueryService
 {
     public const int MaximumTake = 50;
@@ -27,6 +29,93 @@ public sealed class PublicCmsQueryService(
     public const int MaximumHierarchyDepth = 8;
     public const int MaximumHierarchyItems = 100;
     public const int MaximumProjectionFields = 32;
+
+    public async Task<Result<PublicContentSearchResult>> QueryContentSearchAsync(
+        string contentTypeAlias,
+        string query,
+        ContentSearchMode mode,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(contentTypeAlias))
+            errors.Add("A content type alias is required.");
+        if (string.IsNullOrWhiteSpace(query))
+            errors.Add("Search text is required.");
+        if (query?.Length > ContentSearchConstants.MaximumQueryLength)
+            errors.Add($"Search text cannot exceed {ContentSearchConstants.MaximumQueryLength} characters.");
+        if (skip is < 0 or > MaximumSkip)
+            errors.Add($"Skip must be between 0 and {MaximumSkip}.");
+        if (take is < 1 or > MaximumTake)
+            errors.Add($"Take must be between 1 and {MaximumTake}.");
+        if (errors.Count > 0)
+            return AeroError.ValidationError(errors);
+
+        var normalizedQuery = query?.Trim() ?? string.Empty;
+
+        try
+        {
+            var siteId = RequireSiteId();
+            var normalizedAlias = contentTypeAlias.Trim();
+            var contentTypeResult = await contentTypeService.GetByAliasAsync(
+                siteId,
+                normalizedAlias,
+                cancellationToken);
+            if (contentTypeResult is not Result<ContentTypeDefinition, AeroError>.Ok contentTypeSuccess)
+            {
+                return AeroError.NotFoundError(
+                    $"Content type '{contentTypeAlias}' was not found.");
+            }
+
+            if (contentTypeSuccess.Value.HideFromSearch)
+            {
+                return new PublicContentSearchResult(
+                    [],
+                    skip,
+                    take,
+                    HasMore: false);
+            }
+
+            var result = await contentQueryService.SearchIndexAsync(
+                new ContentSearchRequest(
+                    siteId,
+                    normalizedAlias,
+                    normalizedQuery,
+                    ResolveCulture(),
+                    mode,
+                    PublishedOnly: true,
+                    skip,
+                    take,
+                    new Dictionary<string, string>()),
+                cancellationToken);
+            return result switch
+            {
+                Result<ContentSearchResult>.Ok success =>
+                    new PublicContentSearchResult(
+                        success.Value.Items.Select(item => new PublicContentSearchItem(
+                            FormatId(item.Id),
+                            item.Title ?? string.Empty,
+                            item.Slug,
+                            $"/content/{normalizedAlias.Trim('/')}/{item.Slug.Trim('/')}",
+                            item.Culture,
+                            item.PublishedOn)).ToArray(),
+                        skip,
+                        take,
+                        success.Value.HasMore),
+                Result<ContentSearchResult>.Failure failure => failure.Error,
+                _ => AeroError.CreateError("Unexpected content search result.")
+            };
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Published content search failed for {ContentTypeAlias}.",
+                contentTypeAlias);
+            return AeroError.DatabaseError("The published content search failed.");
+        }
+    }
 
     public async Task<Result<PublicQueryPage<PublicPageQueryItem>>> QueryPagesAsync(
         int skip,

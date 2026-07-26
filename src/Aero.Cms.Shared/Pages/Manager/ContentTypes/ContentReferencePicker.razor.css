@@ -1,0 +1,38 @@
+.content-reference-picker {
+    display: grid;
+    gap: .65rem;
+}
+
+.content-reference-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    align-items: center;
+}
+
+.content-reference-state {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: 2.75rem;
+    padding: .7rem .8rem;
+    border: 1px dashed var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: var(--pe-bg-primary);
+    color: var(--pe-text-secondary);
+    font-size: .875rem;
+}
+
+.content-reference-error {
+    border-color: color-mix(in srgb, var(--rz-danger) 45%, var(--pe-border));
+    color: var(--rz-danger);
+}
+
+.content-reference-help {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin: 0;
+    color: var(--pe-text-muted);
+    font-size: .78rem;
+}

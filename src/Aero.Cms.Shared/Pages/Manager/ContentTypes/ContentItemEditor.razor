@@ -58,6 +58,7 @@
     .ci-gallery-order { display: flex; justify-content: center; gap: .35rem; padding: .5rem; }
     .ci-empty-composite { border: 1px dashed var(--pe-border); border-radius: var(--pe-radius-md); padding: 1rem; text-align: center; color: var(--pe-text-muted); background: var(--pe-bg-primary); }
     .ci-key-value-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+    .ci-color-control { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 
     @@media (max-width: 1024px) {
         .ci-editor-shell {
@@ -174,6 +175,40 @@
                                 case "number":
                                     <RadzenNumeric TValue="decimal?" Value="@_numberValues[field.Name]" ValueChanged="@(v => _numberValues[field.Name] = v)" Class="w-full" />
                                     break;
+                                case ContentFieldTypes.Range:
+                                    var rangeStart = GetIntSetting(field, RangeContentFieldSettings.Start, 0);
+                                    var rangeEnd = GetIntSetting(field, RangeContentFieldSettings.End, 10);
+                                    <RadzenNumeric TValue="int?"
+                                                   Min="@rangeStart"
+                                                   Max="@rangeEnd"
+                                                   Value="@_rangeValues[field.Name]"
+                                                   ValueChanged="@(v => _rangeValues[field.Name] = v)"
+                                                   Class="w-full" />
+                                    <p class="ci-help">@L["Choose a whole number from {0} through {1}.", rangeStart, rangeEnd]</p>
+                                    break;
+                                case ContentFieldTypes.Color:
+                                    <div class="ci-color-control">
+                                        <RadzenColorPicker
+                                            Value="@_fieldValues[field.Name]"
+                                            ValueChanged="@(value => _fieldValues[field.Name] = value ?? string.Empty)"
+                                            ShowHSV="true"
+                                            ShowRGBA="true"
+                                            ShowColors="true"
+                                            ShowButton="true"
+                                            ShowArrow="true"
+                                            ToggleAriaLabel="@L["Choose {0}", FieldLabel(field)]" />
+                                        @if (!string.IsNullOrWhiteSpace(_fieldValues[field.Name]))
+                                        {
+                                            <code>@_fieldValues[field.Name]</code>
+                                            <RadzenButton
+                                                Icon="close"
+                                                Text="@L["Clear"]"
+                                                ButtonStyle="ButtonStyle.Light"
+                                                Size="ButtonSize.Small"
+                                                Click="@(() => ClearColor(field.Name))" />
+                                        }
+                                    </div>
+                                    break;
                                 case "boolean":
                                     <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
                                         <RadzenCheckBox TValue="bool" @bind-Value="_boolValues[field.Name]" />
@@ -184,7 +219,27 @@
                                     <RadzenDatePicker TValue="DateTime?" Value="@_dateValues[field.Name]" Change="@(args => SetDateValue(field.Name, args))" Class="w-full" />
                                     break;
                                 case "reference":
-                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Referenced entry ID"]" Class="w-full" />
+                                    @if (IsHierarchyReference(field))
+                                    {
+                                        <ContentHierarchyReferencePicker
+                                            TargetContentTypeAlias="@GetStringSetting(field, ReferenceContentFieldSettings.TargetContentType)"
+                                            Culture="@_culture"
+                                            Value="@_fieldValues[field.Name]"
+                                            ValueChanged="@(value => OnReferenceValueChangedAsync(field, value))"
+                                            SelectLeafOnly="@GetBoolSetting(field, ReferenceContentFieldSettings.SelectLeafOnly, true)"
+                                            ShowAncestors="@GetBoolSetting(field, ReferenceContentFieldSettings.ShowAncestors, true)" />
+                                    }
+                                    else
+                                    {
+                                        <ContentReferencePicker
+                                            TargetContentTypeAlias="@GetStringSetting(field, ReferenceContentFieldSettings.TargetContentType)"
+                                            Culture="@_culture"
+                                            Value="@_fieldValues[field.Name]"
+                                            ValueChanged="@(value => OnReferenceValueChangedAsync(field, value))"
+                                            FilterField="@GetStringSetting(field, ReferenceContentFieldSettings.TargetFilterField)"
+                                            FilterValue="@GetDependentReferenceValue(field)"
+                                            DependencyLabel="@GetDependencyLabel(field)" />
+                                    }
                                     break;
                                 case ContentFieldTypes.List:
                                     var allowedValues = GetAllowedValues(field);

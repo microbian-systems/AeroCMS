@@ -72,7 +72,7 @@ public interface IMcpAssistantHttpClient
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Immutable authorization context supplied to one read-only tool invocation.</summary>
+/// <summary>Immutable authorization context supplied to one CMS tool invocation.</summary>
 public sealed record AeroCmsToolExecutionContext(
     ClaimsPrincipal Principal,
     long UserId,
@@ -80,18 +80,24 @@ public sealed record AeroCmsToolExecutionContext(
     long TenantId,
     string CorrelationId);
 
-/// <summary>Describes a read-only CMS tool exposed through MCP.</summary>
-public sealed record AeroCmsReadOnlyToolDescriptor(string Name, string Description);
+/// <summary>Describes one explicitly registered, policy-scoped CMS tool.</summary>
+public sealed record AeroCmsToolDescriptor(
+    string Name,
+    string Description,
+    string RequiredPolicy,
+    bool ReadOnly,
+    bool Destructive,
+    bool Idempotent);
 
 /// <summary>A serialized, bounded tool result.</summary>
-public sealed record AeroCmsReadOnlyToolResult(string Json);
+public sealed record AeroCmsToolResult(string Json);
 
-/// <summary>Single executor boundary shared by every MCP read-only tool.</summary>
-public interface IAeroCmsReadOnlyToolExecutor
+/// <summary>Single application boundary shared by MCP and the in-process manager assistant.</summary>
+public interface IAeroCmsToolExecutor
 {
-    IReadOnlyList<AeroCmsReadOnlyToolDescriptor> Tools { get; }
+    IReadOnlyList<AeroCmsToolDescriptor> Tools { get; }
 
-    Task<Result<AeroCmsReadOnlyToolResult>> ExecuteAsync(
+    Task<Result<AeroCmsToolResult>> ExecuteAsync(
         string toolName,
         JsonElement arguments,
         AeroCmsToolExecutionContext context,

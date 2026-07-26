@@ -89,6 +89,34 @@ internal sealed class NumberFieldSnippet : IFieldTemplateSnippet
     }
 }
 
+/// <summary>Generates a bounded integer-field wrapper.</summary>
+internal sealed class RangeFieldSnippet : IFieldTemplateSnippet
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Range;
+
+    /// <inheritdoc />
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "<div class=\"aero-field aero-field-range\">{{" + accessor + "}}</div>";
+    }
+}
+
+/// <summary>Generates a hexadecimal color-field wrapper.</summary>
+internal sealed class ColorFieldSnippet : IFieldTemplateSnippet
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Color;
+
+    /// <inheritdoc />
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "{{if " + accessor + "}}<div class=\"aero-field aero-field-color\">{{" + accessor + "}}</div>{{end}}";
+    }
+}
+
 /// <summary>Generates a labeled marker that is emitted only when the field value is truthy.</summary>
 internal sealed class BooleanFieldSnippet : IFieldTemplateSnippet
 {

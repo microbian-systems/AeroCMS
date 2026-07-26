@@ -1,0 +1,65 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes
+
+<div class="content-reference-picker">
+    @if (RequiresDependency && string.IsNullOrWhiteSpace(FilterValue))
+    {
+        <div class="content-reference-state" role="status">
+            <RadzenIcon Icon="subdirectory_arrow_right" />
+            <span>Choose @DependencyLabel first.</span>
+        </div>
+    }
+    else
+    {
+        <div class="content-reference-search">
+            <RadzenTextBox
+                Value="@_search"
+                ValueChanged="@OnSearchChangedAsync"
+                Placeholder="Search entries"
+                Class="w-full" />
+            <RadzenButton
+                Icon="refresh"
+                ButtonStyle="ButtonStyle.Light"
+                Size="ButtonSize.Small"
+                title="Refresh options"
+                Disabled="@_isLoading"
+                Click="@ReloadAsync" />
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="content-reference-state" role="status">
+                <RadzenProgressBarCircular
+                    ShowValue="false"
+                    Size="ProgressBarCircularSize.Small" />
+                <span>Loading entries…</span>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="content-reference-state content-reference-error" role="alert">
+                <RadzenIcon Icon="error_outline" />
+                <span>@_error</span>
+            </div>
+        }
+        else
+        {
+            <RadzenDropDown
+                TValue="string"
+                Data="@_options"
+                TextProperty="@nameof(ReferencePickerOption.DisplayText)"
+                ValueProperty="@nameof(ReferencePickerOption.Value)"
+                Value="@Value"
+                ValueChanged="@OnValueChangedAsync"
+                AllowClear="true"
+                AllowFiltering="true"
+                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                Placeholder="Search or choose an entry"
+                EmptyText="No matching entries"
+                Class="w-full" />
+            <p class="content-reference-help">
+                <RadzenIcon Icon="link" />
+                @(_options.Count == 1 ? "1 available entry" : $"{_options.Count} available entries")
+            </p>
+        }
+    }
+</div>

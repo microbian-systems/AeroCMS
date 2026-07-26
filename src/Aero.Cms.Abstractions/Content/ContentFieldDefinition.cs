@@ -12,7 +12,10 @@ public sealed class ContentFieldDefinition
     /// <summary>Field name used as the key in ContentItem.Fields</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Field type alias, including bounded composite aliases such as "list", "gallery", and "dictionary".</summary>
+    /// <summary>
+    /// Field type alias, including bounded aliases such as "range", "color", "list",
+    /// "gallery", and "dictionary".
+    /// </summary>
     public string FieldType { get; set; } = "text";
 
     /// <summary>Display label for the admin UI</summary>
@@ -28,6 +31,22 @@ public bool Required { get; set; }
 
     /// <summary>Placeholder text for the admin UI editor</summary>
     public string? Placeholder { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the field participates in exact-value filtering and sorting.
+    /// Reference fields are always indexed by the content service.
+    /// </summary>
+    public bool Indexed { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the field contributes text to the full-text search document.
+    /// </summary>
+    public bool FullTextSearchable { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the field contributes text to the semantic embedding document.
+    /// </summary>
+    public bool SemanticSearchable { get; set; }
 
     /// <summary>Validation rules, editor hints, etc. consumed by FluentValidation + admin UI</summary>
     public Dictionary<string, JsonElement> Settings

@@ -1,0 +1,44 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes
+
+<div class="hierarchy-reference-picker">
+    @if (_isLoading)
+    {
+        <div class="hierarchy-reference-state" role="status">
+            <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+            <span>Loading hierarchy…</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="hierarchy-reference-state hierarchy-reference-error" role="alert">
+            <RadzenIcon Icon="error_outline" />
+            <span>@_error</span>
+            <RadzenButton Text="Retry" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light" Click="ReloadAsync" />
+        </div>
+    }
+    else if (_options.Count == 0)
+    {
+        <div class="hierarchy-reference-state" role="status">
+            <RadzenIcon Icon="account_tree" />
+            <span>No selectable hierarchy entries are available.</span>
+        </div>
+    }
+    else
+    {
+        <RadzenDropDown TValue="string"
+                        Data="@_options"
+                        TextProperty="@nameof(HierarchyReferenceOption.DisplayText)"
+                        ValueProperty="@nameof(HierarchyReferenceOption.Value)"
+                        Value="@Value"
+                        ValueChanged="OnValueChangedAsync"
+                        AllowClear="true"
+                        AllowFiltering="true"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="Search or choose an entry"
+                        Class="w-full" />
+        <p class="hierarchy-reference-help">
+            <RadzenIcon Icon="account_tree" />
+            @(_options.Count == 1 ? "1 selectable entry" : $"{_options.Count} selectable entries")
+        </p>
+    }
+</div>

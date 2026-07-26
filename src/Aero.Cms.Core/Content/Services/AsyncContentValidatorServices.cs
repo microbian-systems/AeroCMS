@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Railway;
+using AeroDB.Sable;
 using FluentValidation.Results;
 
 namespace Aero.Cms.Core.Content.Services;
@@ -30,17 +31,19 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
 }
 
 /// <summary>
-/// Verifies that parseable referenced content identifiers exist.
+/// Verifies that parseable referenced content identifiers exist and satisfy their configured target.
 /// </summary>
 /// <remarks>
 /// Only fields whose type is exactly <c>reference</c> are inspected. The validator honors a
-/// Boolean <c>allowMultiple</c> setting but does not verify the referenced item's site, content
-/// type, or compatibility with any target schema. Non-parseable identifiers are expected to be
+/// Boolean <c>allowMultiple</c> setting. Configured targets are checked by content-type alias,
+/// and hierarchy references can require a leaf entry. Non-parseable identifiers are expected to be
 /// rejected by synchronous field validation and do not produce an existence failure here. When
 /// invoked outside <see cref="ContentValidationService"/>, incorrectly shaped JSON may cause
 /// <see cref="InvalidOperationException"/> while enumerating or reading reference values.
 /// </remarks>
-public sealed class ReferenceExistenceValidator(IContentService contentService) : IAsyncContentValidator
+public sealed class ReferenceExistenceValidator(
+    IContentService contentService,
+    IDocumentSession session) : IAsyncContentValidator
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
@@ -52,24 +55,158 @@ public sealed class ReferenceExistenceValidator(IContentService contentService) 
             if (!item.Fields.TryGetValue(field.Name, out var element)) continue;
             if (element.ValueKind == System.Text.Json.JsonValueKind.Null) continue;
 
-            if (field.Settings.TryGetValue("allowMultiple", out var multiple)
+            if (field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowMultiple, out var multiple)
                 && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
             {
                 foreach (var refItem in element.EnumerateArray())
-                    await CheckReference(item.SiteId, refItem, field, failures, ct);
+                    await CheckReference(item, refItem, field, failures, ct);
             }
             else
             {
-                await CheckReference(item.SiteId, element, field, failures, ct);
+                await CheckReference(item, element, field, failures, ct);
             }
         }
 
         return failures;
     }
 
-    private async Task CheckReference(long siteId, System.Text.Json.JsonElement element, ContentFieldDefinition field, List<ValidationFailure> failures, CancellationToken ct)
+    private async Task CheckReference(
+        ContentItem item,
+        System.Text.Json.JsonElement element,
+        ContentFieldDefinition field,
+        List<ValidationFailure> failures,
+        CancellationToken ct)
     {
-        if (long.TryParse(element.GetString(), out var id) && !await contentService.ExistsAsync(siteId, id, ct))
-            failures.Add(new ValidationFailure(field.Name, $"Referenced item '{id}' for '{field.Label ?? field.Name}' not found."));
+        if (!TryReadReferenceId(element, out var id))
+        {
+            return;
+        }
+
+        var referenced = await contentService.LoadAsync(item.SiteId, id, ct);
+        if (referenced is not Result<ContentItem, AeroError>.Ok ok)
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"Referenced item '{id}' for '{field.Label ?? field.Name}' not found."));
+            return;
+        }
+
+        var targetAlias = GetStringSetting(
+            field,
+            ReferenceContentFieldSettings.TargetContentType);
+        if (!string.IsNullOrWhiteSpace(targetAlias)
+            && !string.Equals(
+                ok.Value.ContentTypeAlias,
+                targetAlias,
+                StringComparison.Ordinal))
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"Referenced item '{id}' is not a '{targetAlias}' entry."));
+            return;
+        }
+
+        var dependsOnField = GetStringSetting(
+            field,
+            ReferenceContentFieldSettings.DependsOnField);
+        var targetFilterField = GetStringSetting(
+            field,
+            ReferenceContentFieldSettings.TargetFilterField);
+        if (!string.IsNullOrWhiteSpace(dependsOnField)
+            && !string.IsNullOrWhiteSpace(targetFilterField))
+        {
+            if (!item.Fields.TryGetValue(dependsOnField, out var dependency)
+                || !ok.Value.Fields.TryGetValue(targetFilterField, out var targetRelationship)
+                || !ReferenceValuesOverlap(dependency, targetRelationship))
+            {
+                failures.Add(new ValidationFailure(
+                    field.Name,
+                    $"Referenced item '{id}' does not belong to the selected '{dependsOnField}' entry."));
+                return;
+            }
+        }
+
+        if (!IsTrue(field, ReferenceContentFieldSettings.SelectLeafOnly)
+            || !IsHierarchyReference(field))
+        {
+            return;
+        }
+
+        var hasChildren = await session.Query<ContentItem>()
+            .Where(candidate =>
+                candidate.SiteId == item.SiteId
+                && candidate.ParentId == id)
+            .AnyAsync(ct);
+        if (hasChildren)
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"Referenced item '{id}' must be a leaf entry without children."));
+        }
     }
+
+    private static bool ReferenceValuesOverlap(
+        System.Text.Json.JsonElement left,
+        System.Text.Json.JsonElement right)
+    {
+        var leftIds = EnumerateReferenceIds(left).ToHashSet();
+        return leftIds.Count > 0
+            && EnumerateReferenceIds(right).Any(leftIds.Contains);
+    }
+
+    private static IEnumerable<long> EnumerateReferenceIds(
+        System.Text.Json.JsonElement element)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var child in element.EnumerateArray())
+            {
+                if (TryReadReferenceId(child, out var childId))
+                {
+                    yield return childId;
+                }
+            }
+
+            yield break;
+        }
+
+        if (TryReadReferenceId(element, out var id))
+        {
+            yield return id;
+        }
+    }
+
+    private static bool TryReadReferenceId(
+        System.Text.Json.JsonElement element,
+        out long id)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Number)
+        {
+            return element.TryGetInt64(out id);
+        }
+
+        id = 0;
+        return element.ValueKind == System.Text.Json.JsonValueKind.String
+            && long.TryParse(
+                element.GetString(),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out id);
+    }
+
+    private static bool IsHierarchyReference(ContentFieldDefinition field) =>
+        string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.SelectionMode),
+            ReferenceContentFieldSettings.SelectionModeHierarchy,
+            StringComparison.Ordinal);
+
+    private static bool IsTrue(ContentFieldDefinition field, string key) =>
+        field.Settings.TryGetValue(key, out var value)
+        && value.ValueKind == System.Text.Json.JsonValueKind.True;
+
+    private static string? GetStringSetting(ContentFieldDefinition field, string key) =>
+        field.Settings.TryGetValue(key, out var value)
+        && value.ValueKind == System.Text.Json.JsonValueKind.String
+            ? value.GetString()
+            : null;
 }

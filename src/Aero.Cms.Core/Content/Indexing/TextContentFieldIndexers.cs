@@ -21,6 +21,20 @@ public sealed class TextFieldIndexer : IContentFieldIndexer
     }
 }
 
+/// <summary>Emits a URL field's stored string value as one search token.</summary>
+public sealed class UrlFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => ContentFieldTypes.Url;
+
+    public IEnumerable<string> GetIndexTokens(
+        ContentFieldDefinition field,
+        JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString() ?? string.Empty;
+    }
+}
+
 /// <summary>
 /// Emits a rich-text JSON string after removing substrings that resemble HTML tags.
 /// </summary>
@@ -46,9 +60,9 @@ public sealed class RichTextFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Emits a scalar reference field's JSON string value as one search token.
+/// Emits scalar and array reference values as search tokens.
 /// </summary>
-/// <remarks>Reference arrays and other non-string JSON values emit no tokens.</remarks>
+/// <remarks>Non-string members and other JSON values emit no tokens.</remarks>
 public sealed class ReferenceFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
@@ -58,12 +72,24 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
     public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
     {
         if (value.ValueKind == JsonValueKind.String)
+        {
             yield return value.GetString() ?? "";
+            yield break;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+            yield break;
+
+        foreach (var reference in value.EnumerateArray())
+        {
+            if (reference.ValueKind == JsonValueKind.String)
+                yield return reference.GetString() ?? string.Empty;
+        }
     }
 }
 
 /// <summary>
-/// Emits a decimal JSON number formatted using the current culture.
+/// Emits a decimal JSON number formatted using the invariant culture.
 /// </summary>
 public sealed class NumberFieldIndexer : IContentFieldIndexer
 {
@@ -75,7 +101,47 @@ public sealed class NumberFieldIndexer : IContentFieldIndexer
     public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
     {
         if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var num))
-            yield return num.ToString();
+            yield return num.ToString(
+                "G29",
+                System.Globalization.CultureInfo.InvariantCulture);
+    }
+}
+
+/// <summary>Indexes a bounded integer range value.</summary>
+public sealed class RangeFieldIndexer : IContentFieldIndexer
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Range;
+
+    /// <inheritdoc />
+    public IEnumerable<string> GetIndexTokens(
+        ContentFieldDefinition field,
+        JsonElement value)
+    {
+        if (value.TryGetInt32(out var number))
+        {
+            yield return number.ToString(
+                System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+}
+
+/// <summary>Indexes a stored hexadecimal color value.</summary>
+public sealed class ColorFieldIndexer : IContentFieldIndexer
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Color;
+
+    /// <inheritdoc />
+    public IEnumerable<string> GetIndexTokens(
+        ContentFieldDefinition field,
+        JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            yield return value.GetString()!;
+        }
     }
 }
 

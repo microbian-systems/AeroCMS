@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content;
 using FluentValidation;
 
@@ -62,6 +63,114 @@ public sealed class NumberFieldValidator : IContentFieldValidator
         if (field.Settings.TryGetValue("max", out var maxElement) && maxElement.TryGetDecimal(out var max) && value > max)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be at most {max}.");
     }
+}
+
+/// <summary>Validates inclusive, whole-number range values.</summary>
+public sealed class RangeFieldValidator : IContentFieldValidator
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Range;
+
+    /// <inheritdoc />
+    public void ValidateElement(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (!element.TryGetInt32(out var value))
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must be a whole number.");
+            return;
+        }
+
+        if (field.Settings.TryGetValue(
+                RangeContentFieldSettings.Start,
+                out var startElement)
+            && startElement.TryGetInt32(out var start)
+            && value < start)
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must be at least {start}.");
+        }
+
+        if (field.Settings.TryGetValue(
+                RangeContentFieldSettings.End,
+                out var endElement)
+            && endElement.TryGetInt32(out var end)
+            && value > end)
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must be at most {end}.");
+        }
+
+        var allowNegative =
+            field.Settings.TryGetValue(
+                RangeContentFieldSettings.AllowNegative,
+                out var negativeElement)
+            && negativeElement.ValueKind == JsonValueKind.True;
+        if (!allowNegative && value < 0)
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} cannot be negative.");
+        }
+    }
+}
+
+/// <summary>Validates the hexadecimal string emitted by <c>RadzenColorPicker</c>.</summary>
+public sealed partial class ColorFieldValidator : IContentFieldValidator
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Color;
+
+    /// <inheritdoc />
+    public void ValidateElement(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must be a color.");
+            return;
+        }
+
+        var value = element.GetString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (field.Required && mode == ContentValidationMode.Publish)
+            {
+                context.AddFailure(
+                    field.Name,
+                    $"{field.Label ?? field.Name} is required.");
+            }
+
+            return;
+        }
+
+        if (!IsSupportedColor(value))
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must be a six- or eight-digit hexadecimal color.");
+        }
+    }
+
+    internal static bool IsSupportedColor(string value) =>
+        HexColorPattern().IsMatch(value.Trim());
+
+    [GeneratedRegex(
+        "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex HexColorPattern();
 }
 
 /// <summary>
