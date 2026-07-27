@@ -172,6 +172,8 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 cookie.Cookie.HttpOnly = true;
                 cookie.Cookie.SameSite = SameSiteMode.Lax;
                 cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.LoginPath = "/shop/account";
+                cookie.AccessDeniedPath = "/shop/account";
                 cookie.SlidingExpiration = false;
                 cookie.Events.OnValidatePrincipal = context =>
                     context.HttpContext.RequestServices

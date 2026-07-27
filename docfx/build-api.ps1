@@ -8,6 +8,7 @@ $projects = @(
     'src/Aero.Cms.Core/Aero.Cms.Core.csproj'
     'src/Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj'
     'src/Aero.Cms.Web.Bootstrap/Aero.Cms.Web.Bootstrap.csproj'
+    'src/Aero.Cms.Modules.Commerce/Aero.Cms.Modules.Commerce.csproj'
 )
 
 Push-Location $repositoryRoot
@@ -18,6 +19,7 @@ try {
             -m:1 `
             -p:BuildInParallel=false `
             -p:UseSharedCompilation=false `
+            -p:AeroSkipSharedTypeScriptCompile=true `
             -p:NuGetAudit=false `
             --disable-build-servers
         if ($LASTEXITCODE -ne 0) {

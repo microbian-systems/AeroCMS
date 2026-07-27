@@ -73,7 +73,7 @@ for (const area of requiredAreas) {
   if (!areas.has(area)) errors.push(`Required feature area is not represented: ${area}`);
 }
 
-if (manifest.last_verified_commit !== 'ece0dc3915de1005fba89357f4957830a963206e') {
+if (manifest.last_verified_commit !== '47c299402cee06975dfdf32e071ba133179c15f2') {
   errors.push('Manifest baseline commit does not match this documentation release.');
 }
 

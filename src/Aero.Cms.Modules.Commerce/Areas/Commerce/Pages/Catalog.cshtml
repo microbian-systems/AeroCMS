@@ -1,4 +1,3 @@
-@page "/shop/products"
 @model CatalogModel
 @{
     ViewData["Title"] = "Products";
@@ -7,7 +6,7 @@
 }
 
 <div class="eshop-catalog">
-    <partial name="_CatalogSearchPartial" model="Model.SearchViewModel" />
+    <partial name="/Areas/Commerce/Shared/_CatalogSearchPartial.cshtml" model="Model.SearchViewModel" />
 
     @if (Model.LoadFailed)
     {
@@ -29,7 +28,7 @@
             <div class="eshop-catalog-items">
                 @foreach (var product in Model.Products)
                 {
-                    <partial name="_CatalogItemPartial" model="product" />
+                    <partial name="/Areas/Commerce/Shared/_CatalogItemPartial.cshtml" model="product" />
                 }
             </div>
 

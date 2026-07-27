@@ -44,7 +44,7 @@ public sealed class CommercePaymentsTests
         var stripe = new FakeProvider("stripe");
         var service = CreateService(harness.Session, stripe, [Account("stripe", "stripe-a", 1, 10)]);
 
-        var first = await service.InitiateAsync(1, 10, 7, new(101, "stripe", "request-1"));
+        var first = await service.InitiateAsync(1, 10, 7, new(101, "stripe", "request-1"), returnUrls: StripeReturnUrls());
         var second = await service.InitiateAsync(1, 10, 7, new(101, "stripe", "request-1"));
 
         first.ShouldBeOfType<Result<PaymentInitiation, AeroError>.Ok>().Value.Status.ShouldBe(PaymentAttemptStatus.RequiresCustomerAction);
@@ -53,6 +53,23 @@ public sealed class CommercePaymentsTests
         stripe.LastAmount.ShouldBe(23m);
         await using var verify = await harness.OpenSessionAsync();
         (await verify.Query<OrderEntity>().FirstOrDefaultAsync(x => x.Id == 101))!.PaymentStatus.ShouldBe(OrderPaymentStatus.Pending);
+    }
+
+    [Test]
+    public async Task New_stripe_initiation_without_secure_return_urls_does_not_mutate_the_order_or_create_an_attempt()
+    {
+        await using var harness = await CreateHarnessAsync();
+        harness.Session.Store(Order(111, 1, 10, 7, 23m));
+        await harness.Session.SaveChangesAsync();
+        var stripe = new FakeProvider("stripe");
+        var service = CreateService(harness.Session, stripe, [Account("stripe", "stripe-a", 1, 10)]);
+
+        (await service.InitiateAsync(1, 10, 7, new(111, "stripe", "missing-return-targets"))).IsSuccess.ShouldBeFalse();
+        stripe.Initiations.ShouldBe(0);
+
+        await using var verify = await harness.OpenSessionAsync();
+        (await verify.Query<OrderEntity>().FirstOrDefaultAsync(x => x.Id == 111))!.PaymentStatus.ShouldBe(OrderPaymentStatus.Unpaid);
+        (await verify.Query<PaymentAttemptDocument>().FirstOrDefaultAsync(x => x.OrderId == 111)).ShouldBeNull();
     }
 
     [Test]
@@ -66,7 +83,7 @@ public sealed class CommercePaymentsTests
         var service = CreateService(harness.Session, [stripe, paypal], [Account("stripe", "stripe-a", 1, 10), Account("paypal", "paypal-a", 1, 10)]);
 
         (await service.InitiateAsync(1, 10, 8, new(102, "stripe", "request-2"))).IsSuccess.ShouldBeFalse();
-        (await service.InitiateAsync(1, 10, 7, new(102, "stripe", "request-2"))).IsSuccess.ShouldBeTrue();
+        (await service.InitiateAsync(1, 10, 7, new(102, "stripe", "request-2"), returnUrls: StripeReturnUrls())).IsSuccess.ShouldBeTrue();
         (await service.InitiateAsync(1, 10, 7, new(102, "stripe", "different-request"))).IsSuccess.ShouldBeFalse();
         (await service.InitiateAsync(1, 10, 7, new(102, "paypal", "request-2"))).IsSuccess.ShouldBeFalse();
         stripe.Initiations.ShouldBe(1);
@@ -90,7 +107,7 @@ public sealed class CommercePaymentsTests
         order.Status.ShouldBe(OrderStatus.Submitted);
         order.PaymentStatus.ShouldBe(OrderPaymentStatus.Paid);
         (await verify.Query<PaymentWebhookReceiptDocument>().ToListAsync()).Count.ShouldBe(1);
-        (await service.InitiateAsync(1, 10, 7, new(103, "stripe", "request-203"))).IsSuccess.ShouldBeTrue();
+        (await service.InitiateAsync(1, 10, 7, new(103, "stripe", "request-203"), returnUrls: StripeReturnUrls())).IsSuccess.ShouldBeTrue();
         stripe.Initiations.ShouldBe(0);
     }
 
@@ -161,7 +178,7 @@ public sealed class CommercePaymentsTests
         terminalHarness.Session.Store(Order(107, 1, 10, 7, 10m)); await terminalHarness.Session.SaveChangesAsync();
         var terminal = new FakeProvider("stripe") { Outcome = PaymentProviderInitiationOutcome.Terminal("declined") };
         var terminalService = CreateService(terminalHarness.Session, terminal, [Account("stripe", "stripe-a", 1, 10)]);
-        (await terminalService.InitiateAsync(1, 10, 7, new(107, "stripe", "terminal"))).IsSuccess.ShouldBeFalse();
+        (await terminalService.InitiateAsync(1, 10, 7, new(107, "stripe", "terminal"), returnUrls: StripeReturnUrls())).IsSuccess.ShouldBeFalse();
         (await terminalService.InitiateAsync(1, 10, 7, new(107, "stripe", "terminal"))).IsSuccess.ShouldBeFalse();
         terminal.Initiations.ShouldBe(1);
         await using var terminalVerify = await terminalHarness.OpenSessionAsync();
@@ -171,7 +188,7 @@ public sealed class CommercePaymentsTests
         ambiguousHarness.Session.Store(Order(108, 1, 10, 7, 10m)); await ambiguousHarness.Session.SaveChangesAsync();
         var ambiguous = new FakeProvider("stripe") { Outcome = PaymentProviderInitiationOutcome.Retryable("timeout") };
         var ambiguousService = CreateService(ambiguousHarness.Session, ambiguous, [Account("stripe", "stripe-a", 1, 10)]);
-        (await ambiguousService.InitiateAsync(1, 10, 7, new(108, "stripe", "ambiguous"))).IsSuccess.ShouldBeFalse();
+        (await ambiguousService.InitiateAsync(1, 10, 7, new(108, "stripe", "ambiguous"), returnUrls: StripeReturnUrls())).IsSuccess.ShouldBeFalse();
         await using var ambiguousVerify = await ambiguousHarness.OpenSessionAsync();
         var attempt = (await ambiguousVerify.Query<PaymentAttemptDocument>().FirstOrDefaultAsync(x => x.OrderId == 108))!;
         attempt.Status.ShouldBe(PaymentAttemptStatus.Initiating);
@@ -251,6 +268,7 @@ public sealed class CommercePaymentsTests
         Enabled = true, Provider = provider, AccountKey = key, TenantId = tenantId, SiteId = siteId, BaseUrl = "https://payments.example.test",
         SecretKey = "stripe-secret", WebhookSecret = "stripe-webhook", ClientId = "paypal-client", ClientSecret = "paypal-secret", WebhookId = "paypal-webhook"
     };
+    private static PaymentReturnUrls StripeReturnUrls() => new(new Uri("https://shop.example.test/orders/success"), new Uri("https://shop.example.test/orders/cancel"));
     private static OrderEntity Order(long id, long tenantId, long siteId, long memberId, decimal total) => new()
     {
         Id = id, TenantId = tenantId, SiteId = siteId, ExternalMemberId = memberId, Currency = "USD", Status = OrderStatus.Submitted, PaymentStatus = OrderPaymentStatus.Unpaid,

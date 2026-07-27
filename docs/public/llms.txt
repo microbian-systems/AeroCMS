@@ -1,6 +1,6 @@
 # AeroCMS documentation
 
-> Verified against commit ece0dc3915de1005fba89357f4957830a963206e.
+> Verified against commit 47c299402cee06975dfdf32e071ba133179c15f2.
 > Audience: public. Security-sensitive operational values and design-history material are excluded.
 
 - [Overview](/) — architecture; maturity: alpha.
@@ -14,7 +14,12 @@
 - [Manager and member identity](/guides/identity-and-access) — identity-access; maturity: alpha.
 - [Themes, media, navigation](/guides/site-presentation) — site-presentation; maturity: mixed.
 - [AI and MCP](/guides/ai-and-mcp) — ai-mcp; maturity: experimental.
-- [Commerce status](/guides/commerce) — commerce; maturity: experimental.
+- [Commerce](/guides/commerce) — commerce; maturity: experimental.
+- [Commerce catalog and storefront](/guides/commerce/catalog-storefront) — commerce; maturity: experimental.
+- [Commerce basket and orders](/guides/commerce/basket-orders) — commerce; maturity: experimental.
+- [Commerce payments and subscriptions](/guides/commerce/payments-subscriptions) — commerce; maturity: experimental.
+- [Commerce manager, page editor, and A2A](/guides/commerce/manager-page-editor-a2a) — commerce; maturity: experimental.
+- [Commerce security and operations](/guides/commerce/security-operations) — commerce; maturity: experimental.
 - [Public content query API](/guides/public-query-api) — public-api; maturity: alpha.
 - [Configuration](/developers/configuration) — configuration; maturity: alpha.
 - [Extension development](/developers/extensions) — extension-development; maturity: alpha.

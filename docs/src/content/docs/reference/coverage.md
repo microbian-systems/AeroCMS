@@ -3,7 +3,7 @@ title: Documentation coverage
 description: Baseline, covered features, API scope, build verification, evidence gaps, and remaining documentation risks.
 ---
 
-Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
+Baseline commit: `47c299402cee06975dfdf32e071ba133179c15f2`, with Commerce verified against the current working tree and focused test suite.
 
 ## Documented at the current evidence depth
 
@@ -16,11 +16,11 @@ Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
 - manager/external-member identity boundaries, roles/site policies, API-key handling;
 - AI settings/enhancement/translation/SSE; ephemeral public and durable member/manager assistants; manager-only explicit memory; exposure/grounding/process-local budget; and scoped MCP API-key/process-local rate-limit boundaries;
 - cache layers, theme build ownership, health/telemetry status;
+- Commerce product/listing modeling, public catalog and CMS route ownership, member basket/order flows, one-time payments, provider-owned subscriptions and cycles, manager/page-editor integration, A2A, and security/operations boundaries;
 - public API scope, ingestion files, glossary, examples, and security checklist.
 
 ## Partially documented
 
-- commerce is documented only to verified catalog/basket/order/payment route and boundary depth;
 - media documents its active API and production blockers, not a recommended production storage implementation;
 - individual optional/stub feature modules are represented in the feature inventory/status rather than receiving separate product pages;
 - deployment describes verified host requirements, not a certified platform-specific topology.
@@ -39,7 +39,7 @@ Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
 
 Included assemblies are the curated public surfaces of `Aero.Cms.Abstractions`, `Aero.Cms.Contracts`, `Aero.Cms.Html`, `Aero.Cms.Core`, `Aero.Cms.Web.Core`, and `Aero.Cms.Web.Bootstrap`.
 
-Intentionally excluded: concrete feature-module assemblies, hosts, UI/shared internals, data/persistence implementations, generated contexts, validators, legacy Marten code, tests, and every Git submodule.
+Intentionally excluded: concrete feature-module assemblies other than the explicitly documented experimental Commerce module, hosts, UI/shared internals, data/persistence implementations, generated contexts, validators, legacy Marten code, tests, and every Git submodule.
 
 Known XML documentation gaps are reported in `docfx/api-documentation-gaps.md`; executable code was not changed merely to silence warnings.
 
@@ -49,7 +49,7 @@ Verified on 2026-07-26 in the isolated `codex/aerocms-documentation` worktree:
 
 | Check | Result |
 | --- | --- |
-| first-party API assembly builds | Pass — six selected Release assemblies built with zero errors; existing dependency/compiler warnings remain |
+| first-party API assembly builds | Pass — seven selected Release assemblies, including Commerce, built with zero errors; existing dependency/compiler warnings remain |
 | Starlight dependency install | Pass — frozen pnpm lockfile and explicit build-script allowlist |
 | ingestion generation and manifest validation | Pass — 23 public entries generated and validated |
 | internal canonical-link and duplicate-path validation | Pass — 23 unique canonical paths |

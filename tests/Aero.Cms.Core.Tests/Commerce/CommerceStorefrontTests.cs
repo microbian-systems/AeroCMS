@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using System.Reflection;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Core.Tests.Integration;
 using Aero.Cms.Modules.Commerce;
 using Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
@@ -120,7 +122,7 @@ public sealed class CommerceStorefrontTests
         var item = json.RootElement.GetProperty("items")[0];
         item.EnumerateObject().Select(x => x.Name).ShouldBe([
             "id", "slug", "name", "shortDescription", "description", "category", "imageUrl",
-            "price", "compareAtPrice", "currency", "isFeatured"
+            "price", "compareAtPrice", "currency", "isFeatured", "isSubscription", "subscriptionIntervalDays"
         ], ignoreOrder: true);
         var serialized = item.GetRawText();
         serialized.ShouldNotContain("tenantId");
@@ -248,6 +250,35 @@ public sealed class CommerceStorefrontTests
     }
 
     [Test]
+    public async Task Page_editor_member_cart_journey_confirms_a_visible_listing_then_uses_the_scoped_basket_and_redirects_to_cart()
+    {
+        var products = Substitute.For<IProductService>();
+        var baskets = Substitute.For<IBasketService>();
+        var principal = Substitute.For<ICurrentPrincipal>();
+        var site = Substitute.For<ISiteContext>();
+        site.TenantId.Returns(42);
+        site.SiteId.Returns(10);
+        principal.PrincipalId.Returns(7);
+        var listing = Listing(42, 10, 100, "journey-product", "Journey product", id: 100);
+        products.GetPublishedListingAsync(42, 10, Arg.Any<string>(), 100, Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<ProductListingDocument?, AeroError>(listing));
+        baskets.AddItemAsync(42, 10, 7, 100, 1, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<BasketDocument, AeroError>(new BasketDocument()));
+        var model = new AddToCartModel(products, baskets, principal, site)
+        {
+            PageContext = new PageContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        (await model.OnGetAsync(100, CancellationToken.None)).ShouldBeOfType<PageResult>();
+        model.Product!.Name.ShouldBe("Journey product");
+        model.CartPath.ShouldBe("/shop/cart?culture=" + Uri.EscapeDataString(CultureInfo.CurrentUICulture.Name));
+
+        var redirect = (await model.OnPostAsync(100, CancellationToken.None)).ShouldBeOfType<RedirectResult>();
+        redirect.Url.ShouldBe("/shop/cart?culture=" + Uri.EscapeDataString(CultureInfo.CurrentUICulture.Name));
+        await baskets.Received(1).AddItemAsync(42, 10, 7, 100, 1, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task Catalog_page_redirects_invalid_and_out_of_range_pages_without_losing_filters()
     {
         var products = Substitute.For<IProductService>();
@@ -284,7 +315,7 @@ public sealed class CommerceStorefrontTests
     {
         var pageModels = new[]
         {
-            typeof(ShopHomeModel), typeof(CatalogModel), typeof(ProductDetailModel), typeof(CartModel),
+            typeof(ShopHomeModel), typeof(CatalogModel), typeof(ProductDetailModel), typeof(AddToCartModel), typeof(CartModel),
             typeof(CheckoutModel), typeof(OrdersModel), typeof(OrderDetailModel)
         };
 

@@ -17,6 +17,9 @@ function normalizeMarkdown(source) {
 }
 
 const publicEntries = manifest.entries.filter((entry) => entry.audience === 'public');
+const managerEntries = manifest.entries.filter(
+  (entry) => entry.audience === 'public' || entry.audience === 'manager-internal',
+);
 const mapLines = [
   '# AeroCMS documentation',
   '',
@@ -50,6 +53,28 @@ for (const entry of publicEntries) {
   );
 }
 
+const managerCorpusEntries = [];
+for (const entry of managerEntries) {
+  const sourcePath = path.join(docsRoot, 'src', 'content', 'docs', entry.document);
+  managerCorpusEntries.push({
+    title: entry.title,
+    canonical_path: entry.canonical_path,
+    feature_area: entry.feature_area,
+    maturity: entry.maturity,
+    audience: entry.audience,
+    source_files: entry.source_files,
+    content: normalizeMarkdown(await readFile(sourcePath, 'utf8')),
+  });
+}
+
+const managerCorpus = {
+  schema_version: manifest.schema_version,
+  product: manifest.product,
+  last_verified_commit: manifest.last_verified_commit,
+  trust_class: 'manager-internal',
+  entries: managerCorpusEntries,
+};
+
 const llms = `${mapLines.join('\n')}\n`;
 const full = `${corpus.join('\n').trimEnd()}\n`;
 const publicDir = path.join(docsRoot, 'public');
@@ -59,8 +84,13 @@ await writeFile(path.join(docsRoot, 'llms-aero-full.txt'), full);
 await writeFile(path.join(publicDir, 'llms.txt'), llms);
 await writeFile(path.join(publicDir, 'llms-aero-full.txt'), full);
 await writeFile(
+  path.join(docsRoot, 'manager-assistant-corpus.json'),
+  `${JSON.stringify(managerCorpus, null, 2)}\n`,
+);
+await writeFile(
   path.join(publicDir, 'documentation-manifest.json'),
   `${JSON.stringify(manifest, null, 2)}\n`,
 );
 
 console.log(`Generated ${publicEntries.length} public documentation entries.`);
+console.log(`Generated ${managerEntries.length} manager assistant documentation entries.`);

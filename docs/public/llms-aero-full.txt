@@ -1,6 +1,6 @@
 # AeroCMS normalized documentation corpus
 
-Baseline commit: ece0dc3915de1005fba89357f4957830a963206e
+Baseline commit: 47c299402cee06975dfdf32e071ba133179c15f2
 Trust classification: public documentation
 Excluded: Git submodules, generated artifacts, design history, credentials, connection strings, customer data, and PII.
 
@@ -32,7 +32,7 @@ AeroCMS combines ASP.NET Core, Razor and Blazor manager UI, source-generated mod
 
 ## Documentation trust model
 
-These pages were verified against commit `ece0dc3915de1005fba89357f4957830a963206e`. Behavior claims come from current source, configuration, and tests. Older material under the repository's historical `docs/` and `.docs/` collections is not automatically treated as implemented behavior.
+These pages were verified against commit `47c299402cee06975dfdf32e071ba133179c15f2` plus the current Commerce working-tree verification. Behavior claims come from current source, configuration, and tests. Design history under `.docs/` is not automatically treated as implemented behavior.
 
 This public corpus intentionally excludes:
 
@@ -289,7 +289,7 @@ This inventory is the evidence map used to create the rest of the documentation.
 | Caching | output-cache policies and FusionCache | manager/admin no-store | Redis-compatible stores, local Garnet or server mode | cached HTTP/application data; cache tests | Implemented with coherence limits |
 | Themes/assets | manager theme/site APIs and build script | `site:*` policies | versioned theme selection and style profile | committed Tailwind/SCSS assets | Implemented; build-owned |
 | Media/navigation/footer | manager routes and APIs | `site:*` policies | Sable services and media storage abstraction | public navigation/footer/media references; tests | Implemented, alpha |
-| Commerce | storefront and manager catalog/payment APIs | anonymous storefront; member/manager policies by route | product/listing/order/payment services | storefront/manager UI; focused tests | Partial and experimental |
+| Commerce | CMS storefront pages/fragments, private shop routes, manager and provider APIs | anonymous host-scoped catalog/A2A; member and manager policies; verified provider callbacks | product/listing, basket/order, payment/subscription/cycle services in Sable | storefront/manager UI, AI projection, A2A; focused Commerce suite | Broad alpha slice; experimental |
 | Health/telemetry | `/health` outside Development; service defaults | no explicit health endpoint policy | shared health checks, Serilog/OpenTelemetry wiring | plain aggregate health output | Partial |
 
 ## Evidence rules
@@ -674,35 +674,554 @@ Authenticated managers with `AeroAdmin` and `site:read` can list, create, and re
 
 The service-key boundary is intended for controlled machine clients, but focused tests do not yet cover a complete HTTP authentication and multi-site-header lifecycle. Manager assistant and key-management mutations also need a reviewed origin/antiforgery posture. AeroCMS does not provide a verified OAuth authorization server, delegated consent flow, token exchange, or dynamic client registration. Before internet exposure, require TLS and complete a deployment-specific threat model covering key provisioning, storage, rotation, revocation, audit, origin behavior, distributed rate-limit sizing, and incident response. Interactive delegated clients need an OAuth-style boundary rather than shared service keys.
 
-## Commerce status
+## Commerce
 
 Canonical path: /guides/commerce
 Feature area: commerce
 Maturity: experimental
-Source provenance: src/Aero.Cms.Modules.Commerce/Catalog/Api/CatalogEndpoints.cs, src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs, src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs, src/Aero.Cms.Modules.Commerce/Payments/Api/PaymentEndpoints.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceStorefrontTests.cs
+Source provenance: src/Aero.Cms.Modules.Commerce/CommerceModule.cs, src/Aero.Cms.Modules.Commerce/README.md, tests/Aero.Cms.Core.Tests/Commerce/CommerceRouteOwnershipTests.cs
 
-Commerce is experimental and must not be represented as a production storefront. The current code provides a bounded catalog, authenticated member basket/orders, payment orchestration hooks, and manager product/listing screens.
+AeroCMS Commerce is an experimental, multi-site commerce vertical slice built on Sable and SurrealDB. It provides a reusable tenant catalog, site-and-culture storefront listings, authenticated member shopping flows, provider-neutral payments, provider-owned subscriptions, manager authoring, CMS page fragments, and an optional read-only A2A catalog.
 
-## Implemented routes
+It is suitable for alpha development and integration testing. It is **not** a certification of PCI scope, tax or shipping compliance, accounting correctness, provider production readiness, or exactly-once fulfillment.
 
-- Anonymous catalog: `/api/commerce/catalog/listings`, `/listings/by-slug/{slug}`, and `/categories`. Queries use the resolved site and current UI culture and filter to public/active data.
-- External-member basket: `/api/commerce/basket` and `/items`; requires the external-member policy and site policy.
-- External-member orders: `/api/commerce/orders`; list/get, checkout, and cancel use the current member, tenant, and site.
-- Payments: authenticated initiate/status endpoints plus an anonymous provider webhook route.
-- Manager catalog: `/api/v1/admin/commerce/catalog/products` and `/listings` with the normal `site:*` read/create/update/delete policies.
-- Manager UI: `/manager/commerce`, `/products`, and `/listings`.
+## Choose the right guide
 
-Products are reusable catalog records; listings bind a product to site/culture merchandising and publication/availability state. Snowflake `long` IDs remain authoritative.
+- [Catalog and storefront](/guides/commerce/catalog-storefront): canonical products, localized listings, public catalog APIs, CMS-owned shop pages, and search/AI exposure.
+- [Basket and orders](/guides/commerce/basket-orders): member identity, authoritative repricing, stock, checkout, cancellation, and order history.
+- [Payments and subscriptions](/guides/commerce/payments-subscriptions): Stripe and PayPal accounts, idempotent initiation, signed webhooks, recurring checkout, cycles, and manual review.
+- [Manager, page editor, and A2A](/guides/commerce/manager-page-editor-a2a): manager routes and UI, page fragments, seeded shop pages, and the optional agent protocol.
+- [Security and operations](/guides/commerce/security-operations): ownership rules, concurrency, secrets, limits, deployment checks, and known gaps.
 
-## Safety boundaries
+## Architecture at a glance
 
-The anonymous catalog still requires authoritative host-to-site resolution. Member operations must never accept a member or site ID from the body as authority. Order/payment services re-check tenant, site, member, listing, price, and state transitions.
+Commerce separates tenant-owned product facts from site-specific merchandising:
 
-Payment webhooks are intentionally anonymous at the ASP.NET authorization layer because providers cannot carry member cookies. The provider/account route, signature verification, replay protection, payload size, idempotency, and order ownership must all succeed inside the payment boundary.
+```text
+Tenant
+  ProductDocument
+    SKU, fulfillment mode, stock, attributes, active state
 
-## Not established
+Site + culture
+  ProductListingDocument
+    product link, slug, copy, category, image, price,
+    publication, search/AI flags, optional subscription offer
 
-This baseline does not establish PCI scope, tax/shipping compliance, inventory reservation guarantees, refund/dispute workflows, production provider certification, multi-currency accounting, or end-to-end exactly-once fulfillment. Treat these as missing product/reliability work, not implicit features.
+External member + site
+  BasketDocument -> OrderEntity -> PaymentAttemptDocument
+                              \-> SubscriptionDocument -> cycles
+```
+
+All database identities are Snowflake `long` values. Provider identifiers, account route keys, idempotency keys, checkout sessions, subscriptions, invoices, captures, and webhook event IDs remain opaque strings.
+
+## Active surfaces
+
+| Surface | Current implementation |
+| --- | --- |
+| Public catalog | Host-site and culture scoped Minimal APIs plus CMS `PageDocument` routes rendered by registered Commerce fragments |
+| Private storefront | Razor Pages for cart, checkout, account, orders, order detail, and subscriptions |
+| Manager | Blazor WebAssembly pages and typed HTTP clients for products, listings, subscriptions, and A2A settings |
+| Persistence | Sable/SurrealDB documents, unique indexes, and optimistic concurrency |
+| Payments | Provider Strategy/Adapter boundary with Stripe and PayPal implementations |
+| Subscriptions | Provider-owned recurring checkout, durable lifecycle/cycle snapshots, verified webhook reconciliation |
+| AI/search | Listing-level `IncludeInSearch` and `IncludeInPublicAi` controls |
+| Agent protocol | Disabled-by-default anonymous, read-only A2A product search and lookup |
+
+## Important boundaries
+
+- The public host determines the site. A manager selected-site cookie cannot change public catalog scope.
+- Member IDs, tenant IDs, site IDs, titles, SKUs, prices, and stock values are not accepted as customer authority.
+- Checkout reloads listings and products, snapshots authoritative commercial values, changes stock when appropriate, creates the order, and clears only the owned basket.
+- Payment and subscription webhooks are anonymous only at the HTTP authorization layer. Account lookup, payload bounds, provider signature verification, replay protection, scope matching, and monotonic state checks still apply.
+- Subscription renewals create cycle snapshots; they do not create new Commerce orders or decrement inventory.
+- Public Commerce AI knowledge exists only for active, published listings explicitly enabled for both search and public AI.
+
+## Current maturity
+
+Implemented alpha behaviors have focused TUnit/Sable coverage for scope isolation, pricing, stock, routing, stale writes, provider adapters, signature verification, webhook replay, subscription visibility, page fragments, and A2A protocol bounds.
+
+Still missing or not certified:
+
+- taxes, shipping rates, fulfillment orchestration, refunds, disputes, and inventory reservation across long-running workflows;
+- production provider certification and operational reconciliation tooling;
+- multi-currency accounting—the current contract is USD;
+- guest checkout;
+- durable distributed outbox/inbox guarantees for all post-commit messages;
+- a complete manual-review operations UI and provider recovery playbooks.
+
+## Commerce catalog and storefront
+
+Canonical path: /guides/commerce/catalog-storefront
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductDocument.cs, src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductListingDocument.cs, src/Aero.Cms.Modules.Commerce/Catalog/Api/CatalogEndpoints.cs, src/Aero.Cms.Modules.Commerce/Catalog/Services/ProductService.cs, src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceStorefrontTests.cs
+
+The Commerce catalog uses two document types so one tenant product can be merchandised differently across sites and cultures.
+
+## Canonical products
+
+`ProductDocument` is tenant-owned. It stores:
+
+- normalized, tenant-unique SKU;
+- canonical name and optional description;
+- fulfillment mode;
+- stock quantity;
+- active state;
+- string attributes and tags;
+- audit timestamps and optimistic-concurrency version.
+
+Fulfillment modes are:
+
+| Mode | Meaning |
+| --- | --- |
+| `Inventory` | Stock-managed product. Checkout validates and decrements available stock. |
+| `NonInventoryOneTime` | One-time product without stock management. |
+| `NonInventoryRecurring` | Provider-owned recurring product eligible for a subscription offer. |
+
+A product cannot be deleted while any tenant listing references it. Deactivation is the safe alternative. Product updates also refresh the search/AI projections of their bounded localized listings.
+
+## Site and culture listings
+
+`ProductListingDocument` links a product to a site and culture and owns storefront merchandising:
+
+- route-safe slug;
+- localized name, summary, description, category, and image URL;
+- USD price and optional compare-at price;
+- publication and featured flags;
+- search and public-AI flags;
+- optional provider subscription offer;
+- optimistic-concurrency version.
+
+The database enforces one `(site, culture, slug)` and one `(site, culture, product)` listing. Server validation canonicalizes culture and slug values and rejects stale manager versions.
+
+A published recurring listing must point to an eligible `NonInventoryRecurring` product and carry a valid interval plus a Stripe price ID or PayPal plan ID. Non-recurring products cannot carry subscription offers.
+
+## Anonymous catalog API
+
+The active public endpoints are:
+
+```text
+GET /api/commerce/catalog/listings
+GET /api/commerce/catalog/listings/by-slug/{slug}
+GET /api/commerce/catalog/categories
+```
+
+Listing queries support bounded search, category, skip, and take values. Results are allowlisted public DTOs—not database documents—and include only:
+
+- the host-resolved site;
+- the current UI culture;
+- published listings;
+- active products.
+
+Filtering happens before count and pagination. Missing or noncanonical slugs are concealed as not found; an actual database failure is not rewritten as a 404.
+
+## CMS-owned public routes
+
+Public catalog pages are native CMS pages rather than competing hard-coded Razor routes. The Commerce seed service creates idempotent, culture-aware `PageDocument` records through the normal page services. Registered fragments render:
+
+- shop catalog/home;
+- product search;
+- product detail.
+
+This means normal CMS route ownership, culture routing, page metadata, navigation, aliases, preview, and publication remain authoritative. Private stateful routes such as `/shop/cart`, `/shop/checkout`, and `/shop/orders` continue to use Razor Pages and take precedence over the CMS catch-all.
+
+## Search and AI exposure
+
+Each listing has two independent controls:
+
+- `IncludeInSearch` admits the listing to the search corpus.
+- `IncludeInPublicAi` permits the published listing to cross into the public AI corpus.
+
+The public AI projection requires an active product, a published listing, search inclusion, and public-AI inclusion. The projection contains only allowlisted listing copy, category, and displayed price. Manager knowledge can include the same listing when search is enabled, but never bypasses tenant/site scope.
+
+## Manager lifecycle
+
+The manager creates a canonical product first, then creates one or more site/culture listings. Updates require the version last read by the editor. Competing edits return conflict rather than overwriting another writer.
+
+Catalog writes are one Sable save batch. A listing association also stores the linked product version so a concurrent product deletion cannot commit an orphaned listing.
+
+## Commerce basket and orders
+
+Canonical path: /guides/commerce/basket-orders
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs, src/Aero.Cms.Modules.Commerce/Basket/Services/BasketService.cs, src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs, src/Aero.Cms.Modules.Commerce/Orders/Services/OrderService.cs, src/Aero.Cms.Modules.Commerce/Shared/StateMachine/OrderStateMachine.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceCheckoutOwnershipTests.cs
+
+Basket and order operations require the isolated external-member authentication scheme and the host-site membership policy. The server derives the member, tenant, and site; clients do not select them.
+
+## Basket API
+
+The member basket group is rooted at:
+
+```text
+/api/commerce/basket
+```
+
+It supports reading the current basket, adding an item, changing quantity, removing an item, and clearing the basket. Mutation requests contain only the listing ID and quantity.
+
+When an item is added or changed, Commerce reloads the current site/culture listing and canonical product. The persisted basket item is an authoritative snapshot of the displayed product, SKU, price, billing kind, and optional subscription offer. Wrong-site, unpublished, inactive, incompatible, or unavailable-stock listings are rejected.
+
+Reading a missing basket is non-mutating: it returns an empty view without creating a database document.
+
+## Checkout
+
+The order API group is rooted at:
+
+```text
+/api/commerce/orders
+```
+
+The checkout request supplies shipping and optional billing addresses. Commerce then:
+
+1. reloads the owned basket;
+2. reloads each listing and canonical product;
+3. verifies site, culture, publication, active state, price, billing mode, and quantity;
+4. decrements stock only for inventory products;
+5. creates an immutable order line snapshot;
+6. creates the member/site/tenant-scoped order;
+7. clears only that member's owned basket;
+8. commits the batch through Sable.
+
+The client cannot preserve a stale or manipulated price. Checkout uses the current listing price even if the basket snapshot is older.
+
+One-time and recurring lines cannot be silently mixed into an invalid provider flow. Recurring lines preserve provider offer references and interval information needed by subscription checkout.
+
+## Orders and status
+
+`OrderEntity` contains buyer, address, line, amount, payment, status, and audit snapshots. Customer list/get operations always include tenant, site, and external-member predicates.
+
+The order state machine and Wolverine handlers represent transitions including submitted, awaiting validation, stock confirmed, paid, shipped, and cancelled. Current messaging is immediate best effort after durable work; it is not a claim of a complete transactional outbox.
+
+## Cancellation and stock release
+
+A member can cancel only an owned order in an allowed state. Cancellation is rejected for another site/member and for states where cancellation would be unsafe. Inventory is restored once when the permitted transition succeeds.
+
+Competing checkout, cancellation, and update operations rely on optimistic concurrency so stale writes return conflict rather than silently changing stock or order state.
+
+## Storefront pages
+
+Private storefront Razor Pages include:
+
+```text
+/shop/cart
+/shop/cart/add
+/shop/checkout
+/shop/account
+/shop/orders
+/shop/orders/{id}
+/shop/subscriptions
+```
+
+The add-to-cart journey is private and authorization-scoped. Public CMS fragments link authorized members into this journey without embedding manager credentials or antiforgery material in public catalog output.
+
+## Current limits
+
+- Currency is fixed to USD.
+- Guest checkout is not implemented.
+- Shipping calculation, tax calculation, warehouse allocation, and fulfillment automation are not established.
+- Long-running inventory reservations and distributed exactly-once guarantees are not established.
+
+## Commerce payments and subscriptions
+
+Canonical path: /guides/commerce/payments-subscriptions
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce/Payments/PaymentApplicationService.cs, src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs, src/Aero.Cms.Modules.Commerce/Payments/StripePaymentProviderAdapter.cs, src/Aero.Cms.Modules.Commerce/Payments/PayPalPaymentProviderAdapter.cs, src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionCheckoutService.cs, src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionDocuments.cs, src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionReconciliationService.cs, tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs
+
+Commerce keeps provider-specific HTTP and signature behavior behind adapter interfaces. Application services own tenant/site/member/order checks and durable state; Stripe and PayPal adapters own provider protocol translation.
+
+## Provider accounts
+
+Configuration is read from `Commerce:Payments:Accounts`. Each enabled account binds:
+
+- normalized provider name (`stripe` or `paypal`);
+- route-safe account key;
+- one tenant and site;
+- HTTPS provider base URL;
+- provider credentials and webhook verification material;
+- optional wallet capability flags.
+
+An enabled tenant/site can map to a provider only once, and each provider/account-key pair must be unique. Secrets are configuration values and are not persisted in payment, subscription, cycle, or webhook documents.
+
+## One-time payments
+
+Authenticated member endpoints are:
+
+```text
+POST /api/commerce/payments/initiate
+GET  /api/commerce/payments/status/{orderId}
+```
+
+Initiation requires an owned order, a configured provider for the order scope, and a bounded idempotency key. `PaymentAttemptDocument` records the durable operation before/around provider I/O and distinguishes success, customer action, failure, uncertainty, cancellation, and manual review.
+
+Stripe uses hosted Checkout sessions. PayPal uses the configured Orders/approval flow. Return URLs are validated browser continuations; they are not payment proof.
+
+The public provider callback is:
+
+```text
+POST /api/commerce/payments/webhooks/{provider}/{accountKey}
+```
+
+The route is anonymous because providers do not carry member cookies. Processing still fails closed unless:
+
+- the route key resolves exactly one enabled account;
+- the payload is within bounds;
+- provider verification succeeds;
+- the event ID has not already been consumed;
+- order, amount, currency, tenant, and site agree;
+- the transition is valid.
+
+Stripe verification uses the raw body, HMAC SHA-256, constant-time comparison, and a five-minute timestamp window. PayPal verification uses the configured provider verification API and account webhook ID.
+
+## Recurring catalog offers
+
+A recurring listing is valid only when:
+
+- the product fulfillment mode is `NonInventoryRecurring`;
+- interval days are within the validated range;
+- at least one effective provider binding exists: Stripe price or PayPal plan;
+- a published offer has everything required for provider checkout.
+
+The server snapshots provider offer references into basket, order, and subscription lines. It never stores provider credentials in those records.
+
+## Subscription checkout
+
+`ISubscriptionCheckoutService` resolves the owned recurring order, provider account, and offer bindings, then delegates provider checkout creation to a Stripe or PayPal subscription adapter.
+
+The durable `SubscriptionDocument` is unique per tenant/site/order and provider operation. It begins in `PendingProviderConfirmation` and records:
+
+- member, site, tenant, and order ownership;
+- provider and account key;
+- operation, checkout, subscription, and customer references;
+- immutable line and amount snapshots;
+- interval and current provider period;
+- lifecycle and manual-review state.
+
+Provider-owned recurring collection is intentional: AeroCMS does not schedule off-session charges.
+
+## Subscription webhooks and cycles
+
+The callback route is:
+
+```text
+POST /api/commerce/subscriptions/webhooks/{provider}/{accountKey}
+```
+
+Adapters verify and normalize provider events before reconciliation. Receipt documents deduplicate event IDs without retaining raw payloads, signatures, secrets, or browser URLs.
+
+Paid invoices/captures create or update immutable `SubscriptionCycleDocument` snapshots. Cycles are unique by subscription/cycle number and by provider cycle/payment reference. Renewals append cycles and do **not** create additional Commerce orders or change inventory.
+
+Lifecycle is monotonic:
+
+- activation/update can establish or maintain active state;
+- suspension, action-required, or payment failure can move a subscription to past due;
+- cancellation and expiration are terminal;
+- generic later events cannot reactivate terminal or manual-review records;
+- a provider-specific reactivation is accepted only from a safe nonterminal state.
+
+## Manual review
+
+Commerce marks the subscription, cycle, and related order for manual review when authoritative facts conflict or are incomplete—for example:
+
+- amount, currency, line/offer, period, or provider references disagree;
+- a paid cycle later receives a conflicting failure;
+- a paid callback lacks safe period bounds;
+- an event ambiguously resolves more than one subscription.
+
+Manual review is a fail-closed state. The current code persists the reason and evidence references, but a complete operations/recovery UI is still pending.
+
+## Commerce manager, page editor, and A2A
+
+Canonical path: /guides/commerce/manager-page-editor-a2a
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Products.razor, src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Listings.razor, src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Subscriptions.razor, src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs, src/Aero.Cms.Modules.Commerce/PageEditor/CommerceSeedPageFactory.cs, src/Aero.Cms.Modules.Commerce/A2A/Api/A2ACommerceEndpoints.cs, src/Aero.Cms.Modules.Commerce/A2A/Api/A2ASettingsEndpoints.cs, tests/Aero.Cms.Core.Tests/Commerce/CommercePageEditorTests.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceA2AProtocolTests.cs
+
+Commerce combines a Blazor manager application, typed admin APIs, native CMS page fragments, and an optional anonymous agent protocol.
+
+## Manager routes and APIs
+
+Manager pages are:
+
+```text
+/manager/commerce
+/manager/commerce/products
+/manager/commerce/products/{id}
+/manager/commerce/listings
+/manager/commerce/listings/{id}
+/manager/commerce/subscriptions
+/manager/commerce/subscriptions/{id}
+```
+
+The catalog APIs use the canonical prefix:
+
+```text
+/api/v1/admin/commerce/catalog/products
+/api/v1/admin/commerce/catalog/listings
+```
+
+Read/create/update/delete operations require the corresponding `site:read`, `site:create`, `site:update`, or `site:delete` policy. Subscription manager reads require `site:read`.
+
+The scope resolver requires an authorized selected-site context and reloads the persisted site to derive the tenant. Request JSON cannot override product or listing ownership. Missing, forged, foreign, or unassigned site selection fails closed.
+
+Editors preserve version values so stale writes become HTTP 409 conflicts. The listing editor searches canonical products and preserves a selected product even when it is outside the current result page.
+
+## Page editor integration
+
+Commerce registers three server-rendered page fragments:
+
+- catalog;
+- search;
+- product detail.
+
+They use the request's resolved site and culture, not a manager cookie, request-supplied tenant, or slug lookalike. Links are generated through culture-aware Aero routes.
+
+The Commerce seed factory creates the shop page tree idempotently for each site/culture through normal page services. Because the records are normal Aero pages, authors can compose surrounding content and use the standard metadata, navigation, preview, publishing, and alias workflows.
+
+## A2A settings
+
+A2A is disabled when no site setting exists. Manager settings are:
+
+```text
+GET /api/v1/admin/commerce/a2a/settings
+PUT /api/v1/admin/commerce/a2a/settings
+```
+
+Reads require `site:read`; changes require `site:update` and the authorized selected site. Settings are isolated by tenant and site.
+
+## Public A2A protocol
+
+When explicitly enabled for the host site, Commerce exposes:
+
+```text
+GET  /.well-known/agent-card.json
+POST /a2a/commerce
+```
+
+The protocol is JSON-RPC 2.0 and read-only. It supports two bounded skills:
+
+- product search by query/category/pagination;
+- product lookup by canonical slug.
+
+The response uses a dedicated allowlisted A2A projection. It does not serialize storefront documents, subscription offers, manager fields, credentials, member data, inventory internals, or database metadata.
+
+The agent sees only active, published listings for the host-resolved site and current culture. A selected-site cookie and request tenant field cannot change scope.
+
+## Protocol constraints
+
+The current endpoint:
+
+- rejects oversize requests before catalog access;
+- rejects unknown JSON members;
+- accepts one structured data part in the supported media type;
+- rejects unsupported method, version, skill, continuation/task, and part shapes with safe JSON-RPC errors;
+- uses source-generated System.Text.Json metadata;
+- conceals disabled, unresolved, or invalid-host availability;
+- advertises no streaming, push notification, or extended-card capability.
+
+A2A does not authorize writes, basket actions, checkout, order access, or subscriptions. Those remain member or manager workflows.
+
+## Commerce security and operations
+
+Canonical path: /guides/commerce/security-operations
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce/CommerceModule.cs, src/Aero.Cms.Modules.Commerce/Catalog/Services/CommerceManagerScopeResolver.cs, src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs, src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionWebhookEndpoints.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs, tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs
+
+Commerce crosses anonymous, member, manager, and provider trust planes. Deployment must preserve the boundaries below.
+
+## Scope authority
+
+| Flow | Authority |
+| --- | --- |
+| Public catalog and A2A | Resolved public host plus current culture |
+| Basket, checkout, orders, payments, subscriptions | External-member principal plus host-site membership |
+| Manager catalog and settings | Manager principal plus authorized selected site reloaded from persistence |
+| Provider webhooks | Configured provider/account route plus cryptographic/provider verification |
+
+Body and query values are data, never authority for tenant, site, member, ownership, price, stock, or provider account.
+
+## Persistence integrity
+
+Commerce enables Sable optimistic concurrency for products, listings, baskets, orders, payment attempts and receipts, subscriptions, cycles, and subscription receipts.
+
+Important unique constraints include:
+
+- tenant/SKU;
+- site/culture/slug and site/culture/product;
+- tenant/site/member basket;
+- tenant/site/order payment attempt;
+- provider/account/event webhook receipt;
+- tenant/site/order subscription;
+- provider operation, subscription cycle, provider cycle, and payment references.
+
+Stale manager edits return conflict. Checkout and reconciliation batches fail rather than silently overwriting another writer. Product/listing writes also protect against the race where a product is deleted while another session associates a listing.
+
+## Webhook rules
+
+Keep payment and subscription webhook routes reachable by providers, but do not weaken their internal checks:
+
+- exact configured route account;
+- bounded raw request body;
+- Stripe raw-body signature and timestamp verification or PayPal provider verification;
+- event replay/idempotency record;
+- tenant/site/provider/account/reference matching;
+- authoritative amount and USD currency comparison;
+- monotonic state transition;
+- manual review on ambiguity or conflict.
+
+Do not log raw payloads, signatures, credentials, client secrets, or webhook secrets. Current durable receipts intentionally store only safe provider references and reconciliation state.
+
+## Configuration checklist
+
+For each enabled payment account:
+
+1. use normalized `stripe` or `paypal`;
+2. choose a route-safe account key of letters, digits, `_`, or `-`;
+3. bind exactly one tenant and site;
+4. use an HTTPS provider base URL;
+5. configure required provider credentials and webhook verification values;
+6. ensure the provider webhook targets the matching account-key route;
+7. configure listing price/plan bindings for recurring products;
+8. test success, cancellation, replay, invalid signature, and mismatched amount in a provider sandbox.
+
+Never place secret values in CMS-authored content, listing attributes, AI knowledge, A2A output, source control, or documentation.
+
+## Operational signals
+
+Monitor at least:
+
+- payment attempts stuck in initiating, uncertain, or manual-review states;
+- webhook verification failures and unknown account keys;
+- repeated delivery/replay counts;
+- subscription/order/cycle manual-review reasons;
+- optimistic-concurrency conflicts;
+- unique-index conflicts;
+- checkout failures by site/provider;
+- unpublished/inactive listing requests;
+- stock rejection and cancellation-restock failures.
+
+## Verification
+
+The focused Commerce suite covers manager policies and scope, public DTO filtering, CMS route ownership, basket pricing and ownership, stock and cancellation, stale writes, provider initiation, Stripe/PayPal verification, webhook replay, recurring adapters, subscription lifecycle/cycles/visibility, page fragments, and A2A bounds.
+
+Run the Commerce test slice after changes to the module, Sable concurrency, external-member authentication, site resolution, Pages routing, or AI projection behavior.
+
+## Production gaps
+
+The code does not establish:
+
+- PCI, tax, shipping, privacy, accessibility, or regional commerce compliance;
+- refunds, disputes, chargebacks, void/capture operations, and recovery automation;
+- provider live-mode certification;
+- distributed outbox/inbox and exactly-once fulfillment;
+- multi-currency accounting;
+- guest checkout;
+- warehouse/fulfillment integration;
+- a complete manual-review dashboard and operator runbook;
+- service-level objectives, disaster recovery, or provider reconciliation jobs.
+
+Treat these as explicit work, not behavior implied by the existing alpha surfaces.
 
 ## Public content query API
 
@@ -1206,7 +1725,7 @@ Feature area: feature-status
 Maturity: mixed
 Source provenance: README.md, src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs, src/Aero.Cms.Modules.OpenTelemetry/Class1.cs, src/Aero.Cms.Modules.Commerce/CommerceModule.cs
 
-All statuses are relative to commit `ece0dc3915de1005fba89357f4957830a963206e`.
+All statuses are relative to commit `47c299402cee06975dfdf32e071ba133179c15f2` plus the current Commerce working-tree verification.
 
 ## Implemented, alpha
 
@@ -1233,7 +1752,7 @@ All statuses are relative to commit `ece0dc3915de1005fba89357f4957830a963206e`.
 - public AI corpus exposure controls, grounding citations, token budgets, and AI/MCP rate limits;
 - scoped service-key authentication and Streamable HTTP MCP;
 - semantic content search;
-- commerce catalog, basket, orders, payments, and manager UI;
+- commerce catalog/storefront, basket/orders, Stripe and PayPal payments, provider-owned subscriptions, manager/page-editor integration, and optional read-only A2A;
 - external identity federation beyond the recovery/local authority.
 
 ## Partial
@@ -1446,6 +1965,7 @@ The checked-in ingestion artifacts are generated from the canonical Starlight so
 - `/llms-aero-full.txt`: normalized public corpus with stable headings and provenance;
 - `/documentation-manifest.json`: machine-readable metadata;
 - `docs/llms.txt`, `docs/llms-aero-full.txt`, and `docs/documentation-manifest.json`: repository source copies.
+- `docs/manager-assistant-corpus.json`: generated structured corpus embedded into the AI module for manager-only product grounding.
 
 Run `pnpm run generate` in `docs/` after changing a canonical page or manifest entry.
 
@@ -1471,6 +1991,8 @@ The manifest root records the last verified commit, generation rules, excluded r
 
 Design history under `.docs/` is not a documentation input. A behavior first needs current source/test verification and original product wording.
 
+The manager assistant corpus includes public and `manager-internal` entries, but never `security-sensitive` entries. At build time it is embedded into `Aero.Cms.Modules.Ai`; at runtime only a manager-audience retrieval request can merge those product-documentation matches with the tenant/site CMS corpus. Public and member retrieval never query the embedded product corpus.
+
 ## Chunking
 
 The full corpus preserves page titles, canonical paths, feature area, maturity, provenance, and descriptive headings. It removes frontmatter, component imports, and rendered diagram markup. Sections remain page-local so a retriever can chunk at `##` headings without losing the page's trust metadata.
@@ -1482,7 +2004,7 @@ Feature area: documentation-system
 Maturity: implemented
 Source provenance: docs/documentation-manifest.json, docfx/docfx.json, docfx/filterConfig.yml, docfx/api-documentation-gaps.md
 
-Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
+Baseline commit: `47c299402cee06975dfdf32e071ba133179c15f2`, with Commerce verified against the current working tree and focused test suite.
 
 ## Documented at the current evidence depth
 
@@ -1495,11 +2017,11 @@ Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
 - manager/external-member identity boundaries, roles/site policies, API-key handling;
 - AI settings/enhancement/translation/SSE; ephemeral public and durable member/manager assistants; manager-only explicit memory; exposure/grounding/process-local budget; and scoped MCP API-key/process-local rate-limit boundaries;
 - cache layers, theme build ownership, health/telemetry status;
+- Commerce product/listing modeling, public catalog and CMS route ownership, member basket/order flows, one-time payments, provider-owned subscriptions and cycles, manager/page-editor integration, A2A, and security/operations boundaries;
 - public API scope, ingestion files, glossary, examples, and security checklist.
 
 ## Partially documented
 
-- commerce is documented only to verified catalog/basket/order/payment route and boundary depth;
 - media documents its active API and production blockers, not a recommended production storage implementation;
 - individual optional/stub feature modules are represented in the feature inventory/status rather than receiving separate product pages;
 - deployment describes verified host requirements, not a certified platform-specific topology.
@@ -1518,7 +2040,7 @@ Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
 
 Included assemblies are the curated public surfaces of `Aero.Cms.Abstractions`, `Aero.Cms.Contracts`, `Aero.Cms.Html`, `Aero.Cms.Core`, `Aero.Cms.Web.Core`, and `Aero.Cms.Web.Bootstrap`.
 
-Intentionally excluded: concrete feature-module assemblies, hosts, UI/shared internals, data/persistence implementations, generated contexts, validators, legacy Marten code, tests, and every Git submodule.
+Intentionally excluded: concrete feature-module assemblies other than the explicitly documented experimental Commerce module, hosts, UI/shared internals, data/persistence implementations, generated contexts, validators, legacy Marten code, tests, and every Git submodule.
 
 Known XML documentation gaps are reported in `docfx/api-documentation-gaps.md`; executable code was not changed merely to silence warnings.
 
@@ -1528,7 +2050,7 @@ Verified on 2026-07-26 in the isolated `codex/aerocms-documentation` worktree:
 
 | Check | Result |
 | --- | --- |
-| first-party API assembly builds | Pass — six selected Release assemblies built with zero errors; existing dependency/compiler warnings remain |
+| first-party API assembly builds | Pass — seven selected Release assemblies, including Commerce, built with zero errors; existing dependency/compiler warnings remain |
 | Starlight dependency install | Pass — frozen pnpm lockfile and explicit build-script allowlist |
 | ingestion generation and manifest validation | Pass — 23 public entries generated and validated |
 | internal canonical-link and duplicate-path validation | Pass — 23 unique canonical paths |

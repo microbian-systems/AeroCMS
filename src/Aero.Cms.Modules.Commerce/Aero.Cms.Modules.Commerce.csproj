@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />

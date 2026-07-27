@@ -10,7 +10,8 @@ namespace Aero.Cms.Modules.Ai.Knowledge;
 /// <summary>Runs bounded full-text or hybrid retrieval with scope filters inside each search query.</summary>
 public sealed class AeroAiKnowledgeRetriever(
     IDocumentSession session,
-    IContentEmbeddingGenerator embeddingGenerator)
+    IContentEmbeddingGenerator embeddingGenerator,
+    IAeroDocumentationKnowledgeSource? documentation = null)
     : IAeroAiKnowledgeRetriever
 {
     public async Task<Result<IReadOnlyList<AeroAiKnowledgeMatch>>> SearchAsync(
@@ -68,7 +69,7 @@ public sealed class AeroAiKnowledgeRetriever(
             documents = await search.ToListAsync(cancellationToken);
         }
 
-        return documents
+        var siteMatches = documents
             .Take(Math.Clamp(query.Take, 1, AeroAiKnowledgeConstants.MaximumTake))
             .Select(document => new AeroAiKnowledgeMatch(
                 document.Id,
@@ -82,6 +83,21 @@ public sealed class AeroAiKnowledgeRetriever(
                 document.SourceRevision,
                 document.ChunkRevision,
                 document.ContentHash))
+            .ToArray();
+
+        if (corpusAudience != AeroAiAudience.Manager || documentation is null)
+            return siteMatches;
+
+        var documentationMatches = documentation.Search(
+            query.Query.Trim(),
+            Math.Min(3, query.Take));
+        if (documentationMatches.Count == 0)
+            return siteMatches;
+
+        return documentationMatches
+            .Concat(siteMatches)
+            .DistinctBy(match => match.ChunkId)
+            .Take(query.Take)
             .ToArray();
     }
 

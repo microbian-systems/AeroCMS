@@ -19,6 +19,8 @@ public sealed class ProductListingDocument : SableDocument, IAuditable, IVersion
     public decimal Price { get; set; }
     public decimal? CompareAtPrice { get; set; }
     public string Currency { get; set; } = "USD";
+    /// <summary>Optional provider-owned recurring offer. Only recurring canonical products may publish one.</summary>
+    public SubscriptionOffer? SubscriptionOffer { get; set; }
     public bool IsPublished { get; set; }
     public bool IsFeatured { get; set; }
     public bool IncludeInSearch { get; set; } = true;
@@ -28,4 +30,20 @@ public sealed class ProductListingDocument : SableDocument, IAuditable, IVersion
     public DateTimeOffset? ModifiedOn { get; set; }
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
+}
+
+/// <summary>
+/// Provider-owned recurring offer published with a storefront listing. The identifiers
+/// are merchant-created immutable Stripe Prices and PayPal Plans, never credentials.
+/// </summary>
+public sealed class SubscriptionOffer
+{
+    /// <summary>Common DAY interval supported by both current providers.</summary>
+    public int IntervalDays { get; set; }
+
+    /// <summary>Merchant-created immutable Stripe Price identifier, when Stripe is offered.</summary>
+    public string? StripePriceId { get; set; }
+
+    /// <summary>Merchant-created immutable PayPal Plan identifier, when PayPal is offered.</summary>
+    public string? PayPalPlanId { get; set; }
 }

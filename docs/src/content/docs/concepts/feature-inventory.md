@@ -22,7 +22,7 @@ This inventory is the evidence map used to create the rest of the documentation.
 | Caching | output-cache policies and FusionCache | manager/admin no-store | Redis-compatible stores, local Garnet or server mode | cached HTTP/application data; cache tests | Implemented with coherence limits |
 | Themes/assets | manager theme/site APIs and build script | `site:*` policies | versioned theme selection and style profile | committed Tailwind/SCSS assets | Implemented; build-owned |
 | Media/navigation/footer | manager routes and APIs | `site:*` policies | Sable services and media storage abstraction | public navigation/footer/media references; tests | Implemented, alpha |
-| Commerce | storefront and manager catalog/payment APIs | anonymous storefront; member/manager policies by route | product/listing/order/payment services | storefront/manager UI; focused tests | Partial and experimental |
+| Commerce | CMS storefront pages/fragments, private shop routes, manager and provider APIs | anonymous host-scoped catalog/A2A; member and manager policies; verified provider callbacks | product/listing, basket/order, payment/subscription/cycle services in Sable | storefront/manager UI, AI projection, A2A; focused Commerce suite | Broad alpha slice; experimental |
 | Health/telemetry | `/health` outside Development; service defaults | no explicit health endpoint policy | shared health checks, Serilog/OpenTelemetry wiring | plain aggregate health output | Partial |
 
 ## Evidence rules

@@ -25,5 +25,7 @@ apiRules:
     uidRegex: ^Aero\.Cms\.Web\.Core\.(Modules|Pipelines)(?:\.|$)
 - include:
     uidRegex: ^Aero\.Cms\.Web\.Bootstrap\.(AeroCmsExtensions|AeroCmsOptions)(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Modules\.Commerce(?:\.|$)
 - exclude:
     uidRegex: ^Aero\.Cms\.

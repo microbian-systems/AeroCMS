@@ -29,6 +29,29 @@ public partial class ListingEditor : ComponentBase, IDisposable
     protected string? ErrorMessage { get; private set; }
     protected bool IsLoading { get; private set; }
     protected bool IsSaving { get; private set; }
+    protected bool HasSubscriptionOffer
+    {
+        get => Model.SubscriptionOffer is not null;
+        set => Model.SubscriptionOffer = value ? new ManagerSubscriptionOffer(30, null, null) : null;
+    }
+
+    protected int SubscriptionIntervalDays
+    {
+        get => Model.SubscriptionOffer?.IntervalDays ?? 30;
+        set => Model.SubscriptionOffer = CurrentOffer() with { IntervalDays = value };
+    }
+
+    protected string? StripePriceId
+    {
+        get => Model.SubscriptionOffer?.StripePriceId;
+        set => Model.SubscriptionOffer = CurrentOffer() with { StripePriceId = value?.Trim() };
+    }
+
+    protected string? PayPalPlanId
+    {
+        get => Model.SubscriptionOffer?.PayPalPlanId;
+        set => Model.SubscriptionOffer = CurrentOffer() with { PayPalPlanId = value?.Trim() };
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -71,6 +94,14 @@ public partial class ListingEditor : ComponentBase, IDisposable
         else if (result is Result<IReadOnlyList<ManagerProductDto>, AeroError>.Failure failure) ErrorMessage = failure.Error.ToString();
     }
 
+    protected static string ProductFulfillmentLabel(ManagerProductDto product) => product.FulfillmentMode switch
+    {
+        ManagerProductFulfillmentMode.Inventory => $"stock {product.StockQuantity}",
+        ManagerProductFulfillmentMode.NonInventoryOneTime => "non-inventory, one-time",
+        ManagerProductFulfillmentMode.NonInventoryRecurring => "non-inventory, recurring",
+        _ => "unknown fulfillment"
+    };
+
     private async Task LoadAsync()
     {
         IsLoading = true;
@@ -85,4 +116,6 @@ public partial class ListingEditor : ComponentBase, IDisposable
     }
 
     public void Dispose() { cancellation.Cancel(); cancellation.Dispose(); }
+
+    private ManagerSubscriptionOffer CurrentOffer() => Model.SubscriptionOffer ?? new ManagerSubscriptionOffer(30, null, null);
 }

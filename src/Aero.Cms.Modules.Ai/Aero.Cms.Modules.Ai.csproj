@@ -25,4 +25,9 @@
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\docs\manager-assistant-corpus.json"
+                      LogicalName="Aero.Cms.Modules.Ai.Knowledge.manager-assistant-corpus.json" />
+  </ItemGroup>
+
 </Project>

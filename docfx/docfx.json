@@ -38,6 +38,12 @@
           "files": [
             "Aero.Cms.Web.Bootstrap.dll"
           ]
+        },
+        {
+          "src": "../src/Aero.Cms.Modules.Commerce/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Modules.Commerce.dll"
+          ]
         }
       ],
       "dest": "api",
@@ -60,6 +66,14 @@
         "files": [
           "*.md"
         ]
+      },
+      {
+        "src": "../docs/src/content/docs",
+        "dest": "commerce",
+        "files": [
+          "guides/commerce.md",
+          "guides/commerce/*.md"
+        ]
       }
     ],
     "resource": [
@@ -73,7 +87,7 @@
     "globalMetadata": {
       "_appTitle": "AeroCMS public API reference",
       "_appName": "AeroCMS",
-      "_appFooter": "AeroCMS alpha API reference — verified at commit ece0dc3915de1005fba89357f4957830a963206e."
+      "_appFooter": "AeroCMS alpha API reference — verified at commit 47c299402cee06975dfdf32e071ba133179c15f2 plus current Commerce source and tests."
     }
   }
 }

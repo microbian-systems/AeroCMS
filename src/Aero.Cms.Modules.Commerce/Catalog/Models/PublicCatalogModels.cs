@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Models;
 
@@ -12,9 +13,11 @@ public sealed record PublicListingResponse(
     string? Category,
     string? ImageUrl,
     decimal Price,
-    decimal? CompareAtPrice,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] decimal? CompareAtPrice,
     string Currency,
-    bool IsFeatured)
+    bool IsFeatured,
+    bool IsSubscription,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] int? SubscriptionIntervalDays)
 {
     public static PublicListingResponse From(ProductListingDocument listing) => new(
         listing.Id,
@@ -27,7 +30,9 @@ public sealed record PublicListingResponse(
         listing.Price,
         listing.CompareAtPrice,
         listing.Currency,
-        listing.IsFeatured);
+        listing.IsFeatured,
+        listing.SubscriptionOffer is not null,
+        listing.SubscriptionOffer?.IntervalDays);
 }
 
 /// <summary>A page of anonymous storefront listings.</summary>

@@ -28,5 +28,10 @@ public OrderItemValidator()
 
         RuleFor(x => x.UnitPrice).Must(PaymentAmountLimits.IsValidUsd)
             .WithMessage("Unit price must be a positive USD amount with no more than two decimal places");
+        RuleFor(x => x.BillingIntervalDays).InclusiveBetween(1, 365).When(x => x.BillingKind == OrderBillingKind.Recurring);
+        RuleFor(x => x.FulfillmentMode).IsInEnum();
+        RuleFor(x => x).Must(x => x.BillingKind != OrderBillingKind.Recurring ||
+            x.FulfillmentMode == Catalog.Models.ProductFulfillmentMode.NonInventoryRecurring)
+            .WithMessage("Recurring order lines require non-inventory recurring fulfillment.");
     }
 }

@@ -3,7 +3,7 @@ title: Feature status
 description: Implemented, experimental, partial, planned, and tentative AeroCMS capabilities.
 ---
 
-All statuses are relative to commit `ece0dc3915de1005fba89357f4957830a963206e`.
+All statuses are relative to commit `47c299402cee06975dfdf32e071ba133179c15f2` plus the current Commerce working-tree verification.
 
 ## Implemented, alpha
 
@@ -30,7 +30,7 @@ All statuses are relative to commit `ece0dc3915de1005fba89357f4957830a963206e`.
 - public AI corpus exposure controls, grounding citations, token budgets, and AI/MCP rate limits;
 - scoped service-key authentication and Streamable HTTP MCP;
 - semantic content search;
-- commerce catalog, basket, orders, payments, and manager UI;
+- commerce catalog/storefront, basket/orders, Stripe and PayPal payments, provider-owned subscriptions, manager/page-editor integration, and optional read-only A2A;
 - external identity federation beyond the recovery/local authority.
 
 ## Partial

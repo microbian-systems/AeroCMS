@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Shop</title>
-    <link rel="stylesheet" href="~/css/commerce.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/_content/Aero.Cms.Modules.Commerce/css/commerce.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="eshop-body">
@@ -13,8 +13,8 @@
             <nav class="eshop-header-navbar">
                 <a class="eshop-brand" href="/shop">Shop</a>
                 <a href="/shop/products">Products</a>
-                <partial name="_UserMenuPartial" />
-                <partial name="_CartMenuPartial" />
+                <partial name="/Areas/Commerce/Shared/_UserMenuPartial.cshtml" />
+                <partial name="/Areas/Commerce/Shared/_CartMenuPartial.cshtml" />
             </nav>
             <div class="eshop-header-intro">
                 <h1>@ViewData["HeaderTitle"]</h1>

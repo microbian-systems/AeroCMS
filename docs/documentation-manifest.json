@@ -2,10 +2,11 @@
   "schema_version": 1,
   "product": "AeroCMS",
   "canonical_origin": "https://docs.getaerocms.net",
-  "last_verified_commit": "ece0dc3915de1005fba89357f4957830a963206e",
+  "last_verified_commit": "47c299402cee06975dfdf32e071ba133179c15f2",
   "generated_artifacts": [
     "docs/llms.txt",
     "docs/llms-aero-full.txt",
+    "docs/manager-assistant-corpus.json",
     "docs/public/llms.txt",
     "docs/public/llms-aero-full.txt",
     "docs/public/documentation-manifest.json"
@@ -205,18 +206,104 @@
       ]
     },
     {
-      "title": "Commerce status",
+      "title": "Commerce",
       "canonical_path": "/guides/commerce",
       "document": "guides/commerce.md",
       "audience": "public",
       "feature_area": "commerce",
       "maturity": "experimental",
       "source_files": [
+        "src/Aero.Cms.Modules.Commerce/CommerceModule.cs",
+        "src/Aero.Cms.Modules.Commerce/README.md",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceRouteOwnershipTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce catalog and storefront",
+      "canonical_path": "/guides/commerce/catalog-storefront",
+      "document": "guides/commerce/catalog-storefront.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductDocument.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductListingDocument.cs",
         "src/Aero.Cms.Modules.Commerce/Catalog/Api/CatalogEndpoints.cs",
-        "src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs",
-        "src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs",
-        "src/Aero.Cms.Modules.Commerce/Payments/Api/PaymentEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Services/ProductService.cs",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs",
         "tests/Aero.Cms.Core.Tests/Commerce/CommerceStorefrontTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce basket and orders",
+      "canonical_path": "/guides/commerce/basket-orders",
+      "document": "guides/commerce/basket-orders.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Basket/Services/BasketService.cs",
+        "src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Orders/Services/OrderService.cs",
+        "src/Aero.Cms.Modules.Commerce/Shared/StateMachine/OrderStateMachine.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCheckoutOwnershipTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce payments and subscriptions",
+      "canonical_path": "/guides/commerce/payments-subscriptions",
+      "document": "guides/commerce/payments-subscriptions.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentApplicationService.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/StripePaymentProviderAdapter.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PayPalPaymentProviderAdapter.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionCheckoutService.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionDocuments.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionReconciliationService.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce manager, page editor, and A2A",
+      "canonical_path": "/guides/commerce/manager-page-editor-a2a",
+      "document": "guides/commerce/manager-page-editor-a2a.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Products.razor",
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Listings.razor",
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Subscriptions.razor",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommerceSeedPageFactory.cs",
+        "src/Aero.Cms.Modules.Commerce/A2A/Api/A2ACommerceEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/A2A/Api/A2ASettingsEndpoints.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePageEditorTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceA2AProtocolTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce security and operations",
+      "canonical_path": "/guides/commerce/security-operations",
+      "document": "guides/commerce/security-operations.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/CommerceModule.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Services/CommerceManagerScopeResolver.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionWebhookEndpoints.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs"
       ]
     },
     {

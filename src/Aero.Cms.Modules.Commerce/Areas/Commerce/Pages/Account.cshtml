@@ -14,6 +14,7 @@
             <p>Your storefront account is ready for this site.</p>
             <div class="eshop-account-actions">
                 <a class="eshop-button eshop-button-primary" href="/shop/orders">View my orders</a>
+                <a class="eshop-button eshop-button-secondary" href="/shop/subscriptions">View my subscriptions</a>
                 <form method="post" action="/api/v1/member/logout">
                     @Html.AntiForgeryToken()
                     <button class="eshop-button eshop-button-secondary" type="submit">Log out</button>

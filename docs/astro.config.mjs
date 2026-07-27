@@ -40,7 +40,17 @@ export default defineConfig({
             { label: 'Manager and member identity', slug: 'guides/identity-and-access' },
             { label: 'Themes, media, navigation', slug: 'guides/site-presentation' },
             { label: 'AI and MCP', slug: 'guides/ai-and-mcp' },
-            { label: 'Commerce status', slug: 'guides/commerce' },
+            {
+              label: 'Commerce',
+              items: [
+                { label: 'Overview', slug: 'guides/commerce' },
+                { label: 'Catalog and storefront', slug: 'guides/commerce/catalog-storefront' },
+                { label: 'Basket and orders', slug: 'guides/commerce/basket-orders' },
+                { label: 'Payments and subscriptions', slug: 'guides/commerce/payments-subscriptions' },
+                { label: 'Manager, page editor, and A2A', slug: 'guides/commerce/manager-page-editor-a2a' },
+                { label: 'Security and operations', slug: 'guides/commerce/security-operations' },
+              ],
+            },
           ],
         },
         {

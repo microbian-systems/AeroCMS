@@ -140,6 +140,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.TranslateDocumentRequest>, TranslateDocumentRequestValidator>();
         services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();
+        services.TryAddSingleton<IAeroDocumentationKnowledgeSource, EmbeddedAeroDocumentationKnowledgeSource>();
         services.AddScoped<IAeroAiKnowledgeProjectionService, AeroAiKnowledgeProjectionService>();
         services.AddScoped<IAeroAiKnowledgeRetriever, AeroAiKnowledgeRetriever>();
         services.AddScoped<IAeroAiConversationStore, AeroAiConversationStore>();

@@ -13,6 +13,8 @@ public sealed class OrderEntity : SableDocument, IAuditable, IVersioned
     public string Currency { get; set; } = "USD";
     public OrderStatus Status { get; set; } = OrderStatus.Submitted;
     public OrderPaymentStatus PaymentStatus { get; set; } = OrderPaymentStatus.Unpaid;
+    public OrderBillingKind BillingKind { get; set; }
+    public int? BillingIntervalDays { get; set; }
     public List<OrderItem> Items { get; set; } = [];
     [JsonIgnore] public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
     public Address? ShippingAddress { get; set; }

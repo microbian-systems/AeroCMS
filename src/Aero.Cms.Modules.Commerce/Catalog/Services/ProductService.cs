@@ -283,7 +283,15 @@ public sealed class ProductService(
         if (!validation.IsValid) return Prelude.Fail<ProductDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
         var duplicate = (await session.Query<ProductDocument>().Where(x => x.TenantId == tenantId && x.Sku == sku && x.Id != productId).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductDocument, AeroError>(AeroError.ConflictError("A product with that SKU already exists."));
-        entity.Name = product.Name; entity.Description = product.Description; entity.Sku = sku; entity.StockQuantity = product.StockQuantity; entity.IsActive = product.IsActive; entity.Attributes = product.Attributes; entity.Tags = product.Tags; entity.ModifiedOn = DateTimeOffset.UtcNow;
+        var listings = await session.Query<ProductListingDocument>()
+            .Where(x => x.TenantId == tenantId && x.ProductId == productId)
+            .ToListAsync(ct);
+        var incompatibleListing = listings
+            .Select(listing => ValidateListingCompatibility(product, listing))
+            .FirstOrDefault(error => error is not null);
+        if (incompatibleListing is not null)
+            return Prelude.Fail<ProductDocument, AeroError>(incompatibleListing);
+        entity.Name = product.Name; entity.Description = product.Description; entity.Sku = sku; entity.FulfillmentMode = product.FulfillmentMode; entity.StockQuantity = product.StockQuantity; entity.IsActive = product.IsActive; entity.Attributes = product.Attributes; entity.Tags = product.Tags; entity.ModifiedOn = DateTimeOffset.UtcNow;
         return await StoreProductWithListingsAsync(entity, ct);
     }
 
@@ -327,6 +335,8 @@ public sealed class ProductService(
         listing.Id = Snowflake.NewId(); listing.TenantId = tenantId; listing.SiteId = siteId; listing.Version = 0; listing.Currency = "USD"; listing.Culture = culture; listing.Slug = CatalogSlug.Normalize(listing.Slug); listing.CreatedOn = DateTimeOffset.UtcNow;
         var validation = await listingValidator.ValidateAsync(listing, ct);
         if (!validation.IsValid) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
+        var compatibility = ValidateListingCompatibility(product, listing);
+        if (compatibility is not null) return Prelude.Fail<ProductListingDocument, AeroError>(compatibility);
         var duplicate = (await session.Query<ProductListingDocument>().Where(x => x.SiteId == siteId && x.Culture == listing.Culture && (x.Slug == listing.Slug || x.ProductId == listing.ProductId)).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ConflictError("That site and culture already has this slug or product listing."));
         return await StoreListingWithProductAsync(product, listing, ct);
@@ -346,9 +356,11 @@ public sealed class ProductService(
         listing.Culture = culture; listing.Slug = slug; listing.Currency = "USD";
         var validation = await listingValidator.ValidateAsync(listing, ct);
         if (!validation.IsValid) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
+        var compatibility = ValidateListingCompatibility(product, listing);
+        if (compatibility is not null) return Prelude.Fail<ProductListingDocument, AeroError>(compatibility);
         var duplicate = (await session.Query<ProductListingDocument>().Where(x => x.SiteId == siteId && x.Culture == listing.Culture && x.Id != listingId && (x.Slug == slug || x.ProductId == listing.ProductId)).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ConflictError("That site and culture already has this slug or product listing."));
-        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.IncludeInSearch = listing.IncludeInSearch; existing.IncludeInPublicAi = listing.IncludeInPublicAi; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
+        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.SubscriptionOffer = listing.SubscriptionOffer; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.IncludeInSearch = listing.IncludeInSearch; existing.IncludeInPublicAi = listing.IncludeInPublicAi; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
         return await StoreListingWithProductAsync(product, existing, ct);
     }
 
@@ -547,6 +559,22 @@ public sealed class ProductService(
     }
     private static async Task<Result<T?, AeroError>> Execute<T>(Func<Task<T?>> action) where T : class { try { return Prelude.Ok<T?, AeroError>(await action()); } catch (OperationCanceledException) { throw; } catch (Exception) { return Prelude.Fail<T?, AeroError>(AeroError.DatabaseError("Catalog data could not be loaded.")); } }
     private static string NormalizeSku(string? sku) => (sku ?? string.Empty).Trim().ToUpperInvariant();
+    private static AeroError? ValidateListingCompatibility(ProductDocument product, ProductListingDocument listing)
+    {
+        if (product.FulfillmentMode == ProductFulfillmentMode.NonInventoryRecurring)
+        {
+            return listing.IsPublished && !HasEffectiveProviderBinding(listing.SubscriptionOffer)
+                ? AeroError.ValidationError(["Published recurring listings require a Stripe price or PayPal plan binding."])
+                : null;
+        }
+
+        return listing.SubscriptionOffer is not null
+            ? AeroError.ValidationError(["Only recurring products can carry a subscription offer."])
+            : null;
+    }
+    private static bool HasEffectiveProviderBinding(SubscriptionOffer? offer)
+        => offer is { IntervalDays: >= 1 and <= 365 } &&
+           (!string.IsNullOrWhiteSpace(offer.StripePriceId) || !string.IsNullOrWhiteSpace(offer.PayPalPlanId));
     private static bool TryNormalizeCulture(string? culture, out string canonical)
     {
         try

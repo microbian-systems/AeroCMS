@@ -58,7 +58,8 @@
 
   <Target Name="AeroCompileSharedTypeScriptBeforeStaticWebAssets"
           BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
-          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')
+                     and '$(AeroSkipSharedTypeScriptCompile)' != 'true'">
     <PropertyGroup>
       <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
       <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
