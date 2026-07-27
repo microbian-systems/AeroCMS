@@ -65,9 +65,15 @@ public string? Icon { get; set; }
     public string? ModifiedBy { get; set; }
 
     /// <summary>
-    /// When true, entries of this type are not contributed to the site-wide search index.
+    /// When true, published entries of this type may contribute to site-wide search.
     /// </summary>
-    public bool HideFromSearch { get; set; }
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>
+    /// When true, otherwise eligible entries may contribute public fields to the public AI corpus.
+    /// Public AI eligibility also requires search inclusion and publication.
+    /// </summary>
+    public bool IncludeInPublicAi { get; set; }
 
     /// <summary>
     /// The fields that this content type defines.

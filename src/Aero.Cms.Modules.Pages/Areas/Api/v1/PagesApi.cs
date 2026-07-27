@@ -282,7 +282,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 DraftContentJson: SerializeDraftContent(request.DraftContent),
                 DraftCompositionJson: SerializeDraftComposition(request.DraftComposition),
                 RendererId: normalizedRendererId,
-                DraftSource: request.DraftSource);
+                DraftSource: request.DraftSource,
+                IncludeInSearch: request.IncludeInSearch,
+                IncludeInPublicAi: request.IncludeInPublicAi);
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -341,7 +343,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 PreviousPathBehavior: request.PreviousPathBehavior,
                 DraftCompositionJson: SerializeDraftComposition(request.DraftComposition),
                 RendererId: normalizedRendererId,
-                DraftSource: request.DraftSource);
+                DraftSource: request.DraftSource,
+                IncludeInSearch: request.IncludeInSearch,
+                IncludeInPublicAi: request.IncludeInPublicAi);
 
             var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
             if (!string.IsNullOrWhiteSpace(existing.error.Message))
@@ -854,7 +858,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             DeserializeDraftComposition(vm.DraftCompositionJson),
             DeserializeDraftComposition(vm.PublishedCompositionJson),
             vm.RendererId,
-            vm.HasUnpublishedChanges
+            vm.HasUnpublishedChanges,
+            vm.IncludeInSearch,
+            vm.IncludeInPublicAi
         );
     }
 
@@ -886,7 +892,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             document.DraftComposition,
             document.PublishedComposition,
             PageRendererIds.NormalizeOrDefault(document.RendererId),
-            document.HasUnpublishedChanges);
+            document.HasUnpublishedChanges,
+            document.IncludeInSearch,
+            document.IncludeInPublicAi);
 
     private static string? SerializeDraftContent(HtmlPageContent? content) => content is null
         ? null

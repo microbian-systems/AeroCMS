@@ -1,4 +1,6 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Search;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -9,7 +11,8 @@ namespace Aero.Cms.Core.Content.Indexing;
 public sealed class ContentSearchProjectionService(
     IDocumentSession session,
     ContentIndexService indexService,
-    IContentEmbeddingGenerator embeddingGenerator)
+    IContentEmbeddingGenerator embeddingGenerator,
+    IAeroAiKnowledgeProjectionService? knowledgeProjectionService = null)
 {
     public async Task StageUpsertAsync(
         ContentItem item,
@@ -33,8 +36,9 @@ public sealed class ContentSearchProjectionService(
         {
             session.Store(facet);
         }
+        await StageKnowledgeAsync(item, definition, artifacts, cancellationToken);
 
-        if (definition.HideFromSearch
+        if (!definition.IncludeInSearch
             || string.IsNullOrWhiteSpace(artifacts.SemanticText)
             || !embeddingGenerator.IsAvailable)
         {
@@ -72,7 +76,7 @@ public sealed class ContentSearchProjectionService(
             Culture = item.Culture,
             PublicationState = item.PublicationState,
             PublishedOn = item.PublishedOn,
-            HideFromSearch = definition.HideFromSearch,
+            HideFromSearch = !definition.IncludeInSearch,
             ModelId = embeddingGenerator.ModelId,
             EmbeddingDimensions = embeddingGenerator.Dimensions,
             Embedding = success.Value
@@ -80,12 +84,22 @@ public sealed class ContentSearchProjectionService(
     }
 
     public async Task StageDeleteAsync(
+        long siteId,
         long contentItemId,
         CancellationToken cancellationToken = default)
     {
         await DeletePriorFacetsAsync(contentItemId, cancellationToken);
         session.Delete<ContentSearchDocument>(contentItemId);
         session.Delete<ContentSemanticDocument>(contentItemId);
+        if (knowledgeProjectionService is not null)
+        {
+            await knowledgeProjectionService.StageDeleteAsync(
+                tenantId: 0,
+                siteId,
+                AeroAiKnowledgeSourceKinds.ContentItem,
+                contentItemId,
+                cancellationToken);
+        }
     }
 
     private async Task DeletePriorFacetsAsync(
@@ -101,4 +115,29 @@ public sealed class ContentSearchProjectionService(
             session.Delete(facet);
         }
     }
+
+    private Task StageKnowledgeAsync(
+        ContentItem item,
+        ContentTypeDefinition definition,
+        ContentSearchArtifacts artifacts,
+        CancellationToken cancellationToken)
+        => knowledgeProjectionService is null
+            ? Task.CompletedTask
+            : knowledgeProjectionService.StageUpsertAsync(
+                new AeroAiKnowledgeSource(
+                    TenantId: 0,
+                    item.SiteId,
+                    AeroAiKnowledgeSourceKinds.ContentItem,
+                    item.Id,
+                    $"/api/v1/query/content/{Uri.EscapeDataString(item.ContentTypeAlias)}" +
+                    $"?rootId={item.Id}",
+                    item.Culture,
+                    item.VersionNumber,
+                    item.PublicationState == ContentPublicationState.Published,
+                    definition.IncludeInSearch,
+                    definition.IncludeInPublicAi,
+                    item.Title ?? item.Slug,
+                    artifacts.PublicKnowledgeSections,
+                    artifacts.ManagerKnowledgeSections),
+                cancellationToken);
 }

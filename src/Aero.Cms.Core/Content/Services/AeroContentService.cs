@@ -146,7 +146,7 @@ public sealed class AeroContentService(
         session.Delete(item);
         if (searchProjectionService is not null)
         {
-            await searchProjectionService.StageDeleteAsync(id, ct);
+            await searchProjectionService.StageDeleteAsync(siteId, id, ct);
         }
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);
@@ -172,7 +172,8 @@ public sealed class AeroContentService(
             SiteId = document.SiteId,
             Alias = document.Alias,
             Name = document.Name,
-            HideFromSearch = document.HideFromSearch,
+            IncludeInSearch = document.IncludeInSearch,
+            IncludeInPublicAi = document.IncludeInPublicAi,
             Fields = document.Fields
         };
 }

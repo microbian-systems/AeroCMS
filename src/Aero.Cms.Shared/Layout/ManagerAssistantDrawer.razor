@@ -1,5 +1,6 @@
 @namespace Aero.Cms.Shared.Layout
 @using Aero.Cms.Abstractions.Ai.Assistant
+@using Aero.Cms.Abstractions.Ai.Memory
 
 @if (State.IsOpen)
 {
@@ -14,30 +15,197 @@
                 <p>Answers use the configured server-side AI provider.</p>
             </div>
             <div class="manager-assistant-header-actions">
+                <button type="button"
+                        class="pe-btn pe-btn-ghost pe-btn-sm"
+                        @onclick="ToggleHistoryAsync"
+                        disabled="@State.IsSending">
+                    @(_showHistory ? "Back" : "History")
+                </button>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Reset" disabled="@State.IsSending">Reset</button>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Close" aria-label="Close assistant">✕</button>
             </div>
         </header>
 
         <div class="manager-assistant-messages" aria-live="polite" aria-busy="@State.IsSending">
-            @if (State.Messages.Count == 0)
+            @if (_showHistory)
             {
-                <div class="manager-assistant-empty">
-                    Ask about the current AeroCMS site, page composition, or manager workflow.
-                </div>
-            }
-            @foreach (var message in State.Messages)
-            {
-                <article class="manager-assistant-message @(message.Role == AeroCmsAssistantRole.User ? "is-user" : "is-assistant") @(message.IsError ? "is-error" : null)">
-                    <strong>@(message.Role == AeroCmsAssistantRole.User ? "You" : "Aero")</strong>
-                    <div>@message.Text</div>
-                    @if (message.IsStreaming)
+                <section class="manager-assistant-history" aria-label="Conversation history">
+                    <div class="manager-assistant-history-heading">
+                        <div>
+                            <strong>@(_showMemories ? "Confirmed memories" : "Your conversations")</strong>
+                            <span>Private to this user, site, and culture.</span>
+                        </div>
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                @onclick="StartNewForCurrentView">
+                            @(_showMemories ? "Add memory" : "New")
+                        </button>
+                    </div>
+                    <div class="manager-assistant-history-tabs" role="tablist" aria-label="Assistant history">
+                        <button type="button"
+                                role="tab"
+                                aria-selected="@(!_showMemories)"
+                                class="@(!_showMemories ? "is-active" : null)"
+                                @onclick="ShowConversationsAsync">
+                            Conversations
+                        </button>
+                        <button type="button"
+                                role="tab"
+                                aria-selected="@_showMemories"
+                                class="@(_showMemories ? "is-active" : null)"
+                                @onclick="ShowMemoriesAsync">
+                            Memories
+                        </button>
+                    </div>
+                    @if (_isLoadingHistory)
                     {
-                        <span class="manager-assistant-cursor" aria-label="Generating response">●</span>
+                        <p class="manager-assistant-history-status">Loading…</p>
                     }
-                </article>
+                    else if (!string.IsNullOrWhiteSpace(_historyError))
+                    {
+                        <p class="manager-assistant-history-status is-error">@_historyError</p>
+                    }
+                    else if (_showMemories)
+                    {
+                        @if (_isEditingMemory)
+                        {
+                            <div class="manager-assistant-memory-editor">
+                                <label for="manager-assistant-memory-label">Name</label>
+                                <input id="manager-assistant-memory-label"
+                                       @bind="_memoryLabel"
+                                       maxlength="@AeroAiMemoryLimits.MaximumMemoryLabelCharacters"
+                                       placeholder="Writing preference" />
+                                <label for="manager-assistant-memory-content">What should Aero remember?</label>
+                                <textarea id="manager-assistant-memory-content"
+                                          @bind="_memoryContent"
+                                          maxlength="@AeroAiMemoryLimits.MaximumMemoryContentCharacters"
+                                          rows="5"
+                                          placeholder="Use concise release notes with a verification table."></textarea>
+                                <p>
+                                    This is saved only when you select <strong>Confirm memory</strong>.
+                                    It may influence future answers but never grants permissions.
+                                </p>
+                                <div>
+                                    <button type="button"
+                                            class="pe-btn pe-btn-ghost pe-btn-sm"
+                                            @onclick="CancelMemoryEdit">
+                                        Cancel
+                                    </button>
+                                    <button type="button"
+                                            class="pe-btn pe-btn-primary pe-btn-sm"
+                                            disabled="@(!CanSaveMemory)"
+                                            @onclick="SaveMemoryAsync">
+                                        Confirm memory
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else if (_memories.Count == 0)
+                        {
+                            <p class="manager-assistant-history-status">
+                                No confirmed memories. Aero does not infer them automatically.
+                            </p>
+                        }
+                        else
+                        {
+                            @foreach (var memory in _memories)
+                            {
+                                <article class="manager-assistant-memory-item">
+                                    <div>
+                                        <strong>@memory.Label</strong>
+                                        <span>@memory.Content</span>
+                                        <small>Updated @memory.ModifiedOn.ToLocalTime().ToString("g")</small>
+                                    </div>
+                                    <div class="manager-assistant-memory-actions">
+                                        <button type="button"
+                                                class="pe-btn pe-btn-ghost pe-btn-sm"
+                                                @onclick="() => EditMemory(memory)">
+                                            Edit
+                                        </button>
+                                        <button type="button"
+                                                class="pe-btn pe-btn-ghost pe-btn-sm"
+                                                @onclick="() => DeleteMemoryAsync(memory.Id)">
+                                            @(_pendingDeleteMemoryId == memory.Id ? "Confirm" : "Delete")
+                                        </button>
+                                    </div>
+                                </article>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        @if (_conversations.Count == 0)
+                        {
+                            <p class="manager-assistant-history-status">No saved conversations yet.</p>
+                        }
+                        else
+                        {
+                            @foreach (var conversation in _conversations)
+                            {
+                                <article class="manager-assistant-history-item">
+                                    <button type="button"
+                                            class="manager-assistant-history-open"
+                                            @onclick="() => LoadConversationAsync(conversation.ConversationId)">
+                                        <strong>@conversation.Title</strong>
+                                        <span>@conversation.ModifiedOn.ToLocalTime().ToString("g")</span>
+                                    </button>
+                                    <button type="button"
+                                            class="pe-btn pe-btn-ghost pe-btn-sm manager-assistant-history-delete"
+                                            aria-label="@($"Delete {conversation.Title}")"
+                                            @onclick="() => DeleteConversationAsync(conversation.ConversationId)">
+                                        @(_pendingDeleteConversationId == conversation.ConversationId ? "Confirm" : "Delete")
+                                    </button>
+                                </article>
+                            }
+                        }
+                    }
+                </section>
             }
-            <div @ref="_messageEnd"></div>
+            else
+            {
+                @if (State.Messages.Count == 0)
+                {
+                    <div class="manager-assistant-empty">
+                        Ask about the current AeroCMS site, page composition, or manager workflow.
+                    </div>
+                }
+                @foreach (var message in State.Messages)
+                {
+                    <article class="manager-assistant-message @(message.Role == AeroCmsAssistantRole.User ? "is-user" : "is-assistant") @(message.IsError ? "is-error" : null)">
+                        <strong>@(message.Role == AeroCmsAssistantRole.User ? "You" : "Aero")</strong>
+                        <div>@message.Text</div>
+                        @if (message.Citations is { Count: > 0 })
+                        {
+                            <div class="manager-assistant-citations" aria-label="Sources">
+                                <span>Sources</span>
+                                @foreach (var citation in message.Citations)
+                                {
+                                    @if (citation.SourceUri.StartsWith("/", StringComparison.Ordinal))
+                                    {
+                                        <a href="@citation.SourceUri"
+                                           target="_blank"
+                                           rel="noopener"
+                                           title="@($"{citation.SourceKind}: {citation.Section}")">
+                                            @citation.Id · @citation.Title
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span title="@($"{citation.SourceKind}: {citation.Section}")">
+                                            @citation.Id · @citation.Title
+                                        </span>
+                                    }
+                                }
+                            </div>
+                        }
+                        @if (message.IsStreaming)
+                        {
+                            <span class="manager-assistant-cursor" aria-label="Generating response">●</span>
+                        }
+                    </article>
+                }
+                <div @ref="_messageEnd"></div>
+            }
         </div>
 
         <form class="manager-assistant-composer" @onsubmit="SendAsync" @onsubmit:preventDefault>

@@ -15,6 +15,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
+using Aero.Cms.Modules.RateLimiting;
 
 namespace Aero.Cms.Modules.Identity;
 
@@ -56,13 +57,13 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
     public override string Author => AeroConstants.Author;
 
     /// <summary>
-    /// Gets an empty list because the module declares no module-ordering dependencies.
+    /// Gets the rate-limiting infrastructure dependency.
     /// </summary>
     /// <remarks>
     /// This metadata does not remove the runtime requirement for the host to register
     /// AeroDB and its document store.
     /// </remarks>
-    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Dependencies => [nameof(RateLimitingModule)];
 
     /// <summary>
     /// Gets the categories under which the module is presented.
@@ -80,7 +81,7 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
     /// </summary>
     /// <param name="services">The collection to which the Identity services are added.</param>
     /// <param name="config">
-    /// The host configuration. This implementation does not read it.
+    /// The host configuration. The module reads its named authentication rate-limit profiles from it.
     /// </param>
     /// <param name="env">
     /// The host environment. This implementation does not read it.
@@ -102,6 +103,47 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
     /// </exception>
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            ManagerRecoveryDefaults.RateLimitPolicy,
+            "ManagerRecovery",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 5,
+                WindowSeconds = 900,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            LocalExternalMemberAuthentication.LoginRateLimitPolicy,
+            "ExternalMemberLogin",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 5,
+                WindowSeconds = 900,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            LocalExternalMemberAuthentication.PasswordResetRateLimitPolicy,
+            "ExternalMemberPasswordReset",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 5,
+                WindowSeconds = 900,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            LocalExternalMemberAuthentication.ActivationRateLimitPolicy,
+            "ExternalMemberActivation",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 10,
+                WindowSeconds = 900,
+                QueueLimit = 0
+            });
+
         services.AddIdentityCore<AeroUser>()
             .AddRoles<AeroRole>()
             .AddSignInManager()

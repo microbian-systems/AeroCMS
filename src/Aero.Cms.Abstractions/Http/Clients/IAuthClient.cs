@@ -25,7 +25,7 @@ public sealed record RefreshTokenRequest(
 /// </summary>
 public sealed record JwtTokenResponse(
     string AccessToken,
-    string RefreshToken,
+    string? RefreshToken,
     DateTimeOffset ExpiresAt);
 
 /// <summary>

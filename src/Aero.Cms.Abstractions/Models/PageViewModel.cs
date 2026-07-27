@@ -176,6 +176,14 @@ public record PageViewModel : AeroEntityViewModel
     /// <summary>Gets whether the editable draft differs from the last published snapshot.</summary>
     [Id(36)]
     public bool HasUnpublishedChanges { get; init; }
+
+    /// <summary>Gets whether the published page is eligible for site search.</summary>
+    [Id(37)]
+    public bool IncludeInSearch { get; init; } = true;
+
+    /// <summary>Gets whether the published page may ground public AI answers.</summary>
+    [Id(38)]
+    public bool IncludeInPublicAi { get; init; }
 }
 
 /// <summary>

@@ -16,7 +16,9 @@ public record CreateDocRequest(
     string? SeoDescription = null,
     string? Content = null,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    string? Markdown = null
+    string? Markdown = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false
 ) : IRequest;
 
 
@@ -34,7 +36,9 @@ public record UpdateDocRequest(
     string? SeoDescription = null,
     string? Content = null,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    string? Markdown = null
+    string? Markdown = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false
 ) : IRequest;
 
 

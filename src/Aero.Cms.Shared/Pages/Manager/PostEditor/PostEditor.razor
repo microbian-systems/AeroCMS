@@ -203,6 +203,23 @@
                                 </div>
                             }
                         </div>
+                        <div class="pt-4 border-t space-y-3" style="border-top-color: var(--pe-border);">
+                            <div class="flex items-start gap-2">
+                                <input type="checkbox" id="postIncludeSearch" @bind="IncludeInSearch" @bind:after="MarkDirty" class="h-4 w-4 rounded mt-0.5" />
+                                <div>
+                                    <label for="postIncludeSearch" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Include in site search"]</label>
+                                    <p class="text-xs" style="color: var(--pe-text-muted);">@L["Allow the published post to appear in this site's search results."]</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <input type="checkbox" id="postIncludePublicAi" @bind="IncludeInPublicAi" @bind:after="MarkDirty"
+                                       disabled="@(!IncludeInSearch)" class="h-4 w-4 rounded mt-0.5" />
+                                <div>
+                                    <label for="postIncludePublicAi" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Use in public AI answers"]</label>
+                                    <p class="text-xs" style="color: var(--pe-text-muted);">@L["Allow published post content to ground public visitor answers."]</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="space-y-4">

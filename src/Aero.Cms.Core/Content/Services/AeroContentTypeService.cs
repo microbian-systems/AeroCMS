@@ -127,7 +127,8 @@ public sealed class AeroContentTypeService(
             Structure = definition.Structure,
             HierarchyRules = definition.HierarchyRules,
             AllowPublicUrl = definition.AllowPublicUrl,
-            HideFromSearch = definition.HideFromSearch,
+            IncludeInSearch = definition.IncludeInSearch,
+            IncludeInPublicAi = definition.IncludeInPublicAi,
             Fields = definition.Fields,
             ScribanTemplate = definition.ScribanTemplate,
             ScheduleConfig = definition.ScheduleConfig
@@ -157,7 +158,8 @@ public sealed class AeroContentTypeService(
     {
         Id = doc.Id, SiteId = doc.SiteId, Alias = doc.Alias, Name = doc.Name, Description = doc.Description,
         Category = doc.Category, Icon = doc.Icon, Cardinality = doc.Cardinality, Structure = doc.Structure,
-        HierarchyRules = doc.HierarchyRules, AllowPublicUrl = doc.AllowPublicUrl, HideFromSearch = doc.HideFromSearch, Fields = doc.Fields,
+        HierarchyRules = doc.HierarchyRules, AllowPublicUrl = doc.AllowPublicUrl,
+        IncludeInSearch = doc.IncludeInSearch, IncludeInPublicAi = doc.IncludeInPublicAi, Fields = doc.Fields,
         ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig
     };
 

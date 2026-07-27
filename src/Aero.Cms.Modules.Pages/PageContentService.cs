@@ -563,6 +563,8 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 Summary = request.Summary,
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
+                IncludeInSearch = request.IncludeInSearch,
+                IncludeInPublicAi = request.IncludeInPublicAi,
                 PublicationState = ContentPublicationState.Draft,
                 RendererId = rendererId,
                 ShowInNavMenu = request.ShowInNavMenu,
@@ -1376,6 +1378,8 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
         page.Summary = request.Summary;
         page.SeoTitle = request.SeoTitle;
         page.SeoDescription = request.SeoDescription;
+        page.IncludeInSearch = request.IncludeInSearch;
+        page.IncludeInPublicAi = request.IncludeInPublicAi;
         page.ShowInNavMenu = request.ShowInNavMenu;
         page.ShowHeaderNavigation = request.ShowHeaderNavigation;
         page.HideFooter = request.HideFooter;

@@ -113,7 +113,7 @@ public sealed class ContentQueryReferenceFilterTests
         {
             SiteId = 1,
             Alias = "species",
-            HideFromSearch = true
+            IncludeInSearch = false
         };
         var projection = new ContentSearchProjectionService(
             harness.Session,

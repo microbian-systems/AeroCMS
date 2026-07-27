@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -22,6 +23,8 @@ public partial class ContentTypeEditor
 {
     private const int MaximumHierarchyDepthLimit = 32;
     private const string HierarchyReferenceFieldOption = "hierarchy-reference";
+    private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
+        Enum.GetValues<AeroAiFieldExposure>();
 
         /// <summary>
     /// Gets or sets the Alias.
@@ -74,7 +77,8 @@ public partial class ContentTypeEditor
     private string? Description { get; set; }
     private string? Category { get; set; }
     private bool AllowPublicUrl { get; set; }
-    private bool HideFromSearch { get; set; }
+    private bool IncludeInSearch { get; set; } = true;
+    private bool IncludeInPublicAi { get; set; }
     private ContentCardinality _cardinality = ContentCardinality.Collection;
     private ContentStructure _structure = ContentStructure.Flat;
     private ContentCardinality Cardinality
@@ -140,7 +144,8 @@ protected override async Task OnInitializedAsync()
             Description = detail.Description;
             Category = detail.Category;
             AllowPublicUrl = detail.AllowPublicUrl;
-            HideFromSearch = detail.HideFromSearch;
+            IncludeInSearch = detail.IncludeInSearch;
+            IncludeInPublicAi = detail.IncludeInPublicAi;
             Cardinality = detail.Cardinality;
             Structure = detail.Structure;
             var hierarchyRules = detail.HierarchyRules ?? new ContentHierarchyRules();
@@ -676,7 +681,8 @@ protected override async Task OnInitializedAsync()
                 Category,
                 null,
                 AllowPublicUrl,
-                HideFromSearch,
+                IncludeInSearch,
+                IncludeInPublicAi,
                 Fields,
                 _useCustomTemplate ? ScribanTemplate : null,
                 null,
@@ -1035,6 +1041,7 @@ protected override async Task OnInitializedAsync()
             Indexed = field.Indexed,
             FullTextSearchable = field.FullTextSearchable,
             SemanticSearchable = field.SemanticSearchable,
+            AiExposure = field.AiExposure,
             Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value.Clone())
         };
 

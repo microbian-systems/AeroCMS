@@ -62,7 +62,8 @@ internal static class ContentCacheSnapshot
                     source.HierarchyRules.AllowedParentContentTypeIds.ToArray()
             },
             AllowPublicUrl = source.AllowPublicUrl,
-            HideFromSearch = source.HideFromSearch,
+            IncludeInSearch = source.IncludeInSearch,
+            IncludeInPublicAi = source.IncludeInPublicAi,
             Fields = source.Fields.Select(Clone).ToList(),
             ScribanTemplate = source.ScribanTemplate,
             ScheduleConfig = source.ScheduleConfig is null
@@ -86,6 +87,10 @@ internal static class ContentCacheSnapshot
             Required = source.Required,
             DefaultValue = source.DefaultValue,
             Placeholder = source.Placeholder,
+            Indexed = source.Indexed,
+            FullTextSearchable = source.FullTextSearchable,
+            SemanticSearchable = source.SemanticSearchable,
+            AiExposure = source.AiExposure,
             Settings = source.Settings.ToDictionary(
                 static pair => pair.Key,
                 static pair => pair.Value.Clone(),

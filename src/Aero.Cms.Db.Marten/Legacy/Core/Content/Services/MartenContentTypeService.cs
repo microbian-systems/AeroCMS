@@ -62,7 +62,8 @@ public async Task<Result<ContentTypeDefinition, AeroError>> SaveAsync(ContentTyp
             Category = definition.Category,
             Icon = definition.Icon,
             AllowPublicUrl = definition.AllowPublicUrl,
-            HideFromSearch = definition.HideFromSearch,
+            IncludeInSearch = definition.IncludeInSearch,
+            IncludeInPublicAi = definition.IncludeInPublicAi,
             Fields = definition.Fields,
             ScribanTemplate = definition.ScribanTemplate,
             RenderMode = definition.RenderMode,
@@ -105,7 +106,8 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias
     private static ContentTypeDefinition Map(ContentTypeDocument doc) => new()
     {
         Id = doc.Id, SiteId = doc.SiteId, Alias = doc.Alias, Name = doc.Name, Description = doc.Description,
-        Category = doc.Category, Icon = doc.Icon, AllowPublicUrl = doc.AllowPublicUrl, HideFromSearch = doc.HideFromSearch, Fields = doc.Fields,
+        Category = doc.Category, Icon = doc.Icon, AllowPublicUrl = doc.AllowPublicUrl,
+        IncludeInSearch = doc.IncludeInSearch, IncludeInPublicAi = doc.IncludeInPublicAi, Fields = doc.Fields,
         ScribanTemplate = doc.ScribanTemplate, RenderMode = doc.RenderMode, ScheduleConfig = doc.ScheduleConfig
     };
 

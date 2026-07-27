@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Ai.Assistant;
@@ -8,7 +9,9 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Security;
 using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.RateLimiting;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Authorization;
@@ -26,7 +29,8 @@ public sealed class AeroCmsToolExecutor(
     IAeroContentItemActor contentItemActor,
     IContentHierarchyQueryService hierarchyQueryService,
     ISiteLookupService siteLookupService,
-    IAuthorizationService authorizationService) : IAeroCmsToolExecutor
+    IAuthorizationService authorizationService,
+    IAeroApplicationRateLimiter rateLimiter) : IAeroCmsToolExecutor
 {
     public const string CurrentSiteTool = "aero.cms.current_site";
     public const string PagesListTool = "aero.cms.pages.list";
@@ -50,24 +54,42 @@ public sealed class AeroCmsToolExecutor(
 
     public IReadOnlyList<AeroCmsToolDescriptor> Tools { get; } =
     [
-        Read(CurrentSiteTool, "Returns the authenticated manager's currently selected site."),
-        Read(PagesListTool, "Lists a bounded page of AeroCMS page summaries."),
-        Read(PageGetTool, "Gets one page from the selected site."),
-        Create(PageCreateTool, "Creates one draft page in the selected site."),
-        Read(PostsListTool, "Lists a bounded page of blog post summaries."),
-        Read(PostGetTool, "Gets one blog post from the selected site."),
-        Create(PostCreateTool, "Creates one draft blog post in the selected site."),
-        Read(DocsListTool, "Lists a bounded page of documentation entries."),
-        Read(DocGetTool, "Gets one documentation entry from the selected site."),
-        Create(DocCreateTool, "Creates one draft documentation entry in the selected site."),
-        Read(ContentTypesListTool, "Lists a bounded page of content-type definitions."),
-        Read(ContentTypeGetTool, "Gets one content-type definition by alias."),
-        Create(ContentTypeCreateTool, "Creates one content-type definition, including hierarchy settings."),
-        Read(ContentItemsListTool, "Lists a bounded page of items for one content type."),
-        Read(ContentItemGetTool, "Gets one item from one content type."),
-        Create(ContentItemCreateTool, "Creates one draft item for one content type."),
-        Read(ContentHierarchyGetTool, "Returns an immutable, bounded hierarchy projection.")
+        Read(CurrentSiteTool, "Returns the authenticated manager's currently selected site.", AeroApiKeyPermissionDomains.Sites),
+        Read(PagesListTool, "Lists a bounded page of AeroCMS page summaries.", AeroApiKeyPermissionDomains.Pages),
+        Read(PageGetTool, "Gets one page from the selected site.", AeroApiKeyPermissionDomains.Pages),
+        Create(PageCreateTool, "Creates one draft page in the selected site.", AeroApiKeyPermissionDomains.Pages),
+        Read(PostsListTool, "Lists a bounded page of blog post summaries.", AeroApiKeyPermissionDomains.Posts),
+        Read(PostGetTool, "Gets one blog post from the selected site.", AeroApiKeyPermissionDomains.Posts),
+        Create(PostCreateTool, "Creates one draft blog post in the selected site.", AeroApiKeyPermissionDomains.Posts),
+        Read(DocsListTool, "Lists a bounded page of documentation entries.", AeroApiKeyPermissionDomains.Docs),
+        Read(DocGetTool, "Gets one documentation entry from the selected site.", AeroApiKeyPermissionDomains.Docs),
+        Create(DocCreateTool, "Creates one draft documentation entry in the selected site.", AeroApiKeyPermissionDomains.Docs),
+        Read(ContentTypesListTool, "Lists a bounded page of content-type definitions.", AeroApiKeyPermissionDomains.ContentTypes),
+        Read(ContentTypeGetTool, "Gets one content-type definition by alias.", AeroApiKeyPermissionDomains.ContentTypes),
+        Create(ContentTypeCreateTool, "Creates one content-type definition, including hierarchy settings.", AeroApiKeyPermissionDomains.ContentTypes),
+        Read(ContentItemsListTool, "Lists a bounded page of items for one content type.", AeroApiKeyPermissionDomains.ContentItems),
+        Read(ContentItemGetTool, "Gets one item from one content type.", AeroApiKeyPermissionDomains.ContentItems),
+        Create(ContentItemCreateTool, "Creates one draft item for one content type.", AeroApiKeyPermissionDomains.ContentItems),
+        Read(ContentHierarchyGetTool, "Returns an immutable, bounded hierarchy projection.", AeroApiKeyPermissionDomains.ContentItems)
     ];
+
+    public async Task<Result<IReadOnlyList<AeroCmsToolDescriptor>>> GetAuthorizedToolsAsync(
+        AeroCmsToolExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var contextFailure = ValidateContext(context);
+        if (contextFailure is not null)
+            return contextFailure;
+
+        var authorized = new List<AeroCmsToolDescriptor>(Tools.Count);
+        foreach (var descriptor in Tools)
+        {
+            if (await IsAuthorizedAsync(descriptor, context, cancellationToken))
+                authorized.Add(descriptor);
+        }
+
+        return authorized;
+    }
 
     public async Task<Result<AeroCmsToolResult>> ExecuteAsync(
         string toolName,
@@ -84,13 +106,38 @@ public sealed class AeroCmsToolExecutor(
         if (descriptor is null)
             return AeroError.NotFoundError("The requested CMS tool is not registered.");
 
-        var authorization = await authorizationService.AuthorizeAsync(
+        if (!await IsAuthorizedAsync(descriptor, context, cancellationToken))
+            return AeroError.ForbiddenError("The current credential is not authorized for this CMS operation.");
+
+        var rateLimitPolicy = descriptor.Destructive
+            ? AeroRateLimitPolicyNames.McpDestructive
+            : descriptor.ReadOnly
+                ? AeroRateLimitPolicyNames.McpRead
+                : AeroRateLimitPolicyNames.McpWrite;
+        var apiKeyId = FirstClaim(
             context.Principal,
-            resource: null,
-            descriptor.RequiredPolicy);
-        if (!authorization.Succeeded)
-            return AeroError.ForbiddenError(
-                $"The current user is not authorized for '{descriptor.RequiredPolicy}'.");
+            AeroApiKeyClaimTypes.KeyId,
+            "api_key_id",
+            "api-key-id",
+            "key_id");
+        var admission = await rateLimiter.AcquireAsync(
+            rateLimitPolicy,
+            new AeroRateLimitSubject(
+                context.TenantId,
+                context.SiteId,
+                "cms-tools",
+                apiKeyId is null ? "principal" : "api-key",
+                apiKeyId ?? context.UserId.ToString(CultureInfo.InvariantCulture)),
+            cancellationToken);
+        if (!admission.IsAcquired)
+        {
+            var retry = admission.RetryAfter is { } retryAfter
+                ? $" Retry after {Math.Clamp((int)Math.Ceiling(retryAfter.TotalSeconds), 1, 86_400)} seconds."
+                : string.Empty;
+            return AeroError.HttpRequestError(
+                HttpStatusCode.TooManyRequests,
+                $"CMS tool request limit exceeded.{retry}");
+        }
 
         return toolName switch
         {
@@ -113,6 +160,70 @@ public sealed class AeroCmsToolExecutor(
             ContentHierarchyGetTool => await GetContentHierarchyAsync(arguments, context, cancellationToken),
             _ => AeroError.NotFoundError("The requested CMS tool is not registered.")
         };
+    }
+
+    private async Task<bool> IsAuthorizedAsync(
+        AeroCmsToolDescriptor descriptor,
+        AeroCmsToolExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (IsApiKeyPrincipal(context.Principal))
+            return HasApiKeyCapability(context, descriptor);
+
+        var authorization = await authorizationService.AuthorizeAsync(
+            context.Principal,
+            resource: null,
+            descriptor.RequiredPolicy);
+        return authorization.Succeeded;
+    }
+
+    private static string? FirstClaim(
+        System.Security.Claims.ClaimsPrincipal principal,
+        params string[] claimTypes)
+    {
+        foreach (var claimType in claimTypes)
+        {
+            var value = principal.FindFirst(claimType)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
+    }
+
+    private static bool IsApiKeyPrincipal(System.Security.Claims.ClaimsPrincipal principal) =>
+        principal.HasClaim(claim =>
+            string.Equals(claim.Type, AeroApiKeyClaimTypes.KeyId, StringComparison.Ordinal));
+
+    private static bool HasApiKeyCapability(
+        AeroCmsToolExecutionContext context,
+        AeroCmsToolDescriptor descriptor)
+    {
+        var principal = context.Principal;
+        if (!principal.HasClaim(AeroApiKeyClaimTypes.McpServer, "true") ||
+            !principal.HasClaim(AeroApiKeyClaimTypes.TenantId, context.TenantId.ToString(CultureInfo.InvariantCulture)) ||
+            !principal.HasClaim(AeroApiKeyClaimTypes.SiteId, context.SiteId.ToString(CultureInfo.InvariantCulture)))
+        {
+            return false;
+        }
+
+        if (principal.HasClaim(AeroApiKeyClaimTypes.Administrator, "true"))
+            return true;
+
+        return principal.FindAll(AeroApiKeyClaimTypes.Permission)
+            .Any(claim => PermissionAllows(
+                claim.Value,
+                descriptor.PermissionDomain,
+                descriptor.PermissionOperation));
+    }
+
+    private static bool PermissionAllows(string value, string domain, char operation)
+    {
+        var separator = value.IndexOf(':');
+        return separator > 0 &&
+               string.Equals(value[..separator], domain, StringComparison.Ordinal) &&
+               value.AsSpan(separator + 1).Contains(operation);
     }
 
     private async Task<Result<AeroCmsToolResult>> CurrentSiteAsync(
@@ -541,11 +652,17 @@ public sealed class AeroCmsToolExecutor(
         };
     }
 
-    private static AeroCmsToolDescriptor Read(string name, string description) =>
-        new(name, description, "site:read", true, false, true);
+    private static AeroCmsToolDescriptor Read(
+        string name,
+        string description,
+        string domain) =>
+        new(name, description, "site:read", domain, 'R', true, false, true);
 
-    private static AeroCmsToolDescriptor Create(string name, string description) =>
-        new(name, description, "site:create", false, false, false);
+    private static AeroCmsToolDescriptor Create(
+        string name,
+        string description,
+        string domain) =>
+        new(name, description, "site:create", domain, 'C', false, false, false);
 
     private static object PageSummary(PageViewModel page) => new
     {
@@ -601,7 +718,8 @@ public sealed class AeroCmsToolExecutor(
         summary = ContentTypeSummary(type),
         type.FieldsJson,
         type.AllowPublicUrl,
-        type.HideFromSearch,
+        type.IncludeInSearch,
+        type.IncludeInPublicAi,
         type.HierarchyRules,
         type.ScribanTemplate
     };

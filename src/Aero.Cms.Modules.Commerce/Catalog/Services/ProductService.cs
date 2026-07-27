@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Ai.Pipeline;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using AeroDB.Sable;
 using FluentValidation;
@@ -7,8 +9,15 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
 /// <summary>Scoped catalog persistence. Listings are never returned unless their canonical product is active in the same tenant.</summary>
-public sealed class ProductService(IDocumentSession session, IValidator<ProductDocument> productValidator, IValidator<ProductListingDocument> listingValidator) : IProductService
+public sealed class ProductService(
+    IDocumentSession session,
+    IValidator<ProductDocument> productValidator,
+    IValidator<ProductListingDocument> listingValidator,
+    IAeroAiKnowledgeProjectionService? knowledgeProjectionService = null)
+    : IProductService
 {
+    private const int MaximumProjectedListingsPerProduct = 1_000;
+
     public async Task<Result<ProductDocument?, AeroError>> GetProductAsync(long tenantId, long productId, CancellationToken ct = default)
         => await Execute(async () => await session.Query<ProductDocument>().FirstOrDefaultAsync(x => x.Id == productId && x.TenantId == tenantId, ct));
 
@@ -275,7 +284,7 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         var duplicate = (await session.Query<ProductDocument>().Where(x => x.TenantId == tenantId && x.Sku == sku && x.Id != productId).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductDocument, AeroError>(AeroError.ConflictError("A product with that SKU already exists."));
         entity.Name = product.Name; entity.Description = product.Description; entity.Sku = sku; entity.StockQuantity = product.StockQuantity; entity.IsActive = product.IsActive; entity.Attributes = product.Attributes; entity.Tags = product.Tags; entity.ModifiedOn = DateTimeOffset.UtcNow;
-        return await Store(entity, ct);
+        return await StoreProductWithListingsAsync(entity, ct);
     }
 
     public async Task<Result<bool, AeroError>> DeleteProductAsync(long tenantId, long productId, CancellationToken ct = default)
@@ -339,7 +348,7 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         if (!validation.IsValid) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
         var duplicate = (await session.Query<ProductListingDocument>().Where(x => x.SiteId == siteId && x.Culture == listing.Culture && x.Id != listingId && (x.Slug == slug || x.ProductId == listing.ProductId)).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ConflictError("That site and culture already has this slug or product listing."));
-        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
+        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.IncludeInSearch = listing.IncludeInSearch; existing.IncludeInPublicAi = listing.IncludeInPublicAi; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
         return await StoreListingWithProductAsync(product, existing, ct);
     }
 
@@ -347,7 +356,21 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
     {
         var listing = await session.Query<ProductListingDocument>().FirstOrDefaultAsync(x => x.Id == listingId && x.TenantId == tenantId && x.SiteId == siteId, ct);
         if (listing is null) return Prelude.Ok<bool, AeroError>(false);
-        try { session.Delete(listing); await session.SaveChangesAsync(ct); return Prelude.Ok<bool, AeroError>(true); }
+        try
+        {
+            session.Delete(listing);
+            if (knowledgeProjectionService is not null)
+            {
+                await knowledgeProjectionService.StageDeleteAsync(
+                    listing.TenantId,
+                    listing.SiteId,
+                    AeroAiKnowledgeSourceKinds.CommerceProduct,
+                    listing.Id,
+                    ct);
+            }
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (ConcurrencyException) { session.ClearChanges(); return Prelude.Fail<bool, AeroError>(AeroError.ConflictError("Listing changed while it was being deleted. Reload and try again.")); }
         catch (Exception) { session.ClearChanges(); return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError("Listing could not be deleted.")); }
@@ -369,6 +392,12 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
             product.ModifiedOn = DateTimeOffset.UtcNow;
             session.Store(product);
             session.Store(listing);
+            if (knowledgeProjectionService is not null)
+            {
+                await knowledgeProjectionService.StageUpsertAsync(
+                    CreateKnowledgeSource(product, listing),
+                    ct);
+            }
             await session.SaveChangesAsync(ct);
             return Prelude.Ok<ProductListingDocument, AeroError>(listing);
         }
@@ -390,6 +419,101 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         {
             session.ClearChanges();
             return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.DatabaseError("Catalog changes could not be saved."));
+        }
+    }
+
+    private async Task<Result<ProductDocument, AeroError>> StoreProductWithListingsAsync(
+        ProductDocument product,
+        CancellationToken ct)
+    {
+        try
+        {
+            session.Store(product);
+            if (knowledgeProjectionService is not null)
+            {
+                var listings = await session.Query<ProductListingDocument>()
+                    .Where(listing =>
+                        listing.TenantId == product.TenantId
+                        && listing.ProductId == product.Id)
+                    .Take(MaximumProjectedListingsPerProduct + 1)
+                    .ToListAsync(ct);
+                if (listings.Count > MaximumProjectedListingsPerProduct)
+                {
+                    throw new InvalidOperationException(
+                        "A product has too many localized listings to refresh safely in one operation.");
+                }
+
+                foreach (var listing in listings)
+                {
+                    await knowledgeProjectionService.StageUpsertAsync(
+                        CreateKnowledgeSource(product, listing),
+                        ct);
+                }
+            }
+
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<ProductDocument, AeroError>(product);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ProductDocument, AeroError>(
+                AeroError.ConflictError(
+                    "Product or listing changed while search visibility was being refreshed. Reload and try again."));
+        }
+        catch (Exception)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ProductDocument, AeroError>(
+                AeroError.DatabaseError("Product search visibility could not be refreshed."));
+        }
+    }
+
+    private static AeroAiKnowledgeSource CreateKnowledgeSource(
+        ProductDocument product,
+        ProductListingDocument listing)
+    {
+        var sections = new List<AeroAiKnowledgeSection>();
+        AddPublicSection(sections, "Product", listing.Name);
+        AddPublicSection(sections, "Summary", listing.ShortDescription);
+        AddPublicSection(sections, "Description", listing.Description);
+        AddPublicSection(sections, "Category", listing.Category);
+        AddPublicSection(
+            sections,
+            "Price",
+            $"{listing.Price.ToString(CultureInfo.InvariantCulture)} {listing.Currency}");
+
+        return new AeroAiKnowledgeSource(
+            TenantId: listing.TenantId,
+            SiteId: listing.SiteId,
+            SourceKind: AeroAiKnowledgeSourceKinds.CommerceProduct,
+            SourceId: listing.Id,
+            SourceUri: $"/shop/products/{listing.Slug.Trim('/')}",
+            Culture: listing.Culture,
+            SourceRevision: (listing.ModifiedOn ?? listing.CreatedOn).UtcTicks,
+            IsPublished: listing.IsPublished && product.IsActive,
+            IncludeInSearch: listing.IncludeInSearch,
+            IncludeInPublicAi: listing.IncludeInPublicAi,
+            Title: listing.Name,
+            PublicSections: sections,
+            ManagerSections: sections);
+    }
+
+    private static void AddPublicSection(
+        ICollection<AeroAiKnowledgeSection> sections,
+        string name,
+        string? content)
+    {
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            sections.Add(new AeroAiKnowledgeSection(
+                name,
+                content.Trim(),
+                AeroAiFieldExposure.Public));
         }
     }
 

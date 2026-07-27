@@ -22,8 +22,14 @@ internal sealed class AeroCmsAssistantToolProvider(
             return failure.Error;
         var context = ((Result<AeroCmsToolExecutionContext>.Ok)contextResult).Value;
 
+        var authorizedResult = await executor.GetAuthorizedToolsAsync(context, cancellationToken);
+        if (authorizedResult is Result<IReadOnlyList<AeroCmsToolDescriptor>>.Failure authorizationFailure)
+            return authorizationFailure.Error;
+        var authorizedTools =
+            ((Result<IReadOnlyList<AeroCmsToolDescriptor>>.Ok)authorizedResult).Value;
+
         Func<Task<string>> catalog = () => Task.FromResult(JsonSerializer.Serialize(
-            executor.Tools.Select(tool => new
+            authorizedTools.Select(tool => new
             {
                 tool.Name,
                 tool.Description,

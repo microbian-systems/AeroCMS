@@ -21,6 +21,8 @@ public sealed class ProductListingDocument : SableDocument, IAuditable, IVersion
     public string Currency { get; set; } = "USD";
     public bool IsPublished { get; set; }
     public bool IsFeatured { get; set; }
+    public bool IncludeInSearch { get; set; } = true;
+    public bool IncludeInPublicAi { get; set; }
     public long Version { get; set; }
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ModifiedOn { get; set; }

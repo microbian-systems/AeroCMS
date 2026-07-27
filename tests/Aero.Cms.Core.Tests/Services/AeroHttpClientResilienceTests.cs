@@ -28,6 +28,7 @@ public sealed class AeroHttpClientResilienceTests
             null,
             false,
             false,
+            false,
             [],
             null,
             null));

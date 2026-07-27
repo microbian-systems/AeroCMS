@@ -329,7 +329,9 @@ public record BlogDetail(
     DateTimeOffset? ModifiedOn,
     string Culture = "en-US",
     long? TranslationGroupId = null,
-    long? SeriesId = null);
+    long? SeriesId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
 
 /// <summary>
 /// Represents a record for ForkBlogCultureRequest.
@@ -420,6 +422,10 @@ public string? ImageUrl { get; set; }
     /// Gets or sets the Publication State.
     /// </summary>
 public int PublicationState { get; set; }
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+public bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+public bool IncludeInPublicAi { get; set; }
 }
 
 /// <summary>
@@ -479,6 +485,10 @@ public string? ImageUrl { get; set; }
     /// Gets or sets the Publication State.
     /// </summary>
 public int PublicationState { get; set; }
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+public bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+public bool IncludeInPublicAi { get; set; }
 }
 
 // ─── Import Feature DTOs ─────────────────────────────────────

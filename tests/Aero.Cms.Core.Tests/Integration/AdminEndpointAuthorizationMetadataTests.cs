@@ -35,6 +35,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Aero.Cms.Modules.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -202,12 +204,29 @@ public sealed class AdminEndpointAuthorizationMetadataTests
                     "/api/v1/admin/ai/settings",
                     StringComparison.Ordinal))
             .ToList();
-        await Assert.That(editorAiEndpoints.Count).IsEqualTo(3);
+        await Assert.That(editorAiEndpoints.Count).IsEqualTo(4);
         await Assert.That(editorAiEndpoints.All(endpoint =>
             endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
             && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any()
             && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
                 .All(data => data.Policy is null))).IsTrue();
+
+        var aiStreamEndpoint = editorAiEndpoints.Single(endpoint =>
+            string.Equals(
+                endpoint.RoutePattern.RawText,
+                "/api/v1/admin/ai/content/enhance/stream",
+                StringComparison.Ordinal));
+        await Assert.That(
+                aiStreamEndpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName)
+            .IsEqualTo(AeroRateLimitPolicyNames.AiStream);
+        await Assert.That(editorAiEndpoints
+                .Where(endpoint => !ReferenceEquals(endpoint, aiStreamEndpoint))
+                .All(endpoint =>
+                    string.Equals(
+                        endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName,
+                        AeroRateLimitPolicyNames.AiManager,
+                        StringComparison.Ordinal)))
+            .IsTrue();
 
         var profileEndpoints = endpoints
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(

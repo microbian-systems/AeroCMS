@@ -1383,6 +1383,14 @@ public string? SeoTitle { get; set; }
         /// </summary>
 public string? SeoDescription { get; set; }
                 /// <summary>
+        /// Gets or sets whether the published document is eligible for site search.
+        /// </summary>
+public bool IncludeInSearch { get; set; } = true;
+                /// <summary>
+        /// Gets or sets whether the published document may ground public AI answers.
+        /// </summary>
+public bool IncludeInPublicAi { get; set; }
+                /// <summary>
         /// Gets or sets the Parent Id.
         /// </summary>
 public long? ParentId { get; set; }
@@ -1444,6 +1452,8 @@ public static MutableDoc From(DocsDetail detail)
                 MarkdownContent = detail.MarkdownContent,
                 SeoTitle = detail.SeoTitle,
                 SeoDescription = detail.SeoDescription,
+                IncludeInSearch = detail.IncludeInSearch,
+                IncludeInPublicAi = detail.IncludeInPublicAi,
                 ParentId = detail.ParentId,
                 Order = detail.Order,
                 PublicationState = detail.PublicationState,
@@ -1481,6 +1491,8 @@ public DocsDetail ToDetail()
                 PublishedVersion,
                 DraftVersion,
                 Culture,
-                TranslationGroupId);
+                TranslationGroupId,
+                IncludeInSearch,
+                IncludeInPublicAi);
     }
 }

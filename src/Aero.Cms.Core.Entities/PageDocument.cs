@@ -76,6 +76,17 @@ public string? SeoTitle { get; set; }
     /// </summary>
 public string? SeoDescription { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the published page is eligible for the site's search index.
+    /// </summary>
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the published page may be used to ground public AI answers.
+    /// Search inclusion is also required.
+    /// </summary>
+    public bool IncludeInPublicAi { get; set; }
+
     // ── Hierarchy ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -298,6 +309,8 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         Summary = Summary,
         SeoTitle = SeoTitle,
         SeoDescription = SeoDescription,
+        IncludeInSearch = IncludeInSearch,
+        IncludeInPublicAi = IncludeInPublicAi,
         PublishedOn = PublishedOn,
         IsPublished = PublicationState == ContentPublicationState.Published,
         PublicationState = PublicationState,

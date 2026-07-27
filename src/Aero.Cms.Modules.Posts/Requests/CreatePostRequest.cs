@@ -66,4 +66,10 @@ public string? ImageUrl { get; init; }
     /// Gets the initial publication state.
     /// </summary>
 public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
+
+    /// <summary>Gets whether the published post is eligible for site search.</summary>
+    public bool IncludeInSearch { get; init; } = true;
+
+    /// <summary>Gets whether the published post may ground public AI answers.</summary>
+    public bool IncludeInPublicAi { get; init; }
 }

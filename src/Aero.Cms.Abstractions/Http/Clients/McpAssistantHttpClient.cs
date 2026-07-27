@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Ai.Assistant;
+using Aero.Cms.Abstractions.Ai.Memory;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -14,6 +15,8 @@ public sealed class McpAssistantHttpClient(HttpClient httpClient) : IMcpAssistan
 {
     private const string CompletePath = "api/v1/admin/mcp/assistant/complete";
     private const string StreamPath = "api/v1/admin/mcp/assistant/stream";
+    private const string ConversationsPath = "api/v1/admin/mcp/assistant/conversations";
+    private const string MemoriesPath = "api/v1/admin/mcp/assistant/memories";
 
     public async Task<Result<AeroCmsAssistantResponse>> CompleteAsync(
         AeroCmsAssistantRequest request,
@@ -92,6 +95,174 @@ public sealed class McpAssistantHttpClient(HttpClient httpClient) : IMcpAssistan
         }
     }
 
+    public async Task<Result<IReadOnlyList<AeroCmsAssistantConversationSummary>>> ListConversationsAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await httpClient.GetAsync(
+                $"{ConversationsPath}?take={take}",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return AeroError.HttpRequestError(response.StatusCode, "Conversation history request failed.");
+            var result = await response.Content
+                .ReadFromJsonAsync<AeroCmsAssistantConversationSummary[]>(cancellationToken);
+            return result ?? [];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Conversation history request was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Conversation history request failed.");
+        }
+    }
+
+    public async Task<Result<AeroCmsAssistantConversation>> GetConversationAsync(
+        long conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (conversationId <= 0)
+            return AeroError.ValidationError(["Conversation identifiers must be positive."]);
+        try
+        {
+            using var response = await httpClient.GetAsync(
+                $"{ConversationsPath}/{conversationId}",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return AeroError.HttpRequestError(response.StatusCode, "Conversation history request failed.");
+            var result = await response.Content
+                .ReadFromJsonAsync<AeroCmsAssistantConversation>(cancellationToken);
+            return result is null
+                ? AeroError.CreateError("Conversation history returned an empty response.")
+                : result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Conversation history request was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Conversation history request failed.");
+        }
+    }
+
+    public async Task<Result<bool>> DeleteConversationAsync(
+        long conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (conversationId <= 0)
+            return AeroError.ValidationError(["Conversation identifiers must be positive."]);
+        try
+        {
+            using var response = await httpClient.DeleteAsync(
+                $"{ConversationsPath}/{conversationId}",
+                cancellationToken);
+            return response.IsSuccessStatusCode
+                ? true
+                : AeroError.HttpRequestError(response.StatusCode, "Conversation deletion failed.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Conversation deletion was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Conversation deletion failed.");
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<AeroAiExplicitMemory>>> ListMemoriesAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await httpClient.GetAsync(
+                $"{MemoriesPath}?take={take}",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return AeroError.HttpRequestError(response.StatusCode, "Assistant memory request failed.");
+            var result = await response.Content
+                .ReadFromJsonAsync<AeroAiExplicitMemory[]>(cancellationToken);
+            return result ?? [];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Assistant memory request was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Assistant memory request failed.");
+        }
+    }
+
+    public async Task<Result<AeroAiExplicitMemory>> SaveMemoryAsync(
+        AeroAiExplicitMemoryWrite memory,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = memory.MemoryId is long memoryId
+                ? await httpClient.PutAsJsonAsync($"{MemoriesPath}/{memoryId}", memory, cancellationToken)
+                : await httpClient.PostAsJsonAsync(MemoriesPath, memory, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return AeroError.HttpRequestError(response.StatusCode, "Assistant memory save failed.");
+            var result = await response.Content
+                .ReadFromJsonAsync<AeroAiExplicitMemory>(cancellationToken);
+            return result is null
+                ? AeroError.CreateError("Assistant memory save returned an empty response.")
+                : result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Assistant memory save was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Assistant memory save failed.");
+        }
+    }
+
+    public async Task<Result<bool>> DeleteMemoryAsync(
+        long memoryId,
+        CancellationToken cancellationToken = default)
+    {
+        if (memoryId <= 0)
+            return AeroError.ValidationError(["Memory identifiers must be positive."]);
+        try
+        {
+            using var response = await httpClient.DeleteAsync(
+                $"{MemoriesPath}/{memoryId}",
+                cancellationToken);
+            return response.IsSuccessStatusCode
+                ? true
+                : AeroError.HttpRequestError(response.StatusCode, "Assistant memory deletion failed.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return AeroError.CancelledError("Assistant memory deletion was cancelled.");
+        }
+        catch (Exception)
+        {
+            return AeroError.HttpRequestError(
+                HttpStatusCode.ServiceUnavailable,
+                "Assistant memory deletion failed.");
+        }
+    }
+
     private static bool ShouldUseRestFallback(HttpStatusCode statusCode)
         => statusCode is HttpStatusCode.NotFound
             or HttpStatusCode.MethodNotAllowed
@@ -115,8 +286,17 @@ public sealed class McpAssistantHttpClient(HttpClient httpClient) : IMcpAssistan
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        yield return new(AeroCmsAssistantEventKind.Metadata, CorrelationId: response.CorrelationId);
-        yield return new(AeroCmsAssistantEventKind.Complete, response.Text, response.CorrelationId);
+        yield return new(
+            AeroCmsAssistantEventKind.Metadata,
+            CorrelationId: response.CorrelationId,
+            ConversationId: response.ConversationId,
+            Citations: response.Citations);
+        yield return new(
+            AeroCmsAssistantEventKind.Complete,
+            response.Text,
+            response.CorrelationId,
+            response.ConversationId,
+            response.Citations);
         await Task.CompletedTask;
     }
 }

@@ -1,6 +1,6 @@
 # AeroCMS AI and MCP Security Specification
 
-**Status:** Proposed implementation specification
+**Status:** Living implementation specification
 
 **Date:** 2026-07-26
 
@@ -228,6 +228,10 @@ All records use Snowflake `long` identifiers and include:
 - Anonymous public conversations are ephemeral by default.
 - A tenant administrator may govern retention, but does not automatically receive conversational content outside an audited support or compliance workflow.
 
+The current implementation repeats tenant ID, site ID, audience, principal kind, principal ID, and culture on every conversation and message record. Every list, load, append, and delete operation reapplies that complete scope. A continuation request treats the browser's conversation ID only as a lookup key: provider history is reloaded from the server, and only the newest bounded user turn is accepted from the client.
+
+Provider context is bounded to 20 messages and 32,000 characters. Durable transcripts are bounded to 200 messages per conversation and use a server-owned sequence number for deterministic ordering. Anonymous public conversations remain ephemeral. Authenticated member and manager conversations can be listed, resumed, and deleted through their respective scoped endpoints.
+
 ### 6.2 Long-term memory
 
 Long-term memory is not an automatic transcript dump. A memory is written only when:
@@ -239,6 +243,8 @@ Long-term memory is not an automatic transcript dump. A memory is written only w
 Memories must include provenance, scope, sensitivity, owner, and expiry. They are retrieved only when relevant to the current request and permitted in the current trust plane.
 
 Users must be able to inspect, correct, export, and delete their conversation history and memories. Deleting a source record must invalidate summaries, embeddings, and derived memory that depend on it.
+
+The manager implementation currently provides an explicit memory panel for add, inspect, correct, and delete operations. Saving requires a deliberate **Confirm memory** action; AeroCMS does not automatically extract memories from transcripts. Each user/site scope is bounded to 100 memories, each memory retains optional source conversation and message provenance, and those references are accepted only when they belong to the same complete security scope. Anonymous public and MCP callers cannot create personal memory. Memory export and configurable expiry remain future work.
 
 ## 7. Prompt injection, PII, and tool guardrails
 
@@ -452,24 +458,37 @@ Failure rules:
 - a streaming request holds its concurrency lease until the stream completes or is cancelled;
 - provider retries consume or reserve budget because a retry may produce another billable provider request.
 
-### 8.7 Current implementation baseline and gaps
+### 8.7 Current implementation baseline and remaining work
 
 AeroCMS already:
 
-- registers rate-limiting services in [`AeroCmsExtensions`](../src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs);
-- calls `UseRateLimiter` after routing;
-- applies named policies to selected identity endpoints;
-- has a standalone [`RateLimitingModule`](../src/Aero.Cms.Modules.RateLimiting/RateLimitingModule.cs).
+- centralizes common ASP.NET Core limiter behavior and safe `429` responses in [`RateLimitingModule`](../src/Aero.Cms.Modules.RateLimiting/RateLimitingModule.cs);
+- lets feature modules contribute configuration-backed fixed-window and concurrency policies;
+- places `UseAuthentication` before `UseRateLimiter` and `UseAuthorization` in [`AeroCmsExtensions`](../src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs);
+- attaches named policies to manager AI, SSE streams, MCP transport, MCP key management, and identity endpoints;
+- exposes anonymous public and authenticated member assistant completion and SSE endpoints, plus a bounded public search endpoint;
+- keeps anonymous public conversations ephemeral while persisting member and manager history under distinct principal kinds and complete tenant/site/audience/principal/culture scope;
+- provides scoped conversation list, resume, and delete operations, and explicit manager memory add, correct, inspect, and delete operations;
+- retrieves public/member answers only from published records explicitly enabled for search and public AI, returns a closed-book unavailable response when no eligible source supports the request, and never exposes manager tools to those audiences;
+- performs security-filtered full-text/vector retrieval before bounded ranking and returns source citations with assistant responses;
+- buffers provider stream output until the complete response passes server-side secret, high-risk identifier, size, and citation policy checks, so rejected content produces no unsafe SSE delta;
+- requires public and member answers to cite only the server-supplied retrieval set using validated `[CMS-N]` identifiers;
+- reserves a bounded provider-token allowance before each assistant provider call and reconciles the reservation against reported or conservatively estimated usage afterward;
+- partitions token allowances by tenant, site, audience, principal, provider, and model, and returns `429 Too Many Requests` when the scoped allowance is exhausted;
+- exposes token budgeting through `IAeroAiTokenBudgetCoordinator`, with a strict process-local default that can be replaced by an atomic distributed coordinator without changing assistant services;
+- applies a second set of application-level MCP read, write, and destructive-operation limits after tool dispatch identifies the operation;
+- partitions authenticated limits using server-derived tenant, site, principal, and API-key identifiers without storing raw keys in partition labels;
+- exposes typed AI application-pipeline stages for normalization, audience and site scope, input safety, conversation context, retrieval, tools, execution, output policy, persistence, and telemetry.
 
-The target design still requires:
+Remaining work includes:
 
-- consolidating policy ownership now split between host bootstrap and `RateLimitingModule`;
-- replacing the unused hard-coded `Global` policy with configuration-backed policy contributions;
-- moving identity-aware rate limiting after authentication;
-- attaching named policies to AI, assistant, and MCP endpoints;
-- adding application-level provider/token budgets and MCP tool-operation limits;
-- adding distributed enforcement for multi-instance quotas;
-- adding rejection audit, safe `Retry-After` responses, metrics, and load tests.
+- adding monetary accounting and replacing the process-local token coordinator with atomic distributed enforcement for multi-instance quotas;
+- completing rejection audit and operational dashboards;
+- adding load, cancellation, and disconnected-stream lease tests;
+- adding public/member front-end components over the implemented endpoints;
+- ingesting the curated Starlight/DocFX AeroCMS documentation after that corpus is complete;
+- adding export and expiry controls for conversations and explicit memories;
+- connecting audit implementations to every declared pipeline stage.
 
 The design aligns with the official ASP.NET Core guidance for [rate-limiting middleware](https://learn.microsoft.com/aspnet/core/performance/rate-limit?view=aspnetcore-10.0), including named endpoint policies, partitioning, concurrency limiting, chained limiters, `429` handling, and placement after routing.
 
@@ -505,7 +524,7 @@ The public assistant must not receive arbitrary tenant-configured MCP tools.
 An API key used to connect to the AeroCMS MCP server must carry a key-specific MCP claim:
 
 ```text
-mcp_server=true
+aero.mcp_server=true
 ```
 
 Possessing an AeroCMS API key or authenticating as a CMS user is not sufficient by itself. The MCP claim is an explicit capability grant.
@@ -518,11 +537,14 @@ The key must also have:
 - at least one effective read permission; or
 - a key-specific admin privilege.
 
-The proposed canonical permission claim follows AeroCMS's existing permission value shape:
+The canonical key permission claim is deliberately separate from the allowed-site claims:
 
 ```text
-claim type:  permission
-claim value: <siteId>|<domain>|<operations>
+claim type:  aero.permission
+claim value: <domain>:<operations>
+
+claim type:  aero.site_id
+claim value: <siteId>
 ```
 
 Operations use:
@@ -537,13 +559,14 @@ D = delete
 Examples:
 
 ```text
-mcp_server = true
-permission = 1529706005277655041|pages|R
-permission = 1529706005277655041|docs|CRUD
-permission = 1529706005277655041|content-items|RU
+aero.mcp_server = true
+aero.site_id = 1529706005277655041
+aero.permission = pages:R
+aero.permission = docs:CRUD
+aero.permission = content-items:RU
 ```
 
-Multiple `permission` claims are allowed. The key is accepted for an MCP connection only when `mcp_server=true` and the key has at least one `R` operation, unless its own `is_admin=true` claim supplies all operations.
+Multiple site and permission claims are allowed. The key is accepted for an MCP connection only when `aero.mcp_server=true` and the key has at least one `R` operation, unless its own `aero.api_key_admin=true` claim supplies all operations. The requested site is selected through `X-Aero-Site-Id` and must match one of the server-derived `aero.site_id` claims.
 
 ### 10.2 Permission domains
 
@@ -574,7 +597,7 @@ The broad `commerce` domain may be retained as a convenience grant for trusted i
 
 The MCP connection check and the tool invocation check are separate:
 
-1. Connection authorization requires `mcp_server=true` and at least read authority.
+1. Connection authorization requires `aero.mcp_server=true` and at least read authority.
 2. Tool discovery returns only tools allowed by the key's effective permissions.
 3. Tool execution rechecks the exact site, domain, and operation.
 4. Application services enforce tenant, site, ownership, validation, and business rules.
@@ -600,8 +623,8 @@ Broad policies such as `site:read` and `site:create` are not sufficiently granul
 An API key with:
 
 ```text
-mcp_server=true
-is_admin=true
+aero.mcp_server=true
+aero.api_key_admin=true
 ```
 
 has all registered CRUD permissions for pages, posts, docs, content types, content items, and commerce.
@@ -650,29 +673,28 @@ The target key model supports multiple named keys per user or service account. E
 
 The raw key is returned only once. Rotation creates a replacement credential and supports an explicitly bounded overlap window. Revocation and permission changes must invalidate cached authorization and short-lived tokens.
 
-### 10.7 Current implementation baseline and gaps
+### 10.7 Current implementation baseline and remaining work
 
-AeroCMS already has useful foundations:
+AeroCMS now implements the key-scoped authorization boundary:
 
-- [`ApiAccountModel`](../Aero/src/Aero.Models/Entities/ApiAccountModel.cs) can store API-account claims.
-- [`ApiClaimsModel`](../Aero/src/Aero.Models/Entities/ApiClaimsModel.cs) represents claim key/value pairs.
-- [`JwtTokenService`](../Aero/src/Aero.Auth/Services/JwtTokenService.cs) can accept extra claims.
-- [`UserSiteAssignment`](../src/Aero.Cms.Core.Entities/UserSiteAssignment.cs) supports site-scoped permission strings.
-- [`AppState`](../src/Aero.Cms.Contracts/Services/AppState.cs) documents the existing `siteId|domain|operations` permission format.
-- The MCP module and in-process tool executor already provide a first-party MCP foundation.
+- [`ApiKeyDocument`](../src/Aero.Cms.Core.Entities/ApiKeyDocument.cs) persists a one-way secret hash, credential kind, tenant, allowed sites, MCP capability, key-specific administrator flag, canonical `domain:operations` permissions, expiry, revocation, rotation metadata, and audit fields.
+- [`ApiKeyService`](../src/Aero.Cms.Modules.Security/ApiKeyService.cs) issues multiple named scoped keys, returns the raw secret once, validates active keys, normalizes permissions, lists safe metadata, and revokes keys inside their owner and tenant boundary.
+- [`AeroApiKeyAuthenticationHandler`](../src/Aero.Cms.Modules.Security/AeroApiKeyAuthenticationHandler.cs) creates a principal solely from validated key state.
+- [`AeroMcpModule`](../src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs) requires the API-key MCP policy and an MCP transport limiter on `/mcp`.
+- [`AeroCmsMcpInvocationContextFactory`](../src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs) resolves the requested site only when it is present in the key's server-derived allowed-site claims.
+- [`AeroCmsToolExecutor`](../src/Aero.Cms.Modules.Mcp/AeroCmsToolExecutor.cs) checks the exact domain and CRUD operation again at execution time and applies operation-class limits.
+- [`JwtApi`](../src/Aero.Cms.Modules.Jwt/Areas/Api/v1/JwtApi.cs) preserves the key identity, tenant, sites, MCP capability, administrator flag, and permissions during short-lived token exchange; it does not add the owner's roles or issue a refresh token.
+- [`AeroMcpApiKeyEndpoints`](../src/Aero.Cms.Modules.Mcp/AeroMcpApiKeyEndpoints.cs) provides administrator-only list, create, and revoke operations for tenant- and site-scoped MCP keys.
+- in-process assistant tool discovery omits tools the current manager is not authorized to execute.
 
-The current path is partial and must be hardened:
+Remaining work includes:
 
-- [`ApiKeyService`](../src/Aero.Cms.Modules.Security/ApiKeyService.cs) validates a key to a user/account ID but does not establish key-specific permissions.
-- [`ApiKeyAuthenticationStrategy`](../src/Aero.Cms.Modules.Security/ApiKeyAuthenticationStrategy.cs) resolves an Aero user rather than a key-scoped claims principal.
-- [`JwtApi`](../src/Aero.Cms.Modules.Jwt/Areas/Api/v1/JwtApi.cs) currently emits user roles during API-key exchange rather than the API account's claims.
-- [`AeroMcpModule`](../src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs) currently protects `/mcp` with authentication and broad `site:read`, but no `mcp_server` claim.
-- [`AeroCmsMcpInvocationContextFactory`](../src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs) resolves the selected site from the manager cookie; external API-key clients require an explicit key-bound site selection.
-- [`AeroCmsToolExecutor`](../src/Aero.Cms.Modules.Mcp/AeroCmsToolExecutor.cs) currently uses broad site read/create policies rather than domain-level CRUD permissions.
-- The present API-key creation flow effectively replaces a user's key and is not yet a complete multiple-key, key-scoped credential manager.
-- Commerce MCP tools still need to be added.
-
-These gaps mean the existing API-key implementation must not yet be treated as proof of the authorization contract in this specification.
+- adding rotation and optional bounded-overlap management endpoints;
+- invalidating authorization caches and exchanged tokens immediately after revocation or permission changes;
+- adding dedicated service-account ownership where a key should not belong to a human user;
+- adding key-management UI, per-key rate-limit profile selection, and richer audit history;
+- adding commerce MCP tools and splitting the commerce permission surface as it grows;
+- completing integration and adversarial tests against a live MCP transport.
 
 ## 11. Agentic patterns
 
@@ -735,16 +757,16 @@ Every MCP tool requires unit tests for its permission mapping and integration te
 2. Add the typed Chain-of-Responsibility contracts and the common scope, authorization, admission, safety, output, and audit stages.
 3. Introduce the audience and content-exposure model.
 4. Build security-filtered hybrid indexing with provenance and invalidation.
-5. Persist scoped conversation history and explicit long-term memory.
-6. Add public/member retrieval with citations and no arbitrary tools.
-7. Add curated internal documentation retrieval for the manager.
-8. Upgrade API keys to key-scoped claims principals and multiple named keys.
-9. Require `mcp_server=true` and `Aero.Mcp.Transport` on `/mcp`.
-10. Add domain-level CRUD requirements and tool-operation limits to discovery and execution.
-11. Preserve key scope during API-key-to-token exchange.
+5. Persist scoped conversation history and explicit long-term memory. **Implemented baseline.**
+6. Add public/member retrieval with citations and no arbitrary tools. **Implemented API baseline.**
+7. Add curated internal documentation retrieval for the manager. **Retriever support implemented; documentation ingestion pending.**
+8. Upgrade API keys to key-scoped claims principals and multiple named keys. **Implemented baseline.**
+9. Require `mcp_server=true` and `Aero.Mcp.Transport` on `/mcp`. **Implemented.**
+10. Add domain-level CRUD requirements and tool-operation limits to discovery and execution. **Implemented baseline.**
+11. Preserve key scope during API-key-to-token exchange. **Implemented.**
 12. Add approved external MCP connections for managers.
 13. Add commerce MCP tools and split commerce permissions where necessary.
-14. Add distributed provider/token budgets and multi-instance enforcement.
+14. Replace the process-local token coordinator with atomic distributed enforcement and add provider monetary accounting.
 15. Add continuous security, rate-limit, quality, and tenant-isolation evaluations.
 
 ## 14. Accepted initial defaults

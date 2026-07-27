@@ -22,6 +22,8 @@ namespace Aero.Cms.Abstractions.Requests;
 /// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
 /// <param name="RendererId">The stable registered page-renderer identifier.</param>
 /// <param name="DraftSource">The exact optional source text for a source-rendered draft.</param>
+/// <param name="IncludeInSearch">Whether the published page is eligible for site search.</param>
+/// <param name="IncludeInPublicAi">Whether the published page may ground public AI answers.</param>
 [GenerateSerializer]
 [Alias("CreatePageRequest")]
 public record CreatePageRequest(
@@ -40,7 +42,9 @@ public record CreatePageRequest(
     string? DraftContentJson = null,
     string? DraftCompositionJson = null,
     string RendererId = PageRendererIds.AeroComposition,
-    string? DraftSource = null
+    string? DraftSource = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false
 ) : IRequest;
 
 /// <summary>
@@ -63,6 +67,8 @@ public record CreatePageRequest(
 /// <param name="DraftCompositionJson">Optional JSON transport for draft composition metadata.</param>
 /// <param name="RendererId">The stable registered page-renderer identifier.</param>
 /// <param name="DraftSource">The exact replacement source text, or <see langword="null"/> to preserve it.</param>
+/// <param name="IncludeInSearch">Whether the published page is eligible for site search.</param>
+/// <param name="IncludeInPublicAi">Whether the published page may ground public AI answers.</param>
 [GenerateSerializer]
 [Alias("UpdatePageRequest")]
 public record UpdatePageRequest(
@@ -82,7 +88,9 @@ public record UpdatePageRequest(
     PreviousPathBehavior? PreviousPathBehavior = null,
     string? DraftCompositionJson = null,
     string RendererId = PageRendererIds.AeroComposition,
-    string? DraftSource = null
+    string? DraftSource = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false
 ) : IRequest;
 
 /// <summary>

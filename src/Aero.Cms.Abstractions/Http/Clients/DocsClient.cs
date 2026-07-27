@@ -207,7 +207,9 @@ public record DocsSummary(
     long PublishedVersion = 0,
     long DraftVersion = 0,
     string Culture = "en-US",
-    long? TranslationGroupId = null);
+    long? TranslationGroupId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
 
 /// <summary>
 /// Request to create a child docs section under a parent in a space.
@@ -251,7 +253,9 @@ public record DocsDetail(
     long PublishedVersion = 0,
     long DraftVersion = 0,
     string Culture = "en-US",
-    long? TranslationGroupId = null)
+    long? TranslationGroupId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false)
 {
         /// <summary>
     /// Create method.

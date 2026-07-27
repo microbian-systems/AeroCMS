@@ -12,6 +12,7 @@ public sealed class ManagerAssistantState
 
     public event Action? Changed;
     public IReadOnlyList<ManagerAssistantEntry> Messages => _messages;
+    public long? ConversationId { get; private set; }
     public bool IsOpen { get; private set; }
     public bool IsSending { get; private set; }
 
@@ -47,11 +48,29 @@ public sealed class ManagerAssistantState
         IsSending = true;
         _messages.Add(new(AeroCmsAssistantRole.User, userText));
         TrimHistoryForRequest();
+        var requestMessages = ConversationId is > 0
+            ? new[] { new AeroCmsAssistantMessage(AeroCmsAssistantRole.User, userText) }
+            : _messages
+                .Select(message => new AeroCmsAssistantMessage(message.Role, message.Text))
+                .ToArray();
         var request = new AeroCmsAssistantRequest(
-            _messages.Select(message => new AeroCmsAssistantMessage(message.Role, message.Text)).ToList());
+            requestMessages,
+            ConversationId);
         _messages.Add(new(AeroCmsAssistantRole.Assistant, string.Empty, IsStreaming: true));
         Changed?.Invoke();
         return request;
+    }
+
+    public void AcceptMetadata(
+        long? conversationId,
+        IReadOnlyList<AeroCmsAssistantCitation>? citations = null)
+    {
+        if (conversationId is > 0 &&
+            (ConversationId is null || ConversationId == conversationId))
+        {
+            ConversationId = conversationId;
+        }
+        ApplyCitations(citations);
     }
 
     public void AppendDelta(string? delta)
@@ -65,13 +84,20 @@ public sealed class ManagerAssistantState
         Changed?.Invoke();
     }
 
-    public void Complete(string? finalText)
+    public void Complete(
+        string? finalText,
+        IReadOnlyList<AeroCmsAssistantCitation>? citations = null)
     {
         if (_messages.Count == 0)
             return;
         var last = _messages[^1];
         var text = string.IsNullOrWhiteSpace(finalText) ? last.Text : finalText;
-        _messages[^1] = last with { Text = text, IsStreaming = false };
+        _messages[^1] = last with
+        {
+            Text = text,
+            IsStreaming = false,
+            Citations = citations is { Count: > 0 } ? citations : last.Citations
+        };
         IsSending = false;
         Changed?.Invoke();
     }
@@ -105,6 +131,21 @@ public sealed class ManagerAssistantState
         Changed?.Invoke();
     }
 
+    public void Restore(AeroCmsAssistantConversation conversation)
+    {
+        ArgumentNullException.ThrowIfNull(conversation);
+        if (conversation.ConversationId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(conversation));
+
+        _messages.Clear();
+        _messages.AddRange(conversation.Messages.Select(message =>
+            new ManagerAssistantEntry(message.Role, message.Content)));
+        ConversationId = conversation.ConversationId;
+        IsSending = false;
+        IsOpen = true;
+        Changed?.Invoke();
+    }
+
     private void TrimHistoryForRequest()
     {
         while (_messages.Count > AeroCmsAssistantLimits.MaxMessages)
@@ -119,9 +160,19 @@ public sealed class ManagerAssistantState
     private void ResetCore(bool close)
     {
         _messages.Clear();
+        ConversationId = null;
         IsSending = false;
         if (close)
             IsOpen = false;
+    }
+
+    private void ApplyCitations(IReadOnlyList<AeroCmsAssistantCitation>? citations)
+    {
+        if (citations is not { Count: > 0 } || _messages.Count == 0)
+            return;
+        var last = _messages[^1];
+        if (last.Role == AeroCmsAssistantRole.Assistant && last.IsStreaming)
+            _messages[^1] = last with { Citations = citations };
     }
 }
 
@@ -130,4 +181,5 @@ public sealed record ManagerAssistantEntry(
     AeroCmsAssistantRole Role,
     string Text,
     bool IsStreaming = false,
-    bool IsError = false);
+    bool IsError = false,
+    IReadOnlyList<AeroCmsAssistantCitation>? Citations = null);

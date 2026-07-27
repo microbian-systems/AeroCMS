@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -40,7 +39,6 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System.Globalization;
-using System.Threading.RateLimiting;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -221,28 +219,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
             options.ConfigureAuthorization?.Invoke(authorization);
         });
 
-        services.AddRateLimiter(rateLimiting =>
-        {
-            rateLimiting.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            rateLimiting.AddPolicy(ManagerRecoveryDefaults.RateLimitPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    static _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(15),
-                        QueueLimit = 0,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        AutoReplenishment = true
-                    }));
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.LoginRateLimitPolicy, 5);
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.PasswordResetRateLimitPolicy, 5);
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.ActivationRateLimitPolicy, 10);
-        });
-
         services.AddHttpContextAccessor();
         services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddRadzenComponents();
@@ -308,28 +284,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         }
 
         return (builder, log);
-    }
-
-    private static void AddLocalMemberFixedWindowPolicy(
-        RateLimiterOptions options, string policyName, int permitLimit)
-    {
-        options.AddPolicy(policyName, httpContext =>
-        {
-            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            var siteContext = httpContext.RequestServices.GetService<ISiteContext>();
-            var scope = siteContext is { TenantId: > 0, SiteId: > 0 }
-                ? $"{siteContext.TenantId}:{siteContext.SiteId}"
-                : "unresolved";
-            return RateLimitPartition.GetFixedWindowLimiter($"{ip}|{scope}", _ =>
-                new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = permitLimit,
-                    Window = TimeSpan.FromMinutes(15),
-                    QueueLimit = 0,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    AutoReplenishment = true
-                });
-        });
     }
 
     private static void PublishResolvedInfrastructure(
@@ -451,8 +405,8 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
             options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
         });
-        app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
         app.UseCmsSetupGate();
         app.UseAeroCmsModulePipeline();

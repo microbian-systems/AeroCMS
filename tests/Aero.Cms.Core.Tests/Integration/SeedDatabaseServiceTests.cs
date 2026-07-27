@@ -72,13 +72,6 @@ public sealed class SeedDatabaseServiceTests
                 Host = "localhost",
                 IsPrimary = true
             }));
-        var apiKeyService = Substitute.For<IApiKeyService>();
-        apiKeyService.CreateKeyAsync(
-                Arg.Any<long>(),
-                Arg.Any<string>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>())
-            .Returns("test-api-key");
         var environment = Substitute.For<IWebHostEnvironment>();
         environment.WebRootPath.Returns(Path.GetTempPath());
 
@@ -95,7 +88,6 @@ public sealed class SeedDatabaseServiceTests
             bootstrapCompletionWriter,
             tenantService,
             siteService,
-            apiKeyService,
             []);
 
         var result = await service.CompleteAsync(CreateRequest());
@@ -178,13 +170,6 @@ public sealed class SeedDatabaseServiceTests
                 Host = "localhost",
                 IsPrimary = true
             }));
-        var apiKeyService = Substitute.For<IApiKeyService>();
-        apiKeyService.CreateKeyAsync(
-                Arg.Any<long>(),
-                Arg.Any<string>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>())
-            .Returns("test-api-key");
         var environment = Substitute.For<IWebHostEnvironment>();
         environment.WebRootPath.Returns(Path.GetTempPath());
         var service = new SeedDatabaseService(
@@ -200,7 +185,6 @@ public sealed class SeedDatabaseServiceTests
             bootstrapCompletionWriter,
             tenantService,
             siteService,
-            apiKeyService,
             []);
 
         var firstResult = await service.CompleteAsync(CreateRequest());
