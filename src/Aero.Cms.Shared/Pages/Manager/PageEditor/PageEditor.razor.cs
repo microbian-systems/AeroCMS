@@ -305,6 +305,10 @@ protected bool   HideFooter { get; set; }
     /// Gets or sets the Show Chat Agent.
     /// </summary>
 protected bool   ShowChatAgent { get; set; } = true;
+    /// <summary>Gets or sets whether the published page is eligible for site search.</summary>
+protected bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published page may ground public AI answers.</summary>
+protected bool IncludeInPublicAi { get; set; }
         /// <summary>
     /// Gets or sets the Publication State.
     /// </summary>
@@ -780,6 +784,8 @@ protected override async Task OnInitializedAsync()
             ShowHeaderNavigation = page.ShowHeaderNavigation;
             HideFooter = page.HideFooter;
             ShowChatAgent = page.ShowChatAgent;
+            IncludeInSearch = page.IncludeInSearch;
+            IncludeInPublicAi = page.IncludeInPublicAi;
             ParentId = page.ParentId;
             
             HtmlEditor = CreateHtmlEditorSession(
@@ -2723,7 +2729,9 @@ protected string FormatCulture(string? culture)
                     PreviousPathBehavior: routeDecision.Behavior,
                     DraftComposition: DraftComposition,
                     RendererId: RendererId,
-                    DraftSource: UsesSourceEditor ? DraftSource : null
+                    DraftSource: UsesSourceEditor ? DraftSource : null,
+                    IncludeInSearch: IncludeInSearch,
+                    IncludeInPublicAi: IncludeInPublicAi
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -2761,7 +2769,9 @@ protected string FormatCulture(string? culture)
                     DraftContent: HtmlEditor.Content,
                     DraftComposition: DraftComposition,
                     RendererId: RendererId,
-                    DraftSource: UsesSourceEditor ? DraftSource : null
+                    DraftSource: UsesSourceEditor ? DraftSource : null,
+                    IncludeInSearch: IncludeInSearch,
+                    IncludeInPublicAi: IncludeInPublicAi
                 );
 
                 var result = await PagesClient.CreateAsync(request);

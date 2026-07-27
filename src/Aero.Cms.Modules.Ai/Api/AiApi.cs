@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using Aero.Cms.Modules.RateLimiting;
 
 namespace Aero.Cms.Modules.Ai.Api;
 
@@ -38,13 +39,15 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/ai")
             .WithTags("Admin - AI")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(AeroRateLimitPolicyNames.AiManager);
 
         group.MapPost("/content/enhance", EnhanceContent)
             .WithName("EnhanceContent");
 
         group.MapPost("/content/enhance/stream", StreamEnhancedContent)
-            .WithName("StreamEnhancedContent");
+            .WithName("StreamEnhancedContent")
+            .RequireRateLimiting(AeroRateLimitPolicyNames.AiStream);
 
         group.MapPost("/content/translate", TranslateContent)
             .WithName("TranslateContent");

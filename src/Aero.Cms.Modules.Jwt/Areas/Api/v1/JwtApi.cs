@@ -1,7 +1,10 @@
 using Aero.Auth.Services;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Security;
 using Aero.Cms.Abstractions.Services;
 using Aero.Models.Entities;
+using System.Globalization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +35,7 @@ public sealed record HeadlessRefreshTokenRequest(string RefreshToken);
 /// When the configured service is not the concrete <c>JwtTokenService</c>, the
 /// expiration estimate uses a 300-second fallback.
 /// </remarks>
-public sealed record HeadlessJwtResponse(string AccessToken, string RefreshToken, DateTimeOffset ExpiresAt);
+public sealed record HeadlessJwtResponse(string AccessToken, string? RefreshToken, DateTimeOffset ExpiresAt);
 
 /// <summary>
 /// Maps the headless API-key-to-token and refresh-token HTTP endpoints.
@@ -98,7 +101,7 @@ public static void MapJwtApi(this IEndpointRouteBuilder app)
 
     private static async Task<IResult> CreateToken(
         [FromBody] ApiKeyAuthRequest request,
-        IAuthenticationService authService,
+        [FromServices] IApiKeyService apiKeyService,
         [FromServices] IJwtTokenService jwtService,
         [FromServices] IRefreshTokenService refreshTokenService,
         UserManager<AeroUser> userManager,
@@ -109,25 +112,38 @@ public static void MapJwtApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(JwtApi));
         try
         {
-            var user = await authService.AuthenticateAsync(request, cancellationToken);
-            if (user == null)
+            var validation = await apiKeyService.ValidateAsync(request.ApiKey, cancellationToken);
+            if (validation is null)
             {
                 return TypedResults.Unauthorized();
             }
 
-            var roles = await userManager.GetRolesAsync(user);
-            var accessToken = await jwtService.GenerateAccessTokenAsync(user.Id, user.Email!, roles, cancellationToken: cancellationToken);
+            var user = await userManager.FindByIdAsync(
+                validation.UserId.ToString(CultureInfo.InvariantCulture));
+            if (user is null || !user.IsActive || user.IsDeleted)
+                return TypedResults.Unauthorized();
+
+            var isServiceKey = validation.CredentialKind == AeroApiKeyCredentialKind.Service;
+            var roles = isServiceKey ? [] : await userManager.GetRolesAsync(user);
+            var accessToken = await jwtService.GenerateAccessTokenAsync(
+                user.Id,
+                user.Email ?? string.Empty,
+                roles,
+                isServiceKey ? CreateServiceKeyClaims(validation) : null,
+                cancellationToken);
             
             var context = httpContextAccessor.HttpContext;
             var ipAddress = context?.Connection.RemoteIpAddress?.ToString();
             var userAgent = context?.Request.Headers.UserAgent.ToString();
 
-            var refreshToken = await refreshTokenService.GenerateRefreshTokenAsync(
-                user.Id, 
-                "headless", 
-                ipAddress, 
-                userAgent, 
-                cancellationToken);
+            var refreshToken = isServiceKey
+                ? null
+                : await refreshTokenService.GenerateRefreshTokenAsync(
+                    user.Id,
+                    "headless",
+                    ipAddress,
+                    userAgent,
+                    cancellationToken);
 
             // Access token lifetime is handled by JwtTokenService, we estimate ExpiresAt for the response
             var expiresAt = DateTimeOffset.UtcNow.AddSeconds(jwtService is JwtTokenService jts ? jts.AccessTokenLifetime : 300);
@@ -140,7 +156,10 @@ public static void MapJwtApi(this IEndpointRouteBuilder app)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating headless token");
-            return TypedResults.Problem(ex.Message);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Headless token creation failed.",
+                detail: "The access token could not be created.");
         }
     }
 
@@ -194,7 +213,29 @@ public static void MapJwtApi(this IEndpointRouteBuilder app)
         catch (Exception ex)
         {
             logger.LogError(ex, "Error refreshing headless token");
-            return TypedResults.Problem(ex.Message);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Headless token refresh failed.",
+                detail: "The access token could not be refreshed.");
         }
+    }
+
+    private static IReadOnlyList<Claim> CreateServiceKeyClaims(AeroApiKeyValidation validation)
+    {
+        var claims = new List<Claim>
+        {
+            new(AeroApiKeyClaimTypes.KeyId, validation.KeyId.ToString(CultureInfo.InvariantCulture)),
+            new(AeroApiKeyClaimTypes.CredentialKind, validation.CredentialKind.ToString()),
+            new(AeroApiKeyClaimTypes.TenantId, validation.TenantId.ToString(CultureInfo.InvariantCulture)),
+            new(AeroApiKeyClaimTypes.McpServer, validation.McpServer ? "true" : "false"),
+            new(AeroApiKeyClaimTypes.Administrator, validation.IsAdministrator ? "true" : "false")
+        };
+        claims.AddRange(validation.AllowedSiteIds.Select(
+            siteId => new Claim(
+                AeroApiKeyClaimTypes.SiteId,
+                siteId.ToString(CultureInfo.InvariantCulture))));
+        claims.AddRange(validation.Permissions.Select(
+            permission => new Claim(AeroApiKeyClaimTypes.Permission, permission)));
+        return claims;
     }
 }

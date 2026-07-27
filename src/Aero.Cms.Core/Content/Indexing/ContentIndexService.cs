@@ -1,4 +1,6 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Ai.Pipeline;
 using Aero.Cms.Core.Content.Search;
 using Aero.Core;
 
@@ -7,7 +9,9 @@ namespace Aero.Cms.Core.Content.Indexing;
 public sealed record ContentSearchArtifacts(
     ContentSearchDocument Document,
     IReadOnlyList<ContentSearchFacet> Facets,
-    string SemanticText);
+    string SemanticText,
+    IReadOnlyList<AeroAiKnowledgeSection> PublicKnowledgeSections,
+    IReadOnlyList<AeroAiKnowledgeSection> ManagerKnowledgeSections);
 
 /// <summary>Pure extraction of persisted search projections from an item and its runtime definition.</summary>
 public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexers)
@@ -25,6 +29,15 @@ public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexe
         var fullText = new List<string> { item.Title ?? string.Empty, item.Slug };
         var semanticText = new List<string>();
         var facets = new List<ContentSearchFacet>();
+        var metadataSection = new AeroAiKnowledgeSection(
+            "Entry",
+            string.Join(
+                ' ',
+                new[] { item.Title, item.Slug }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))),
+            AeroAiFieldExposure.Public);
+        var publicKnowledge = new List<AeroAiKnowledgeSection> { metadataSection };
+        var managerKnowledge = new List<AeroAiKnowledgeSection> { metadataSection };
 
         foreach (var field in definition.Fields)
         {
@@ -51,7 +64,7 @@ public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexe
                         ContentTypeAlias = item.ContentTypeAlias,
                         Culture = item.Culture,
                         PublicationState = item.PublicationState,
-                        HideFromSearch = definition.HideFromSearch,
+                        HideFromSearch = !definition.IncludeInSearch,
                         FieldName = field.Name,
                         NormalizedValue = NormalizeExactValue(tokens[ordinal]),
                         Ordinal = ordinal
@@ -68,6 +81,27 @@ public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexe
             {
                 semanticText.AddRange(tokens);
             }
+
+            if ((field.FullTextSearchable || field.SemanticSearchable)
+                && tokens.Length > 0)
+            {
+                var section = new AeroAiKnowledgeSection(
+                    string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label,
+                    string.Join(' ', tokens),
+                    field.AiExposure);
+                if (AeroAiContentExposureRules.IsFieldAvailable(
+                        AeroAiAudience.Public,
+                        field.AiExposure))
+                {
+                    publicKnowledge.Add(section);
+                }
+                if (AeroAiContentExposureRules.IsFieldAvailable(
+                        AeroAiAudience.Manager,
+                        field.AiExposure))
+                {
+                    managerKnowledge.Add(section);
+                }
+            }
         }
 
         return new ContentSearchArtifacts(
@@ -83,7 +117,7 @@ public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexe
                 VersionNumber = item.VersionNumber,
                 Slug = item.Slug,
                 Title = item.Title ?? string.Empty,
-                HideFromSearch = definition.HideFromSearch,
+                HideFromSearch = !definition.IncludeInSearch,
                 FullText = string.Join(
                     ' ',
                     fullText.Where(part => !string.IsNullOrWhiteSpace(part)))
@@ -91,7 +125,9 @@ public sealed class ContentIndexService(IEnumerable<IContentFieldIndexer> indexe
             facets,
             string.Join(
                 ' ',
-                semanticText.Where(part => !string.IsNullOrWhiteSpace(part))));
+                semanticText.Where(part => !string.IsNullOrWhiteSpace(part))),
+            publicKnowledge,
+            managerKnowledge);
     }
 
     public static string NormalizeExactValue(string value)

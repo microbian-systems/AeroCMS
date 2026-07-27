@@ -22,11 +22,11 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// </remarks>
 public static class ContentItemsApi
 {
-        /// <summary>
+    /// <summary>
     /// Maps authenticated content-item CRUD, publication, and translation endpoints.
     /// </summary>
     /// <param name="app">The endpoint route builder that receives the administrative routes.</param>
-public static void MapContentItemsApi(this IEndpointRouteBuilder app)
+    public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
             .WithTags("Admin - Content Items")

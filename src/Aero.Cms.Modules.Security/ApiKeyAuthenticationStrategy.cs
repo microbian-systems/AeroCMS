@@ -45,13 +45,13 @@ public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, Cancel
             return null;
         }
 
-        var userId = await _apiKeyService.ValidateAsync(apiKeyRequest.ApiKey, cancellationToken);
-        if (userId == null)
+        var validation = await _apiKeyService.ValidateAsync(apiKeyRequest.ApiKey, cancellationToken);
+        if (validation == null)
         {
             return null;
         }
 
-        var user = await _userManager.FindByIdAsync(userId.Value.ToString());
+        var user = await _userManager.FindByIdAsync(validation.UserId.ToString());
         
         if (user != null && user.IsActive && !user.IsDeleted)
         {

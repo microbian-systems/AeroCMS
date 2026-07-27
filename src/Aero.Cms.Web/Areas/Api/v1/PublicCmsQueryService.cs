@@ -68,7 +68,7 @@ public sealed class PublicCmsQueryService(
                     $"Content type '{contentTypeAlias}' was not found.");
             }
 
-            if (contentTypeSuccess.Value.HideFromSearch)
+            if (!contentTypeSuccess.Value.IncludeInSearch)
             {
                 return new PublicContentSearchResult(
                     [],

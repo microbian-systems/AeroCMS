@@ -116,6 +116,10 @@ protected string SeoDescription { get; set; } = string.Empty;
     /// Gets or sets the Featured Image Url.
     /// </summary>
 protected string FeaturedImageUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+protected bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+protected bool IncludeInPublicAi { get; set; }
         /// <summary>
     /// Gets or sets the Category Id.
     /// </summary>
@@ -474,6 +478,8 @@ public async ValueTask DisposeAsync()
             Excerpt = post.Excerpt ?? string.Empty;
             SeoTitle = post.SeoTitle ?? string.Empty;
             SeoDescription = post.SeoDescription ?? string.Empty;
+            IncludeInSearch = post.IncludeInSearch;
+            IncludeInPublicAi = post.IncludeInPublicAi;
             FeaturedImageUrl = post.ImageUrl ?? string.Empty;
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
             SeriesId = post.SeriesId ?? Series.FirstOrDefault(x => x.Slug.Equals("general", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
@@ -1446,6 +1452,8 @@ protected async Task SavePost()
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     SeriesId = SeriesId > 0 ? SeriesId : null,
+                    IncludeInSearch = IncludeInSearch,
+                    IncludeInPublicAi = IncludeInPublicAi,
                     PublicationState = PublishedAt.HasValue
                         ? (int)ContentPublicationState.Published
                         : (int)ContentPublicationState.Draft
@@ -1478,6 +1486,8 @@ protected async Task SavePost()
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     SeriesId = SeriesId > 0 ? SeriesId : null,
+                    IncludeInSearch = IncludeInSearch,
+                    IncludeInPublicAi = IncludeInPublicAi,
                     PublicationState = (int)ContentPublicationState.Draft
                 };
 

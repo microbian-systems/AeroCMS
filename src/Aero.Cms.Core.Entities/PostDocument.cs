@@ -52,6 +52,17 @@ public string? SeoTitle { get; set; }
     /// Gets or sets optional SEO description metadata.
     /// </summary>
 public string? SeoDescription { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the published post is eligible for the site's search index.
+    /// </summary>
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the published post may be used to ground public AI answers.
+    /// </summary>
+    public bool IncludeInPublicAi { get; set; }
+
         /// <summary>
     /// Gets or sets an optional publication timestamp; its offset is not normalized by this type.
     /// </summary>

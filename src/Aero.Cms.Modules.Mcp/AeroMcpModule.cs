@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Ai.Assistant;
+using Aero.Cms.Abstractions.Security;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.AiAssistant;
 using Aero.Cms.Web.Core.Modules;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ModelContextProtocol.Server;
+using Aero.Cms.Modules.RateLimiting;
 
 namespace Aero.Cms.Modules.Mcp;
 
@@ -21,7 +23,7 @@ public sealed class AeroMcpModule : AeroWebModule
     public override string Author => AeroConstants.Author;
     public override string Description => "Authenticated site-scoped MCP tools and in-process assistant integration.";
     public override IReadOnlyList<string> Dependencies =>
-        ["AiAssistantModule", "SitesModule", "PagesModule", "PostsModule", "DocsModule", "ContentModule"];
+        ["AiAssistantModule", nameof(RateLimitingModule), "SecurityModule", "SitesModule", "PagesModule", "PostsModule", "DocsModule", "ContentModule"];
     public override IReadOnlyList<string> Category => ["ai", "tools"];
     public override IReadOnlyList<string> Tags => ["ai", "mcp", "manager"];
 
@@ -30,6 +32,57 @@ public sealed class AeroMcpModule : AeroWebModule
         IConfiguration? config = null,
         IHostEnvironment? env = null)
     {
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.McpTransport,
+            "McpTransport",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 120,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.McpManagement,
+            "McpManagement",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 10,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroApplicationFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.McpRead,
+            "McpRead",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 120,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroApplicationFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.McpWrite,
+            "McpWrite",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 20,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroApplicationFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.McpDestructive,
+            "McpDestructive",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 5,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+
         services.AddHttpContextAccessor();
         services.AddScoped<AeroCmsMcpInvocationContextFactory>();
         services.AddScoped<IAeroCmsToolExecutor, AeroCmsToolExecutor>();
@@ -43,8 +96,9 @@ public sealed class AeroMcpModule : AeroWebModule
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapMcp("/mcp")
-            .RequireAuthorization()
-            .RequireAuthorization("site:read");
+            .RequireAuthorization(AeroApiKeyAuthenticationDefaults.McpPolicy)
+            .RequireRateLimiting(AeroRateLimitPolicyNames.McpTransport);
+        builder.MapAeroMcpApiKeyEndpoints();
         builder.MapAeroCmsAssistantEndpoints();
         return Task.CompletedTask;
     }

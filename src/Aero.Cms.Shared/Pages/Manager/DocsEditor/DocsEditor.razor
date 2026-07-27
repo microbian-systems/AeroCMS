@@ -411,6 +411,23 @@
                             <input type="checkbox" checked="@Current.ShowHeaderNavigation" @onchange="OnShowHeaderNavigationChanged" />
                             @L["Show site navigation"]
                         </label>
+                        <label class="pe-doc-toggle">
+                            <input type="checkbox" checked="@Current.IncludeInSearch"
+                                   @onchange="e => UpdateCurrent(current => current.IncludeInSearch = e.Value is true)" />
+                            <span>
+                                @L["Include in site search"]
+                                <small class="block">@L["Allow the published document to appear in site search."]</small>
+                            </span>
+                        </label>
+                        <label class="pe-doc-toggle">
+                            <input type="checkbox" checked="@Current.IncludeInPublicAi"
+                                   disabled="@(!Current.IncludeInSearch)"
+                                   @onchange="e => UpdateCurrent(current => current.IncludeInPublicAi = e.Value is true)" />
+                            <span>
+                                @L["Use in public AI answers"]
+                                <small class="block">@L["Allow published documentation to ground public visitor answers."]</small>
+                            </span>
+                        </label>
                     </section>
                 }
 

@@ -197,7 +197,7 @@ public sealed class PublicCmsQueryApiTests
                         SiteId = 42,
                         Alias = "animal",
                         Name = "Animal",
-                        HideFromSearch = true
+                        IncludeInSearch = false
                     })));
         var contentQueryService = Substitute.For<IContentQueryService>();
         var service = new PublicCmsQueryService(

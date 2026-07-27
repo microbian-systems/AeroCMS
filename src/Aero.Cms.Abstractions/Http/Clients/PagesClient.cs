@@ -476,7 +476,9 @@ public record PageDetail(
     PageCompositionDocument? DraftComposition = null,
     PageCompositionDocument? PublishedComposition = null,
     string RendererId = PageRendererIds.AeroComposition,
-    bool HasUnpublishedChanges = false);
+    bool HasUnpublishedChanges = false,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
 
 /// <summary>
 /// Request to create a new page.
@@ -496,7 +498,9 @@ public record CreatePageRequest(
     HtmlPageContent? DraftContent = null,
     PageCompositionDocument? DraftComposition = null,
     string RendererId = PageRendererIds.AeroComposition,
-    string? DraftSource = null);
+    string? DraftSource = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
 
 /// <summary>
 /// Request to update an existing page.
@@ -517,7 +521,9 @@ public record UpdatePageRequest(
     PreviousPathBehavior? PreviousPathBehavior = null,
     PageCompositionDocument? DraftComposition = null,
     string RendererId = PageRendererIds.AeroComposition,
-    string? DraftSource = null);
+    string? DraftSource = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
 
 /// <summary>Proposed route inputs used to calculate redirect impact.</summary>
 public sealed record PageRouteChangeRequest(string Slug, long? ParentId);

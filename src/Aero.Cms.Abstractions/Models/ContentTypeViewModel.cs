@@ -49,11 +49,11 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     /// </summary>
 [Id(7)]
     public bool AllowPublicUrl { get; set; }
-        /// <summary>
-    /// Gets or sets the Hide From Search.
+    /// <summary>
+    /// Gets or sets whether published entries may be included in site search.
     /// </summary>
-[Id(8)]
-    public bool HideFromSearch { get; set; }
+    [Id(8)]
+    public bool IncludeInSearch { get; set; } = true;
         /// <summary>
     /// Gets or sets the Schedule Config.
     /// </summary>
@@ -71,6 +71,12 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     /// <summary>Gets or sets hierarchical placement rules.</summary>
     [Id(12)]
     public ContentHierarchyRules HierarchyRules { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets whether eligible entries may be included in public AI answers.
+    /// </summary>
+    [Id(13)]
+    public bool IncludeInPublicAi { get; set; }
 }
 
 /// <summary>

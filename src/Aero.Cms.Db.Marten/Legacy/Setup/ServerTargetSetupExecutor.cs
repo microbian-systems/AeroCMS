@@ -105,7 +105,6 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         var commerceSeedService = rootServiceProvider.GetRequiredService<ICommerceSeedService>();
         var tenantService = rootServiceProvider.GetRequiredService<ITenantService>();
         var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
-        var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
 
         logger.LogInformation("Step 3/6: Services resolved. PageContent={PageSvc}, Media={MediaSvc}, Tenant={TenantSvc}",
             pageContentService.GetType().Name, mediaService.GetType().Name, tenantService.GetType().Name);
@@ -128,7 +127,6 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             bootstrapCompletionWriter,
             tenantService,
             siteService,
-            apiKeyService,
             descriptors ?? Array.Empty<ModuleDescriptor>());
 
         logger.LogInformation("Step 5/6: Executing seed (descriptors={DescriptorCount})...",

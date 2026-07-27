@@ -140,7 +140,6 @@ public sealed class SeedDatabaseService(
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
     ISiteService siteService,
-    IApiKeyService apiKeyService,
     IReadOnlyList<ModuleDescriptor> moduleDescriptors) : ISeedDatabaseService, ISetupCompletionService
 {
         /// <summary>
@@ -170,10 +169,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         {
             return SeedDatabaseResult.Failure(identityResult.Errors.Select(error => error.Description));
         }
-
-        // Create default admin API key
-        // TODO: Remove this pre-defined key later once stable
-        var apiKey = await apiKeyService.CreateKeyAsync(identityResult.AdminUser!.Id, request.AdminEmail, cancellationToken: ct);
 
         // Create tenant and site for multi-tenant foundation
         var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, ct);

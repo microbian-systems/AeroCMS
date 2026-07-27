@@ -48,7 +48,17 @@ public string? SeoTitle { get; set; }
     /// Gets or sets optional SEO description metadata.
     /// </summary>
 public string? SeoDescription { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets whether the published document is eligible for the site's search index.
+    /// </summary>
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the published document may be used to ground public AI answers.
+    /// </summary>
+    public bool IncludeInPublicAi { get; set; }
+
         /// <summary>
     /// Gets or sets the stored publication state; changing it has no side effects here.
     /// </summary>
@@ -119,6 +129,8 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         MarkdownContent = MarkdownContent,
         SeoTitle = SeoTitle,
         SeoDescription = SeoDescription,
+        IncludeInSearch = IncludeInSearch,
+        IncludeInPublicAi = IncludeInPublicAi,
         PublicationState = PublicationState,
         PublishedOn = PublishedOn,
         ShowHeaderNavigation = ShowHeaderNavigation,

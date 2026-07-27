@@ -72,16 +72,22 @@
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HideFromSearch" Title="@L["Search"]" Width="150px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="IncludeInSearch" Title="@L["Search"]" Width="150px">
                 <Template Context="type">
-                    @if (type.HideFromSearch)
-                    {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Hidden"]" />
-                    }
-                    else
+                    @if (type.IncludeInSearch)
                     {
                         <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Searchable"]" />
                     }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Hidden"]" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="IncludeInPublicAi" Title="@L["Public AI"]" Width="150px">
+                <Template Context="type">
+                    <RadzenBadge BadgeStyle="@(type.IncludeInPublicAi ? BadgeStyle.Success : BadgeStyle.Light)"
+                                 Text="@(type.IncludeInPublicAi ? L["Enabled"] : L["Excluded"])" />
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HasCustomTemplate" Title="@L["Display"]" Width="150px">

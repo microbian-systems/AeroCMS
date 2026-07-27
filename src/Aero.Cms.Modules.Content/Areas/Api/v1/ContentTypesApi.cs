@@ -72,7 +72,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
 
                 summaries.Add(new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
-                    t.AllowPublicUrl, t.HideFromSearch, fields.Count,
+                    t.AllowPublicUrl, t.IncludeInSearch, t.IncludeInPublicAi, fields.Count,
                     !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount,
                     Id: t.Id,
                     Cardinality: t.Cardinality,
@@ -149,7 +149,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 Structure = request.Structure,
                 HierarchyRules = request.HierarchyRules ?? new ContentHierarchyRules(),
                 AllowPublicUrl = request.AllowPublicUrl,
-                HideFromSearch = request.HideFromSearch,
+                IncludeInSearch = request.IncludeInSearch,
+                IncludeInPublicAi = request.IncludeInPublicAi,
                 FieldsJson = JsonSerializer.Serialize(
                     request.Fields.ToList(),
                     ContentJsonContext.Default.ListContentFieldDefinition),
@@ -203,7 +204,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.Structure = request.Structure;
             existing.HierarchyRules = request.HierarchyRules ?? new ContentHierarchyRules();
             existing.AllowPublicUrl = request.AllowPublicUrl;
-            existing.HideFromSearch = request.HideFromSearch;
+            existing.IncludeInSearch = request.IncludeInSearch;
+            existing.IncludeInPublicAi = request.IncludeInPublicAi;
             existing.FieldsJson = JsonSerializer.Serialize(
                 request.Fields.ToList(),
                 ContentJsonContext.Default.ListContentFieldDefinition);
@@ -263,7 +265,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
 
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
-            vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
+            vm.Icon, vm.AllowPublicUrl, vm.IncludeInSearch, vm.IncludeInPublicAi,
+            fields, vm.ScribanTemplate,
             vm.ScheduleConfig,
             Id: vm.Id,
             Cardinality: vm.Cardinality,

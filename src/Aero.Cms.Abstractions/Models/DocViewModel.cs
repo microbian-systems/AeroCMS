@@ -96,6 +96,14 @@ public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Pub
     /// </summary>
 [Id(14)]
     public long? TranslationGroupId { get; set; }
+
+    /// <summary>Gets whether the published document is eligible for site search.</summary>
+    [Id(15)]
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>Gets whether the published document may ground public AI answers.</summary>
+    [Id(16)]
+    public bool IncludeInPublicAi { get; set; }
 }
 
 /// <summary>

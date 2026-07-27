@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Aero.Cms.Abstractions.Ai.Knowledge;
 
 namespace Aero.Cms.Abstractions.Content;
 
@@ -47,6 +48,12 @@ public bool Required { get; set; }
     /// Gets or sets whether the field contributes text to the semantic embedding document.
     /// </summary>
     public bool SemanticSearchable { get; set; }
+
+    /// <summary>
+    /// Gets or sets the AI retrieval exposure for this field. New fields fail closed as internal-only.
+    /// This setting does not override record-level search or public-AI inclusion.
+    /// </summary>
+    public AeroAiFieldExposure AiExposure { get; set; } = AeroAiFieldExposure.Internal;
 
     /// <summary>Validation rules, editor hints, etc. consumed by FluentValidation + admin UI</summary>
     public Dictionary<string, JsonElement> Settings
