@@ -1,0 +1,29 @@
+apiRules:
+- exclude:
+    uidRegex: .*<Clone>\$.*
+- exclude:
+    uidRegex: ^Aero\.Cms\.Abstractions\.Content\.Serialization\.ContentJsonContext(?:\.|$)
+- exclude:
+    uidRegex: ^Aero\.Cms\.Abstractions\.Pages\.Composition\.PageCompositionJsonContext(?:\.|$)
+- exclude:
+    uidRegex: ^Aero\.Cms\.Html\.HtmlJsonContext(?:\.|$)
+- exclude:
+    uidRegex: ^Aero\.Cms\.Abstractions\.Validators(?:\.|$)
+- include:
+    uidRegex: ^(?:Aero|Aero\.Cms|Aero\.Cms\.Abstractions\.Pages|Aero\.Cms\.Core\.Content|Aero\.Cms\.Contracts|Aero\.Cms\.Web|Aero\.Cms\.Web\.Core)$
+- include:
+    uidRegex: ^Aero\.Cms\.Abstractions(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Contracts(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Html(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Core\.Content\.(Services\.I|Search\.ContentSearch|Search\.IContentEmbedding|Templating\.I|Templating\.Scriban|Indexing\.I)(?:[A-Z].*)?$
+- include:
+    uidRegex: ^Aero\.Cms\.Core\.(ContentServiceExtensions|ModuleServiceExtensions|CmsRoleNames|AeroCmsException)(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Web\.Core\.(Modules|Pipelines)(?:\.|$)
+- include:
+    uidRegex: ^Aero\.Cms\.Web\.Bootstrap\.(AeroCmsExtensions|AeroCmsOptions)(?:\.|$)
+- exclude:
+    uidRegex: ^Aero\.Cms\.

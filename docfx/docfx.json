@@ -1,0 +1,79 @@
+{
+  "$schema": "https://dotnet.github.io/docfx/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src/Aero.Cms.Abstractions/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Abstractions.dll"
+          ]
+        },
+        {
+          "src": "../src/Aero.Cms.Contracts/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Contracts.dll"
+          ]
+        },
+        {
+          "src": "../src/Aero.Cms.Html/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Html.dll"
+          ]
+        },
+        {
+          "src": "../src/Aero.Cms.Core/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Core.dll"
+          ]
+        },
+        {
+          "src": "../src/Aero.Cms.Web.Core/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Web.Core.dll"
+          ]
+        },
+        {
+          "src": "../src/Aero.Cms.Web.Bootstrap/bin/Release/net10.0",
+          "files": [
+            "Aero.Cms.Web.Bootstrap.dll"
+          ]
+        }
+      ],
+      "dest": "api",
+      "filter": "filterConfig.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**/*.yml",
+          "api/index.md",
+          "index.md",
+          "toc.yml"
+        ]
+      },
+      {
+        "src": "namespace-stubs",
+        "dest": "api",
+        "files": [
+          "*.md"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "images/**"
+        ]
+      }
+    ],
+    "dest": "../docs/public/api",
+    "globalMetadata": {
+      "_appTitle": "AeroCMS public API reference",
+      "_appName": "AeroCMS",
+      "_appFooter": "AeroCMS alpha API reference — verified at commit 35ec154fb3b57e838d4fe6211f9d9f193e53d812."
+    }
+  }
+}

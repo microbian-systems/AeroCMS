@@ -1,0 +1,28 @@
+# AeroCMS documentation
+
+> Verified against commit 35ec154fb3b57e838d4fe6211f9d9f193e53d812.
+> Audience: public. Security-sensitive operational values and design-history material are excluded.
+
+- [Overview](/) — architecture; maturity: alpha.
+- [End-to-end tutorial](/getting-started) — getting-started; maturity: alpha.
+- [Architecture](/concepts/architecture) — architecture; maturity: alpha.
+- [Feature inventory](/concepts/feature-inventory) — architecture; maturity: mixed.
+- [Sites, tenants, and cultures](/concepts/sites-tenants-cultures) — tenancy-security; maturity: alpha.
+- [Pages and rendering](/guides/pages-and-rendering) — pages-rendering; maturity: mixed.
+- [Content model and hierarchy](/guides/content-modeling) — content-modeling; maturity: alpha.
+- [Posts and documentation](/guides/posts-and-docs) — content-authoring; maturity: alpha.
+- [Manager and member identity](/guides/identity-and-access) — identity-access; maturity: alpha.
+- [Themes, media, navigation](/guides/site-presentation) — site-presentation; maturity: mixed.
+- [AI and MCP](/guides/ai-and-mcp) — ai-mcp; maturity: experimental.
+- [Commerce status](/guides/commerce) — commerce; maturity: experimental.
+- [Public content query API](/guides/public-query-api) — public-api; maturity: alpha.
+- [Configuration](/developers/configuration) — configuration; maturity: alpha.
+- [Extension development](/developers/extensions) — extension-development; maturity: alpha.
+- [Deployment and operations](/operations/deployment) — operations; maturity: partial.
+- [Security hardening](/operations/security) — security; maturity: required-before-production.
+- [Troubleshooting](/operations/troubleshooting) — troubleshooting; maturity: alpha.
+- [Feature status](/reference/feature-status) — feature-status; maturity: mixed.
+- [Runnable examples](/reference/examples) — examples; maturity: alpha.
+- [Glossary](/reference/glossary) — reference; maturity: alpha.
+- [AI ingestion](/reference/ai-ingestion) — documentation-system; maturity: implemented.
+- [Documentation coverage](/reference/coverage) — documentation-system; maturity: implemented.

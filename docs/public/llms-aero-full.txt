@@ -1,0 +1,1499 @@
+# AeroCMS normalized documentation corpus
+
+Baseline commit: 35ec154fb3b57e838d4fe6211f9d9f193e53d812
+Trust classification: public documentation
+Excluded: Git submodules, generated artifacts, design history, credentials, connection strings, customer data, and PII.
+
+## Overview
+
+Canonical path: /
+Feature area: architecture
+Maturity: alpha
+Source provenance: README.md, src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs
+
+Alpha · not production ready
+
+AeroCMS combines ASP.NET Core, Razor and Blazor manager UI, source-generated module registration, Orleans application boundaries, Sable/SurrealDB-backed persistence, and several constrained page-rendering strategies. It is useful when a .NET team wants runtime-managed content without adopting a client-side SPA as the application shell.
+
+<CardGrid>
+  <Card title="Build a site" icon="rocket">
+    Follow one journey from clone and first-run setup through pages, posts, structured content, fragments, preview, and publishing.
+  </Card>
+  <Card title="Model content" icon="seti">
+    Define flat or hierarchical content, validate parent constraints, select fields, and expose bounded published projections.
+  </Card>
+  <Card title="Render deliberately" icon="puzzle">
+    Choose Aero composition, pure Scriban, pure HTMX, or alpha SharpTS with explicit capability and security boundaries.
+  </Card>
+  <Card title="Operate safely" icon="shield">
+    Apply site isolation, authentication, data-protection, cache, telemetry, deployment, and backup checks before production use.
+  </Card>
+</CardGrid>
+
+## Documentation trust model
+
+These pages were verified against commit `35ec154fb3b57e838d4fe6211f9d9f193e53d812`. Behavior claims come from current source, configuration, and tests. Older material under the repository's historical `docs/` and `.docs/` collections is not automatically treated as implemented behavior.
+
+This public corpus intentionally excludes:
+
+- documentation for the `Aero`, `AeroDB`, `AeroVault`, `NeoUI`, `craft.js`, `hyperui`, `tiptap-dotnet`, and `ui` Git submodules;
+- generated files, `bin/`, `obj/`, and legacy Marten reference code;
+- credentials, connection strings, customer data, PII, and security-sensitive runbooks;
+- proposals that cannot be verified in current code.
+
+Use the [feature inventory](/concepts/feature-inventory/) to see the evidence chain and the [coverage report](/reference/coverage/) to see what remains incomplete.
+
+## End-to-end tutorial
+
+Canonical path: /getting-started
+Feature area: getting-started
+Maturity: alpha
+Source provenance: global.json, src/Aero.Cms.Web/Properties/launchSettings.json, src/Aero.Cms.AppHost/AppHost.cs, src/Aero.Cms.Modules.Setup/Areas/Setup/Pages/Setup.razor.cs, src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs, src/Aero.Cms.Abstractions/Content/ContentFieldTypes.cs
+
+This tutorial is the shortest evidence-based path through the current AeroCMS alpha. It uses the manager UI for authenticated authoring and the anonymous read-only API for integration.
+
+## 1. Decide whether AeroCMS fits
+
+Use AeroCMS when the host is a .NET 10 application, content is scoped by site and culture, authors need runtime-managed pages and structured content, and server rendering is preferred. Do not treat this alpha as production-ready without completing the [production checklist](/operations/security/).
+
+## 2. Install prerequisites
+
+Required:
+
+- Git with recursive submodule support.
+- The .NET SDK pinned by `global.json` (`10.0.301` at this baseline).
+- A trusted ASP.NET Core development certificate for the HTTPS launch profiles.
+- Node.js and pnpm only when building this documentation site; AeroCMS runtime assets do not use npm.
+
+Optional production dependencies include a remote SurrealDB endpoint, a Redis-compatible cache, a certificate-backed data-protection key ring, and external identity or AI providers.
+
+## 3. Clone, build, and run
+
+Run from a clean parent directory:
+
+```powershell
+git clone --recurse-submodules git@github.com:microbian-systems/AeroCMS.git
+Set-Location AeroCMS
+dotnet restore src/Aero.Cms.slnx
+dotnet build src/Aero.Cms.slnx --no-restore
+dotnet run --project src/Aero.Cms.AppHost/Aero.Cms.AppHost.csproj
+```
+
+Expected result: the Aspire dashboard starts on the URL printed by the AppHost and launches the manager and public web resources. To run only the public web host, use:
+
+```powershell
+dotnet run --project src/Aero.Cms.Web/Aero.Cms.Web.csproj --launch-profile https
+```
+
+The checked-in launch profile uses `https://localhost:333`. Treat console output as authoritative when a local override changes the port.
+
+## 4. Complete first-run setup
+
+Open `/setup` on the public web host. The bootstrap pipeline uses setup, configured, and running states; it does not serve the normal application before the selected infrastructure is ready.
+
+Choose the database and cache modes, create the recovery administrator, select manager and member authentication providers, and finish the wizard. Setup protects the pending handoff, initializes required records, creates the initial tenant and site, seeds starter content, and then restarts into running mode.
+
+Expected result: `/setup/status` reports the bootstrap state as ready and the browser transitions to the normal application. Do not place raw secrets into tracked `appsettings` files.
+
+## 5. Create and select a site
+
+Sign in at `/manager/login`, then open `/manager/sites`. Create the site with its tenant, primary host, default culture, and supported cultures. Select the site at `/manager/select-site`.
+
+The selected site is stored in the `AeroCms.SiteId` cookie. Manager APIs still require authentication and the matching `site:read`, `site:create`, `site:update`, or `site:delete` authorization policy. Host resolution alone is not manager authorization.
+
+Expected result: the manager header shows the selected site, and site-scoped screens load only its data.
+
+## 6. Create and publish an Aero page
+
+Open `/manager/pages`, choose **New page**, keep the **Aero composition** renderer, enter a title and slug, and save the draft. Add semantic HTML elements in the visual editor, preview the exact draft, then publish.
+
+Expected result: the public route resolves by the site's host, culture, and page path. Draft preview requires an authenticated manager with `site:read`; the public route serves only a published version.
+
+## 7. Create a post
+
+Open `/manager/posts`, create a draft, enter Markdown content and optional taxonomy/media metadata, preview, and publish.
+
+Expected result: the post appears under the site's blog route for the active culture. Publication invalidates the relevant blog cache tags; it does not make another site's post visible.
+
+## 8. Create a flat content type
+
+Open `/manager/content-types`, create `speaker` as a collection, and add `name` (text), `bio` (rich text), and `photo` (image) fields. Save the definition, then open `/manager/content/speaker` and add an item.
+
+Expected result: the item remains a draft until explicitly published. Its Snowflake identifier is a `long` in .NET and a decimal string at JSON/script boundaries.
+
+## 9. Add richer fields
+
+The built-in aliases are `text`, `richtext`, `image`, `number`, `boolean`, `url`, `date`, `reference`, `list`, `gallery`, `dictionary`, `range`, and `color`. List and dictionary fields are bounded; range fields use inclusive integer endpoints; references can target flat or hierarchical content.
+
+Use indexing/search settings only on fields supported by the current content definition. Semantic search is a separate, maturity-limited path; do not assume an embedding provider is configured.
+
+## 10. Create a hierarchy
+
+Create `topic` with structure **Hierarchical**, maximum depth `4`, root items allowed, and same-type parents required. Create a root called “Engineering”, add “.NET” beneath it, and add “AeroCMS” beneath “.NET”. Use the hierarchy manager to reorder or move a node.
+
+The service rejects cycles, invalid parent types, cross-site/culture parents, and moves beyond the depth bound. Sibling order is normalized in the same Sable unit of work.
+
+## 11. Query published content
+
+Publish the three topic items, then run:
+
+```powershell
+$headers = @{ Accept = 'application/json' }
+Invoke-RestMethod `
+  -Uri 'https://localhost:333/api/v1/query/content/topic?traversal=RootsWithDescendants&maximumDepth=4&maximumItems=50&fields=title' `
+  -Headers $headers
+```
+
+Expected shape:
+
+```json
+{
+  "name": "public",
+  "contentTypeAlias": "topic",
+  "roots": [
+    {
+      "id": "190000000000000001",
+      "contentType": "topic",
+      "title": "Engineering",
+      "slug": "engineering",
+      "fields": {},
+      "children": []
+    }
+  ],
+  "totalItems": 3,
+  "wasTruncated": false
+}
+```
+
+The exact IDs differ. The API is anonymous, read-only, published-only, site/culture scoped, bounded, and returns JSON unless `HX-Request: true` or `Accept: text/html` requests an encoded HTML fragment.
+
+## 12. Add a Scriban fragment
+
+In an Aero-composition page, add a rendered fragment and choose **Scriban**. The following is illustrative; available bindings depend on the content queries declared on the page:
+
+```liquid
+<section class="topic-list">
+  {{ for topic in content.topics.roots }}
+    <h2>{{ topic.title | html.escape }}</h2>
+  {{ end }}
+</section>
+```
+
+Expected output: one encoded heading per materialized root. The runtime receives a closed, eager data scope—not a database session or arbitrary .NET object graph.
+
+## 13. Add an HTMX fragment
+
+This fragment is illustrative and assumes the public query route:
+
+```html
+<section
+  hx-get="/api/v1/query/content/topic?traversal=Roots&maximumItems=10"
+  hx-trigger="load"
+  hx-swap="innerHTML">
+  <p>Loading topics…</p>
+</section>
+```
+
+Expected output: the server returns fixed, encoded HTML when HTMX sends `HX-Request: true`. Never interpolate untrusted values into `hx-*` URLs or headers.
+
+## 14. Add a SharpTS fragment
+
+SharpTS is alpha and intended for trusted authors. This source is illustrative:
+
+```typescript
+export function render(context: AeroRenderContext): string {
+  return `<p>${context.page.title}</p>`;
+}
+```
+
+Expected output: a validated HTML fragment. The interpret-only host rejects arbitrary imports and decorator-based .NET access, exposes only `aero:content` plus an explicit .NET allowlist, serializes execution through an in-process gate, and caps output size. It is not an operating-system sandbox.
+
+## 15. Preview and publish
+
+Pages, posts, and documentation use authenticated preview boundaries. Preview resolves a draft by exact ID/source version, marks the response no-store, and keeps site/culture scope. Publishing creates the public version and triggers feature-specific cache invalidation. Aliases and redirects are separate records; review route-impact warnings before moving a page.
+
+## 16. Continue safely
+
+Next:
+
+- learn the [page rendering boundaries](/guides/pages-and-rendering/);
+- model [content and hierarchy](/guides/content-modeling/);
+- integrate the [public query API](/guides/public-query-api/);
+- configure [identity and site permissions](/guides/identity-and-access/);
+- complete [deployment](/operations/deployment/) and [security](/operations/security/) checks.
+
+## Architecture
+
+Canonical path: /concepts/architecture
+Feature area: architecture
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs, src/Aero.Cms.Modules.Modules/Services/ModuleOrchestrationExtensions.cs, src/Aero.Cms.Core/Content/Services/ContentHierarchyQueryService.cs, src/Aero.Cms.Modules.Pages/Rendering/PageRendererRegistry.cs, src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs
+
+AeroCMS is a modular ASP.NET Core application. Source-generated catalogs register modules, Wolverine handlers, and Orleans grains without reflection-based discovery. Feature modules register services, endpoints, persistence configuration, and ordered middleware through host contracts.
+
+[Architecture diagram: see the canonical web page.]
+
+## Startup
+
+`AeroStartupPipeline` handles early setup/configured/running states. In running mode, `AeroCmsExtensions.AddAeroCmsAsync` configures persistence, data protection, identity, module orchestration, Razor/Blazor, localization, and supporting infrastructure. `RunAeroCmsAsync` composes the request pipeline and module endpoints.
+
+The Aspire AppHost starts the manager resource (`Aero.Cms`) and public web resource (`Aero.Cms.Web`) independently. The AppHost currently declares no database or cache resource itself; bootstrap configuration determines local or server modes.
+
+## Module system
+
+`GeneratedAeroModuleCatalog`, `GeneratedWolverineHandlerCatalog`, and `GeneratedAeroGrainCatalog` are compile-time products. The module graph validates dependencies and establishes deterministic load/pipeline order. An extension module derives from the relevant Aero module base class and is discovered through source-generation inputs, not assembly scanning.
+
+This documentation describes AeroCMS modules, but it does not document the repository's Git submodules or their APIs.
+
+## Application and persistence
+
+Current content, pages, posts, docs, sites, identities, media metadata, and other implemented domains use AeroDB Sable document/query sessions over SurrealDB. Durable records commonly use Snowflake `long` identifiers. Strings are used where JavaScript, JSON, Scriban, or MCP must preserve 64-bit values without numeric precision loss.
+
+The hierarchical content model currently persists `ParentId` and normalized sibling order in documents. Traversal is executed through bounded Sable queries and materialized into immutable trees. Do not describe this as a native SurrealDB graph-edge implementation: explicit graph relationships are a future-capable direction, not the verified storage shape at this baseline.
+
+## Rendering
+
+Published requests resolve a site and culture, load an exact published snapshot, select one of four page renderers, materialize declared content queries, render, validate HTML, compile style metadata, and return output. Preview uses an authenticated draft/version route and no-store responses.
+
+[Architecture diagram: see the canonical web page.]
+
+## Cache boundaries
+
+ASP.NET Core output caching stores rendered responses in a Redis-compatible store under `aero:output:`. Named policies cover pages, posts, docs, and public content with five- or ten-minute expirations. The custom policy varies by origin, path, UI culture, theme identity/version, and relevant query keys.
+
+FusionCache is a separate application-data cache with a five-minute default and Redis-compatible L2. Server cache mode adds a backplane; local mode targets the in-process Garnet endpoint. Invalidations are feature-specific and are not a transactional coherence guarantee across every cache layer.
+
+## Feature inventory
+
+Canonical path: /concepts/feature-inventory
+Feature area: architecture
+Maturity: mixed
+Source provenance: src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Modules.Setup/SeedDataService.cs, src/Aero.Cms.Modules.Pages/Areas/Api/v1/PagesApi.cs, src/Aero.Cms.Modules.Content/Areas/Api/v1/ContentItemsApi.cs, src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs
+
+This inventory is the evidence map used to create the rest of the documentation. “Module” means an AeroCMS feature assembly, not a Git submodule.
+
+| Area | Entry boundary | Authorization | Application/persistence | Output and tests | Status |
+| --- | --- | --- | --- | --- | --- |
+| Startup/setup | `Program.cs`, `/setup`, `/setup/status` | setup allowlist and readiness gate | bootstrap handoff, setup state, Sable seed services | setup UI; bootstrap integration tests | Implemented, alpha |
+| Sites/cultures | host middleware, `/api/v1/admin/sites`, culture endpoint | manager auth plus site policies | site lookup, selected-site cookie, Sable site records | Razor/Blazor UI; site authorization tests | Implemented; hardening required |
+| Manager identity | `/manager/login`, admin auth APIs | local recovery plus configured federation | ASP.NET Identity/Sable stores, durable authority binding | manager shell; identity tests | Implemented, alpha |
+| External members | `/api/v1/member`, local activation/reset, callback | dedicated external-member scheme and site policy | local or configured authority, invitation/reset records | cookie principal; auth integration tests | Implemented, alpha |
+| Pages | manager Pages APIs and PageEditor | `site:*` policies | page service, publishing workflow, exact source versions, Sable | public Razor route, preview, renderer tests | Implemented; renderers vary in maturity |
+| Posts | manager blogs APIs and PostEditor | `site:*` policies | posts services and Sable documents | blog routes, preview, cache tests | Implemented, alpha |
+| Documentation content | manager Docs APIs and editor | `site:*` policies | docs service, hierarchy, Sable documents | `/docs`, draft preview, API tests | Implemented, alpha |
+| Structured content | manager content type/item APIs | `site:*` policies | type/item services, validators, Sable sessions | public content route/query API; hierarchy tests | Implemented, alpha |
+| Public query API | `/api/v1/query/*` | anonymous, published-only | fresh site/culture-scoped query service | JSON or encoded HTML; web API tests | Implemented |
+| AI authoring | admin AI APIs and manager AI page | authenticated admin group | settings store, protected keys, provider clients | JSON and SSE; AI tests | Experimental |
+| MCP/assistant | `/mcp`, admin assistant JSON/SSE | authenticated plus `site:read`; per-tool permissions | shared tool executor and current-site context | MCP streamable HTTP and manager drawer; boundary tests | Experimental |
+| Caching | output-cache policies and FusionCache | manager/admin no-store | Redis-compatible stores, local Garnet or server mode | cached HTTP/application data; cache tests | Implemented with coherence limits |
+| Themes/assets | manager theme/site APIs and build script | `site:*` policies | versioned theme selection and style profile | committed Tailwind/SCSS assets | Implemented; build-owned |
+| Media/navigation/footer | manager routes and APIs | `site:*` policies | Sable services and media storage abstraction | public navigation/footer/media references; tests | Implemented, alpha |
+| Commerce | storefront and manager catalog/payment APIs | anonymous storefront; member/manager policies by route | product/listing/order/payment services | storefront/manager UI; focused tests | Partial and experimental |
+| Health/telemetry | `/health` outside Development; service defaults | no explicit health endpoint policy | shared health checks, Serilog/OpenTelemetry wiring | plain aggregate health output | Partial |
+
+## Evidence rules
+
+Each deeper page lists its source files in `documentation-manifest.json`. Tests prove a bounded behavior, not the absence of every security or concurrency defect. A feature is “implemented” only when a current entry boundary reaches active application code and a persisted or rendered result. Source stubs, TODO-only registrations, and design notes are classified as partial, planned, or tentative.
+
+## Sites, tenants, and cultures
+
+Canonical path: /concepts/sites-tenants-cultures
+Feature area: tenancy-security
+Maturity: alpha
+Source provenance: src/Aero.Cms.Modules.Sites/SiteResolutionMiddleware.cs, src/Aero.Cms.Web.Bootstrap/Infrastructure/DefaultSiteContext.cs, src/Aero.Cms.Modules.Sites/SitesApi.cs, tests/Aero.Cms.Core.Tests/Integration/PagesSitePermissionAuthorizationTests.cs
+
+A tenant is the ownership boundary; a site is the host/content boundary inside a tenant; culture selects a localized variant inside a site. Treat all three as authoritative inputs, not presentation metadata.
+
+## Public request resolution
+
+`SiteResolutionMiddleware` resolves a site from the request host and establishes site context before public content is loaded. Culture selection uses the Aero request-culture provider followed by cookie, query-string, and `Accept-Language` providers. Public pages, posts, docs, and content queries filter by the resolved site and active culture and return only published records.
+
+Unknown or ambiguous hosts must fail closed. Do not fall back to another tenant's site merely because it is marked default.
+
+## Manager selection
+
+The manager stores the selected site ID in the `AeroCms.SiteId` cookie. `DefaultSiteContext` reads the selected site for manager operations. The cookie is not an authorization grant: endpoints must also require authentication and an appropriate `site:*` policy, and the policy must validate the user's assignment to the selected site.
+
+The standard policies are:
+
+| Policy | Typical use |
+| --- | --- |
+| `site:read` | list, retrieve, preview, and use read-only tools |
+| `site:create` | create a site-scoped draft or definition |
+| `site:update` | update, move, publish, unpublish, or configure |
+| `site:delete` | archive or delete where the feature supports it |
+
+Administrator-only screens add role or `AeroAdmin` requirements. An endpoint under `/api/v1/admin` is not safe merely because of its URL; authorization metadata is the boundary.
+
+## Culture variants
+
+Pages, posts, docs, content items, navigation, and footers can have culture-specific records or translation groups. Forking to a culture creates a new variant rather than changing the source culture. Publication state belongs to the variant. Preview URLs carry the selected site's host and the target culture/version.
+
+## Isolation checklist
+
+- Resolve the site before loading any public record.
+- Require authenticated manager identity and site policy on every manager/admin endpoint.
+- Revalidate selected-site membership on sensitive calls, including MCP tools.
+- Include site and culture in queries, unique constraints, route lookups, and cache variation.
+- Keep tenant ID available for authorization/audit even when site ID is the normal query scope.
+- Use Snowflake `long` IDs internally; validate decimal strings before conversion at JSON/script boundaries.
+- Test a foreign site, foreign tenant, wrong culture, draft record, and missing site selection for every new feature.
+
+See [security hardening](/operations/security/) for production controls and [identity and access](/guides/identity-and-access/) for authentication providers.
+
+## Pages and rendering
+
+Canonical path: /guides/pages-and-rendering
+Feature area: pages-rendering
+Maturity: mixed
+Source provenance: src/Aero.Cms.Abstractions/Pages/Rendering/PageRendererDescriptor.cs, src/Aero.Cms.Modules.Pages/Rendering/AeroCompositionPageRenderer.cs, src/Aero.Cms.Modules.Pages/Rendering/ScribanPageRenderer.cs, src/Aero.Cms.Modules.Pages/Rendering/HtmxPageRenderer.cs, src/Aero.Cms.Modules.Pages/Rendering/SharpTsExecutor.cs, src/Aero.Cms.Core/Content/Templating/SecureScribanTemplateOptions.cs
+
+Pages are site- and culture-scoped documents with hierarchy, path, draft/published state, and an explicit renderer ID. The manager exposes `/manager/pages` and `/manager/page/editor/{id}`; authenticated minimal APIs under `/api/v1/admin/pages` own create, update, move, preview, publish, unpublish, archive, delete, translation, and route-impact operations.
+
+## Hierarchy and routing
+
+A page can have a parent. The service computes the public path from the parent path and slug, validates cycles and depth, and records route impact before a move. Tree APIs expose roots, children, breadcrumbs, ancestors, navigation projections, and next-order calculation. Published route changes can require aliases; review them before committing a move.
+
+The public Razor page route resolves the current host/site, culture, and normalized path. Drafts do not fall through to this boundary.
+
+## Renderer choices
+
+| ID | Authoring model | Maturity | Boundary |
+| --- | --- | --- | --- |
+| `aero.composition` | visual semantic HTML tree | implemented | validates typed elements, expands declared fragments and content queries, compiles style metadata |
+| `aero.scriban` | exact full-page source | experimental | closed globals, validated Scriban AST/data, resource limits, sanitized output |
+| `aero.htmx` | exact full-page HTML/HTMX source | experimental | imports source through the same validated HTML pipeline; HTMX requests run later in the browser |
+| `aero.sharpts` | exact TypeScript source | alpha | trusted-author in-process interpreter with import/type allowlists and validated HTML output |
+
+Renderer source versions are immutable snapshots. Publishing records the exact renderer, source, and hash; a mismatched hash is rejected.
+
+## Aero composition
+
+The Living Standard editor stores semantic page content rather than arbitrary component instances. Content queries are declared separately, resolved eagerly, and passed into the render. This keeps page composition, structured-content validation, and persistence query execution as separate boundaries.
+
+Supported rendered fragment kinds are Markdown, custom HTML, Scriban, SharpTS, and HTMX. Registered fragments are developer-owned providers with source-generated registration. Every fragment is expanded into validated `HtmlPageContent` before final rendering.
+
+### Markdown
+
+Raw HTML is disabled. The rendered Markdown is imported through the strict HTML fragment importer.
+
+### Custom HTML
+
+Custom HTML passes through the importer and composition validator. Treat the allowed element/attribute set as the contract; do not assume arbitrary script, inline event handler, or unsafe URL support.
+
+### Scriban
+
+The secure renderer defaults to a 50,000-byte template limit, 1,000 loop iterations, recursion depth 50, strict variables, a two-second regex timeout, a 30-second render deadline, input depth 10, and 1,048,576 output characters. Includes, template loading, dynamic evaluation, relaxed CLR member access, and undeclared object traversal are disabled. Output is sanitized.
+
+The scope contains detached page, site, preview, and declared content-query values. It does not contain a Sable session.
+
+### HTMX
+
+A pure HTMX page is authored as HTML with `hx-*` attributes and then imported through Aero's validated markup pipeline. Browser requests must target explicit endpoints. Prefer the anonymous published-only query API for public fragments and authenticated, antiforgery-aware manager endpoints for authoring UI.
+
+Do not accept untrusted strings as `hx-get`, `hx-post`, `hx-headers`, selectors, or swap targets. Validate server input and return encoded fragments. The public query API varies on `HX-Request`/`Accept` and responds `private, no-store`.
+
+### SharpTS
+
+SharpTS executes trusted-author TypeScript in-process and serializes execution through one gate. The only virtual content import is `aero:content`; a small explicit set of collections, LINQ/expression, and task types is allowed. Other imports and .NET decorators are rejected. Context data is JSON-shaped and output is capped and re-imported as HTML.
+
+This is defense in depth, not isolation from the host process. Disable SharpTS for untrusted authors and do not use it as a multi-tenant code-execution sandbox.
+
+## Preview and publishing
+
+Preview routes require an authenticated principal and `site:read`, load the exact draft/source version within the selected site, and send no-store cache headers. Publishing validates the renderer, source, content references, route, and current concurrency state before replacing the public version.
+
+Aliases and redirects are explicit. Publishing does not grant authorization, change culture ownership, or copy content across sites.
+
+## Content model and hierarchy
+
+Canonical path: /guides/content-modeling
+Feature area: content-modeling
+Maturity: alpha
+Source provenance: src/Aero.Cms.Abstractions/Content/ContentFieldTypes.cs, src/Aero.Cms.Abstractions/Content/ContentHierarchy.cs, src/Aero.Cms.Abstractions/Content/ContentHierarchyQuery.cs, src/Aero.Cms.Modules.Content/ContentHierarchyManagerService.cs, src/Aero.Cms.Core/Content/Services/ContentHierarchyQueryService.cs, tests/Aero.Cms.Core.Tests/Content/ContentHierarchyTests.cs
+
+Structured content separates reusable data from page layout. A content type belongs to a site, has a stable alias, cardinality, structure, fields, rendering/search settings, and optional hierarchy rules. A content item belongs to a type, site, culture, draft/published state, and optional parent.
+
+## Type choices
+
+- **Singleton**: at most one item per site and culture.
+- **Collection**: multiple items.
+- **Flat**: parent IDs are forbidden.
+- **Hierarchical**: parent/child placement is validated.
+
+Hierarchical rules control whether roots are allowed, whether parents must use the same type, the maximum depth (default `8`), allowed cross-type parent IDs, and default ordering (`sortOrder,title`).
+
+## Built-in field aliases
+
+| Alias | Stored/editor intent | Important settings |
+| --- | --- | --- |
+| `text`, `richtext` | text or editor-authored rich text | required, length, indexing as defined by the field contract |
+| `image`, `gallery` | media reference or bounded media list | gallery item limits |
+| `number`, `boolean`, `date`, `url` | scalar values | type validation |
+| `reference` | one or many content IDs | target type, hierarchy mode, leaf-only, ancestor display, dependent filter |
+| `list` | bounded text/number values | item type, allowed values, min/max items |
+| `dictionary` | bounded key/value entries | value type, min/max entries |
+| `range` | inclusive integer range | start, end, negative-value policy |
+| `color` | color value | editor and value validation |
+
+Unknown fields are rejected or omitted according to the active validation/projection boundary; they are not silently persisted as an unbounded object bag.
+
+## Create and publish
+
+Manager endpoints are under:
+
+- `/api/v1/admin/content-types`
+- `/api/v1/admin/content-items`
+
+Read operations require `site:read`; creation uses `site:create`; updates, moves, publishing, and unpublishing use `site:update`; deletion uses `site:delete`. Every operation must use the selected site and culture rather than trusting a site ID supplied in a request body.
+
+Content types and items use Sable document sessions. Command services stage validation, content search projections, and document changes in a unit of work. Do not describe the obsolete Marten provider as current persistence.
+
+## Hierarchy operations
+
+The manager hierarchy endpoint can return a tree, move one item, and reorder siblings. The service:
+
+1. loads the target and candidate parent in the current site/culture;
+2. validates flat/hierarchical structure, root rules, parent type, allowed type IDs, cycle, and depth;
+3. updates `ParentId`;
+4. normalizes old and new sibling `SortOrder`;
+5. commits once through the Sable session.
+
+Breadcrumbs and ancestors are root-first. Bounded render/query traversal supports `Roots`, `Children`, `Descendants`, `Ancestors`, and `RootsWithDescendants`. `Children`, `Descendants`, and `Ancestors` require a root ID; root traversals reject one.
+
+## Projection and search
+
+Renderers receive immutable `ContentNode` trees with decimal-string IDs, alias, title, slug, projected JSON fields, and eager children. Requests bound maximum depth, maximum items, projection fields, and whether a trusted preview can include drafts. `WasTruncated` signals that a candidate, depth, item, or output-size bound was reached.
+
+Search projection documents are written alongside content changes. Full-text search is the baseline mode. Semantic mode is exposed by contract but depends on a configured embedding path and remains experimental. Always paginate and keep the site/culture/published filters intact.
+
+## Public URL rendering
+
+A content type can define a public URL/template. The public renderer loads only the current site's published item and renders its Scriban template through the secure pipeline. This is separate from the JSON/HTMX [public query API](/guides/public-query-api/).
+
+## Posts and documentation
+
+Canonical path: /guides/posts-and-docs
+Feature area: content-authoring
+Maturity: alpha
+Source provenance: src/Aero.Cms.Modules.Posts/Areas/Api/v1/PostsApi.cs, src/Aero.Cms.Modules.Docs/Areas/Api/v1/DocsApi.cs, src/Aero.Cms.Modules.Docs/Areas/Docs/Pages/Doc.cshtml.cs, src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs, tests/Aero.Cms.Core.Tests/Integration/DocsApiTests.cs
+
+Posts and documentation entries are separate AeroCMS content domains. Both are site/culture scoped, have draft and published states, expose manager APIs, provide authenticated preview, and render public routes.
+
+## Posts
+
+The manager uses `/manager/posts` and `/manager/post/editor/{id}`. APIs under `/api/v1/admin/blogs` cover list, retrieve by ID/slug, translation groups, create, update, publish, unpublish, archive/delete, and preview. Taxonomy endpoints manage categories, tags, and series.
+
+Post bodies are Markdown. The public blog routes render only published variants. Index/detail output caching uses the `BlogPolicy` and `BlogPartialPolicy` names with five-minute expiration and variation for pagination/slug plus site-aware policy dimensions.
+
+Preview endpoints require `site:read` and return no-store output. A translated post is a separate culture variant; publish it independently.
+
+## Documentation content
+
+The manager uses `/manager/docs` for spaces and `/manager/docs/{spaceId}/sections/{sectionId}` for sections. Admin APIs under `/api/v1/admin/docs` cover list, ID/slug/category lookup, children, translations, create, update, create child, move, reorder, publish, unpublish, and delete.
+
+Documentation entries form a validated hierarchy inside a space. Their public routes are `/docs` and `/docs/{*slug}`. Draft iframe preview uses `/_cms/preview/docs/drafts/{draftId}` with authentication, `site:read`, site-scoped lookup, and no-store headers.
+
+Docs output-cache policies expire after ten minutes and use the `docs-index` tag. Cache eviction is coarse; it is not a cross-cache transaction.
+
+## Authoring safety
+
+- Keep site and culture selected before editing.
+- Treat Markdown as authored content; rendered raw HTML remains constrained by the active Markdown/render pipeline.
+- Review slugs and parent moves because public paths and aliases can change.
+- Preview the exact variant before publishing.
+- Do not assume a published source culture implies that translations are published.
+- Use the public query API when another page needs metadata; do not expose manager clients to anonymous code.
+
+## Manager and member identity
+
+Canonical path: /guides/identity-and-access
+Feature area: identity-access
+Maturity: alpha
+Source provenance: src/Aero.Cms.Modules.Identity/IdentityApi.cs, src/Aero.Cms.Modules.Identity/ExternalMemberApi.cs, src/Aero.Cms.Modules.Identity/ManagerFederationApi.cs, src/Aero.Cms.Modules.Security/ApiKeyService.cs, src/Aero.Cms.Modules.Users/Areas/Api/v1/UsersApi.cs
+
+AeroCMS separates manager identity from storefront/external-member identity. They use different schemes, authorities, cookies, and authorization policies. Do not reuse a manager cookie as a member session or infer site permissions from a successful external login.
+
+## Manager authentication
+
+The setup recovery administrator is the fail-safe local authority. The manager can use local login and configured federation. Current federation contracts cover Entra workforce and WorkOS callback/binding flows. Provider activation is recorded against the recovery administrator; a configured provider is not considered authoritative merely because configuration values exist.
+
+Manager routes require authentication. Sensitive screens add roles or `AeroAdmin`; site-scoped APIs add `site:*` policies. Logout clears the relevant manager session state.
+
+## External members
+
+External-member endpoints live under `/api/v1/member` with local activation/login/reset under `/api/v1/member/local`. The dedicated external-member scheme and site policy protect storefront/member operations. Invitations and local password resets are initiated from administrator endpoints.
+
+The authority may be local or external depending on durable setup/configuration. Callback handling must validate the selected site, authority, correlation/state, and returned subject before issuing a member principal.
+
+## Roles and site assignments
+
+Roles express platform-level authority. Site assignments express per-site read/create/update/delete permissions. An administrator can manage assignments at `/manager/users/{userId}/sites`.
+
+Enforcement must combine:
+
+1. an authenticated manager principal;
+2. a valid Snowflake user ID;
+3. an explicitly selected site;
+4. authorization for the requested `site:*` operation;
+5. tenant/site consistency in the application query.
+
+## API keys
+
+The Security module supports generated API keys, stores a hash rather than the raw key, and returns a new raw value only at creation/rotation time. Configuration under `Aero:Security:ApiKeys` controls prefix and length.
+
+Treat API-key support as an authentication strategy, not universal authorization. A key-derived principal still needs route and site permissions. Never put raw keys in URLs, logs, docs, source control, or the ingestion corpus.
+
+## Browser and external-client boundaries
+
+Manager cookies require HTTPS, appropriate SameSite/secure settings, data-protection key continuity, and antiforgery protection for browser-originated changes. External programmatic clients should use an explicitly supported authentication mechanism; reproducing the manager cookie and selected-site cookie is not a production OAuth design.
+
+The current MCP HTTP endpoint uses the existing authenticated request principal and `AeroCms.SiteId` selection. It does not advertise a dedicated third-party OAuth authorization server. See [AI and MCP](/guides/ai-and-mcp/).
+
+## Themes, media, navigation
+
+Canonical path: /guides/site-presentation
+Feature area: site-presentation
+Maturity: mixed
+Source provenance: eng/theme-assets/README.md, src/Aero.Cms.Modules.Theming/Areas/Api/v1/ThemesApi.cs, src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs, src/Aero.Cms.Modules.Navigation/Areas/Api/v1/NavigationAdminApi.cs, src/Aero.Cms.Modules.Footer/Areas/Api/v1/FooterAdminApi.cs
+
+Site presentation is composed from a versioned theme selection, a per-site style profile, page content, navigation/header definitions, footer definitions, and media references.
+
+## Themes and CSS
+
+A site selects a theme identity/version and stores style-profile tokens. Public cache variation includes the selected theme. Trusted authors can edit Tailwind or SCSS inputs, but compilers never run in a public request.
+
+Regenerate committed Tailwind output from the repository root:
+
+```powershell
+pwsh ./eng/theme-assets/build-theme-assets.ps1
+```
+
+Expected result: browser-ready committed CSS is refreshed. The script downloads the official Tailwind standalone CLI `v4.3.3` for the host platform, verifies its SHA-256 value, and stores the ignored tool under `.tools`.
+
+For a Web build that owns regeneration:
+
+```powershell
+dotnet build ./src/Aero.Cms.Web/Aero.Cms.Web.csproj -p:AeroBuildThemeAssets=true
+```
+
+SCSS for the deployed Aero Safe theme is compiled by build/publish targets. A normal Web build fails if committed assets are older than relevant authoring/UI sources.
+
+## Navigation, headers, and footers
+
+Manager screens under `/manager/navigations` and `/manager/footers` create culture variants, drafts, and published/default records. Admin endpoints use `site:*` policies. Public rendering resolves the current site's published/default variant.
+
+Navigation supports structured rows/columns/blocks and links. Keep destinations normalized and validate external URLs. Moving or translating navigation content does not move pages or create page aliases.
+
+## Media
+
+The Media manager and `/api/v1/admin/media` endpoints browse metadata, create folders, upload, update, and delete. Persistence delegates to an Orleans media actor while file I/O occurs in the endpoint.
+
+Current limitations are production blockers:
+
+- the general Base64 upload path combines a request file name with the media directory without complete containment validation;
+- site-ownership checks are marked as a later hardening phase;
+- file writes and metadata persistence are not transactional;
+- MIME validation for HTML-editor uploads trusts declarations/extensions rather than inspecting file signatures;
+- the HTML-editor upload disables antiforgery and therefore depends on surrounding authentication/origin controls.
+
+Use the HTML-editor image path only with authenticated trusted authors, enforce reverse-proxy request limits, add content-signature scanning and durable object storage, and complete site-ownership authorization before production.
+
+## Sample imagery
+
+Product samples that need remote imagery should use the existing `PexelsService` boundary rather than hard-coded third-party image URLs. Store attribution and licensing metadata required by the provider.
+
+## AI and MCP
+
+Canonical path: /guides/ai-and-mcp
+Feature area: ai-mcp
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Ai/Api/AiApi.cs, src/Aero.Cms.Modules.Ai/AiModule.cs, src/Aero.Cms.Modules.AiAssistant/AeroCmsAssistantService.cs, src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs, src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs, tests/Aero.Cms.Core.Tests/Ai/ManagerAssistantBoundaryTests.cs
+
+AI authoring and MCP integration are experimental. They are manager capabilities, not autonomous authorities. The application remains responsible for authentication, site selection, permission checks, validation, persistence, and publication.
+
+## AI settings and providers
+
+The manager page `/manager/ai` configures provider profiles. Current defaults include configurable OpenAI, Anthropic, OpenRouter, LM Studio, and OpenCode profiles, with capability flags determining whether a provider supports enhancement or translation.
+
+Admin APIs under `/api/v1/admin/ai` expose:
+
+- `POST /content/enhance`
+- `POST /content/enhance/stream`
+- `POST /content/translate`
+- `GET|POST /settings`
+- `GET /providers/options`
+
+Provider keys are write-only in requests and protected before persistence. Read models expose only whether a key exists. Provider calls use a typed HTTP client with a bounded transport timeout and disabled redirects. Keep endpoints allowlisted and never return a stored key to the browser.
+
+## Streaming
+
+Enhancement streaming uses server-sent events with metadata, delta, completion, and failure semantics. The manager clients used by page, post, and docs authoring must handle cancellation, partial output, provider failure, invalid structured output, and a non-streaming fallback.
+
+AI output is a draft suggestion. Validate, sanitize, preview, and require the normal publish permission; a provider response must not bypass the page/content command service.
+
+## Manager assistant
+
+The assistant exposes authenticated JSON and SSE endpoints:
+
+- `POST /api/v1/admin/mcp/assistant/complete`
+- `POST /api/v1/admin/mcp/assistant/stream`
+
+Both require an authenticated principal and `site:read`. Responses carry a correlation ID. The assistant obtains tools from the same site-scoped executor used by MCP.
+
+## MCP server
+
+`/mcp` is a stateless Streamable HTTP MCP endpoint. It requires authentication and `site:read`. For every tool call, the context factory re-reads the current principal, Snowflake user ID, `AeroCms.SiteId` cookie, site permission, and tenant-bearing site record.
+
+Available tools cover current site, bounded page/post/docs/content-type/content-item lists and gets, draft creation, and bounded content hierarchy reads. List sizes are capped; IDs cross MCP as decimal strings. Create tools require their declared create permission in the executor and create drafts, not published content.
+
+## External-client limitation
+
+The HTTP endpoint currently relies on the AeroCMS host's existing authenticated principal and selected-site cookie. There is no verified dedicated OAuth authorization-server, token-exchange, or client-registration flow for arbitrary external MCP clients at this baseline. A browser manager session can reach the endpoint; a production external client needs an explicitly designed authentication and consent boundary.
+
+Do not expose `/mcp` to the internet until authentication, site selection, CSRF/origin behavior, transport limits, audit, rate limiting, and external-client authorization have been threat-modeled and tested.
+
+## Commerce status
+
+Canonical path: /guides/commerce
+Feature area: commerce
+Maturity: experimental
+Source provenance: src/Aero.Cms.Modules.Commerce/Catalog/Api/CatalogEndpoints.cs, src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs, src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs, src/Aero.Cms.Modules.Commerce/Payments/Api/PaymentEndpoints.cs, tests/Aero.Cms.Core.Tests/Commerce/CommerceStorefrontTests.cs
+
+Commerce is experimental and must not be represented as a production storefront. The current code provides a bounded catalog, authenticated member basket/orders, payment orchestration hooks, and manager product/listing screens.
+
+## Implemented routes
+
+- Anonymous catalog: `/api/commerce/catalog/listings`, `/listings/by-slug/{slug}`, and `/categories`. Queries use the resolved site and current UI culture and filter to public/active data.
+- External-member basket: `/api/commerce/basket` and `/items`; requires the external-member policy and site policy.
+- External-member orders: `/api/commerce/orders`; list/get, checkout, and cancel use the current member, tenant, and site.
+- Payments: authenticated initiate/status endpoints plus an anonymous provider webhook route.
+- Manager catalog: `/api/v1/admin/commerce/catalog/products` and `/listings` with the normal `site:*` read/create/update/delete policies.
+- Manager UI: `/manager/commerce`, `/products`, and `/listings`.
+
+Products are reusable catalog records; listings bind a product to site/culture merchandising and publication/availability state. Snowflake `long` IDs remain authoritative.
+
+## Safety boundaries
+
+The anonymous catalog still requires authoritative host-to-site resolution. Member operations must never accept a member or site ID from the body as authority. Order/payment services re-check tenant, site, member, listing, price, and state transitions.
+
+Payment webhooks are intentionally anonymous at the ASP.NET authorization layer because providers cannot carry member cookies. The provider/account route, signature verification, replay protection, payload size, idempotency, and order ownership must all succeed inside the payment boundary.
+
+## Not established
+
+This baseline does not establish PCI scope, tax/shipping compliance, inventory reservation guarantees, refund/dispute workflows, production provider certification, multi-currency accounting, or end-to-end exactly-once fulfillment. Treat these as missing product/reliability work, not implicit features.
+
+## Public content query API
+
+Canonical path: /guides/public-query-api
+Feature area: public-api
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs, src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryContracts.cs, src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryService.cs, tests/Aero.Cms.Web.Tests/PublicCmsQueryApiTests.cs
+
+The public facade is mapped at `/api/v1/query` and allows anonymous requests. It returns fresh, published-only, site/culture-scoped projections and never exposes a Sable session or lazy query object.
+
+## Endpoints
+
+| Route | Query |
+| --- | --- |
+| `GET /pages` | published page metadata with `skip` and `take` |
+| `GET /posts` | published post metadata with `skip` and `take` |
+| `GET /docs` | published docs metadata with `skip` and `take` |
+| `GET /content/{contentTypeAlias}` | bounded hierarchy traversal and field projection |
+| `GET /content/{contentTypeAlias}/search` | full-text or experimental semantic search |
+
+Content query parameters are `traversal`, `rootId`, `maximumDepth`, `maximumItems`, and comma-separated `fields`. Search parameters are `q`, `mode`, `skip`, and `take`. Invalid modes return a validation problem; missing resources return 404; cancellation uses status 499.
+
+## JSON example
+
+Prerequisite: a published `topic` content type on the site resolved by `localhost`.
+
+```bash
+curl --fail --show-error \
+  --header "Accept: application/json" \
+  "https://localhost:333/api/v1/query/content/topic?traversal=RootsWithDescendants&maximumDepth=3&maximumItems=25"
+```
+
+Expected output is a `ContentQueryResult` with `roots`, `totalItems`, and `wasTruncated`. Snowflake IDs are decimal strings.
+
+## HTMX example
+
+Prerequisite: HTMX loaded on a published page.
+
+```html
+<div
+  hx-get="/api/v1/query/posts?skip=0&take=5"
+  hx-trigger="load"
+  hx-swap="innerHTML">
+  Loading…
+</div>
+```
+
+Expected output is fixed semantic HTML with encoded text. The server selects HTML when `HX-Request: true` or `Accept: text/html`; otherwise it returns JSON.
+
+## Response and cache behavior
+
+Responses set `Vary: HX-Request, Accept` and `Cache-Control: private, no-store`. This prevents a shared cache from serving an HTML fragment as JSON or carrying a site/culture response across callers. If you add a public cache, its key must also include host/site, culture, path, query, and representation.
+
+## Client error handling
+
+```csharp
+public static async Task<Result<JsonDocument>> LoadTopicsAsync(
+    HttpClient client,
+    CancellationToken cancellationToken)
+{
+    using var response = await client.GetAsync(
+        "api/v1/query/content/topic?maximumItems=25",
+        cancellationToken);
+
+    if (!response.IsSuccessStatusCode)
+    {
+        return AeroError.InvalidRequestError(
+            $"AeroCMS query failed with HTTP {(int)response.StatusCode}.");
+    }
+
+    await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+    return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+}
+```
+
+Prerequisite: reference the Aero railway result/error types used by the host. Expected result: `Result<JsonDocument>.Ok` for a successful JSON response, otherwise a failure without throwing for an expected HTTP error.
+
+See the [public API reference](/api/index.html) for supported .NET contracts.
+
+## Configuration
+
+Canonical path: /developers/configuration
+Feature area: configuration
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web/appsettings.json, src/Aero.AppServer/Startup/InfrastructureConnectionStringResolver.cs, src/Aero.AppServer/Startup/DataProtectionCertificateBootstrapper.cs, src/Aero.Cms.Modules.Cache/CacheModule.cs, src/Aero.Cms.Modules.Security/SecurityModule.cs
+
+Configuration comes from ASP.NET Core providers, but setup persists only bootstrap state and protected secret references. Prefer environment variables, a secret manager, or the setup provider boundary for sensitive values.
+
+## Bootstrap
+
+`AeroCms:Bootstrap` controls early startup:
+
+| Key | Current values/meaning |
+| --- | --- |
+| `State` | `Setup`, `Configured`, or `Running` |
+| `SetupComplete`, `SeedComplete`, `HasBootstrapConfig` | bootstrap progress markers |
+| `DatabaseMode` | `Embedded` or `Server` |
+| `CacheMode` | `Local` or `Server` |
+| `SecretProvider` | selected secret-provider label |
+| `DatabaseConnectionStringReference` | protected reference, not a raw connection string |
+| `RequestedManagerAuthenticationProvider` | manager authority selected during setup |
+| `RequestedMemberAuthenticationProvider` | member authority selected during setup |
+
+The durable setup document remains the authoritative completion/idempotency record after initialization. Do not toggle these flags manually to skip seeding.
+
+## Infrastructure
+
+- `ConnectionStrings:aero`: effective Sable/SurrealDB connection string after secret resolution.
+- `ConnectionStrings:cache`: Redis-compatible endpoint used by FusionCache and output cache.
+- `AeroCms:Database:Username` and `AeroCms:Database:Password`: optional server-mode values, preferably secret-backed.
+- `AeroCms:DataProtection:KeyStoragePath`: persistent key-ring directory.
+- `AeroCms:DataProtection:ApplicationName`: shared discriminator, default `AeroCMS`.
+- `AeroCms:DataProtection:Certificate:Path` and `Password`: certificate protection for the key ring.
+
+Local cache mode defaults to `localhost:33333`; server mode fails startup without a non-blank endpoint.
+
+## Security and identity
+
+`Aero:Security:ApiKeys` binds API-key prefix, length, and URL-safe generation settings. Development-only external-provider secret settings exist under `AeroCms:Authentication`, but production deployments must use the durable provider/secret boundary and keep development providers disabled.
+
+Keep cookie options, redirect paths, and authorization additions in `AeroCmsOptions` when embedding the host. Do not weaken the `site:*` policies globally.
+
+## AI
+
+Provider defaults are read from `Ai:Providers:<Provider>` and a configured default-provider key. Typical non-secret values are provider ID, display name, model, base endpoint, enabled state, and capability flags. API keys belong in the protected AI settings store or a secret provider; the manager read model only indicates whether a key exists.
+
+## Optional modules
+
+- `AeroCms:Modules:MiniProfiler:Enable` defaults to false.
+- `AeroCms:Analytics` binds analytics script settings.
+- `AeroCms:EnableWebAssemblyDebugging` explicitly enables WebAssembly debugging behavior.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` enables the OTLP exporter in service defaults.
+
+## Safe example
+
+```json
+{
+  "AeroCms": {
+    "Bootstrap": {
+      "State": "Setup",
+      "DatabaseMode": "Embedded",
+      "CacheMode": "Local",
+      "HasBootstrapConfig": false
+    },
+    "DataProtection": {
+      "KeyStoragePath": "keys",
+      "ApplicationName": "AeroCMS",
+      "Certificate": {
+        "Path": "certs/aero-cms.pfx",
+        "Password": null
+      }
+    }
+  },
+  "ConnectionStrings": {}
+}
+```
+
+This is a runnable non-secret setup-mode shape, not a production configuration. Supply certificate passwords and infrastructure credentials outside tracked JSON.
+
+## Extension development
+
+Canonical path: /developers/extensions
+Feature area: extension-development
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web.Core/Modules/AeroWebModule.cs, src/Aero.Cms.Web.Core/Modules/AeroPipelineModule.cs, src/Aero.Cms.SourceGenerators/ModuleManifestGenerator.cs, src/Aero.Cms.Modules.Modules/Services/ModuleOrchestrationExtensions.cs
+
+An AeroCMS extension is a Razor Class Library or .NET project that participates in the compile-time module catalog. Keep the feature inside `Aero.Cms.Modules.<FeatureName>`, avoid reflection-based discovery, and depend only on the contracts the feature actually needs.
+
+## Shape of a module
+
+This example is illustrative but uses the current AeroCMS web-module boundary:
+
+```csharp
+using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
+
+namespace Aero.Cms.Modules.Weather;
+
+[Module(nameof(WeatherModule))]
+public sealed class WeatherModule : AeroWebModule, IAeroPipelineModule
+{
+    public override string Name => nameof(WeatherModule);
+    public override string Version => "0.1.0-alpha";
+    public override string Author => "Your team";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["content"];
+    public override IReadOnlyList<string> Tags => ["weather"];
+    public int PipelineOrder => 500;
+
+    public override void ConfigureServices(
+        IServiceCollection services,
+        IConfiguration? config = null,
+        IHostEnvironment? env = null)
+    {
+        services.AddScoped<IWeatherService, WeatherService>();
+        services.AddScoped<IValidator<CreateForecastRequest>, CreateForecastValidator>();
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapGet("/api/v1/weather", GetForecasts)
+            .RequireAuthorization("site:read");
+        return Task.CompletedTask;
+    }
+
+    public void ConfigurePipeline(IApplicationBuilder app)
+    {
+        // Add middleware only when endpoint routing cannot express the behavior.
+    }
+}
+```
+
+The source generator emits descriptors consumed by the host's generated catalog. Do not add assembly scanning or runtime reflection as a fallback.
+
+## Business and persistence flow
+
+Use a thin endpoint, FluentValidation, a business/application service returning `Result<T>` or `Option<T>`, and a Sable session/repository at the data boundary:
+
+```csharp
+public async Task<Result<Forecast>> CreateAsync(
+    CreateForecast command,
+    CancellationToken cancellationToken)
+{
+    var existing = await querySession.Query<Forecast>()
+        .FirstOrDefaultAsync(x =>
+            x.SiteId == command.SiteId &&
+            x.Culture == command.Culture &&
+            x.Slug == command.Slug,
+            cancellationToken);
+
+    if (existing is not null)
+    {
+        return AeroError.ValidationError(["A forecast with this slug already exists."]);
+    }
+
+    var forecast = Forecast.Create(Snowflake.NewId(), command);
+    documentSession.Store(forecast);
+    await documentSession.SaveChangesAsync(cancellationToken);
+    return forecast;
+}
+```
+
+This is illustrative: exact Sable query methods depend on the current referenced contract. The required behavior is site/culture scope, Snowflake IDs, railway errors for expected failures, and one explicit commit boundary.
+
+## Endpoints and authorization
+
+Prefer minimal APIs. Manager/admin endpoints require authentication and the least `site:*` policy. Public endpoints must be explicitly anonymous and must filter to published records for the resolved site/culture. Treat IDs in route values as untrusted and re-check ownership after load.
+
+## UI
+
+Prefer Razor/Blazor with code-behind files. Reuse manager layouts and tokens. Use TypeScript only for browser behavior that cannot be expressed cleanly in Blazor or CSS. Do not add npm; use the existing CDN, LibMan, TypeScript MSBuild, committed asset, and Tailwind standalone workflows.
+
+## Verification
+
+- Unit tests: TUnit.
+- ASP.NET Core integration: Alba.
+- Browser integration: Microsoft Playwright.
+- Mocking: NSubstitute or FakeItEasy where beneficial; no Moq.
+- Validate endpoint authorization metadata, foreign-site access, wrong culture, draft/public state, cancellation, and railway error mapping.
+
+Build a focused project first, then the Web host. If UI/theme sources changed, regenerate committed theme assets before the final Web build.
+
+See the [public API reference](/api/index.html) for the supported AeroCMS contracts. External Git-submodule APIs are intentionally not regenerated here.
+
+## Deployment and operations
+
+Canonical path: /operations/deployment
+Feature area: operations
+Maturity: partial
+Source provenance: src/Aero.Cms.AppHost/AppHost.cs, src/Aero.Cms.ServiceDefaults/Extensions.cs, src/Aero.Cms.Modules.Health/HealthModule.cs, src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs, src/Aero.Cms.Modules.OpenTelemetry/Class1.cs
+
+AeroCMS is pre-beta. There is no verified turnkey production topology at this baseline. Build a deployment from the current host contracts and complete the security checklist rather than treating historical Compose files as production manifests.
+
+## Build and publish
+
+```powershell
+dotnet restore src/Aero.Cms.slnx
+pwsh ./eng/theme-assets/build-theme-assets.ps1
+dotnet build src/Aero.Cms.slnx --no-restore
+dotnet publish src/Aero.Cms.Web/Aero.Cms.Web.csproj `
+  --configuration Release `
+  --no-restore `
+  --output artifacts/publish/web
+```
+
+Expected result: a Release web publish with current committed theme assets. Publish the separate manager host when the chosen topology uses it.
+
+## Required durable state
+
+- SurrealDB/Sable data for CMS documents, identity, setup state, and domain records.
+- Data-protection keys and their protecting certificate/key material.
+- Media objects and metadata.
+- Redis-compatible cache only when it carries non-authoritative cached state; it must be rebuildable.
+- Secret-provider records and provider authority configuration.
+
+Use a stable hostname and HTTPS. Persist data-protection keys across replicas and deploy them with the same application name. A key-ring loss can invalidate cookies and protected settings.
+
+## Database and cache
+
+Setup supports embedded or server database mode and local or server cache mode. Use server modes for horizontally scaled production. The cache endpoint must be Redis-compatible; FusionCache and output cache use separate key namespaces and responsibilities.
+
+The repository's historical Compose file contains unpinned images and development-oriented services/settings. It is evidence of experiments, not an approved production deployment.
+
+## Health
+
+The Health module maps aggregate `/health` outside Development and adds no concrete dependency check by itself. Service defaults can register a self liveness check and development `/health`/`/alive` endpoints when explicitly called. Neither path proves SurrealDB, cache, media, setup completion, or tenant readiness unless those checks are registered.
+
+Restrict health endpoints at the network edge and add explicit readiness checks for every required dependency.
+
+## Telemetry and logging
+
+Service defaults can register ASP.NET Core, HTTP client, and runtime metrics; ASP.NET Core and HTTP-client traces; and OpenTelemetry logging. OTLP export is enabled only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
+The `Aero.Cms.Modules.OpenTelemetry` assembly is currently a placeholder and adds no telemetry behavior. Serilog settings in the host provide console/file output and can use an OTLP sink in production configuration. Redact authorization headers, cookies, API keys, provider payloads, PII, and content drafts.
+
+## Backup and restore
+
+Use the backup tooling appropriate to the deployed SurrealDB storage engine and media store. A complete recovery point includes database state, media, data-protection keys, certificates, and secret-provider references. Cache data is normally excluded.
+
+Test restoration into an isolated environment:
+
+1. restore database and media;
+2. restore the matching data-protection key ring/certificate;
+3. supply secret-provider access without copying raw secrets into config;
+4. start in a non-public environment;
+5. verify setup state, manager login, site resolution, published routes, content queries, and background workflows;
+6. rotate credentials if the backup left the trusted boundary.
+
+## Security hardening
+
+Canonical path: /operations/security
+Feature area: security
+Maturity: required-before-production
+Source provenance: src/Aero.Cms.Modules.Sites/SiteResolutionMiddleware.cs, src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs, src/Aero.Cms.Modules.Pages/Rendering/SharpTsExecutor.cs, src/Aero.Cms.Core/Content/Templating/SecureScribanRenderer.cs, src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs
+
+AeroCMS is not production ready. The following controls are minimum acceptance gates, not a certification.
+
+## Identity and authorization
+
+- Keep recovery-administrator credentials offline and monitored.
+- Require HTTPS, secure cookies, appropriate SameSite, short-lived federation state, and persistent protected key rings.
+- Require authentication plus least-privilege `site:*` policies on every manager/admin endpoint.
+- Revalidate site assignment after reading `AeroCms.SiteId`; never trust the cookie alone.
+- Separate manager and external-member schemes, logout, authorities, and claims.
+- Hash API keys, show raw values once, rotate them, and apply route/site authorization after authentication.
+- Add antiforgery or explicit origin/token defenses to every browser mutation.
+
+## Tenant and content isolation
+
+- Resolve host to site fail-closed.
+- Add site, tenant, and culture predicates to every load/query/update/delete.
+- Test foreign IDs for direct-object-reference failures.
+- Return drafts only from authenticated preview routes with no-store headers.
+- Include site, culture, theme, representation, and query in cache keys/variation.
+
+## Rendering
+
+- Keep raw script and inline event-handler execution outside the HTML importer.
+- Treat Scriban as constrained template execution, not a proof of harmless input.
+- Permit SharpTS only for trusted authors; it is in-process and not an OS sandbox.
+- Bound hierarchy depth/items, template size/loops/time/output, and provider payloads.
+- Encode HTMX fragments and validate every dynamic URL, header, selector, and server parameter.
+- Maintain a restrictive Content Security Policy compatible with required CDN assets.
+
+## Media
+
+Do not deploy the current general media upload path unchanged. Add site-ownership authorization, canonical path containment, extension and content-signature allowlists, request/file quotas, malware scanning, non-executable object storage, random server filenames, rollback/cleanup around metadata writes, and antiforgery/origin protection.
+
+## AI and MCP
+
+- Keep provider keys protected and write-only.
+- Allowlist provider endpoints and disable redirects.
+- Treat model output as untrusted draft content.
+- Require normal validation and publish permissions after AI generation.
+- Rate-limit and audit assistant/MCP requests and tool calls.
+- Keep tool list/take/output bounds.
+- Do not expose `/mcp` externally until a dedicated client authentication, consent, site-selection, and revocation design is implemented and tested.
+
+## Operations
+
+- Remove or rotate any credentials ever committed to development files; never reuse example values.
+- Pin container images and verify supply-chain artifacts.
+- Restrict SurrealDB, cache, health, dashboards, and telemetry collectors to private networks.
+- Encrypt backups and prove restore procedures.
+- Configure structured audit events without storing secrets or excessive PII.
+- Apply request limits, timeouts, cancellation, rate limiting, and safe error responses.
+- Run dependency, secret, SAST, DAST, authorization-metadata, cross-site, and browser security tests before release.
+
+## Release gate
+
+Production approval should require zero known critical/high findings, completed media and MCP boundaries, verified backup restore, explicit dependency health checks, a reviewed data-retention policy, incident response contacts, and an accepted threat model for the chosen topology.
+
+## Troubleshooting
+
+Canonical path: /operations/troubleshooting
+Feature area: troubleshooting
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Modules.Setup/Bootstrap/RuntimeActivationService.cs, src/Aero.Cms.Modules.Pages/Rendering/SourcePageRendererValidation.cs, eng/theme-assets/README.md
+
+Start from the first exact error, the active bootstrap state, selected site/culture, and current commit. Avoid deleting state until the failure path is understood.
+
+## The application stays on setup
+
+Check `/setup/status`, bootstrap state, local infrastructure readiness, and the setup handoff log. `Configured` means a protected pending request still needs runtime initialization; `Running` means normal startup is allowed. Do not set `SetupComplete` by hand.
+
+If setup failed after durable seeding but before appsettings completion, the idempotent setup state may repair the handoff on the next attempt. Preserve logs and database state before retrying.
+
+## Database or cache startup fails
+
+Confirm `DatabaseMode`/`CacheMode`, the resolved secret reference, and effective connection string provider. Server cache mode requires `ConnectionStrings:cache`. Local mode expects the local infrastructure endpoint.
+
+Do not switch to obsolete Marten configuration. Current domains use Sable/SurrealDB.
+
+## Web build says theme assets are stale
+
+Run:
+
+```powershell
+pwsh ./eng/theme-assets/build-theme-assets.ps1
+dotnet build src/Aero.Cms.Web/Aero.Cms.Web.csproj --no-restore
+```
+
+The build intentionally rejects committed CSS older than authoring/UI inputs.
+
+## A manager API returns 401 or 403
+
+- 401: the expected manager scheme did not authenticate.
+- 403: check the selected `AeroCms.SiteId`, Snowflake user ID claim, site assignment, and required `site:*` policy.
+
+Changing the host header does not select or authorize a manager site.
+
+## Public content is missing
+
+Verify host-to-site resolution, culture, publication state, slug/path, and content type alias. The public query API never returns drafts. Check `wasTruncated`, maximum depth/items, and field projection before assuming data loss.
+
+## Renderer fails
+
+- Scriban: inspect validation errors, strict-variable names, declared content bindings, template/output bounds, and timeout.
+- HTMX: inspect the browser request, `HX-Request`, accepted representation, response status, and sanitized markup.
+- SharpTS: check renderer ID/source version/hash, forbidden imports/decorators, type-check diagnostics, `render(context)` return value, and output cap.
+- Aero composition: check element/fragment validation and referenced content query definitions.
+
+## Preview differs from published output
+
+Confirm the preview uses the exact current draft/source version and selected culture. Publishing creates a separate public snapshot and may be blocked by concurrency or route-impact validation. Clear only the feature cache after verifying publication succeeded.
+
+## Build files are locked
+
+Stop the running host and then run:
+
+```powershell
+dotnet build-server shutdown
+```
+
+Retry the focused project with serialized build settings if concurrent builds contend for `obj` outputs.
+
+## Documentation build fails
+
+From `docs/`:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm run check
+pnpm run build
+```
+
+From `docfx/`:
+
+```powershell
+docfx metadata
+docfx build
+```
+
+The validators reject missing manifest sources, duplicate canonical paths, Git-submodule provenance, and broken internal canonical links.
+
+## Feature status
+
+Canonical path: /reference/feature-status
+Feature area: feature-status
+Maturity: mixed
+Source provenance: README.md, src/Aero.Cms.Web/Program.cs, src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs, src/Aero.Cms.Modules.OpenTelemetry/Class1.cs, src/Aero.Cms.Modules.Commerce/CommerceModule.cs
+
+All statuses are relative to commit `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
+
+## Implemented, alpha
+
+- setup bootstrap, durable setup state, initial tenant/site/admin seeding;
+- source-generated module/Wolverine/Orleans catalogs;
+- site/culture resolution and manager selected-site context;
+- manager local identity, configured federation boundaries, external-member local/external authority contracts;
+- page hierarchy, Aero composition editor, exact source versions, preview, publishing, aliases;
+- posts/blogs and hierarchical documentation content;
+- flat/hierarchical content types, built-in fields, references, bounded traversal, public content URL rendering;
+- anonymous published read-only page/post/docs/content query facade;
+- navigation, footer, theme/style-profile selection, committed asset pipeline;
+- FusionCache and named ASP.NET Core output-cache policies.
+
+“Implemented” does not mean production-ready; see the limitations below.
+
+## Experimental or alpha-with-extra-risk
+
+- pure Scriban pages and Scriban fragments;
+- pure HTMX pages/fragments;
+- SharpTS pages/fragments (explicitly alpha, trusted authors only);
+- AI provider settings, enhancement, translation, and SSE;
+- manager assistant and Streamable HTTP MCP;
+- semantic content search;
+- commerce catalog, basket, orders, payments, and manager UI;
+- external identity federation beyond the recovery/local authority.
+
+## Partial
+
+- media: active UI/API/actor flow, but site ownership, general filename containment, content inspection, and transactional cleanup are incomplete;
+- health: aggregate endpoints exist, but dependency readiness checks are not supplied by the Health module;
+- telemetry: service defaults can register OTLP instrumentation, while the OpenTelemetry feature-module assembly is a placeholder;
+- cache coherence: targeted invalidation exists, but cross-layer invalidation is not transactional and some tags are coarse;
+- backup/deployment: building blocks exist; no verified turnkey production topology or restore automation is supplied.
+
+## Planned or tentative—not implemented
+
+- native SurrealDB graph edges as the persisted content hierarchy (current hierarchy uses parent IDs and bounded queries);
+- a dedicated OAuth authorization server/client-registration flow for arbitrary external MCP clients;
+- production-grade media object storage/scanning pipeline;
+- complete commerce compliance and fulfillment guarantees;
+- treating historical `.docs/` design material as current product behavior.
+
+Planned and tentative items are excluded from examples and API claims except where a page explicitly identifies the boundary as missing.
+
+## Runnable examples
+
+Canonical path: /reference/examples
+Feature area: examples
+Maturity: alpha
+Source provenance: src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs, src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryContracts.cs, src/Aero.Cms.Modules.Pages/Rendering/ScribanPageScopeMapper.cs, src/Aero.Cms.Modules.Pages/Rendering/SharpTsContentVirtualModule.cs
+
+## Query published pages
+
+Prerequisites: AeroCMS running at `https://localhost:333`, a site mapped to `localhost`, and at least one published page in the active culture.
+
+```powershell
+Invoke-RestMethod 'https://localhost:333/api/v1/query/pages?skip=0&take=10'
+```
+
+Expected output:
+
+```json
+{
+  "items": [
+    {
+      "id": "190000000000000001",
+      "title": "Home",
+      "slug": "home",
+      "path": "/",
+      "summary": null,
+      "culture": "en-US",
+      "publishedOn": "2026-07-26T00:00:00+00:00"
+    }
+  ],
+  "totalItems": 1,
+  "skip": 0,
+  "take": 10
+}
+```
+
+IDs and timestamps differ.
+
+## Search published content
+
+Prerequisites: a published `speaker` type with full-text indexed data.
+
+```bash
+curl --fail --show-error \
+  "https://localhost:333/api/v1/query/content/speaker/search?q=distributed&mode=fulltext&skip=0&take=20"
+```
+
+Expected output: an `items` array plus `skip`, `take`, and `hasMore`. Use `mode=semantic` only after configuring the experimental embedding path.
+
+## Request an HTMX representation
+
+```bash
+curl --fail --show-error \
+  --header "HX-Request: true" \
+  --header "Accept: text/html" \
+  "https://localhost:333/api/v1/query/posts?skip=0&take=5"
+```
+
+Expected output: encoded semantic HTML, with `Vary: HX-Request, Accept` and `Cache-Control: private, no-store`.
+
+## Scriban content tree
+
+Illustrative page fragment. Prerequisite: the page declares a content query named `topics`.
+
+```liquid
+<nav aria-label="Topics">
+  <ul>
+  {{ for item in content.topics.roots }}
+    <li><a href="/topics/{{ item.slug | html.url_encode }}">{{ item.title | html.escape }}</a></li>
+  {{ end }}
+  </ul>
+</nav>
+```
+
+Expected output: one safe link per eager root. The exact URL helper availability must be verified in the current safe built-in set before publishing; if unavailable, precompute the URL in a trusted binding.
+
+## SharpTS content import
+
+Illustrative trusted-author source:
+
+```typescript
+
+export function render(context: AeroRenderContext): string {
+  const items = topics.roots
+    .map(item => `<li>${item.title}</li>`)
+    .join("");
+  return `<section><h1>${context.page.title}</h1><ul>${items}</ul></section>`;
+}
+```
+
+Expected output: a validated fragment or a railway validation failure. Aero's HTML importer remains responsible for accepting/rejecting the returned markup; do not regard string interpolation as safe by itself.
+
+## Extension service result
+
+Illustrative C# expected-failure handling:
+
+```csharp
+return await repository.FindAsync(id, cancellationToken) switch
+{
+    Option<Article>.Some found => found.Value,
+    Option<Article>.None => AeroError.NotFoundError($"Article {id} was not found."),
+    _ => AeroError.CreateError("Unexpected article lookup state.")
+};
+```
+
+Prerequisite: use the current Aero railway `Option<T>`/`Result<T>` types and repository contract. Expected output: success for a scoped article or a typed failure that the endpoint maps to 404/500 without leaking internal details.
+
+## Glossary
+
+Canonical path: /reference/glossary
+Feature area: reference
+Maturity: alpha
+Source provenance: src/Aero.Cms.Abstractions/Content/ContentHierarchy.cs, src/Aero.Cms.Abstractions/Pages/Rendering/PageRendererDescriptor.cs, src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs
+
+**Aero composition**
+
+The default semantic `HtmlPageContent` page model and visual editor, renderer ID `aero.composition`.
+
+**Audience**
+
+Manifest trust class: public, manager/internal, or security-sensitive/excluded.
+
+**Content item**
+
+A site/culture-scoped instance of a content type with draft/published state and optional parent.
+
+**Content query**
+
+A bounded, validated request that materializes published or trusted-preview content into immutable renderer data.
+
+**Content type**
+
+A site-owned definition of cardinality, flat/hierarchical structure, fields, validation, rendering, and search behavior.
+
+**Culture variant**
+
+A localized page, post, doc, navigation/footer, or content item related to—but published independently from—another culture.
+
+**Document (AeroCMS docs)**
+
+A hierarchical documentation-space section. This is distinct from a generic Sable document.
+
+**Git submodule**
+
+An external repository linked into the AeroCMS checkout. Git-submodule documentation is excluded from this corpus.
+
+**Manager**
+
+The authenticated administration experience and its `/manager` and `/api/v1/admin` boundaries.
+
+**Module**
+
+An AeroCMS feature registered in the source-generated module catalog. Not synonymous with Git submodule.
+
+**Published snapshot**
+
+The exact public version of a page/content record. Draft changes do not alter it until publishing succeeds.
+
+**Sable**
+
+The active AeroCMS document/query persistence boundary over SurrealDB.
+
+**Selected site**
+
+The manager site ID stored in `AeroCms.SiteId`. The cookie is selection state, not authorization; sensitive operations must revalidate site existence and the user's assignment.
+
+**Site**
+
+The host, content, culture, theme, and authorization scope inside a tenant.
+
+**Snowflake ID**
+
+A 64-bit `long` generated by `Snowflake.NewId()`. JSON, JavaScript, Scriban, SharpTS, and MCP surfaces use decimal strings where precision requires it.
+
+**Tenant**
+
+The ownership boundary containing one or more sites.
+
+## AI ingestion
+
+Canonical path: /reference/ai-ingestion
+Feature area: documentation-system
+Maturity: implemented
+Source provenance: docs/scripts/generate-ingestion.mjs, docs/scripts/validate-docs.mjs, docs/documentation-manifest.json
+
+The checked-in ingestion artifacts are generated from the canonical Starlight sources:
+
+- `/llms.txt`: concise public map for agent discovery;
+- `/llms-aero-full.txt`: normalized public corpus with stable headings and provenance;
+- `/documentation-manifest.json`: machine-readable metadata;
+- `docs/llms.txt`, `docs/llms-aero-full.txt`, and `docs/documentation-manifest.json`: repository source copies.
+
+Run `pnpm run generate` in `docs/` after changing a canonical page or manifest entry.
+
+## Manifest fields
+
+Each entry contains:
+
+- `title`
+- `canonical_path`
+- `document`
+- `audience`
+- `feature_area`
+- `maturity`
+- `source_files`
+
+The manifest root records the last verified commit, generation rules, excluded roots, and trust-class definitions.
+
+## Trust classes
+
+- **Public documentation** is included in both llms files and the full corpus.
+- **Manager/internal documentation** can be present in the manifest but is excluded from public corpus generation until an explicit authenticated distribution exists.
+- **Security-sensitive documentation** is excluded from public ingestion. This includes secret values, credential locations beyond safe configuration keys, incident data, customer data, PII, and exploit-enabling operational details.
+
+Design history under `.docs/` is not a documentation input. A behavior first needs current source/test verification and original product wording.
+
+## Chunking
+
+The full corpus preserves page titles, canonical paths, feature area, maturity, provenance, and descriptive headings. It removes frontmatter, component imports, and rendered diagram markup. Sections remain page-local so a retriever can chunk at `##` headings without losing the page's trust metadata.
+
+## Documentation coverage
+
+Canonical path: /reference/coverage
+Feature area: documentation-system
+Maturity: implemented
+Source provenance: docs/documentation-manifest.json, docfx/docfx.json, docfx/filterConfig.yml, docfx/api-documentation-gaps.md
+
+Baseline commit: `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
+
+## Fully documented at the current evidence depth
+
+- documentation information architecture and Getting Started journey;
+- startup/setup state and first-run handoff;
+- site/tenant/culture resolution and manager selection boundary;
+- pages, four page renderers, five fragment kinds, preview and publishing;
+- posts and hierarchical documentation content;
+- content types, built-in fields, hierarchy validation/traversal, public query API;
+- manager/external-member identity boundaries, roles/site policies, API-key handling;
+- AI settings/enhancement/translation/SSE and MCP/assistant boundary;
+- cache layers, theme build ownership, health/telemetry status;
+- public API scope, ingestion files, glossary, examples, and security checklist.
+
+## Partially documented
+
+- commerce is documented only to verified catalog/basket/order/payment route and boundary depth;
+- media documents its active API and production blockers, not a recommended production storage implementation;
+- individual optional/stub feature modules are represented in the feature inventory/status rather than receiving separate product pages;
+- deployment describes verified host requirements, not a certified platform-specific topology.
+
+## Missing evidence
+
+- an approved stable-release compatibility policy;
+- a production threat model and external MCP client authentication design;
+- production media/object-storage design and migration path;
+- provider-certified commerce/payment and operational recovery evidence;
+- dependency-level readiness checks and SLOs.
+
+## Public API reference
+
+Included assemblies are the curated public surfaces of `Aero.Cms.Abstractions`, `Aero.Cms.Contracts`, `Aero.Cms.Html`, `Aero.Cms.Core`, `Aero.Cms.Web.Core`, and `Aero.Cms.Web.Bootstrap`.
+
+Intentionally excluded: concrete feature-module assemblies, hosts, UI/shared internals, data/persistence implementations, generated contexts, validators, legacy Marten code, tests, and every Git submodule.
+
+Known XML documentation gaps are reported in `docfx/api-documentation-gaps.md`; executable code was not changed merely to silence warnings.
+
+## Verification results
+
+Verified on 2026-07-26 in the isolated `codex/aerocms-documentation` worktree:
+
+| Check | Result |
+| --- | --- |
+| first-party API assembly builds | Pass — six selected Release assemblies built with zero errors; existing dependency/compiler warnings remain |
+| Starlight dependency install | Pass — frozen pnpm lockfile and explicit build-script allowlist |
+| ingestion generation and manifest validation | Pass — 23 public entries generated and validated |
+| internal canonical-link and duplicate-path validation | Pass — 23 unique canonical paths |
+| Starlight static build | Pass — 24 Starlight routes, sitemap, and Pagefind index generated |
+| DocFX metadata/API build | Pass — 698 HTML files total: 696 managed/namespace pages (including seven navigation stubs) plus the API landing and TOC pages; final build has zero warnings and zero errors |
+| built-site link and anchor crawl | Pass — 722 HTML files |
+| submodule exclusion audit | Pass — no standalone API pages or source links for Git-submodule assemblies; manifest provenance rejects submodule roots |
+| credential/PII ingestion audit | Pass — five configuration-derived sensitive values checked with zero exact matches; no personal email literals |
+| focused public-query tests | Blocked by existing repository configuration — `global.json` selects Microsoft.Testing.Platform while the test project is classified as VSTest; direct build also lacks three browser-variant asset files |
+
+## Remaining risks
+
+The product is changing quickly, so route, contract, and feature maturity drift is the primary documentation risk. Generated full-corpus text can become stale if contributors bypass `pnpm run generate`. The manifest validator confirms file/provenance/link shape but does not prove every behavioral sentence; review source and focused tests whenever a feature changes.
+
+The canonical origin is set to `https://docs.getaerocms.net`, matching the current manager UI link, but it should be reconfirmed before the first production deployment. The public-query examples agree with the six current tests in `PublicCmsQueryApiTests`; those tests could not be freshly executed until the repository's mixed test-runner/browser-variant configuration is corrected.
