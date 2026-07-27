@@ -43,6 +43,19 @@ Keep cookie options, redirect paths, and authorization additions in `AeroCmsOpti
 
 Provider defaults are read from `Ai:Providers:<Provider>` and a configured default-provider key. Typical non-secret values are provider ID, display name, model, base endpoint, enabled state, and capability flags. API keys belong in the protected AI settings store or a secret provider; the manager read model only indicates whether a key exists.
 
+`AeroCms:Ai:TokenBudget` controls the fail-closed assistant token budget:
+
+| Key | Meaning |
+| --- | --- |
+| `Enabled` | enables budget enforcement |
+| `WindowSeconds` | accounting-window duration |
+| `TokenLimitPerPartition` | maximum tokens reserved in one scoped partition/window |
+| `MaximumReservationTokens` | upper bound accepted for one reservation |
+
+`AeroCms:RateLimiting` controls the maximum safe `Retry-After` value and named policies under `Policies`. AI policies cover public, member, manager, and concurrent stream traffic. MCP policies cover transport, key management, and application-level read, write, and destructive tool calls. Keep public and destructive limits strict; invalid configured ranges fail during option validation.
+
+The current token-budget coordinator, ASP.NET request limiters, stream concurrency limiter, and MCP tool limiter are process-local. In a multi-instance deployment, configure an external gateway or distributed coordinator if limits must be cluster-global.
+
 ## Optional modules
 
 - `AeroCms:Modules:MiniProfiler:Enable` defaults to false.

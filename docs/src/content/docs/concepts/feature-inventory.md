@@ -17,7 +17,8 @@ This inventory is the evidence map used to create the rest of the documentation.
 | Structured content | manager content type/item APIs | `site:*` policies | type/item services, validators, Sable sessions | public content route/query API; hierarchy tests | Implemented, alpha |
 | Public query API | `/api/v1/query/*` | anonymous, published-only | fresh site/culture-scoped query service | JSON or encoded HTML; web API tests | Implemented |
 | AI authoring | admin AI APIs and manager AI page | authenticated admin group | settings store, protected keys, provider clients | JSON and SSE; AI tests | Experimental |
-| MCP/assistant | `/mcp`, admin assistant JSON/SSE | authenticated plus `site:read`; per-tool permissions | shared tool executor and current-site context | MCP streamable HTTP and manager drawer; boundary tests | Experimental |
+| Site assistants | public, member, and admin JSON/SSE; public search | anonymous public corpus, external-member site policy, or manager `site:read` | fail-closed exposure, scoped grounding/memory, token budgets | citations, conversation APIs, boundary tests | Experimental |
+| MCP | `/mcp`; admin key-management API | scoped MCP service key; tenant/site/tool permission checks | shared executor plus transport and per-tool rate limits | Streamable HTTP; API-key and boundary tests | Experimental |
 | Caching | output-cache policies and FusionCache | manager/admin no-store | Redis-compatible stores, local Garnet or server mode | cached HTTP/application data; cache tests | Implemented with coherence limits |
 | Themes/assets | manager theme/site APIs and build script | `site:*` policies | versioned theme selection and style profile | committed Tailwind/SCSS assets | Implemented; build-owned |
 | Media/navigation/footer | manager routes and APIs | `site:*` policies | Sable services and media storage abstraction | public navigation/footer/media references; tests | Implemented, alpha |

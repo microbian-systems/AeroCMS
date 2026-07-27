@@ -3,9 +3,9 @@ title: Documentation coverage
 description: Baseline, covered features, API scope, build verification, evidence gaps, and remaining documentation risks.
 ---
 
-Baseline commit: `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
+Baseline commit: `ece0dc3915de1005fba89357f4957830a963206e`.
 
-## Fully documented at the current evidence depth
+## Documented at the current evidence depth
 
 - documentation information architecture and Getting Started journey;
 - startup/setup state and first-run handoff;
@@ -14,7 +14,7 @@ Baseline commit: `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
 - posts and hierarchical documentation content;
 - content types, built-in fields, hierarchy validation/traversal, public query API;
 - manager/external-member identity boundaries, roles/site policies, API-key handling;
-- AI settings/enhancement/translation/SSE and MCP/assistant boundary;
+- AI settings/enhancement/translation/SSE; ephemeral public and durable member/manager assistants; manager-only explicit memory; exposure/grounding/process-local budget; and scoped MCP API-key/process-local rate-limit boundaries;
 - cache layers, theme build ownership, health/telemetry status;
 - public API scope, ingestion files, glossary, examples, and security checklist.
 
@@ -24,11 +24,13 @@ Baseline commit: `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
 - media documents its active API and production blockers, not a recommended production storage implementation;
 - individual optional/stub feature modules are represented in the feature inventory/status rather than receiving separate product pages;
 - deployment describes verified host requirements, not a certified platform-specific topology.
+- MCP tests cover endpoint metadata and focused key, executor, and rate-limit behavior, not a complete HTTP authentication/multi-site-header lifecycle;
+- manager assistant and API-key-management browser mutations still require an explicit origin/antiforgery hardening decision.
 
 ## Missing evidence
 
 - an approved stable-release compatibility policy;
-- a production threat model and external MCP client authentication design;
+- a production threat model, distributed AI/MCP limiting strategy, and interactive external-client OAuth design;
 - production media/object-storage design and migration path;
 - provider-certified commerce/payment and operational recovery evidence;
 - dependency-level readiness checks and SLOs.
@@ -52,10 +54,10 @@ Verified on 2026-07-26 in the isolated `codex/aerocms-documentation` worktree:
 | ingestion generation and manifest validation | Pass — 23 public entries generated and validated |
 | internal canonical-link and duplicate-path validation | Pass — 23 unique canonical paths |
 | Starlight static build | Pass — 24 Starlight routes, sitemap, and Pagefind index generated |
-| DocFX metadata/API build | Pass — 698 HTML files total: 696 managed/namespace pages (including seven navigation stubs) plus the API landing and TOC pages; final build has zero warnings and zero errors |
-| built-site link and anchor crawl | Pass — 722 HTML files |
+| DocFX metadata/API build | Pass — 748 HTML files total: 746 managed/namespace pages (including seven navigation stubs) plus the API landing and TOC pages; new AI/MCP contract namespaces are present |
+| built-site link and anchor crawl | Pass — 772 HTML files |
 | submodule exclusion audit | Pass — no standalone API pages or source links for Git-submodule assemblies; manifest provenance rejects submodule roots |
-| credential/PII ingestion audit | Pass — five configuration-derived sensitive values checked with zero exact matches; no personal email literals |
+| credential/PII ingestion audit | Pass — configuration-derived secret values checked with zero exact ingestion-corpus matches; no personal email literals |
 | focused public-query tests | Blocked by existing repository configuration — `global.json` selects Microsoft.Testing.Platform while the test project is classified as VSTest; direct build also lacks three browser-variant asset files |
 
 ## Remaining risks

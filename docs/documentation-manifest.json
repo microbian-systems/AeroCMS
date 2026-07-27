@@ -2,7 +2,7 @@
   "schema_version": 1,
   "product": "AeroCMS",
   "canonical_origin": "https://docs.getaerocms.net",
-  "last_verified_commit": "35ec154fb3b57e838d4fe6211f9d9f193e53d812",
+  "last_verified_commit": "ece0dc3915de1005fba89357f4957830a963206e",
   "generated_artifacts": [
     "docs/llms.txt",
     "docs/llms-aero-full.txt",
@@ -133,6 +133,7 @@
         "src/Aero.Cms.Abstractions/Content/ContentHierarchyQuery.cs",
         "src/Aero.Cms.Modules.Content/ContentHierarchyManagerService.cs",
         "src/Aero.Cms.Core/Content/Services/ContentHierarchyQueryService.cs",
+        "src/Aero.Cms.Abstractions/Ai/Knowledge/AeroAiContentExposure.cs",
         "tests/Aero.Cms.Core.Tests/Content/ContentHierarchyTests.cs"
       ]
     },
@@ -192,8 +193,14 @@
         "src/Aero.Cms.Modules.Ai/Api/AiApi.cs",
         "src/Aero.Cms.Modules.Ai/AiModule.cs",
         "src/Aero.Cms.Modules.AiAssistant/AeroCmsAssistantService.cs",
+        "src/Aero.Cms.Modules.AiAssistant/AeroSiteAssistantEndpoints.cs",
+        "src/Aero.Cms.Modules.AiAssistant/Pipeline/AeroAiRequestPipeline.cs",
+        "src/Aero.Cms.Modules.AiAssistant/AeroAiTokenBudgetCoordinator.cs",
         "src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroMcpApiKeyEndpoints.cs",
         "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs",
+        "src/Aero.Cms.Modules.RateLimiting/AeroRateLimitPolicyNames.cs",
+        "tests/Aero.Cms.Core.Tests/Ai/SiteAssistantBoundaryTests.cs",
         "tests/Aero.Cms.Core.Tests/Ai/ManagerAssistantBoundaryTests.cs"
       ]
     },
@@ -238,7 +245,8 @@
         "src/Aero.AppServer/Startup/InfrastructureConnectionStringResolver.cs",
         "src/Aero.AppServer/Startup/DataProtectionCertificateBootstrapper.cs",
         "src/Aero.Cms.Modules.Cache/CacheModule.cs",
-        "src/Aero.Cms.Modules.Security/SecurityModule.cs"
+        "src/Aero.Cms.Modules.Security/SecurityModule.cs",
+        "src/Aero.Cms.Modules.RateLimiting/AeroRateLimitOptions.cs"
       ]
     },
     {
@@ -282,7 +290,9 @@
         "src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs",
         "src/Aero.Cms.Modules.Pages/Rendering/SharpTsExecutor.cs",
         "src/Aero.Cms.Core/Content/Templating/SecureScribanRenderer.cs",
-        "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs"
+        "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs",
+        "src/Aero.Cms.Abstractions/Security/AeroApiKeyContracts.cs",
+        "src/Aero.Cms.Abstractions/Ai/Knowledge/AeroAiContentExposure.cs"
       ]
     },
     {

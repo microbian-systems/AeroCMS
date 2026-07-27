@@ -1,6 +1,6 @@
 # Public API documentation gaps
 
-Baseline: `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
+Baseline: `ece0dc3915de1005fba89357f4957830a963206e`.
 
 The API inventory found at least 41 public types without useful type summaries. This report records the debt without changing executable source merely to suppress documentation warnings.
 
@@ -14,6 +14,8 @@ Authentication and style contracts contain 31 known type-level gaps across:
 - `Authentication/ManagerFederationContracts.cs`
 - `Models/SiteStyleProfileViewModel.cs`
 - `Requests/UpdateSiteStyleProfileRequest.cs`
+
+The baseline also adds summarized public AI/MCP types under `Ai/Assistant`, `Ai/Budget`, `Ai/Knowledge`, `Ai/Memory`, `Ai/Pipeline`, and `Security`. Their type summaries preserve the known type-level count above, but member-level XML debt remains in constants, enum values, properties, and interface methods across those contract files. A later source-documentation pass should explain audience and scope rules, cancellation, failures, security constraints, and one-time secret behavior rather than merely restating member names.
 
 ## Aero.Cms.Core
 

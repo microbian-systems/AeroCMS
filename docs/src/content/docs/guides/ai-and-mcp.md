@@ -1,9 +1,9 @@
 ---
 title: AI and MCP
-description: AI providers, protected settings, streaming authoring tools, manager assistant, MCP tools, and current limitations.
+description: AI providers, grounded assistants, protected settings, scoped MCP API keys, rate limits, and current limitations.
 ---
 
-AI authoring and MCP integration are experimental. They are manager capabilities, not autonomous authorities. The application remains responsible for authentication, site selection, permission checks, validation, persistence, and publication.
+AI authoring, site assistants, and MCP integration are experimental. Anonymous and member assistants are deliberately narrower than manager authoring and MCP capabilities; none is an autonomous authority. The application remains responsible for authentication, site selection, permission checks, validation, persistence, and publication.
 
 ## AI settings and providers
 
@@ -25,23 +25,41 @@ Enhancement streaming uses server-sent events with metadata, delta, completion, 
 
 AI output is a draft suggestion. Validate, sanitize, preview, and require the normal publish permission; a provider response must not bypass the page/content command service.
 
-## Manager assistant
+## Grounding, exposure, and budgets
+
+Assistant requests pass through registered normalization, scope-resolution, input-safety, and telemetry stages. Terminal assistant orchestration applies the token budget, CMS grounding, output policy, and conversation persistence. Grounding is site-, tenant-, culture-, audience-, and principal-scoped. Responses cite retrieved CMS sections with stable markers such as `[CMS-1]`; model output remains untrusted.
+
+Structured content is eligible for public AI only when it is published and its content type enables both `IncludeInSearch` and `IncludeInPublicAi`. Structured-content fields default to `Internal`; `Public` fields may enter public/member grounding, `Internal` fields are manager-only, and `Sensitive` or `Secret` fields are denied by the standard retrieval path. Page, post, and docs knowledge projections separately mark approved sections as public after their record-level public-AI opt-in.
+
+Token budgets under `AeroCms:Ai:TokenBudget` are partitioned and fail closed when exhausted or unavailable. The current budget coordinator is process-local, so multiple host instances do not share a cluster-global token budget. Public assistant calls are ephemeral and load no personal memory. Member and manager conversations are durable and isolated by tenant, site, audience, principal, and culture. Explicit memory management is manager-only, and only explicitly saved memories are loaded.
+
+## Public, member, and manager assistants
+
+Anonymous public-corpus-only endpoints are:
+
+- `POST /api/v1/ai/assistant/complete`
+- `POST /api/v1/ai/assistant/stream`
+- `GET /api/v1/ai/search`
+
+Authenticated external members use `POST /api/v1/member/assistant/complete` and `/stream`, plus scoped conversation list/get/delete routes. Member mutations require antiforgery validation.
 
 The assistant exposes authenticated JSON and SSE endpoints:
 
 - `POST /api/v1/admin/mcp/assistant/complete`
 - `POST /api/v1/admin/mcp/assistant/stream`
 
-Both require an authenticated principal and `site:read`. Responses carry a correlation ID. The assistant obtains tools from the same site-scoped executor used by MCP.
+Manager routes require an authenticated principal and `site:read`. The same group exposes scoped conversation list/get/delete and explicit memory list/create/update/delete routes. API-key principals cannot access user assistant conversations. Responses carry a correlation ID, and the assistant obtains tools from the same site-scoped executor used by MCP.
 
 ## MCP server
 
-`/mcp` is a stateless Streamable HTTP MCP endpoint. It requires authentication and `site:read`. For every tool call, the context factory re-reads the current principal, Snowflake user ID, `AeroCms.SiteId` cookie, site permission, and tenant-bearing site record.
+`/mcp` is a stateless Streamable HTTP MCP endpoint protected by the dedicated `AeroApiKey.Mcp` policy and the `Aero.Mcp.Transport` rate-limit policy. Supply a service key in `X-Aero-Api-Key` or as `Authorization: ApiKey <key>`. A key is tenant-scoped, explicitly enabled for MCP, permission-scoped, optionally expiring, and restricted to an allowed set of sites. Use `X-Aero-Site-Id` when a key allows multiple sites; a single allowed site can be selected implicitly.
 
 Available tools cover current site, bounded page/post/docs/content-type/content-item lists and gets, draft creation, and bounded content hierarchy reads. List sizes are capped; IDs cross MCP as decimal strings. Create tools require their declared create permission in the executor and create drafts, not published content.
 
-## External-client limitation
+Each tool also enforces its permission domain and an application-level read, write, or destructive rate limit. The current HTTP and application-level rate limiters are process-local, not cluster-global. The API-key principal, tenant, allowed-site membership, selected site, expiry, MCP enablement, and tool permission are revalidated at invocation.
 
-The HTTP endpoint currently relies on the AeroCMS host's existing authenticated principal and selected-site cookie. There is no verified dedicated OAuth authorization-server, token-exchange, or client-registration flow for arbitrary external MCP clients at this baseline. A browser manager session can reach the endpoint; a production external client needs an explicitly designed authentication and consent boundary.
+## API-key management and external-client limitation
 
-Do not expose `/mcp` to the internet until authentication, site selection, CSRF/origin behavior, transport limits, audit, rate limiting, and external-client authorization have been threat-modeled and tested.
+Authenticated managers with `AeroAdmin` and `site:read` can list, create, and revoke keys under `/api/v1/admin/mcp/api-keys`. The raw key is returned only at creation; persist only its protected representation and rotate or revoke it when exposure is suspected.
+
+The service-key boundary is intended for controlled machine clients, but focused tests do not yet cover a complete HTTP authentication and multi-site-header lifecycle. Manager assistant and key-management mutations also need a reviewed origin/antiforgery posture. AeroCMS does not provide a verified OAuth authorization server, delegated consent flow, token exchange, or dynamic client registration. Before internet exposure, require TLS and complete a deployment-specific threat model covering key provisioning, storage, rotation, revocation, audit, origin behavior, distributed rate-limit sizing, and incident response. Interactive delegated clients need an OAuth-style boundary rather than shared service keys.

@@ -3,7 +3,7 @@ title: Feature status
 description: Implemented, experimental, partial, planned, and tentative AeroCMS capabilities.
 ---
 
-All statuses are relative to commit `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
+All statuses are relative to commit `ece0dc3915de1005fba89357f4957830a963206e`.
 
 ## Implemented, alpha
 
@@ -26,7 +26,9 @@ All statuses are relative to commit `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
 - pure HTMX pages/fragments;
 - SharpTS pages/fragments (explicitly alpha, trusted authors only);
 - AI provider settings, enhancement, translation, and SSE;
-- manager assistant and Streamable HTTP MCP;
+- ephemeral public assistant, durable scoped member/manager conversations, and manager-only explicit memory;
+- public AI corpus exposure controls, grounding citations, token budgets, and AI/MCP rate limits;
+- scoped service-key authentication and Streamable HTTP MCP;
 - semantic content search;
 - commerce catalog, basket, orders, payments, and manager UI;
 - external identity federation beyond the recovery/local authority.
@@ -36,13 +38,14 @@ All statuses are relative to commit `35ec154fb3b57e838d4fe6211f9d9f193e53d812`.
 - media: active UI/API/actor flow, but site ownership, general filename containment, content inspection, and transactional cleanup are incomplete;
 - health: aggregate endpoints exist, but dependency readiness checks are not supplied by the Health module;
 - telemetry: service defaults can register OTLP instrumentation, while the OpenTelemetry feature-module assembly is a placeholder;
+- AI/MCP limits: token budgets and request/tool rate limiters are process-local rather than cluster-global;
 - cache coherence: targeted invalidation exists, but cross-layer invalidation is not transactional and some tags are coarse;
 - backup/deployment: building blocks exist; no verified turnkey production topology or restore automation is supplied.
 
 ## Planned or tentative—not implemented
 
 - native SurrealDB graph edges as the persisted content hierarchy (current hierarchy uses parent IDs and bounded queries);
-- a dedicated OAuth authorization server/client-registration flow for arbitrary external MCP clients;
+- a dedicated OAuth authorization server, delegated-consent, and client-registration flow for interactive external MCP clients;
 - production-grade media object storage/scanning pipeline;
 - complete commerce compliance and fulfillment guarantees;
 - treating historical `.docs/` design material as current product behavior.

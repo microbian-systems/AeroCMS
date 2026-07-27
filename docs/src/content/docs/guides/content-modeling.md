@@ -58,6 +58,8 @@ Renderers receive immutable `ContentNode` trees with decimal-string IDs, alias, 
 
 Search projection documents are written alongside content changes. Full-text search is the baseline mode. Semantic mode is exposed by contract but depends on a configured embedding path and remains experimental. Always paginate and keep the site/culture/published filters intact.
 
+AI retrieval has a separate, fail-closed exposure boundary. `IncludeInSearch` does not by itself make structured content available to public AI. The item must be published and its content type must enable both `IncludeInSearch` and `IncludeInPublicAi`. Each structured-content field has an `AiExposure` classification: `Public`, `Internal` (the default), `Sensitive`, or `Secret`. Standard public/member retrieval admits only public fields; manager retrieval may also admit internal fields; sensitive and secret fields remain excluded unless a separate narrowly scoped workflow is implemented. Page, post, and docs projections use their own record opt-in and explicitly public section mappings.
+
 ## Public URL rendering
 
 A content type can define a public URL/template. The public renderer loads only the current site's published item and renders its Scriban template through the secure pipeline. This is separate from the JSON/HTMX [public query API](/guides/public-query-api/).

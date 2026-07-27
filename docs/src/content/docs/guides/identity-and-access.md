@@ -39,4 +39,4 @@ Treat API-key support as an authentication strategy, not universal authorization
 
 Manager cookies require HTTPS, appropriate SameSite/secure settings, data-protection key continuity, and antiforgery protection for browser-originated changes. External programmatic clients should use an explicitly supported authentication mechanism; reproducing the manager cookie and selected-site cookie is not a production OAuth design.
 
-The current MCP HTTP endpoint uses the existing authenticated request principal and `AeroCms.SiteId` selection. It does not advertise a dedicated third-party OAuth authorization server. See [AI and MCP](/guides/ai-and-mcp/).
+The MCP HTTP endpoint uses the dedicated `AeroApiKey.Mcp` service-key policy rather than a manager cookie. Send the key in `X-Aero-Api-Key` or `Authorization: ApiKey <key>`; when the key permits multiple sites, select one with `X-Aero-Site-Id`. Tenant, allowed-site membership, MCP enablement, expiry, and tool permissions are revalidated. AeroCMS does not advertise a third-party OAuth authorization server or delegated-consent flow. See [AI and MCP](/guides/ai-and-mcp/).

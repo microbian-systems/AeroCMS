@@ -42,9 +42,15 @@ Do not deploy the current general media upload path unchanged. Add site-ownershi
 - Allowlist provider endpoints and disable redirects.
 - Treat model output as untrusted draft content.
 - Require normal validation and publish permissions after AI generation.
-- Rate-limit and audit assistant/MCP requests and tool calls.
+- Keep public AI fail-closed: published plus explicit record opt-in, public fields only, no personal memory.
+- Preserve tenant/site/audience/principal/culture scoping for knowledge, conversations, and explicit memories.
+- Configure token budgets and HTTP, stream-concurrency, MCP transport, management, and per-tool rate limits.
+- Treat built-in budgets and rate limiters as process-local; add a distributed enforcement point for multi-instance limits.
+- Audit assistant/MCP metadata without recording prompts, provider payloads, secrets, or excessive PII.
 - Keep tool list/take/output bounds.
-- Do not expose `/mcp` externally until a dedicated client authentication, consent, site-selection, and revocation design is implemented and tested.
+- Hash/protect MCP service keys, show raw keys once, restrict allowed sites and permissions, set expiry, rotate, and test revocation.
+- Add and test origin/antiforgery defenses for manager assistant and API-key-management mutations.
+- Do not treat service keys as delegated user consent. Require a separate OAuth-style boundary for interactive third-party clients.
 
 ## Operations
 
@@ -58,4 +64,4 @@ Do not deploy the current general media upload path unchanged. Add site-ownershi
 
 ## Release gate
 
-Production approval should require zero known critical/high findings, completed media and MCP boundaries, verified backup restore, explicit dependency health checks, a reviewed data-retention policy, incident response contacts, and an accepted threat model for the chosen topology.
+Production approval should require zero known critical/high findings, completed media and deployment-specific MCP threat models, verified backup restore, explicit dependency health checks, a reviewed AI/conversation data-retention policy, incident response contacts, and an accepted threat model for the chosen topology.

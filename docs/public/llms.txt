@@ -1,6 +1,6 @@
 # AeroCMS documentation
 
-> Verified against commit 35ec154fb3b57e838d4fe6211f9d9f193e53d812.
+> Verified against commit ece0dc3915de1005fba89357f4957830a963206e.
 > Audience: public. Security-sensitive operational values and design-history material are excluded.
 
 - [Overview](/) — architecture; maturity: alpha.

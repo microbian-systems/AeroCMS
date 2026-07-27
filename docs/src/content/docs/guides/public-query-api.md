@@ -17,6 +17,8 @@ The public facade is mapped at `/api/v1/query` and allows anonymous requests. It
 
 Content query parameters are `traversal`, `rootId`, `maximumDepth`, `maximumItems`, and comma-separated `fields`. Search parameters are `q`, `mode`, `skip`, and `take`. Invalid modes return a validation problem; missing resources return 404; cancellation uses status 499.
 
+Only structured-content search at `/content/{contentTypeAlias}/search` consults the content type's `IncludeInSearch` flag and returns an empty result when it is disabled. The flag does not hide published page, post, docs, list, or hierarchy results and is not an authorization or confidentiality control.
+
 ## JSON example
 
 Prerequisite: a published `topic` content type on the site resolved by `localhost`.
