@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -9,6 +10,8 @@ namespace Aero.Cms.Modules.Ai.Knowledge;
 /// <summary>Searches the curated, build-embedded AeroCMS product documentation corpus.</summary>
 public interface IAeroDocumentationKnowledgeSource
 {
+    AeroDocumentationKnowledgeSnapshot GetSnapshot();
+
     IReadOnlyList<AeroAiKnowledgeMatch> Search(string query, int take);
 }
 
@@ -24,8 +27,10 @@ public sealed class EmbeddedAeroDocumentationKnowledgeSource
     private const string ResourceName =
         "Aero.Cms.Modules.Ai.Knowledge.manager-assistant-corpus.json";
 
-    private readonly Lazy<IReadOnlyList<DocumentationChunk>> _chunks =
-        new(LoadChunks, LazyThreadSafetyMode.ExecutionAndPublication);
+    private readonly Lazy<AeroDocumentationKnowledgeSnapshot> _snapshot =
+        new(LoadSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    public AeroDocumentationKnowledgeSnapshot GetSnapshot() => _snapshot.Value;
 
     public IReadOnlyList<AeroAiKnowledgeMatch> Search(string query, int take)
     {
@@ -36,18 +41,18 @@ public sealed class EmbeddedAeroDocumentationKnowledgeSource
         if (tokens.Count == 0)
             return [];
 
-        return _chunks.Value
+        return _snapshot.Value.Chunks
             .Select(chunk => new { Chunk = chunk, Score = Score(chunk, tokens) })
             .Where(candidate => candidate.Score > 0)
             .OrderByDescending(candidate => candidate.Score)
             .ThenBy(candidate => candidate.Chunk.Title, StringComparer.Ordinal)
             .ThenBy(candidate => candidate.Chunk.Section, StringComparer.Ordinal)
             .Take(Math.Clamp(take, 1, AeroAiKnowledgeConstants.MaximumTake))
-            .Select(candidate => candidate.Chunk.Match)
+            .Select(candidate => candidate.Chunk.ToMatch())
             .ToArray();
     }
 
-    private static IReadOnlyList<DocumentationChunk> LoadChunks()
+    private static AeroDocumentationKnowledgeSnapshot LoadSnapshot()
     {
         using var stream = typeof(EmbeddedAeroDocumentationKnowledgeSource)
             .Assembly
@@ -59,44 +64,66 @@ public sealed class EmbeddedAeroDocumentationKnowledgeSource
             AeroDocumentationCorpusJsonContext.Default.AeroDocumentationCorpus)
             ?? throw new InvalidOperationException(
                 "The embedded AeroCMS documentation corpus is invalid.");
+        AeroDocumentationCorpusValidator.Validate(corpus);
 
         var sourceRevision = StableId(corpus.LastVerifiedCommit);
-        var chunks = new List<DocumentationChunk>();
+        var chunks = new List<AeroDocumentationKnowledgeChunk>();
         foreach (var entry in corpus.Entries)
         {
             var sourceId = StableId(entry.CanonicalPath);
+            var chunkRevision = 0;
             foreach (var section in SplitSections(entry.Content))
             {
-                var chunkRevision = 0;
                 foreach (var content in AeroAiKnowledgeChunker.Chunk(section.Content))
                 {
+                    var fullText = string.Join(
+                        ' ',
+                        new[]
+                        {
+                            entry.Title,
+                            entry.FeatureArea,
+                            section.Name,
+                            content
+                        }.Where(value => !string.IsNullOrWhiteSpace(value)));
                     var contentHash = Convert.ToHexString(
-                        SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+                        SHA256.HashData(Encoding.UTF8.GetBytes(fullText)));
                     var chunkId = StableId(
-                        $"{entry.CanonicalPath}|{section.Name}|{chunkRevision}|{contentHash}");
-                    var match = new AeroAiKnowledgeMatch(
+                        $"{AeroDocumentationKnowledgeConstants.CorpusId}|{entry.CanonicalPath}|{section.Name}|{chunkRevision}");
+                    chunks.Add(new AeroDocumentationKnowledgeChunk(
                         chunkId,
-                        AeroAiKnowledgeSourceKinds.AeroDocumentation,
                         sourceId,
                         entry.CanonicalPath,
                         "en-US",
                         entry.Title,
+                        entry.FeatureArea,
+                        entry.Maturity,
+                        entry.Audience,
                         section.Name,
                         content,
+                        fullText,
                         sourceRevision,
                         chunkRevision++,
-                        contentHash);
-                    chunks.Add(new DocumentationChunk(
-                        entry.Title,
-                        entry.FeatureArea,
-                        section.Name,
-                        content,
-                        match));
+                        contentHash,
+                        corpus.TrustClass));
                 }
             }
         }
 
-        return chunks;
+        var corpusHashInput = string.Join(
+            '\n',
+            chunks.Select(chunk =>
+                $"{chunk.Id}|{chunk.SourceRevision}|{chunk.ContentHash}|{chunk.SourceAudience}|{chunk.Maturity}"));
+        var corpusHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(corpusHashInput)));
+
+        return new AeroDocumentationKnowledgeSnapshot(
+            corpus.SchemaVersion,
+            corpus.Product,
+            corpus.LastVerifiedCommit,
+            sourceRevision,
+            corpus.TrustClass,
+            corpusHash,
+            chunks);
     }
 
     private static IReadOnlyList<DocumentationSection> SplitSections(string content)
@@ -159,7 +186,7 @@ public sealed class EmbeddedAeroDocumentationKnowledgeSource
     }
 
     private static int Score(
-        DocumentationChunk chunk,
+        AeroDocumentationKnowledgeChunk chunk,
         IReadOnlySet<string> tokens)
     {
         var title = chunk.Title.ToLowerInvariant();
@@ -191,12 +218,47 @@ public sealed class EmbeddedAeroDocumentationKnowledgeSource
 
     private sealed record DocumentationSection(string Name, string Content);
 
-    private sealed record DocumentationChunk(
-        string Title,
-        string FeatureArea,
-        string Section,
-        string Content,
-        AeroAiKnowledgeMatch Match);
+}
+
+public sealed record AeroDocumentationKnowledgeSnapshot(
+    int SchemaVersion,
+    string Product,
+    string LastVerifiedCommit,
+    long SourceRevision,
+    string TrustClass,
+    string CorpusHash,
+    IReadOnlyList<AeroDocumentationKnowledgeChunk> Chunks);
+
+public sealed record AeroDocumentationKnowledgeChunk(
+    long Id,
+    long SourceId,
+    string CanonicalPath,
+    string Culture,
+    string Title,
+    string FeatureArea,
+    string Maturity,
+    string SourceAudience,
+    string Section,
+    string Content,
+    string FullText,
+    long SourceRevision,
+    int ChunkRevision,
+    string ContentHash,
+    string TrustClass)
+{
+    public AeroAiKnowledgeMatch ToMatch()
+        => new(
+            Id,
+            AeroAiKnowledgeSourceKinds.AeroDocumentation,
+            SourceId,
+            CanonicalPath,
+            Culture,
+            Title,
+            Section,
+            Content,
+            SourceRevision,
+            ChunkRevision,
+            ContentHash);
 }
 
 public sealed record AeroDocumentationCorpus(
@@ -218,3 +280,79 @@ public sealed record AeroDocumentationCorpusEntry(
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(AeroDocumentationCorpus))]
 public partial class AeroDocumentationCorpusJsonContext : JsonSerializerContext;
+
+internal static class AeroDocumentationCorpusValidator
+{
+    private const int SupportedSchemaVersion = 1;
+    private const int MaximumEntries = 4_096;
+    private static readonly HashSet<string> AllowedAudiences =
+        new(StringComparer.Ordinal)
+        {
+            "public",
+            "manager-internal"
+        };
+
+    public static void Validate(AeroDocumentationCorpus corpus)
+    {
+        ArgumentNullException.ThrowIfNull(corpus);
+
+        if (corpus.SchemaVersion != SupportedSchemaVersion)
+            Invalid($"schema version '{corpus.SchemaVersion}' is not supported");
+        if (!string.Equals(corpus.Product, "AeroCMS", StringComparison.Ordinal))
+            Invalid("the product must be 'AeroCMS'");
+        if (string.IsNullOrWhiteSpace(corpus.LastVerifiedCommit))
+            Invalid("the verified Git commit is required");
+        if (!string.Equals(
+                corpus.TrustClass,
+                "manager-internal",
+                StringComparison.Ordinal))
+        {
+            Invalid("the root trust class must be 'manager-internal'");
+        }
+
+        if (corpus.Entries is null or { Count: 0 })
+            Invalid("at least one documentation entry is required");
+        if (corpus.Entries.Count > MaximumEntries)
+            Invalid($"the corpus exceeds the {MaximumEntries}-entry limit");
+
+        var canonicalPaths = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < corpus.Entries.Count; index++)
+        {
+            var entry = corpus.Entries[index]
+                ?? throw new InvalidOperationException(
+                    $"The embedded AeroCMS documentation corpus entry {index} is null.");
+            if (string.IsNullOrWhiteSpace(entry.Title)
+                || string.IsNullOrWhiteSpace(entry.FeatureArea)
+                || string.IsNullOrWhiteSpace(entry.Maturity)
+                || string.IsNullOrWhiteSpace(entry.Content))
+            {
+                Invalid($"entry {index} is missing required descriptive content");
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.CanonicalPath)
+                || !entry.CanonicalPath.StartsWith("/", StringComparison.Ordinal)
+                || entry.CanonicalPath.Contains("..", StringComparison.Ordinal)
+                || !canonicalPaths.Add(entry.CanonicalPath))
+            {
+                Invalid($"entry {index} has an invalid or duplicate canonical path");
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.Audience)
+                || !AllowedAudiences.Contains(entry.Audience))
+            {
+                Invalid($"entry {index} has an unsupported audience");
+            }
+
+            if (entry.SourceFiles is null or { Count: 0 }
+                || entry.SourceFiles.Any(string.IsNullOrWhiteSpace))
+            {
+                Invalid($"entry {index} requires source-file provenance");
+            }
+        }
+    }
+
+    [DoesNotReturn]
+    private static void Invalid(string detail)
+        => throw new InvalidOperationException(
+            $"The embedded AeroCMS documentation corpus is invalid: {detail}.");
+}

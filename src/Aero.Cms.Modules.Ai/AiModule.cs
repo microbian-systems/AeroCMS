@@ -141,6 +141,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.TranslateDocumentRequest>, TranslateDocumentRequestValidator>();
         services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();
         services.TryAddSingleton<IAeroDocumentationKnowledgeSource, EmbeddedAeroDocumentationKnowledgeSource>();
+        services.AddScoped<IAeroDocumentationKnowledgeSynchronizer, AeroDocumentationKnowledgeSynchronizer>();
+        services.AddHostedService<AeroDocumentationKnowledgeSyncHostedService>();
         services.AddScoped<IAeroAiKnowledgeProjectionService, AeroAiKnowledgeProjectionService>();
         services.AddScoped<IAeroAiKnowledgeRetriever, AeroAiKnowledgeRetriever>();
         services.AddScoped<IAeroAiConversationStore, AeroAiConversationStore>();
@@ -179,7 +181,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 Search.Filter.Ascii
             ]);
 
-        var chunks = opts.Schema.For<AeroAiKnowledgeChunkDocument>();
+        var chunks = opts.Schema.For<AeroAiKnowledgeChunkDocument>()
+            .TableName(Schemas.Tables.AiKnowledgeChunks);
         chunks.Identity(chunk => chunk.Id);
         chunks.Index(chunk => chunk.TenantId);
         chunks.Index(chunk => chunk.SiteId);
@@ -220,7 +223,43 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 Search.Distance.Cosine);
         }
 
-        var conversations = opts.Schema.For<AeroAiConversationDocument>();
+        var documentationChunks = opts.Schema
+            .For<AeroManagerDocumentationChunkDocument>()
+            .TableName(Schemas.Tables.AiManagerDocumentationChunks);
+        documentationChunks.Identity(chunk => chunk.Id);
+        documentationChunks.Index(chunk => chunk.CorpusId);
+        documentationChunks.Index(chunk => chunk.SourceId);
+        documentationChunks.Index(chunk => chunk.SourceUri);
+        documentationChunks.Index(chunk => chunk.Culture);
+        documentationChunks.Index(chunk => chunk.ContentHash);
+        documentationChunks.FullTextIndex(
+            chunk => chunk.FullText,
+            AeroAiKnowledgeConstants.AnalyzerName);
+
+        if (_useDiskAnn)
+        {
+            documentationChunks.DiskannIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                distance: Search.Distance.Cosine);
+        }
+        else
+        {
+            documentationChunks.HnswIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                Search.Distance.Cosine);
+        }
+
+        var documentationCorpusStates = opts.Schema
+            .For<AeroManagerDocumentationCorpusStateDocument>()
+            .TableName(Schemas.Tables.AiManagerDocumentationCorpusStates);
+        documentationCorpusStates.Identity(state => state.Id);
+        documentationCorpusStates.UseOptimisticConcurrency = true;
+        documentationCorpusStates.UniqueIndex(state => state.CorpusId);
+
+        var conversations = opts.Schema.For<AeroAiConversationDocument>()
+            .TableName(Schemas.Tables.AiConversations);
         conversations.Identity(conversation => conversation.Id);
         conversations.Index(conversation => new
         {
@@ -231,7 +270,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             conversation.PrincipalId
         });
 
-        var messages = opts.Schema.For<AeroAiConversationMessageDocument>();
+        var messages = opts.Schema.For<AeroAiConversationMessageDocument>()
+            .TableName(Schemas.Tables.AiConversationMessages);
         messages.Identity(message => message.Id);
         messages.Index(message => message.ConversationId);
         messages.Index(message => new
@@ -249,7 +289,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             message.Sequence
         });
 
-        var memories = opts.Schema.For<AeroAiExplicitMemoryDocument>();
+        var memories = opts.Schema.For<AeroAiExplicitMemoryDocument>()
+            .TableName(Schemas.Tables.AiMemories);
         memories.Identity(memory => memory.Id);
         memories.Index(memory => new
         {

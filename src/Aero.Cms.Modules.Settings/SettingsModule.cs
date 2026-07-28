@@ -1,8 +1,10 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Settings.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +16,7 @@ namespace Aero.Cms.Modules.Settings;
 /// Aero CMS Settings module - provides settings management functionality.
 /// </summary>
 [Module(nameof(SettingsModule))]
-public sealed class SettingsModule : AeroWebModule
+public sealed class SettingsModule : AeroWebModule, IConfigureAeroDB
 {
         /// <inheritdoc />
 public override string Name => nameof(SettingsModule);
@@ -41,6 +43,18 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddSingleton<IAeroSettingActor>(sp =>
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroSettingActor>(0, "aero"));
     }
+
+    /// <summary>Maps persisted settings to the stable plural table name.</summary>
+    public void Configure(StoreOptions options)
+    {
+        options.Schema.For<Setting>()
+            .TableName(Schemas.Tables.Settings)
+            .Identity(setting => setting.Id);
+    }
+
+    /// <inheritdoc />
+    public void Configure(IServiceProvider? services, StoreOptions options)
+        => Configure(options);
 
         /// <summary>
     /// Adds the settings HTTP endpoints to the host route builder.

@@ -152,13 +152,15 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 Search.Filter.SnowballEnglish
             ]);
 
-        var products = opts.Schema.For<ProductDocument>();
+        var products = opts.Schema.For<ProductDocument>()
+            .TableName(Schemas.Tables.Products);
         products.Identity(x => x.Id);
         products.UseOptimisticConcurrency = true;
         products.Index(x => x.TenantId);
         products.UniqueIndex(x => new { x.TenantId, x.Sku });
 
-        var listings = opts.Schema.For<ProductListingDocument>();
+        var listings = opts.Schema.For<ProductListingDocument>()
+            .TableName(Schemas.Tables.ProductListings);
         listings.Identity(x => x.Id);
         listings.UseOptimisticConcurrency = true;
         listings.Index(x => x.TenantId);
@@ -167,19 +169,22 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         listings.UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
         listings.UniqueIndex(x => new { x.SiteId, x.Culture, x.ProductId });
 
-        var a2aSettings = opts.Schema.For<A2ASettingsDocument>();
+        var a2aSettings = opts.Schema.For<A2ASettingsDocument>()
+            .TableName(Schemas.Tables.A2ASettings);
         a2aSettings.Identity(x => x.Id);
         a2aSettings.UseOptimisticConcurrency = true;
         a2aSettings.Index(x => x.TenantId);
         a2aSettings.Index(x => x.SiteId);
         a2aSettings.UniqueIndex(x => new { x.TenantId, x.SiteId });
 
-        var baskets = opts.Schema.For<BasketDocument>();
+        var baskets = opts.Schema.For<BasketDocument>()
+            .TableName(Schemas.Tables.Baskets);
         baskets.Identity(x => x.Id);
         baskets.UseOptimisticConcurrency = true;
         baskets.UniqueIndex(x => new { x.TenantId, x.SiteId, x.ExternalMemberId });
 
-        var orders = opts.Schema.For<OrderEntity>();
+        var orders = opts.Schema.For<OrderEntity>()
+            .TableName(Schemas.Tables.Orders);
         orders.Identity(x => x.Id);
         orders.UseOptimisticConcurrency = true;
         orders.Index(x => x.TenantId);
@@ -187,19 +192,22 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         orders.Index(x => x.ExternalMemberId);
         orders.Index(x => x.Status);
         orders.Index(x => x.CreatedOn);
-        var attempts = opts.Schema.For<PaymentAttemptDocument>();
+        var attempts = opts.Schema.For<PaymentAttemptDocument>()
+            .TableName(Schemas.Tables.PaymentAttempts);
         attempts.Identity(x => x.Id);
         attempts.UseOptimisticConcurrency = true;
         attempts.Index(x => x.TenantId);
         attempts.Index(x => x.SiteId);
         attempts.Index(x => x.OrderId);
         attempts.UniqueIndex(x => new { x.TenantId, x.SiteId, x.OrderId });
-        var receipts = opts.Schema.For<PaymentWebhookReceiptDocument>();
+        var receipts = opts.Schema.For<PaymentWebhookReceiptDocument>()
+            .TableName(Schemas.Tables.PaymentWebhookReceipts);
         receipts.Identity(x => x.Id);
         receipts.UseOptimisticConcurrency = true;
         receipts.UniqueIndex(x => new { x.Provider, x.ProviderAccountKey, x.ProviderEventId });
 
-        var subscriptions = opts.Schema.For<SubscriptionDocument>();
+        var subscriptions = opts.Schema.For<SubscriptionDocument>()
+            .TableName(Schemas.Tables.Subscriptions);
         subscriptions.Identity(x => x.Id);
         subscriptions.UseOptimisticConcurrency = true;
         subscriptions.Index(x => x.TenantId);
@@ -212,7 +220,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         subscriptions.UniqueIndex(x => new { x.Provider, x.ProviderAccountKey, x.ProviderOperationKey });
         subscriptions.UniqueIndex(x => new { x.TenantId, x.SiteId, x.OrderId });
 
-        var cycles = opts.Schema.For<SubscriptionCycleDocument>();
+        var cycles = opts.Schema.For<SubscriptionCycleDocument>()
+            .TableName(Schemas.Tables.SubscriptionCycles);
         cycles.Identity(x => x.Id);
         cycles.UseOptimisticConcurrency = true;
         cycles.Index(x => x.TenantId);
@@ -225,7 +234,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         cycles.UniqueIndex(x => new { x.Provider, x.ProviderAccountKey, x.ProviderCycleReference });
         cycles.UniqueIndex(x => new { x.Provider, x.ProviderAccountKey, x.ProviderPaymentReference });
 
-        var subscriptionReceipts = opts.Schema.For<SubscriptionWebhookReceiptDocument>();
+        var subscriptionReceipts = opts.Schema.For<SubscriptionWebhookReceiptDocument>()
+            .TableName(Schemas.Tables.SubscriptionWebhookReceipts);
         subscriptionReceipts.Identity(x => x.Id);
         subscriptionReceipts.UseOptimisticConcurrency = true;
         subscriptionReceipts.Index(x => x.TenantId);

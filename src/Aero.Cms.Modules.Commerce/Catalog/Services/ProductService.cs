@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Ai.Pipeline;
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using AeroDB.Sable;
 using FluentValidation;
@@ -170,7 +171,7 @@ public sealed class ProductService(
                 "culture = $culture",
                 "is_published = true",
                 "currency = 'USD'",
-                "product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true)"
+                $"product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true)"
             };
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -189,12 +190,12 @@ public sealed class ProductService(
 
             var where = string.Join(" AND ", predicates);
             var counts = await session.RawQueryAsync<CatalogCountRow>(
-                $"SELECT count() AS total_count FROM product_listing_document WHERE {where} GROUP ALL;",
+                $"SELECT count() AS total_count FROM {Schemas.Tables.ProductListings} WHERE {where} GROUP ALL;",
                 parameters,
                 ct);
             var totalCount = counts.FirstOrDefault()?.TotalCount ?? 0;
             var items = await session.RawQueryAsync<ProductListingDocument>(
-                $"SELECT * FROM product_listing_document WHERE {where} ORDER BY name ASC, id ASC LIMIT $take START $skip;",
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE {where} ORDER BY name ASC, id ASC LIMIT $take START $skip;",
                 parameters,
                 ct);
             return Prelude.Ok<(IReadOnlyList<ProductListingDocument>, long), AeroError>((items, totalCount));
@@ -214,10 +215,10 @@ public sealed class ProductService(
                 ["culture"] = culture
             };
             var listings = await session.RawQueryAsync<ProductListingDocument>(
-                "SELECT * FROM product_listing_document WHERE tenant_id = $tenant_id AND site_id = $site_id " +
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE tenant_id = $tenant_id AND site_id = $site_id " +
                 "AND culture = $culture AND is_published = true AND currency = 'USD' " +
                 "AND category != NONE AND string::trim(category) != '' " +
-                "AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true);",
+                $"AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true);",
                 parameters,
                 ct);
             var categories = listings
@@ -249,9 +250,9 @@ public sealed class ProductService(
                 ["take"] = Math.Clamp(take, 1, 24)
             };
             var listings = await session.RawQueryAsync<ProductListingDocument>(
-                "SELECT * FROM product_listing_document WHERE tenant_id = $tenant_id AND site_id = $site_id " +
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE tenant_id = $tenant_id AND site_id = $site_id " +
                 "AND culture = $culture AND is_published = true AND currency = 'USD' " +
-                "AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true) " +
+                $"AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true) " +
                 "ORDER BY created_on DESC, id DESC LIMIT $take;",
                 parameters,
                 ct);

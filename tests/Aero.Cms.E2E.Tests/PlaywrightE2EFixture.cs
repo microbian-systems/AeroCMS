@@ -82,6 +82,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public long HomePageId { get; private set; }
     public long BlockPageId { get; private set; }
     public long SiteId { get; private set; }
+    public string WebRootPath { get; private set; } = string.Empty;
 
     public async Task InitializeAsync()
     {
@@ -188,6 +189,9 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 builder.Services.Remove(embeddedDbDescriptor);
 
             _app = builder.Build();
+            WebRootPath = string.IsNullOrWhiteSpace(_app.Environment.WebRootPath)
+                ? Path.Combine(_app.Environment.ContentRootPath, "wwwroot")
+                : _app.Environment.WebRootPath;
 
             // Configure middleware pipeline (mirrors RunAeroCmsAsync without HTTPS)
             ConfigureTestMiddleware(_app);
@@ -398,9 +402,15 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             context => !context.Request.Path.StartsWithSegments("/__e2e", StringComparison.OrdinalIgnoreCase),
             branch => branch.UseMiddleware<SiteResolutionMiddleware>());
 
-        app.UseStaticFiles();
-        app.MapStaticAssets();
+        // Match production: only runtime media uses conventional static files;
+        // build output remains exclusively owned by static-asset endpoints.
+        app.UseWhen(
+            context => context.Request.Path.StartsWithSegments(
+                "/media",
+                StringComparison.OrdinalIgnoreCase),
+            branch => branch.UseStaticFiles());
 
+        app.MapStaticAssets();
         app.UseRouting();
         app.UseRequestLocalization(localization =>
         {

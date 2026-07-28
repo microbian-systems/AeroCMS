@@ -195,6 +195,26 @@ public sealed class AeroAiKnowledgeProjectionTests
             siteId: SiteId + 1,
             audience: AeroAiAudience.Public,
             content: "orbital yak other site"));
+        harness.Session.Store(new AeroManagerDocumentationChunkDocument
+        {
+            Id = 990,
+            CorpusId = "aerocms-git-docs",
+            TrustClass = "manager-internal",
+            SourceAudience = "manager-internal",
+            SourceId = 989,
+            SourceUri = "/reference/orbital-yaks",
+            Culture = "en-US",
+            SourceRevision = 1,
+            ChunkRevision = 0,
+            Title = "Orbital yak operations",
+            FeatureArea = "Operations",
+            Maturity = "stable",
+            Section = "Manager guidance",
+            Content = "orbital yak manager documentation",
+            FullText = "Orbital yak operations Manager guidance orbital yak manager documentation",
+            ContentHash = "documentation-hash",
+            GeneratedOn = DateTimeOffset.UtcNow
+        });
         await harness.Session.SaveChangesAsync();
 
         var retriever = new AeroAiKnowledgeRetriever(
@@ -227,7 +247,7 @@ public sealed class AeroAiKnowledgeProjectionTests
             .ShouldBe([901]);
         managerResult.ShouldBeOfType<Result<IReadOnlyList<AeroAiKnowledgeMatch>>.Ok>()
             .Value.Select(match => match.ChunkId)
-            .ShouldBe([902]);
+            .ShouldBe([990, 902]);
     }
 
     private static AeroAiKnowledgeProjectionService CreateProjection(

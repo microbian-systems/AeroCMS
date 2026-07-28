@@ -39,6 +39,7 @@ public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
 public void Configure(StoreOptions options)
     {
         options.Schema.For<MediaAsset>()
+            .TableName(Schemas.Tables.MediaAssets)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .Index(x => x.FileName)
@@ -46,6 +47,10 @@ public void Configure(StoreOptions options)
             .Index(x => x.ParentId)
             .Index(x => x.IsFolder)
             .Index(x => x.MimeType);
+
+        options.Schema.For<CmsFile>()
+            .TableName(Schemas.Tables.Files)
+            .Identity(x => x.Id);
     }
 
     /// <summary>

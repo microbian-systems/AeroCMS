@@ -54,5 +54,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
     <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.SurrealKv\SurrealDb.Embedded.SurrealKv.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
   </ItemGroup>
 </Project>

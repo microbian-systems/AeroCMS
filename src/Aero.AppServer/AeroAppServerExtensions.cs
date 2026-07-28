@@ -1,5 +1,6 @@
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
+using Aero.Cms.Core;
 using Aero.Secrets;
 using Aero.Models.Entities;
 using AeroDB.Sable;
@@ -126,8 +127,15 @@ public static class AeroAppServerExtensions
             }
 
             // Schema configuration
-            opts.Schema.For<AeroRole>().Identity(x => x.Id);
-            opts.Schema.For<AeroUser>().Identity(x => x.Id);
+            opts.Schema.For<AeroRole>()
+                .TableName(Schemas.Tables.Roles)
+                .Identity(x => x.Id);
+            opts.Schema.For<AeroUser>()
+                .TableName(Schemas.Tables.Users)
+                .Identity(x => x.Id);
+            opts.Schema.For<ApiAccountModel>()
+                .TableName(Schemas.Tables.ApiAccounts)
+                .Identity(x => x.Id);
             // Enable event sourcing with string stream IDs
             opts.Events.StreamIdentity = StreamIdentity.AsString;
         });
@@ -141,10 +149,23 @@ public static class AeroAppServerExtensions
         {
             opts.UseRuntimeCompilation();
             opts.Discovery.DisableConventionalDiscovery();
+            ConfigureSableSessionCodeGeneration(opts);
             configureWolverine?.Invoke(opts);
         });
 
         return Task.FromResult(builder);
+    }
+
+    internal static void ConfigureSableSessionCodeGeneration(WolverineOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        // Sable sessions are scoped and created by asynchronous store-backed
+        // factories. Wolverine cannot statically model those opaque registrations,
+        // so allow only these session abstractions to be resolved from the
+        // per-message scope while keeping the global fail-closed policy intact.
+        options.CodeGeneration.AlwaysUseServiceLocationFor<IQuerySession>();
+        options.CodeGeneration.AlwaysUseServiceLocationFor<IDocumentSession>();
     }
 
     /// <summary>

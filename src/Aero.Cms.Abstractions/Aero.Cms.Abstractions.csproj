@@ -11,7 +11,10 @@
     <PackageReference Include="Microsoft.Extensions.Compliance.Redaction" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Orleans.Sdk" />
+    <PackageReference Include="Microsoft.Orleans.Serialization.Abstractions" />
+    <PackageReference Include="Microsoft.Orleans.Sdk"
+                      Condition="'$(AeroCmsBrowserClient)' != 'true'"
+                      PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,9 +28,13 @@
                       AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
                       GlobalPropertiesToRemove="AeroCmsBrowserClient" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj"
+                      Condition="'$(AeroCmsBrowserClient)' != 'true'"
+                      PrivateAssets="all"
                       AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
                       GlobalPropertiesToRemove="AeroCmsBrowserClient" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj"
+                      Condition="'$(AeroCmsBrowserClient)' != 'true'"
+                      PrivateAssets="all"
                       AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
                       GlobalPropertiesToRemove="AeroCmsBrowserClient" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj"
@@ -39,14 +46,16 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
-    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
     <Compile Remove="Actors\**\*.cs" />
     <Compile Remove="Events\**\*.cs" />
+    <Compile Remove="Services\IAuthenticationService.cs" />
+    <Compile Remove="Services\IAuthenticationStrategy.cs" />
     <Compile Remove="Content\ContentItem.cs" />
     <Compile Remove="Content\ContentItemExtensions.cs" />
     <Compile Remove="Content\ContentTypeDefinition.cs" />

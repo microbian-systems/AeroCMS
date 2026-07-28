@@ -1,0 +1,21 @@
+<Project>
+  <!--
+    NuGet restore evaluates the shared projects once without ProjectReference
+    global properties. The server-side Orleans SDK can therefore remain in
+    project.assets.json when those projects are later compiled with
+    AeroCmsBrowserClient=true.
+
+    Remove only the Orleans code generator from browser compiles. DTO attributes
+    still compile against Orleans.Serialization.Abstractions, while browser
+    assemblies no longer advertise server-only Orleans application parts or
+    generated type-manifest providers.
+  -->
+  <Target Name="RemoveOrleansCodeGeneratorFromAeroCmsBrowserBuild"
+          BeforeTargets="CoreCompile"
+          Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)"
+                Condition="'%(Analyzer.Filename)' == 'Orleans.CodeGenerator'" />
+    </ItemGroup>
+  </Target>
+</Project>

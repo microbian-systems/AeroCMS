@@ -8,6 +8,8 @@ using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using ContractAiProviderKind = Aero.Cms.Abstractions.Ai.AiProviderKind;
+using CoreAiProviderKind = Aero.Core.Ai.AiProviderKind;
 
 namespace Aero.Cms.Modules.Ai.Configuration;
 
@@ -152,12 +154,13 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationA
                     protectedApiKey = secretProtector.Protect(update.ApiKey);
                 }
 
-                var supportsContentEnhancement = SupportsContentEnhancement(update.Provider);
+                var provider = ToCoreProvider(update.Provider);
+                var supportsContentEnhancement = SupportsContentEnhancement(provider);
 
                 var profile = new AiProviderProfile(
                     update.Id.Trim(),
                     string.IsNullOrWhiteSpace(update.DisplayName) ? update.Provider.ToString() : update.DisplayName.Trim(),
-                    update.Provider,
+                    provider,
                     update.Enabled,
                     Normalize(update.Endpoint),
                     Normalize(update.Model),
@@ -475,7 +478,7 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         => new(
             profile.Id,
             profile.DisplayName,
-            profile.Provider,
+            ToContractProvider(profile.Provider),
             profile.Enabled,
             profile.Id.Equals(defaultProviderId, StringComparison.OrdinalIgnoreCase),
             profile.Endpoint,
@@ -505,8 +508,50 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
     /// </summary>
     /// <param name="provider">The provider kind to inspect.</param>
     /// <returns><see langword="false"/> only for the reserved future-provider kind.</returns>
-    private static bool SupportsContentEnhancement(AiProviderKind provider)
-        => provider is not AiProviderKind.Future;
+    private static bool SupportsContentEnhancement(CoreAiProviderKind provider)
+        => provider is not CoreAiProviderKind.Future;
+
+    private static CoreAiProviderKind ToCoreProvider(ContractAiProviderKind provider)
+        => provider switch
+        {
+            ContractAiProviderKind.OpenAi => CoreAiProviderKind.OpenAi,
+            ContractAiProviderKind.Anthropic => CoreAiProviderKind.Anthropic,
+            ContractAiProviderKind.Google => CoreAiProviderKind.Google,
+            ContractAiProviderKind.Groq => CoreAiProviderKind.Groq,
+            ContractAiProviderKind.DeepSeek => CoreAiProviderKind.DeepSeek,
+            ContractAiProviderKind.MiniMax => CoreAiProviderKind.MiniMax,
+            ContractAiProviderKind.Mistral => CoreAiProviderKind.Mistral,
+            ContractAiProviderKind.XAi => CoreAiProviderKind.XAi,
+            ContractAiProviderKind.Zai => CoreAiProviderKind.Zai,
+            ContractAiProviderKind.Perplexity => CoreAiProviderKind.Perplexity,
+            ContractAiProviderKind.Alibaba => CoreAiProviderKind.Alibaba,
+            ContractAiProviderKind.OpenRouter => CoreAiProviderKind.OpenRouter,
+            ContractAiProviderKind.LmStudio => CoreAiProviderKind.LmStudio,
+            ContractAiProviderKind.OpenCode => CoreAiProviderKind.OpenCode,
+            ContractAiProviderKind.Future => CoreAiProviderKind.Future,
+            _ => CoreAiProviderKind.Future
+        };
+
+    private static ContractAiProviderKind ToContractProvider(CoreAiProviderKind provider)
+        => provider switch
+        {
+            CoreAiProviderKind.OpenAi => ContractAiProviderKind.OpenAi,
+            CoreAiProviderKind.Anthropic => ContractAiProviderKind.Anthropic,
+            CoreAiProviderKind.Google => ContractAiProviderKind.Google,
+            CoreAiProviderKind.Groq => ContractAiProviderKind.Groq,
+            CoreAiProviderKind.DeepSeek => ContractAiProviderKind.DeepSeek,
+            CoreAiProviderKind.MiniMax => ContractAiProviderKind.MiniMax,
+            CoreAiProviderKind.Mistral => ContractAiProviderKind.Mistral,
+            CoreAiProviderKind.XAi => ContractAiProviderKind.XAi,
+            CoreAiProviderKind.Zai => ContractAiProviderKind.Zai,
+            CoreAiProviderKind.Perplexity => ContractAiProviderKind.Perplexity,
+            CoreAiProviderKind.Alibaba => ContractAiProviderKind.Alibaba,
+            CoreAiProviderKind.OpenRouter => ContractAiProviderKind.OpenRouter,
+            CoreAiProviderKind.LmStudio => ContractAiProviderKind.LmStudio,
+            CoreAiProviderKind.OpenCode => ContractAiProviderKind.OpenCode,
+            CoreAiProviderKind.Future => ContractAiProviderKind.Future,
+            _ => ContractAiProviderKind.Future
+        };
 
     /// <summary>
     /// Serializes and stages a provider profile in the current document session.

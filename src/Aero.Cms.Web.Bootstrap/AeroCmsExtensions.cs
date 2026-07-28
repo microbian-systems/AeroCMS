@@ -379,9 +379,16 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             await next(context);
         });
 
-        app.UseStaticFiles();
-        app.MapStaticAssets();
+        // Media uploads are created after build and therefore aren't part of the
+        // static-asset manifest. Scope conventional static-file handling to this
+        // runtime-owned path so it cannot intercept fingerprinted framework files.
+        app.UseWhen(
+            context => context.Request.Path.StartsWithSegments(
+                "/media",
+                StringComparison.OrdinalIgnoreCase),
+            branch => branch.UseStaticFiles());
 
+        app.MapStaticAssets();
         app.UseRouting();
         app.UseRequestLocalization(options =>
         {

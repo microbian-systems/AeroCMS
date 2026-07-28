@@ -173,6 +173,25 @@ Post-filtering a cross-tenant or mixed-visibility result set is not acceptable b
 
 Git documentation remains authoritative. SurrealDB search records and embeddings are disposable projections that can be rebuilt.
 
+The current manager-documentation implementation embeds the generated
+`docs/manager-assistant-corpus.json` artifact into the AI module and reconciles
+it at application startup into the dedicated
+`ai_manager_documentation_chunks` projection. A separate
+`ai_manager_documentation_corpus_states` record tracks the Git revision,
+corpus checksum, search-schema version, chunk count, embedding model, dimensions, and whether the
+entire current projection is vector-ready.
+
+Public and member retrieval never query this projection. Manager retrieval
+always has full-text access after successful reconciliation and uses vector
+ranking only when the corpus state proves that every current chunk was
+embedded with the active 384-dimension model. If no embedding provider is
+registered, the projection remains full-text only. The Commerce documentation
+is included through the same generated corpus and trust policy. The runtime
+loader fails closed on unsupported schemas, trust classes, audiences,
+canonical paths, or missing provenance. Startup reconciliation uses
+optimistic concurrency and a bounded three-attempt retry for transient
+database or embedding failures.
+
 ### 5.2 Chunk provenance
 
 Every indexed chunk must carry:
@@ -486,7 +505,7 @@ Remaining work includes:
 - completing rejection audit and operational dashboards;
 - adding load, cancellation, and disconnected-stream lease tests;
 - adding public/member front-end components over the implemented endpoints;
-- ingesting the curated Starlight/DocFX AeroCMS documentation after that corpus is complete;
+- adding an explicit operator-triggered documentation reindex endpoint in addition to startup reconciliation;
 - adding export and expiry controls for conversations and explicit memories;
 - connecting audit implementations to every declared pipeline stage.
 
@@ -759,7 +778,7 @@ Every MCP tool requires unit tests for its permission mapping and integration te
 4. Build security-filtered hybrid indexing with provenance and invalidation.
 5. Persist scoped conversation history and explicit long-term memory. **Implemented baseline.**
 6. Add public/member retrieval with citations and no arbitrary tools. **Implemented API baseline.**
-7. Add curated internal documentation retrieval for the manager. **Retriever support implemented; documentation ingestion pending.**
+7. Add curated internal documentation retrieval for the manager. **Implemented with startup reconciliation, full-text retrieval, optional all-or-nothing vector readiness, and Commerce corpus coverage.**
 8. Upgrade API keys to key-scoped claims principals and multiple named keys. **Implemented baseline.**
 9. Require `mcp_server=true` and `Aero.Mcp.Transport` on `/mcp`. **Implemented.**
 10. Add domain-level CRUD requirements and tool-operation limits to discovery and execution. **Implemented baseline.**

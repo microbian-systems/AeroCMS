@@ -133,20 +133,24 @@ public void Configure(StoreOptions opts)
 
         // AeroDB document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
+            .TableName(Schemas.Tables.ContentTypes)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .UniqueIndex(x => new { x.SiteId, x.Alias });
 
         opts.Schema.For<ContentItem>()
+            .TableName(Schemas.Tables.ContentItems)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias)
             .Index(x => x.ParentId);
 
         opts.Schema.For<ContentItemVersion>()
+            .TableName(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
 
         opts.Schema.For<ContentSearchDocument>()
+            .TableName(Schemas.Tables.ContentSearchIndex)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .Index(x => x.ContentTypeAlias)
@@ -157,6 +161,7 @@ public void Configure(StoreOptions opts)
                 ContentSearchConstants.AnalyzerName);
 
         opts.Schema.For<ContentSearchFacet>()
+            .TableName(Schemas.Tables.ContentSearchFacets)
             .Identity(x => x.Id)
             .Index(x => x.ContentItemId)
             .Index(x => x.Culture)
@@ -170,6 +175,7 @@ public void Configure(StoreOptions opts)
             });
 
         opts.Schema.For<ContentSemanticDocument>()
+            .TableName(Schemas.Tables.ContentSemanticIndex)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .Index(x => x.ContentTypeAlias)

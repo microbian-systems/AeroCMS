@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Modules.Posts;
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Commerce.Data;
+using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Html;
@@ -90,8 +91,15 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         }
         opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
         opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
-        opts.Schema.For<AeroRole>().Identity(x => x.Id);
-        opts.Schema.For<AeroUser>().Identity(x => x.Id);
+        opts.Schema.For<AeroRole>()
+            .TableName(Schemas.Tables.Roles)
+            .Identity(x => x.Id);
+        opts.Schema.For<AeroUser>()
+            .TableName(Schemas.Tables.Users)
+            .Identity(x => x.Id);
+        opts.Schema.For<ApiAccountModel>()
+            .TableName(Schemas.Tables.ApiAccounts)
+            .Identity(x => x.Id);
 
         foreach (var configure in rootServiceProvider.GetServices<IConfigureAeroDB>())
         {

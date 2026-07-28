@@ -121,10 +121,10 @@ public class SecurityModule : AeroModuleBase, IConfigureAeroDB
     /// </remarks>
     public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<ApiKeyDocument>()
-            .UniqueIndex(x => x.SecretHash);
-        opts.Schema.For<ApiKeyDocument>()
-            .Index(x => x.UserId);
+        var apiKeys = opts.Schema.For<ApiKeyDocument>()
+            .TableName(Schemas.Tables.ApiKeys);
+        apiKeys.UniqueIndex(x => x.SecretHash);
+        apiKeys.Index(x => x.UserId);
     }
 
     /// <summary>

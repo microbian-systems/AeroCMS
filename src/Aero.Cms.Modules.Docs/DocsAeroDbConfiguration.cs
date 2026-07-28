@@ -1,3 +1,5 @@
+using Aero.Cms.Core;
+
 namespace Aero.Cms.Modules.Docs;
 
 /// <summary>
@@ -15,10 +17,11 @@ public sealed class DocsAeroDbConfiguration : IConfigureAeroDB
     /// <param name="options">The mutable store configuration.</param>
 public void Configure(StoreOptions options)
     {
-        // AeroDB will manage MarkdownPage in its own table.
-        options.Schema.For<DocsPage>().Index(x => x.Slug);
-        options.Schema.For<DocsPage>().Index(x => x.Culture);
-        options.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
+        var docs = options.Schema.For<DocsPage>()
+            .TableName(Schemas.Tables.Docs);
+        docs.Index(x => x.Slug);
+        docs.Index(x => x.Culture);
+        docs.Index(x => x.TranslationGroupId);
     }
 
     /// <summary>

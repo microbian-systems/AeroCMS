@@ -10,8 +10,7 @@ namespace Aero.Cms.Modules.Ai.Knowledge;
 /// <summary>Runs bounded full-text or hybrid retrieval with scope filters inside each search query.</summary>
 public sealed class AeroAiKnowledgeRetriever(
     IDocumentSession session,
-    IContentEmbeddingGenerator embeddingGenerator,
-    IAeroDocumentationKnowledgeSource? documentation = null)
+    IContentEmbeddingGenerator embeddingGenerator)
     : IAeroAiKnowledgeRetriever
 {
     public async Task<Result<IReadOnlyList<AeroAiKnowledgeMatch>>> SearchAsync(
@@ -22,21 +21,7 @@ public sealed class AeroAiKnowledgeRetriever(
         if (validationError is not null)
             return validationError;
 
-        var corpusAudience = query.Audience == AeroAiAudience.Manager
-            ? AeroAiAudience.Manager
-            : AeroAiAudience.Public;
-        var search = session.Search<AeroAiKnowledgeChunkDocument>()
-            .MatchText(chunk => (object)chunk.FullText, query.Query.Trim())
-            .Where(chunk =>
-                chunk.TenantId == query.TenantId
-                && chunk.SiteId == query.SiteId
-                && chunk.Audience == corpusAudience
-                && chunk.Culture == query.Culture
-                && chunk.IncludeInSearch)
-            .Take(Math.Clamp(query.Take, 1, AeroAiKnowledgeConstants.MaximumTake))
-            .Candidates(AeroAiKnowledgeConstants.MaximumCandidates);
-
-        List<AeroAiKnowledgeChunkDocument> documents;
+        float[]? queryVector = null;
         if (embeddingGenerator.IsAvailable)
         {
             if (embeddingGenerator.Dimensions != AeroAiKnowledgeConstants.VectorDimensions)
@@ -57,8 +42,28 @@ public sealed class AeroAiKnowledgeRetriever(
                      $"{AeroAiKnowledgeConstants.VectorDimensions} are required."]);
             }
 
+            queryVector = success.Value;
+        }
+
+        var corpusAudience = query.Audience == AeroAiAudience.Manager
+            ? AeroAiAudience.Manager
+            : AeroAiAudience.Public;
+        var search = session.Search<AeroAiKnowledgeChunkDocument>()
+            .MatchText(chunk => (object)chunk.FullText, query.Query.Trim())
+            .Where(chunk =>
+                chunk.TenantId == query.TenantId
+                && chunk.SiteId == query.SiteId
+                && chunk.Audience == corpusAudience
+                && chunk.Culture == query.Culture
+                && chunk.IncludeInSearch)
+            .Take(Math.Clamp(query.Take, 1, AeroAiKnowledgeConstants.MaximumTake))
+            .Candidates(AeroAiKnowledgeConstants.MaximumCandidates);
+
+        List<AeroAiKnowledgeChunkDocument> documents;
+        if (queryVector is not null)
+        {
             documents = await search
-                .WithVector(chunk => chunk.Embedding!, success.Value)
+                .WithVector(chunk => chunk.Embedding!, queryVector)
                 .FuseAsync(
                     rrfK: 60,
                     rrfLimit: AeroAiKnowledgeConstants.MaximumCandidates,
@@ -85,20 +90,75 @@ public sealed class AeroAiKnowledgeRetriever(
                 document.ContentHash))
             .ToArray();
 
-        if (corpusAudience != AeroAiAudience.Manager || documentation is null)
+        if (corpusAudience != AeroAiAudience.Manager)
             return siteMatches;
 
-        var documentationMatches = documentation.Search(
-            query.Query.Trim(),
-            Math.Min(3, query.Take));
-        if (documentationMatches.Count == 0)
+        var documentationTake = Math.Min(3, query.Take);
+        var documentationSearch = session
+            .Search<AeroManagerDocumentationChunkDocument>()
+            .MatchText(chunk => (object)chunk.FullText, query.Query.Trim())
+            .Where(chunk =>
+                chunk.CorpusId == AeroDocumentationKnowledgeConstants.CorpusId)
+            .Take(documentationTake)
+            .Candidates(AeroAiKnowledgeConstants.MaximumCandidates);
+
+        List<AeroManagerDocumentationChunkDocument> documentationDocuments;
+        if (queryVector is not null
+            && await IsDocumentationVectorProjectionReadyAsync(cancellationToken))
+        {
+            documentationDocuments = await documentationSearch
+                .WithVector(chunk => chunk.Embedding!, queryVector)
+                .FuseAsync(
+                    rrfK: 60,
+                    rrfLimit: AeroAiKnowledgeConstants.MaximumCandidates,
+                    cancellationToken);
+        }
+        else
+        {
+            documentationDocuments = await documentationSearch
+                .ToListAsync(cancellationToken);
+        }
+
+        if (documentationDocuments.Count == 0)
             return siteMatches;
+
+        var documentationMatches = documentationDocuments
+            .Take(documentationTake)
+            .Select(document => new AeroAiKnowledgeMatch(
+                document.Id,
+                AeroAiKnowledgeSourceKinds.AeroDocumentation,
+                document.SourceId,
+                document.SourceUri,
+                document.Culture,
+                document.Title,
+                document.Section,
+                document.Content,
+                document.SourceRevision,
+                document.ChunkRevision,
+                document.ContentHash));
 
         return documentationMatches
             .Concat(siteMatches)
             .DistinctBy(match => match.ChunkId)
             .Take(query.Take)
             .ToArray();
+    }
+
+    private async Task<bool> IsDocumentationVectorProjectionReadyAsync(
+        CancellationToken cancellationToken)
+    {
+        var state = await session.LoadAsync<AeroManagerDocumentationCorpusStateDocument>(
+            AeroDocumentationKnowledgeConstants.CorpusStateId,
+            cancellationToken);
+        return state is
+        {
+            CorpusId: AeroDocumentationKnowledgeConstants.CorpusId,
+            EmbeddingsReady: true
+        }
+        && state.EmbeddingModelId == embeddingGenerator.ModelId
+        && state.EmbeddingDimensions == embeddingGenerator.Dimensions
+        && state.ChunkCount > 0
+        && state.EmbeddedChunkCount == state.ChunkCount;
     }
 
     private static AeroError? Validate(AeroAiKnowledgeQuery query)

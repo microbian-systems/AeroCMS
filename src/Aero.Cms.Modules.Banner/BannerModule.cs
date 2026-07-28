@@ -60,6 +60,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// </summary>
 public void Configure(StoreOptions options)
     {
+        options.Schema.For<BannerModel>()
+            .TableName(Schemas.Tables.Banners)
+            .Identity(x => x.Id);
     }
 
         /// <summary>
