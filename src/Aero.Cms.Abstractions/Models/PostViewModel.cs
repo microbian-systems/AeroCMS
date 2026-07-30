@@ -96,6 +96,14 @@ public sealed record PostViewModel : AeroEntityViewModel
 [Id(15)]
     public long? SeriesId { get; set; }
 
+    /// <summary>Gets whether the published post is eligible for site search.</summary>
+    [Id(16)]
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>Gets whether the published post may ground public AI answers.</summary>
+    [Id(17)]
+    public bool IncludeInPublicAi { get; set; }
+
         /// <summary>
     /// Gets or sets the Is Publicly Visible.
     /// </summary>

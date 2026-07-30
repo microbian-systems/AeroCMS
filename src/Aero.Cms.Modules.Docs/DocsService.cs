@@ -398,6 +398,8 @@ public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, strin
                 MarkdownContent = source.MarkdownContent,
                 SeoTitle = source.SeoTitle,
                 SeoDescription = source.SeoDescription,
+                IncludeInSearch = source.IncludeInSearch,
+                IncludeInPublicAi = source.IncludeInPublicAi,
                 PublicationState = ContentPublicationState.Draft,
                 PublishedOn = null,
                 PublishedVersion = 0,
@@ -439,6 +441,8 @@ public async Task<Result<DocsPage, AeroError>> CreateAsync(CreateDocRequest requ
                 Summary = request.Summary,
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
+                IncludeInSearch = request.IncludeInSearch,
+                IncludeInPublicAi = request.IncludeInPublicAi,
                 MarkdownContent = request.Markdown ?? request.Content,
                 PublicationState = request.PublicationState
             };
@@ -470,6 +474,8 @@ public async Task<Result<DocsPage, AeroError>> UpdateAsync(long id, UpdateDocReq
             doc.Summary = request.Summary;
             doc.SeoTitle = request.SeoTitle;
             doc.SeoDescription = request.SeoDescription;
+            doc.IncludeInSearch = request.IncludeInSearch;
+            doc.IncludeInPublicAi = request.IncludeInPublicAi;
             doc.MarkdownContent = request.Markdown ?? request.Content;
             doc.PublicationState = request.PublicationState;
 
@@ -629,6 +635,8 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
             doc.MarkdownContent = vm.MarkdownContent;
             doc.SeoTitle = vm.SeoTitle;
             doc.SeoDescription = vm.SeoDescription;
+            doc.IncludeInSearch = vm.IncludeInSearch;
+            doc.IncludeInPublicAi = vm.IncludeInPublicAi;
             doc.PublicationState = isNew ? ContentPublicationState.Draft : vm.PublicationState;
             doc.PublishedOn = isNew ? null : vm.PublishedOn;
             doc.ShowHeaderNavigation = vm.ShowHeaderNavigation;
@@ -683,6 +691,8 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         MarkdownContent = page.MarkdownContent,
         SeoTitle = page.SeoTitle,
         SeoDescription = page.SeoDescription,
+        IncludeInSearch = page.IncludeInSearch,
+        IncludeInPublicAi = page.IncludeInPublicAi,
         PublicationState = page.PublicationState,
         PublishedOn = page.PublishedOn,
         ShowHeaderNavigation = page.ShowHeaderNavigation,

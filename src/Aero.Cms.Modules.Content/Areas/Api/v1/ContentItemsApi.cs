@@ -22,11 +22,11 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// </remarks>
 public static class ContentItemsApi
 {
-        /// <summary>
+    /// <summary>
     /// Maps authenticated content-item CRUD, publication, and translation endpoints.
     /// </summary>
     /// <param name="app">The endpoint route builder that receives the administrative routes.</param>
-public static void MapContentItemsApi(this IEndpointRouteBuilder app)
+    public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
             .WithTags("Admin - Content Items")
@@ -38,6 +38,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         group.MapGet("/{alias}/{id:long}", GetContentItem)
             .RequireAuthorization("site:read")
             .WithName("GetContentItem");
+        group.MapGet("/{alias}/reference-options", ListReferenceOptions)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentReferenceOptions");
         group.MapPost("/{alias}", CreateContentItem)
             .RequireAuthorization("site:create")
             .WithName("CreateContentItem");
@@ -179,7 +182,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(vm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to create content item")
+                ? ContentMutationFailure(logger, "Failed to create content item", result.error.Message, siteId, alias)
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -237,7 +240,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(existingVm, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to update content item")
+                ? ContentMutationFailure(logger, "Failed to update content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -281,7 +284,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.DeleteAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to delete content item")
+                ? ContentMutationFailure(logger, "Failed to delete content item", result.error.Message, siteId, alias, id)
                 : TypedResults.NoContent();
         }
         catch (Exception ex)
@@ -315,7 +318,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.PublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to publish content item")
+                ? ContentMutationFailure(logger, "Failed to publish content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -349,7 +352,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.UnpublishAsync(id, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to unpublish content item")
+                ? ContentMutationFailure(logger, "Failed to unpublish content item", result.error.Message, siteId, alias, id)
                 : TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -471,7 +474,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var result = await contentActor.SaveDraftAsync(fork, siteId, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure("Failed to create content item translation")
+                ? ContentMutationFailure(logger, "Failed to create content item translation", result.error.Message, siteId, alias, id)
                 : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
         }
         catch (Exception ex)
@@ -593,11 +596,116 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
             Status = StatusCodes.Status400BadRequest
         });
 
-    private static IResult ContentMutationFailure(string title)
-        => TypedResults.BadRequest(new ProblemDetails
+    private static IResult ContentMutationFailure(
+        ILogger logger,
+        string title,
+        string reason,
+        long siteId,
+        string alias,
+        long? itemId = null)
+    {
+        logger.LogWarning(
+            "Content mutation rejected for site {SiteId}, type {ContentType}, item {ContentItemId}: {Reason}",
+            siteId,
+            alias,
+            itemId,
+            reason);
+
+        return TypedResults.BadRequest(new ProblemDetails
         {
             Title = title,
             Detail = "The requested content mutation could not be completed.",
             Status = StatusCodes.Status400BadRequest
         });
+    }
+
+    /// <summary>
+    /// Returns bounded, site-scoped options for flat reference pickers.
+    /// </summary>
+    private static async Task<IResult> ListReferenceOptions(
+        string alias,
+        [FromServices] IContentQueryService queryService,
+        [FromServices] IContentTypeService contentTypeService,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] string? culture = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? filterField = null,
+        [FromQuery] string? filterValue = null,
+        [FromQuery] int take = 100,
+        CancellationToken ct = default)
+    {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0)
+        {
+            return MissingSite();
+        }
+
+        var contentType = await contentTypeService.GetByAliasAsync(
+            siteId,
+            alias,
+            ct);
+        if (contentType is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var filters = new Dictionary<string, string>(
+            StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            filters["__culture"] = culture;
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            filters["__search"] = search;
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterField)
+            || !string.IsNullOrWhiteSpace(filterValue))
+        {
+            if (string.IsNullOrWhiteSpace(filterField)
+                || string.IsNullOrWhiteSpace(filterValue)
+                || !typeOk.Value.Fields.Any(field =>
+                    string.Equals(
+                        field.Name,
+                        filterField,
+                        StringComparison.Ordinal)
+                    && field.FieldType == ContentFieldTypes.Reference))
+            {
+                return TypedResults.BadRequest(
+                    new ProblemDetails
+                    {
+                        Title = "Invalid reference filter",
+                        Detail = "The reference filter must name a reference field on the target content type."
+                    });
+            }
+
+            filters[filterField] = filterValue;
+        }
+
+        var result = await queryService.SearchAsync(
+            siteId,
+            alias,
+            filters,
+            ct);
+        return result switch
+        {
+            Result<IReadOnlyList<ContentItem>, AeroError>.Ok ok =>
+                TypedResults.Ok<IReadOnlyList<ContentReferenceOption>>(
+                    ok.Value
+                        .OrderBy(item => item.Title)
+                        .ThenBy(item => item.Id)
+                        .Take(Math.Clamp(take, 1, 100))
+                        .Select(item => new ContentReferenceOption(
+                            item.Id,
+                            item.Title ?? item.Slug,
+                            item.Slug,
+                            item.Culture))
+                        .ToList()),
+            Result<IReadOnlyList<ContentItem>, AeroError>.Failure failure =>
+                TypedResults.Problem(failure.Error.ToString()),
+            _ => TypedResults.Problem("Unexpected content reference query result.")
+        };
+    }
 }

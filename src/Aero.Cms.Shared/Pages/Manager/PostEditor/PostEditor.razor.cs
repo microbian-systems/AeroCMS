@@ -116,6 +116,10 @@ protected string SeoDescription { get; set; } = string.Empty;
     /// Gets or sets the Featured Image Url.
     /// </summary>
 protected string FeaturedImageUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+protected bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+protected bool IncludeInPublicAi { get; set; }
         /// <summary>
     /// Gets or sets the Category Id.
     /// </summary>
@@ -312,6 +316,7 @@ protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
     /// Gets or sets the Ai Provider Options.
     /// </summary>
 protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
+    private CancellationTokenSource? _enhancementCts;
         /// <summary>
     /// Gets or sets the Is Translating All.
     /// </summary>
@@ -424,6 +429,8 @@ public async ValueTask DisposeAsync()
         _autoSaveTimer?.Dispose();
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
+        _enhancementCts?.Cancel();
+        _enhancementCts?.Dispose();
 
     }
 
@@ -471,6 +478,8 @@ public async ValueTask DisposeAsync()
             Excerpt = post.Excerpt ?? string.Empty;
             SeoTitle = post.SeoTitle ?? string.Empty;
             SeoDescription = post.SeoDescription ?? string.Empty;
+            IncludeInSearch = post.IncludeInSearch;
+            IncludeInPublicAi = post.IncludeInPublicAi;
             FeaturedImageUrl = post.ImageUrl ?? string.Empty;
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
             SeriesId = post.SeriesId ?? Series.FirstOrDefault(x => x.Slug.Equals("general", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
@@ -1443,6 +1452,8 @@ protected async Task SavePost()
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     SeriesId = SeriesId > 0 ? SeriesId : null,
+                    IncludeInSearch = IncludeInSearch,
+                    IncludeInPublicAi = IncludeInPublicAi,
                     PublicationState = PublishedAt.HasValue
                         ? (int)ContentPublicationState.Published
                         : (int)ContentPublicationState.Draft
@@ -1475,6 +1486,8 @@ protected async Task SavePost()
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     SeriesId = SeriesId > 0 ? SeriesId : null,
+                    IncludeInSearch = IncludeInSearch,
+                    IncludeInPublicAi = IncludeInPublicAi,
                     PublicationState = (int)ContentPublicationState.Draft
                 };
 
@@ -1686,8 +1699,8 @@ protected async Task OpenEnhancePanel()
     /// </summary>
 protected void CloseEnhancePanel()
     {
+        _enhancementCts?.Cancel();
         IsEnhancePanelOpen = false;
-        IsEnhancing = false;
     }
 
         /// <summary>
@@ -1732,19 +1745,81 @@ protected async Task RunEnhancementAsync()
             Metadata: BuildEnhanceMetadata(),
             ProviderId: string.IsNullOrWhiteSpace(SelectedAiProviderId) ? null : SelectedAiProviderId);
 
-        var result = await AiClient.EnhanceContentAsync(request);
-        if (result is Result<EnhanceContentResponse, AeroError>.Ok ok)
-        {
-            EnhanceSuggestion = ok.Value.EnhancedText;
-            EnhanceRationale = ok.Value.Rationale;
-            EnhanceWarnings = ok.Value.Warnings;
-        }
-        else if (result is Result<EnhanceContentResponse, AeroError>.Failure failure)
-        {
-            ShowToast($"AI enhancement failed: {FormatError(failure.Error)}", "error");
-        }
+        _enhancementCts?.Cancel();
+        _enhancementCts?.Dispose();
+        var enhancementCts = new CancellationTokenSource();
+        _enhancementCts = enhancementCts;
+        var cancellationToken = enhancementCts.Token;
+        var completed = false;
 
-        IsEnhancing = false;
+        try
+        {
+            var result = await AiClient.StreamEnhanceContentAsync(request, cancellationToken);
+            if (result is Result<IAsyncEnumerable<EnhanceContentEvent>, AeroError>.Failure failure)
+            {
+                ShowToast($"AI enhancement failed: {FormatError(failure.Error)}", "error");
+                return;
+            }
+
+            if (result is not Result<IAsyncEnumerable<EnhanceContentEvent>, AeroError>.Ok ok)
+            {
+                ShowToast("AI enhancement failed: unexpected streaming result.", "error");
+                return;
+            }
+
+            await foreach (var item in ok.Value.WithCancellation(cancellationToken))
+            {
+                switch (item.Kind)
+                {
+                    case EnhanceContentEventKind.Delta:
+                        EnhanceSuggestion = string.Concat(EnhanceSuggestion, item.Text);
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                    case EnhanceContentEventKind.Complete when item.Response is not null:
+                        EnhanceSuggestion = item.Response.EnhancedText;
+                        EnhanceRationale = item.Response.Rationale;
+                        EnhanceWarnings = item.Response.Warnings;
+                        completed = true;
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                    case EnhanceContentEventKind.Error:
+                        EnhanceSuggestion = null;
+                        EnhanceRationale = null;
+                        EnhanceWarnings = [];
+                        ShowToast(item.Text ?? "AI enhancement failed.", "error");
+                        await InvokeAsync(StateHasChanged);
+                        return;
+                }
+            }
+
+            if (!completed && !cancellationToken.IsCancellationRequested)
+            {
+                EnhanceSuggestion = null;
+                ShowToast("AI enhancement ended before a validated suggestion was received.", "error");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            EnhanceSuggestion = null;
+        }
+        catch (Exception)
+        {
+            EnhanceSuggestion = null;
+            EnhanceRationale = null;
+            EnhanceWarnings = [];
+            ShowToast("AI enhancement stream could not be read.", "error");
+        }
+        finally
+        {
+            if (ReferenceEquals(_enhancementCts, enhancementCts))
+            {
+                _enhancementCts = null;
+                enhancementCts.Dispose();
+            }
+
+            IsEnhancing = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
         /// <summary>

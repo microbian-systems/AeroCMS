@@ -1,0 +1,18 @@
+- name: API reference
+  href: index.md
+- name: Commerce
+  items:
+  - name: Overview
+    href: ../docs/src/content/docs/guides/commerce.md
+  - name: Catalog and storefront
+    href: ../docs/src/content/docs/guides/commerce/catalog-storefront.md
+  - name: Basket and orders
+    href: ../docs/src/content/docs/guides/commerce/basket-orders.md
+  - name: Payments and subscriptions
+    href: ../docs/src/content/docs/guides/commerce/payments-subscriptions.md
+  - name: Manager, page editor, and A2A
+    href: ../docs/src/content/docs/guides/commerce/manager-page-editor-a2a.md
+  - name: Security and operations
+    href: ../docs/src/content/docs/guides/commerce/security-operations.md
+- name: .NET namespaces
+  href: api/

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using Aero.Cms.Abstractions.Content;
 
 namespace Aero.Cms.Core.Content.Templating;
@@ -14,8 +15,9 @@ public static class ContentTypeSchemaGenerator
     /// <param name="definition">The content type definition to project.</param>
     /// <returns>A new <see cref="JsonDocument"/> owned by the caller.</returns>
     /// <remarks>
-    /// Number and Boolean fields map to their corresponding JSON types; reference fields map
-    /// to <c>integer</c>; every other field type maps to <c>string</c>. The current reference
+    /// Number, Range, and Boolean fields map to their corresponding JSON types; bounded
+    /// collection fields map to arrays or objects; reference fields map to <c>integer</c>;
+    /// every other field type maps to <c>string</c>. The current reference
     /// field validators store identifiers as JSON strings, so generated reference schemas do
     /// not match that storage shape. Field names and labels are written through
     /// <see cref="Utf8JsonWriter"/> and are JSON-escaped.
@@ -34,6 +36,7 @@ public static class ContentTypeSchemaGenerator
             writer.WriteStartObject(field.Name);
             writer.WriteString("type", MapFieldType(field.FieldType));
             writer.WriteString("title", field.Label ?? field.Name);
+            WriteFieldConstraints(writer, field);
             writer.WriteEndObject();
         }
 
@@ -61,8 +64,94 @@ public static class ContentTypeSchemaGenerator
 
     private static string MapFieldType(string ft) => ft switch
     {
-        "number" => "number", "boolean" => "boolean",
-        "reference" => "integer",
+        "number" => "number", "range" or "reference" => "integer", "boolean" => "boolean",
+        "list" or "gallery" => "array",
+        "dictionary" => "object",
         _ => "string"
     };
+
+    private static void WriteFieldConstraints(Utf8JsonWriter writer, ContentFieldDefinition field)
+    {
+        if (field.FieldType == ContentFieldTypes.Range)
+        {
+            WriteIntegerSetting(
+                writer,
+                "minimum",
+                field,
+                RangeContentFieldSettings.Start);
+            WriteIntegerSetting(
+                writer,
+                "maximum",
+                field,
+                RangeContentFieldSettings.End);
+        }
+        else if (field.FieldType == ContentFieldTypes.Color)
+        {
+            writer.WriteString(
+                "pattern",
+                "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$");
+        }
+        else if (field.FieldType == ContentFieldTypes.List)
+        {
+            var itemType = GetStringSetting(field, CompositeContentFieldSettings.ItemType);
+            writer.WriteStartObject("items");
+            writer.WriteString("type", itemType == CompositeContentFieldSettings.Number ? "number" : "string");
+            WriteAllowedValues(writer, field, itemType);
+            writer.WriteEndObject();
+            writer.WriteBoolean("uniqueItems", true);
+            WriteIntegerSetting(writer, "minItems", field, CompositeContentFieldSettings.MinimumItems);
+            WriteIntegerSetting(writer, "maxItems", field, CompositeContentFieldSettings.MaximumItems);
+        }
+        else if (field.FieldType == ContentFieldTypes.Gallery)
+        {
+            writer.WriteStartObject("items");
+            writer.WriteString("type", "string");
+            writer.WriteEndObject();
+            WriteIntegerSetting(writer, "minItems", field, CompositeContentFieldSettings.MinimumItems);
+            WriteIntegerSetting(writer, "maxItems", field, CompositeContentFieldSettings.MaximumItems);
+        }
+        else if (field.FieldType == ContentFieldTypes.Dictionary)
+        {
+            var valueType = GetStringSetting(field, CompositeContentFieldSettings.ValueType);
+            writer.WriteStartObject("additionalProperties");
+            writer.WriteString("type", valueType == CompositeContentFieldSettings.Number ? "number" : "string");
+            writer.WriteEndObject();
+            WriteIntegerSetting(writer, "minProperties", field, CompositeContentFieldSettings.MinimumEntries);
+            WriteIntegerSetting(writer, "maxProperties", field, CompositeContentFieldSettings.MaximumEntries);
+        }
+    }
+
+    private static string? GetStringSetting(ContentFieldDefinition field, string key) =>
+        field.Settings.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static void WriteIntegerSetting(Utf8JsonWriter writer, string schemaName, ContentFieldDefinition field, string settingName)
+    {
+        if (field.Settings.TryGetValue(settingName, out var value) && value.TryGetInt32(out var number))
+        {
+            writer.WriteNumber(schemaName, number);
+        }
+    }
+
+    private static void WriteAllowedValues(Utf8JsonWriter writer, ContentFieldDefinition field, string? itemType)
+    {
+        if (!field.Settings.TryGetValue(CompositeContentFieldSettings.AllowedValues, out var allowed)
+            || allowed.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        writer.WriteStartArray("enum");
+        foreach (var value in allowed.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String))
+        {
+            var text = value.GetString() ?? string.Empty;
+            if (itemType == CompositeContentFieldSettings.Number
+                && decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
+                writer.WriteNumberValue(number);
+            else
+                writer.WriteStringValue(text);
+        }
+        writer.WriteEndArray();
+    }
 }

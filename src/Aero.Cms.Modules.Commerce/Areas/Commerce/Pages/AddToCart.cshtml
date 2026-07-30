@@ -1,0 +1,26 @@
+@page "/shop/cart/add"
+@model AddToCartModel
+@{
+    ViewData["Title"] = "Add to shopping bag";
+}
+
+<div class="eshop-item-details">
+    @if (Model.LoadFailed)
+    {
+        <div class="eshop-state eshop-state-error" role="alert">This product is temporarily unavailable. Please try again later.</div>
+    }
+    else if (Model.Product is not null)
+    {
+        <div class="description">
+            <h1>Add @Model.Product.Name to your shopping bag?</h1>
+            <p>@Model.Product.Description</p>
+            <p class="price">$@Model.Product.Price.ToString("0.00")</p>
+            <form method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="listingId" value="@Model.Product.Id" />
+                <button type="submit" class="eshop-button eshop-button-primary">Add to shopping bag</button>
+                <a href="@Model.CartPath" class="eshop-button eshop-button-secondary">View shopping bag</a>
+            </form>
+        </div>
+    }
+</div>

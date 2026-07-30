@@ -91,6 +91,15 @@ public interface IContentItemsHttpClient
     /// GetAllAsync method.
     /// </summary>
 Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
+    /// <summary>Gets bounded options for a searchable or cascading content reference.</summary>
+    Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
+        string alias,
+        string? culture = null,
+        string? search = null,
+        string? filterField = null,
+        string? filterValue = null,
+        int take = 100,
+        CancellationToken ct = default);
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
@@ -159,6 +168,26 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
         var url = $"?contentType={Uri.EscapeDataString(alias)}&skip={skip}&take={take}";
         if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
         return GetAsync<PagedResult<ContentItemSummary>>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
+        string alias,
+        string? culture = null,
+        string? search = null,
+        string? filterField = null,
+        string? filterValue = null,
+        int take = 100,
+        CancellationToken ct = default)
+    {
+        var parameters = new List<string> { $"take={Math.Clamp(take, 1, 100)}" };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        AddQueryParameter(parameters, "filterField", filterField);
+        AddQueryParameter(parameters, "filterValue", filterValue);
+        var url =
+            $"{Uri.EscapeDataString(alias)}/reference-options?{string.Join("&", parameters)}";
+        return GetAsync<IReadOnlyList<ContentReferenceOption>>(url, ct);
     }
 
         /// <summary>
@@ -255,6 +284,18 @@ public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alia
             _ => AeroError.CreateError("Unexpected result from HTTP operation")
         };
     }
+
+    private static void AddQueryParameter(
+        ICollection<string> parameters,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parameters.Add(
+                $"{name}={Uri.EscapeDataString(value.Trim())}");
+        }
+    }
 }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -269,7 +310,8 @@ public record ContentTypeSummary(
     string? Description,
     string? Category,
     bool AllowPublicUrl,
-    bool HideFromSearch,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     int FieldCount,
     bool HasCustomTemplate,
     long ItemCount,
@@ -286,7 +328,8 @@ public record ContentTypeDetail(
     string? Category,
     string? Icon,
     bool AllowPublicUrl,
-    bool HideFromSearch,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
     ContentTypeScheduleConfig? ScheduleConfig,
@@ -303,7 +346,8 @@ public record CreateContentTypeRequest(
     string? Category,
     string? Icon,
     bool AllowPublicUrl,
-    bool HideFromSearch,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
     ContentTypeScheduleConfig? ScheduleConfig,
@@ -326,6 +370,13 @@ public record ContentItemSummary(
     long? SourceItemId,
     long? ParentId = null,
     int SortOrder = 0);
+
+/// <summary>A bounded manager-facing option for a content reference field.</summary>
+public sealed record ContentReferenceOption(
+    long Id,
+    string Title,
+    string Slug,
+    string Culture);
 
 /// <summary>Detailed information for a content item.</summary>
 public record ContentItemDetail(

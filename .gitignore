@@ -441,3 +441,6 @@ src/Aero.Cms.Web/App_Data/
 
 # Repository-local, verified frontend tool binaries (restored by eng/theme-assets).
 .tools/
+
+# Playwright MCP browser session artifacts
+.playwright-mcp/

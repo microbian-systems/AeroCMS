@@ -1,10 +1,12 @@
 using System.Globalization;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Shared.Components.MarkdownEditor;
 using Aero.Cms.Shared.Localization;
+using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
@@ -28,11 +30,13 @@ public partial class DocsEditor
 [Parameter] public long? SectionId { get; set; }
 
     [Inject] private IDocsHttpClient DocsClient { get; set; } = default!;
+    [Inject] private IAiHttpClient AiClient { get; set; } = default!;
     [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] private ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+    [Inject] private ManagerAssistantState ManagerAssistantState { get; set; } = default!;
 
         /// <summary>
     /// Gets or sets the Space.
@@ -132,7 +136,17 @@ protected IEnumerable<string> AvailableTranslationCultures =>
     private long? _loadedParentId;
     private long _previewRefreshVersion;
     private AeroMarkdownEditor? _markdownEditor;
+    private bool _aiAvailabilityResolved;
+    private bool _docsAiEnabled;
     private readonly HashSet<long> _selectedIds = [];
+
+    /// <summary>Gets whether the streaming manager assistant is available to the Docs editor.</summary>
+    protected bool DocsAiEnabled => _aiAvailabilityResolved && _docsAiEnabled;
+
+    /// <summary>Gets the disabled-state explanation for the Docs AI action.</summary>
+    protected string DocsAiUnavailableMessage => _aiAvailabilityResolved
+        ? "Configure and enable an AI provider before enhancing documentation."
+        : "Checking AI availability…";
 
         /// <summary>
     /// OnParametersSetAsync method.
@@ -147,6 +161,11 @@ protected override async Task OnParametersSetAsync()
         _isLoading = true;
         try
         {
+            if (!_aiAvailabilityResolved)
+            {
+                await LoadAiAvailabilityAsync();
+            }
+
             CurrentSite ??= await ResolveCurrentSiteAsync();
             var allResult = await DocsClient.GetAllAsync();
             if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok allOk)
@@ -185,6 +204,33 @@ protected override async Task OnParametersSetAsync()
         {
             _isLoading = false;
         }
+    }
+
+    private async Task LoadAiAvailabilityAsync()
+    {
+        try
+        {
+            var settingsResult = await AiClient.GetSettingsAsync();
+            var providersResult = await AiClient.GetProviderOptionsAsync();
+            _docsAiEnabled =
+                settingsResult is Result<AiSettingsConfiguration, AeroError>.Ok { Value.Enabled: true }
+                && providersResult is Result<IReadOnlyList<AiProviderOption>, AeroError>.Ok { Value.Count: > 0 };
+        }
+        finally
+        {
+            _aiAvailabilityResolved = true;
+        }
+    }
+
+    /// <summary>Opens the existing POST-SSE manager assistant from the Docs Markdown toolbar.</summary>
+    protected Task OpenDocsAiAsync()
+    {
+        if (DocsAiEnabled)
+        {
+            ManagerAssistantState.Toggle();
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task<DocsDetail?> LoadDetailAsync(long id)
@@ -1337,6 +1383,14 @@ public string? SeoTitle { get; set; }
         /// </summary>
 public string? SeoDescription { get; set; }
                 /// <summary>
+        /// Gets or sets whether the published document is eligible for site search.
+        /// </summary>
+public bool IncludeInSearch { get; set; } = true;
+                /// <summary>
+        /// Gets or sets whether the published document may ground public AI answers.
+        /// </summary>
+public bool IncludeInPublicAi { get; set; }
+                /// <summary>
         /// Gets or sets the Parent Id.
         /// </summary>
 public long? ParentId { get; set; }
@@ -1398,6 +1452,8 @@ public static MutableDoc From(DocsDetail detail)
                 MarkdownContent = detail.MarkdownContent,
                 SeoTitle = detail.SeoTitle,
                 SeoDescription = detail.SeoDescription,
+                IncludeInSearch = detail.IncludeInSearch,
+                IncludeInPublicAi = detail.IncludeInPublicAi,
                 ParentId = detail.ParentId,
                 Order = detail.Order,
                 PublicationState = detail.PublicationState,
@@ -1435,6 +1491,8 @@ public DocsDetail ToDetail()
                 PublishedVersion,
                 DraftVersion,
                 Culture,
-                TranslationGroupId);
+                TranslationGroupId,
+                IncludeInSearch,
+                IncludeInPublicAi);
     }
 }

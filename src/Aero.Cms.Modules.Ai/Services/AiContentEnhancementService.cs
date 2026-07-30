@@ -7,6 +7,8 @@ using Aero.Core.Railway;
 using FluentValidation;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 
 namespace Aero.Cms.Modules.Ai.Services;
@@ -33,6 +35,7 @@ public sealed class AiContentEnhancementService(
     ILogger<AiContentEnhancementService> log) : IAiContentEnhancementService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const int MaxStreamOutputCharacters = 1_000_000;
 
     private const string Instructions = """
         You are a sr. staff technical sales engineer / technologist and teacher and author/writer. 
@@ -177,6 +180,228 @@ public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
                 request.TargetField);
 
             return AeroError.CreateError("AI enhancement failed: " + ex.Message);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<IAsyncEnumerable<EnhanceContentEvent>>> StreamAsync(
+        EnhanceContentRequest request,
+        string correlationId,
+        CancellationToken cancellationToken = default)
+    {
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return AeroError.ValidationError(validation.Errors.Select(error => error.ErrorMessage));
+        }
+
+        var settingsResult = await settingsProvider.GetAsync(request.ProviderId, cancellationToken);
+        if (settingsResult is Result<AiRuntimeSettings>.Failure settingsFailure)
+        {
+            log.LogWarning(
+                "AI enhancement stream settings resolution failed. CorrelationId={CorrelationId}",
+                correlationId);
+            return settingsFailure.Error;
+        }
+
+        var settings = ((Result<AiRuntimeSettings>.Ok)settingsResult).Value;
+        if (!settings.Enabled)
+        {
+            return AeroError.ConfigurationError("AI is disabled.");
+        }
+
+        var clientResult = await chatClientFactory.CreateAsync(settings, cancellationToken);
+        if (clientResult is Result<IChatClient>.Failure clientFailure)
+        {
+            return clientFailure.Error;
+        }
+
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, Instructions),
+            new(ChatRole.User, promptBuilder.Build(request))
+        };
+        var options = new ChatOptions
+        {
+            Temperature = settings.Temperature,
+            MaxOutputTokens = settings.MaxOutputTokens
+        };
+
+        return new Result<IAsyncEnumerable<EnhanceContentEvent>>.Ok(
+            StreamCoreAsync(
+                ((Result<IChatClient>.Ok)clientResult).Value,
+                settings,
+                messages,
+                options,
+                correlationId,
+                request.TargetField,
+                cancellationToken));
+    }
+
+    private async IAsyncEnumerable<EnhanceContentEvent> StreamCoreAsync(
+        IChatClient client,
+        AiRuntimeSettings settings,
+        IReadOnlyList<ChatMessage> messages,
+        ChatOptions options,
+        string correlationId,
+        string targetField,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using (client)
+        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+        {
+            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(settings.TimeoutSeconds, 1, 300)));
+            var rawOutput = new StringBuilder();
+            var enhancedText = new StreamingJsonStringProjector("enhancedText");
+            EnhanceContentEvent? terminalError = null;
+
+            yield return new(
+                EnhanceContentEventKind.Metadata,
+                CorrelationId: correlationId,
+                Provider: settings.DisplayName,
+                Model: settings.Model);
+
+            await using var enumerator = client.GetStreamingResponseAsync(
+                    messages,
+                    options,
+                    timeout.Token)
+                .GetAsyncEnumerator(timeout.Token);
+
+            while (terminalError is null)
+            {
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync();
+                }
+                catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        terminalError = new(
+                            EnhanceContentEventKind.Error,
+                            "AI enhancement timed out.",
+                            CorrelationId: correlationId);
+                    }
+
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    log.LogWarning(
+                        ex,
+                        "AI enhancement streaming failed. CorrelationId={CorrelationId} Provider={Provider} Model={Model} Target={TargetField}",
+                        correlationId,
+                        settings.Provider,
+                        settings.Model,
+                        targetField);
+                    terminalError = new(
+                        EnhanceContentEventKind.Error,
+                        "AI enhancement provider invocation failed.",
+                        CorrelationId: correlationId);
+                    break;
+                }
+
+                if (!hasNext)
+                {
+                    break;
+                }
+
+                var providerDelta = enumerator.Current.Text;
+                if (string.IsNullOrEmpty(providerDelta))
+                {
+                    continue;
+                }
+
+                if (rawOutput.Length + providerDelta.Length > MaxStreamOutputCharacters)
+                {
+                    terminalError = new(
+                        EnhanceContentEventKind.Error,
+                        "AI enhancement exceeded the allowed output size.",
+                        CorrelationId: correlationId);
+                    break;
+                }
+
+                rawOutput.Append(providerDelta);
+                var previewDelta = enhancedText.Append(providerDelta);
+                for (var offset = 0; offset < previewDelta.Length; offset += 8_000)
+                {
+                    var length = Math.Min(8_000, previewDelta.Length - offset);
+                    yield return new(
+                        EnhanceContentEventKind.Delta,
+                        previewDelta.Substring(offset, length),
+                        CorrelationId: correlationId);
+                }
+            }
+
+            if (terminalError is not null)
+            {
+                yield return terminalError;
+                yield break;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
+            if (rawOutput.Length == 0)
+            {
+                yield return new(
+                    EnhanceContentEventKind.Error,
+                    "AI provider returned an empty response.",
+                    CorrelationId: correlationId);
+                yield break;
+            }
+
+            EnhanceContentAgentOutput? output;
+            string? parseError = null;
+            try
+            {
+                output = EnhanceContentAgentOutputParser.Deserialize(rawOutput.ToString(), JsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                log.LogWarning(
+                    ex,
+                    "AI enhancement stream returned unparseable output. CorrelationId={CorrelationId}",
+                    correlationId);
+                output = null;
+                parseError = "AI provider returned an unparseable response.";
+            }
+
+            if (parseError is not null)
+            {
+                yield return new(
+                    EnhanceContentEventKind.Error,
+                    parseError,
+                    CorrelationId: correlationId);
+                yield break;
+            }
+
+            if (output is null || string.IsNullOrWhiteSpace(output.EnhancedText))
+            {
+                yield return new(
+                    EnhanceContentEventKind.Error,
+                    "AI provider returned an empty enhancement.",
+                    CorrelationId: correlationId);
+                yield break;
+            }
+
+            var response = new EnhanceContentResponse(
+                output.EnhancedText,
+                output.Rationale,
+                output.Warnings ?? [],
+                settings.DisplayName,
+                settings.Model ?? string.Empty,
+                Usage: null);
+
+            yield return new(
+                EnhanceContentEventKind.Complete,
+                Response: response,
+                CorrelationId: correlationId,
+                Provider: settings.DisplayName,
+                Model: settings.Model);
         }
     }
 }

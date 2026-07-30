@@ -87,6 +87,10 @@
                 }
             </div>
             <div class="pe-modal-footer">
+                @if (MultiSelect && MaximumSelections is > 0)
+                {
+                    <span class="text-xs">Select up to @MaximumSelections item(s).</span>
+                }
                 <button class="pe-btn pe-btn-ghost" @onclick="CloseModal">Cancel</button>
                 <button class="pe-btn pe-btn-primary"
                         disabled="@(SelectedMediaIds.Count == 0)"
@@ -104,6 +108,9 @@
 
     /// <summary>Whether multiple images can be selected (Gallery mode).</summary>
     [Parameter] public bool MultiSelect { get; set; }
+
+    /// <summary>Optional upper bound for multi-select mode.</summary>
+    [Parameter] public int? MaximumSelections { get; set; }
 
     /// <summary>
     /// Optional externally-provided library. When null or empty, the modal loads media
@@ -197,7 +204,7 @@
         {
             if (SelectedMediaIds.Contains(img.Id.ToString()))
                 SelectedMediaIds.Remove(img.Id.ToString());
-            else
+            else if (MaximumSelections is null || SelectedMediaIds.Count < MaximumSelections.Value)
                 SelectedMediaIds.Add(img.Id.ToString());
         }
         else
@@ -208,7 +215,13 @@
 
     private async Task ConfirmSelection()
     {
-        var selected = EffectiveLibrary.Where(img => SelectedMediaIds.Contains(img.Id.ToString())).ToList();
+        var libraryById = EffectiveLibrary
+            .GroupBy(img => img.Id.ToString(), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var selected = SelectedMediaIds
+            .Where(libraryById.ContainsKey)
+            .Select(id => libraryById[id])
+            .ToList();
         await OnConfirm.InvokeAsync(selected);
     }
 

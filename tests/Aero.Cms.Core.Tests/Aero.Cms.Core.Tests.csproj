@@ -8,6 +8,7 @@
     <IsPackable>false</IsPackable>
     <EnableTestingPlatform>true</EnableTestingPlatform>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +29,10 @@
     <PackageReference Include="TUnit" Version="1.58.0" />
     <PackageReference Include="Alba" Version="8.5.2" />
     <PackageReference Include="WolverineFx" Version="6.17.1" />
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS"
+               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
+               Private="true" />
   </ItemGroup>
 
   <ItemGroup>

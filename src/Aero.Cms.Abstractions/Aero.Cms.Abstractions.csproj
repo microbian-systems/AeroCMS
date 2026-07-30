@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.Orleans.Sdk" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
     <!--
       AeroCmsBrowserClient changes this project's compile surface only. Do not
       propagate it into ordinary dependencies, or MSBuild creates duplicate
@@ -22,9 +22,6 @@
       solution build.
     -->
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj"
-                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
-                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj"
                       AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
                       GlobalPropertiesToRemove="AeroCmsBrowserClient" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj"
@@ -36,6 +33,14 @@
     <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj"
                       AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
                       GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">

@@ -33,7 +33,8 @@ public override IReadOnlyList<string> Tags => [];
     /// <param name="opts">The store options to mutate.</param>
     public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<TenantModel>();
+        opts.Schema.For<TenantModel>()
+            .TableName(Schemas.Tables.Tenants);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -12,30 +13,39 @@ using SharpTS.TypeSystem;
 
 namespace Aero.Cms.Modules.Pages.Rendering;
 
+/// <summary>Detached, JSON-shaped page values made available to one SharpTS render.</summary>
+public sealed record SharpTsPageContext(
+    string? Id,
+    string Title,
+    string Slug,
+    string Path,
+    string Culture);
+
+/// <summary>Detached, JSON-shaped site values made available to one SharpTS render.</summary>
+public sealed record SharpTsSiteContext(
+    string Id,
+    string CurrentCulture);
+
 /// <summary>Detached, JSON-shaped values made available to one SharpTS render.</summary>
 public sealed record SharpTsRenderContext(
-    object Page,
-    object Site,
-    IReadOnlyDictionary<string, Aero.Cms.Abstractions.Content.ContentQueryResult> Content,
+    SharpTsPageContext Page,
+    SharpTsSiteContext Site,
+    IReadOnlyDictionary<string, ContentQueryResult> Content,
     bool IsPreview)
 {
     public static SharpTsRenderContext Create(
         PageRenderMetadata metadata,
         PageContentQueryResolution contentQueries,
         bool isPreview) => new(
-        new
-        {
-            id = metadata.Id?.ToString(CultureInfo.InvariantCulture),
-            title = metadata.Title,
-            slug = metadata.Slug,
-            path = metadata.Path,
-            culture = metadata.Culture
-        },
-        new
-        {
-            id = metadata.SiteId.ToString(CultureInfo.InvariantCulture),
-            currentCulture = metadata.Culture
-        },
+        new SharpTsPageContext(
+            metadata.Id?.ToString(CultureInfo.InvariantCulture),
+            metadata.Title,
+            metadata.Slug,
+            metadata.Path,
+            metadata.Culture),
+        new SharpTsSiteContext(
+            metadata.SiteId.ToString(CultureInfo.InvariantCulture),
+            metadata.Culture),
         contentQueries.Results,
         isPreview);
 }
@@ -59,6 +69,43 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
     private const DecoratorMode InteropDecoratorMode = DecoratorMode.Legacy;
     private const string OutputStart = "__AERO_RENDER_START__";
     private const string OutputEnd = "__AERO_RENDER_END__";
+    private const string ContentModuleSpecifier = "aero:content";
+    private const string ContentModuleFileName = "aero-content.ts";
+    private static readonly IReadOnlySet<string> AllowedDotNetImportTypes =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "System.Collections.ArrayList",
+            "System.Collections.BitArray",
+            "System.Collections.Hashtable",
+            "System.Collections.Queue",
+            "System.Collections.SortedList",
+            "System.Collections.Stack",
+            "System.Linq.Enumerable",
+            "System.Linq.Queryable",
+            "System.Linq.Expressions.BinaryExpression",
+            "System.Linq.Expressions.ConstantExpression",
+            "System.Linq.Expressions.Expression",
+            "System.Linq.Expressions.LambdaExpression",
+            "System.Linq.Expressions.MemberExpression",
+            "System.Linq.Expressions.MethodCallExpression",
+            "System.Linq.Expressions.NewExpression",
+            "System.Linq.Expressions.ParameterExpression",
+            "System.Threading.Tasks.Task",
+            "System.Threading.Tasks.ValueTask"
+        };
+    private static readonly IReadOnlySet<string> AllowedDotNetGenericTypes =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "System.Collections.Generic.List`1[System.String]",
+            "System.Collections.Generic.List`1[System.Int64]",
+            "System.Collections.Generic.List`1[System.Double]",
+            "System.Collections.Generic.List`1[System.Boolean]",
+            "System.Collections.Generic.Dictionary`2[System.String,System.String]",
+            "System.Collections.Generic.Dictionary`2[System.String,System.Int64]",
+            "System.Collections.Generic.HashSet`1[System.String]",
+            "System.Collections.Generic.Queue`1[System.String]",
+            "System.Collections.Generic.Stack`1[System.String]"
+        };
     private readonly SemaphoreSlim _executionGate = new(1, 1);
 
     public async Task<Result<string>> ExecuteAsync(
@@ -113,14 +160,18 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 MaxDepth = 12
             });
-        var executableSource = BuildExecutableSource(source, contextJson);
         var virtualBase = Path.Combine(
             Path.GetTempPath(),
             $"aero_sharpts_render_{Guid.NewGuid():N}");
         var entryPath = Path.GetFullPath(Path.Combine(virtualBase, "main.ts"));
+        var contentModulePath = Path.GetFullPath(Path.Combine(virtualBase, ContentModuleFileName));
+        ValidateSourceCapabilityProfile(source);
+        var rewrittenSource = RewriteContentModuleImport(source);
+        var executableSource = BuildExecutableSource(rewrittenSource, contextJson);
         var virtualFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [entryPath] = executableSource
+            [entryPath] = executableSource,
+            [contentModulePath] = SharpTsContentVirtualModule.Build(context.Content)
         };
 
         var resolver = new ModuleResolver(entryPath, virtualFiles);
@@ -172,6 +223,43 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
     }
 
     private static string BuildExecutableSource(string source, string contextJson) => $$"""
+        interface AeroContentNode {
+            id: string;
+            contentType: string;
+            title: string;
+            slug: string;
+            fields: { [name: string]: any };
+            children: AeroContentNode[];
+        }
+
+        interface AeroContentQueryResult {
+            name: string;
+            contentTypeAlias: string;
+            roots: AeroContentNode[];
+            totalItems: number;
+            wasTruncated: boolean;
+        }
+
+        interface AeroPageContext {
+            id: string | null;
+            title: string;
+            slug: string;
+            path: string;
+            culture: string;
+        }
+
+        interface AeroSiteContext {
+            id: string;
+            currentCulture: string;
+        }
+
+        interface AeroRenderContext {
+            page: AeroPageContext;
+            site: AeroSiteContext;
+            content: { [name: string]: AeroContentQueryResult };
+            isPreview: boolean;
+        }
+
         class AeroHtmlFragment {
             value: string;
             constructor(value: string) { this.value = value; }
@@ -218,6 +306,145 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
         console.log("{{OutputStart}}" + String(__aeroRendered) + "{{OutputEnd}}");
         """;
 
+    private static string RewriteContentModuleImport(string source)
+    {
+        var tokens = new Lexer(source).ScanTokens();
+        var moduleTokens = tokens
+            .Select((token, index) => (Token: token, Index: index))
+            .Where(candidate =>
+                candidate.Index > 0
+                && candidate.Token.Type == TokenType.STRING
+                && string.Equals(
+                    candidate.Token.Literal as string,
+                    ContentModuleSpecifier,
+                    StringComparison.Ordinal)
+                && tokens[candidate.Index - 1].Type == TokenType.FROM)
+            .Select(candidate => candidate.Token)
+            .OrderByDescending(token => token.Start)
+            .ToArray();
+
+        var rewritten = new StringBuilder(source);
+        foreach (var token in moduleTokens)
+        {
+            var quote = token.Lexeme[0];
+            rewritten.Remove(token.Start, token.Lexeme.Length);
+            rewritten.Insert(
+                token.Start,
+                $"{quote}./aero-content{quote}");
+        }
+
+        return rewritten.ToString();
+    }
+
+    private static void ValidateSourceCapabilityProfile(string source)
+    {
+        var tokens = new Lexer(source).ScanTokens();
+        ValidateImportLikeTokens(tokens);
+        ValidateDotNetTypeTokens(tokens);
+
+        var statements = new Parser(tokens, InteropDecoratorMode)
+            .WithFilePath("main.ts")
+            .ParseOrThrow();
+        foreach (var statement in statements)
+        {
+            ValidateSourceStatement(statement);
+        }
+    }
+
+    private static void ValidateImportLikeTokens(IReadOnlyList<Token> tokens)
+    {
+        for (var index = 0; index + 1 < tokens.Count; index++)
+        {
+            var token = tokens[index];
+            var next = tokens[index + 1];
+            if (token.Type == TokenType.IMPORT
+                && next.Type == TokenType.LEFT_PAREN)
+            {
+                throw new InvalidOperationException(
+                    "Dynamic imports are not available in rendering.safe-v1.");
+            }
+
+            if (token.Type == TokenType.IDENTIFIER
+                && string.Equals(token.Lexeme, "require", StringComparison.Ordinal)
+                && next.Type == TokenType.LEFT_PAREN)
+            {
+                throw new InvalidOperationException(
+                    "CommonJS imports are not available in rendering.safe-v1.");
+            }
+        }
+    }
+
+    private static void ValidateDotNetTypeTokens(IReadOnlyList<Token> tokens)
+    {
+        for (var index = 0; index + 4 < tokens.Count; index++)
+        {
+            if (!string.Equals(
+                    tokens[index].Lexeme,
+                    "DotNetType",
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (index == 0 || tokens[index - 1].Type != TokenType.AT)
+            {
+                throw new InvalidOperationException(
+                    "@DotNetType aliases are not available in rendering.safe-v1.");
+            }
+
+            var hasExpectedShape =
+                tokens[index + 1].Type == TokenType.LEFT_PAREN
+                && tokens[index + 2].Type == TokenType.STRING
+                && tokens[index + 3].Type == TokenType.RIGHT_PAREN;
+            var typeName = hasExpectedShape
+                ? tokens[index + 2].Literal as string
+                : null;
+            if (typeName is null
+                || !AllowedDotNetGenericTypes.Contains(typeName))
+            {
+                throw new InvalidOperationException(
+                    $"@DotNetType is limited to approved closed generic families in rendering.safe-v1 ('{typeName ?? "invalid declaration"}').");
+            }
+        }
+    }
+
+    private static void ValidateSourceStatement(Stmt statement)
+    {
+        switch (statement)
+        {
+            case Stmt.Import
+                {
+                    NamedImports: { Count: > 0 },
+                    DefaultImport: null,
+                    NamespaceImport: null
+                } import
+                when string.Equals(
+                    import.ModulePath,
+                    ContentModuleSpecifier,
+                    StringComparison.Ordinal):
+                return;
+            case Stmt.Import import
+                when string.Equals(
+                    import.ModulePath,
+                    ContentModuleSpecifier,
+                    StringComparison.Ordinal):
+                throw new InvalidOperationException(
+                    $"Only named imports are allowed for '{ContentModuleSpecifier}'.");
+            case Stmt.Import import when IsDotNetModule(import.ModulePath):
+                ValidateDotNetImport(import);
+                return;
+            case Stmt.Import import:
+                throw new InvalidOperationException(
+                    $"Module '{import.ModulePath}' is not available in rendering.safe-v1.");
+            case Stmt.ImportRequire importRequire:
+                throw new InvalidOperationException(
+                    $"CommonJS imports are not available in rendering.safe-v1 ('{importRequire.ModulePath}').");
+            case Stmt.Export { FromModulePath: not null } export:
+                throw new InvalidOperationException(
+                    $"Module re-exports are not available in rendering.safe-v1 ('{export.FromModulePath}').");
+        }
+    }
+
     private static void ValidateCapabilityProfile(IEnumerable<ParsedModule> modules)
     {
         foreach (var module in modules)
@@ -226,8 +453,19 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
             {
                 if (statement is Stmt.Import import)
                 {
+                    if (IsGeneratedContentModuleImport(import))
+                    {
+                        continue;
+                    }
+
+                    if (IsDotNetModule(import.ModulePath))
+                    {
+                        ValidateDotNetImport(import);
+                        continue;
+                    }
+
                     throw new InvalidOperationException(
-                        $"Imports are not available in the SharpTS rendering.safe-v1 profile ('{import.ModulePath}').");
+                        $"Only the '{ContentModuleSpecifier}' import and explicitly allowed .NET types are available in the SharpTS rendering.safe-v1 profile ('{import.ModulePath}').");
                 }
 
                 if (statement is Stmt.ImportRequire importRequire)
@@ -236,25 +474,64 @@ public sealed class SharpTsExecutor : ISharpTsExecutor
                         $"CommonJS imports are not available in rendering.safe-v1 ('{importRequire.ModulePath}').");
                 }
 
-                if (statement is Stmt.Class { Decorators: { Count: > 0 } decorators }
-                    && decorators.Any(decorator =>
-                        string.Equals(
-                            GetDecoratorName(decorator.Expression),
-                            "DotNetType",
-                            StringComparison.Ordinal)))
-                {
-                    throw new InvalidOperationException(
-                        "@DotNetType declarations are not available in rendering.safe-v1.");
-                }
             }
         }
     }
 
-    private static string? GetDecoratorName(Expr expression) => expression switch
+    private static bool IsGeneratedContentModuleImport(Stmt.Import import)
+        => string.Equals(import.ModulePath, "./aero-content", StringComparison.Ordinal);
+
+    private static bool IsDotNetModule(string modulePath)
+        => modulePath.StartsWith("dotnet:", StringComparison.Ordinal);
+
+    private static bool IsAllowedDotNetModule(string modulePath)
     {
-        Expr.Variable variable => variable.Name.Lexeme,
-        Expr.Call call => GetDecoratorName(call.Callee),
-        Expr.Get get => get.Name.Lexeme,
-        _ => null
-    };
+        if (!IsDotNetModule(modulePath))
+        {
+            return false;
+        }
+
+        var moduleTarget = modulePath["dotnet:".Length..];
+        return AllowedDotNetImportTypes.Contains(moduleTarget)
+               || AllowedDotNetImportTypes.Any(type =>
+                   type.StartsWith($"{moduleTarget}.", StringComparison.Ordinal));
+    }
+
+    private static void ValidateDotNetImport(Stmt.Import import)
+    {
+        if (import.DefaultImport is not null
+            || import.NamespaceImport is not null
+            || import.NamedImports is not { Count: > 0 })
+        {
+            throw new InvalidOperationException(
+                $"Only named imports are allowed for '{import.ModulePath}'.");
+        }
+
+        var moduleTarget = import.ModulePath["dotnet:".Length..];
+        foreach (var specifier in import.NamedImports)
+        {
+            var importedName = specifier.Imported.Lexeme;
+            var directName = moduleTarget[
+                (moduleTarget.LastIndexOf('.') + 1)..];
+            var genericArityIndex = directName.IndexOf('`');
+            if (genericArityIndex >= 0)
+            {
+                directName = directName[..genericArityIndex];
+            }
+
+            var directMatch = AllowedDotNetImportTypes.Contains(moduleTarget)
+                              && string.Equals(
+                                  importedName,
+                                  directName,
+                                  StringComparison.Ordinal);
+            var namespaceMatch = AllowedDotNetImportTypes.Contains(
+                $"{moduleTarget}.{importedName}");
+            if (!directMatch && !namespaceMatch)
+            {
+                throw new InvalidOperationException(
+                    $"The .NET type '{moduleTarget}.{importedName}' is not allowed by rendering.safe-v1.");
+            }
+        }
+    }
+
 }

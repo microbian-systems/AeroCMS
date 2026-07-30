@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "product": "AeroCMS",
+  "canonical_origin": "https://docs.getaerocms.net",
+  "last_verified_commit": "47c299402cee06975dfdf32e071ba133179c15f2",
+  "generated_artifacts": [
+    "docs/llms.txt",
+    "docs/llms-aero-full.txt",
+    "docs/manager-assistant-corpus.json",
+    "docs/public/llms.txt",
+    "docs/public/llms-aero-full.txt",
+    "docs/public/documentation-manifest.json"
+  ],
+  "trust_classes": {
+    "public": "Safe for the public documentation site and public AI ingestion.",
+    "manager-internal": "Operational or manager-only guidance; excluded from public corpus generation.",
+    "security-sensitive": "Secrets, PII, incident data, or exploit-enabling details; excluded from public files and ingestion."
+  },
+  "excluded_roots": [
+    "Aero/",
+    "AeroDB/",
+    "AeroVault/",
+    "NeoUI/",
+    "craft.js/",
+    "hyperui/",
+    "tiptap-dotnet/",
+    "ui/",
+    "src/Aero.Cms.Db.Marten/Legacy/",
+    ".docs/",
+    "**/bin/",
+    "**/obj/"
+  ],
+  "entries": [
+    {
+      "title": "Overview",
+      "canonical_path": "/",
+      "document": "index.mdx",
+      "audience": "public",
+      "feature_area": "architecture",
+      "maturity": "alpha",
+      "source_files": [
+        "README.md",
+        "src/Aero.Cms.Web/Program.cs",
+        "src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs"
+      ]
+    },
+    {
+      "title": "End-to-end tutorial",
+      "canonical_path": "/getting-started",
+      "document": "getting-started/index.md",
+      "audience": "public",
+      "feature_area": "getting-started",
+      "maturity": "alpha",
+      "source_files": [
+        "global.json",
+        "src/Aero.Cms.Web/Properties/launchSettings.json",
+        "src/Aero.Cms.AppHost/AppHost.cs",
+        "src/Aero.Cms.Modules.Setup/Areas/Setup/Pages/Setup.razor.cs",
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs",
+        "src/Aero.Cms.Abstractions/Content/ContentFieldTypes.cs"
+      ]
+    },
+    {
+      "title": "Architecture",
+      "canonical_path": "/concepts/architecture",
+      "document": "concepts/architecture.mdx",
+      "audience": "public",
+      "feature_area": "architecture",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web/Program.cs",
+        "src/Aero.Cms.Web.Bootstrap/AeroCmsExtensions.cs",
+        "src/Aero.Cms.Modules.Modules/Services/ModuleOrchestrationExtensions.cs",
+        "src/Aero.Cms.Core/Content/Services/ContentHierarchyQueryService.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/PageRendererRegistry.cs",
+        "src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs"
+      ]
+    },
+    {
+      "title": "Feature inventory",
+      "canonical_path": "/concepts/feature-inventory",
+      "document": "concepts/feature-inventory.md",
+      "audience": "public",
+      "feature_area": "architecture",
+      "maturity": "mixed",
+      "source_files": [
+        "src/Aero.Cms.Web/Program.cs",
+        "src/Aero.Cms.Modules.Setup/SeedDataService.cs",
+        "src/Aero.Cms.Modules.Pages/Areas/Api/v1/PagesApi.cs",
+        "src/Aero.Cms.Modules.Content/Areas/Api/v1/ContentItemsApi.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs"
+      ]
+    },
+    {
+      "title": "Sites, tenants, and cultures",
+      "canonical_path": "/concepts/sites-tenants-cultures",
+      "document": "concepts/sites-tenants-cultures.md",
+      "audience": "public",
+      "feature_area": "tenancy-security",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Modules.Sites/SiteResolutionMiddleware.cs",
+        "src/Aero.Cms.Web.Bootstrap/Infrastructure/DefaultSiteContext.cs",
+        "src/Aero.Cms.Modules.Sites/SitesApi.cs",
+        "tests/Aero.Cms.Core.Tests/Integration/PagesSitePermissionAuthorizationTests.cs"
+      ]
+    },
+    {
+      "title": "Pages and rendering",
+      "canonical_path": "/guides/pages-and-rendering",
+      "document": "guides/pages-and-rendering.md",
+      "audience": "public",
+      "feature_area": "pages-rendering",
+      "maturity": "mixed",
+      "source_files": [
+        "src/Aero.Cms.Abstractions/Pages/Rendering/PageRendererDescriptor.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/AeroCompositionPageRenderer.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/ScribanPageRenderer.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/HtmxPageRenderer.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/SharpTsExecutor.cs",
+        "src/Aero.Cms.Core/Content/Templating/SecureScribanTemplateOptions.cs"
+      ]
+    },
+    {
+      "title": "Content model and hierarchy",
+      "canonical_path": "/guides/content-modeling",
+      "document": "guides/content-modeling.md",
+      "audience": "public",
+      "feature_area": "content-modeling",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Abstractions/Content/ContentFieldTypes.cs",
+        "src/Aero.Cms.Abstractions/Content/ContentHierarchy.cs",
+        "src/Aero.Cms.Abstractions/Content/ContentHierarchyQuery.cs",
+        "src/Aero.Cms.Modules.Content/ContentHierarchyManagerService.cs",
+        "src/Aero.Cms.Core/Content/Services/ContentHierarchyQueryService.cs",
+        "src/Aero.Cms.Abstractions/Ai/Knowledge/AeroAiContentExposure.cs",
+        "tests/Aero.Cms.Core.Tests/Content/ContentHierarchyTests.cs"
+      ]
+    },
+    {
+      "title": "Posts and documentation",
+      "canonical_path": "/guides/posts-and-docs",
+      "document": "guides/posts-and-docs.md",
+      "audience": "public",
+      "feature_area": "content-authoring",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Modules.Posts/Areas/Api/v1/PostsApi.cs",
+        "src/Aero.Cms.Modules.Docs/Areas/Api/v1/DocsApi.cs",
+        "src/Aero.Cms.Modules.Docs/Areas/Docs/Pages/Doc.cshtml.cs",
+        "src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs",
+        "tests/Aero.Cms.Core.Tests/Integration/DocsApiTests.cs"
+      ]
+    },
+    {
+      "title": "Manager and member identity",
+      "canonical_path": "/guides/identity-and-access",
+      "document": "guides/identity-and-access.md",
+      "audience": "public",
+      "feature_area": "identity-access",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Modules.Identity/IdentityApi.cs",
+        "src/Aero.Cms.Modules.Identity/ExternalMemberApi.cs",
+        "src/Aero.Cms.Modules.Identity/ManagerFederationApi.cs",
+        "src/Aero.Cms.Modules.Security/ApiKeyService.cs",
+        "src/Aero.Cms.Modules.Users/Areas/Api/v1/UsersApi.cs"
+      ]
+    },
+    {
+      "title": "Themes, media, navigation",
+      "canonical_path": "/guides/site-presentation",
+      "document": "guides/site-presentation.md",
+      "audience": "public",
+      "feature_area": "site-presentation",
+      "maturity": "mixed",
+      "source_files": [
+        "eng/theme-assets/README.md",
+        "src/Aero.Cms.Modules.Theming/Areas/Api/v1/ThemesApi.cs",
+        "src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs",
+        "src/Aero.Cms.Modules.Navigation/Areas/Api/v1/NavigationAdminApi.cs",
+        "src/Aero.Cms.Modules.Footer/Areas/Api/v1/FooterAdminApi.cs"
+      ]
+    },
+    {
+      "title": "AI and MCP",
+      "canonical_path": "/guides/ai-and-mcp",
+      "document": "guides/ai-and-mcp.md",
+      "audience": "public",
+      "feature_area": "ai-mcp",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Ai/Api/AiApi.cs",
+        "src/Aero.Cms.Modules.Ai/AiModule.cs",
+        "src/Aero.Cms.Modules.AiAssistant/AeroCmsAssistantService.cs",
+        "src/Aero.Cms.Modules.AiAssistant/AeroSiteAssistantEndpoints.cs",
+        "src/Aero.Cms.Modules.AiAssistant/Pipeline/AeroAiRequestPipeline.cs",
+        "src/Aero.Cms.Modules.AiAssistant/AeroAiTokenBudgetCoordinator.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroMcpModule.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroMcpApiKeyEndpoints.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs",
+        "src/Aero.Cms.Modules.RateLimiting/AeroRateLimitPolicyNames.cs",
+        "tests/Aero.Cms.Core.Tests/Ai/SiteAssistantBoundaryTests.cs",
+        "tests/Aero.Cms.Core.Tests/Ai/ManagerAssistantBoundaryTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce",
+      "canonical_path": "/guides/commerce",
+      "document": "guides/commerce.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/CommerceModule.cs",
+        "src/Aero.Cms.Modules.Commerce/README.md",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceRouteOwnershipTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce catalog and storefront",
+      "canonical_path": "/guides/commerce/catalog-storefront",
+      "document": "guides/commerce/catalog-storefront.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductDocument.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Models/ProductListingDocument.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Api/CatalogEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Services/ProductService.cs",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceStorefrontTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce basket and orders",
+      "canonical_path": "/guides/commerce/basket-orders",
+      "document": "guides/commerce/basket-orders.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Basket/Api/BasketEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Basket/Services/BasketService.cs",
+        "src/Aero.Cms.Modules.Commerce/Orders/Api/OrderEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/Orders/Services/OrderService.cs",
+        "src/Aero.Cms.Modules.Commerce/Shared/StateMachine/OrderStateMachine.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCheckoutOwnershipTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce payments and subscriptions",
+      "canonical_path": "/guides/commerce/payments-subscriptions",
+      "document": "guides/commerce/payments-subscriptions.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentApplicationService.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/StripePaymentProviderAdapter.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PayPalPaymentProviderAdapter.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionCheckoutService.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/SubscriptionDocuments.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionReconciliationService.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce manager, page editor, and A2A",
+      "canonical_path": "/guides/commerce/manager-page-editor-a2a",
+      "document": "guides/commerce/manager-page-editor-a2a.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Products.razor",
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Listings.razor",
+        "src/Aero.Cms.Modules.Commerce.Client/Pages/Manager/Subscriptions.razor",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommercePageFragments.cs",
+        "src/Aero.Cms.Modules.Commerce/PageEditor/CommerceSeedPageFactory.cs",
+        "src/Aero.Cms.Modules.Commerce/A2A/Api/A2ACommerceEndpoints.cs",
+        "src/Aero.Cms.Modules.Commerce/A2A/Api/A2ASettingsEndpoints.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePageEditorTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceA2AProtocolTests.cs"
+      ]
+    },
+    {
+      "title": "Commerce security and operations",
+      "canonical_path": "/guides/commerce/security-operations",
+      "document": "guides/commerce/security-operations.md",
+      "audience": "public",
+      "feature_area": "commerce",
+      "maturity": "experimental",
+      "source_files": [
+        "src/Aero.Cms.Modules.Commerce/CommerceModule.cs",
+        "src/Aero.Cms.Modules.Commerce/Catalog/Services/CommerceManagerScopeResolver.cs",
+        "src/Aero.Cms.Modules.Commerce/Payments/PaymentContracts.cs",
+        "src/Aero.Cms.Modules.Commerce/Subscriptions/Webhooks/SubscriptionWebhookEndpoints.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceCatalogManagerTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommercePaymentsTests.cs",
+        "tests/Aero.Cms.Core.Tests/Commerce/CommerceSubscriptionWebhookTests.cs"
+      ]
+    },
+    {
+      "title": "Public content query API",
+      "canonical_path": "/guides/public-query-api",
+      "document": "guides/public-query-api.md",
+      "audience": "public",
+      "feature_area": "public-api",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs",
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryContracts.cs",
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryService.cs",
+        "tests/Aero.Cms.Web.Tests/PublicCmsQueryApiTests.cs"
+      ]
+    },
+    {
+      "title": "Configuration",
+      "canonical_path": "/developers/configuration",
+      "document": "developers/configuration.md",
+      "audience": "public",
+      "feature_area": "configuration",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web/appsettings.json",
+        "src/Aero.AppServer/Startup/InfrastructureConnectionStringResolver.cs",
+        "src/Aero.AppServer/Startup/DataProtectionCertificateBootstrapper.cs",
+        "src/Aero.Cms.Modules.Cache/CacheModule.cs",
+        "src/Aero.Cms.Modules.Security/SecurityModule.cs",
+        "src/Aero.Cms.Modules.RateLimiting/AeroRateLimitOptions.cs"
+      ]
+    },
+    {
+      "title": "Extension development",
+      "canonical_path": "/developers/extensions",
+      "document": "developers/extensions.md",
+      "audience": "public",
+      "feature_area": "extension-development",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web.Core/Modules/AeroWebModule.cs",
+        "src/Aero.Cms.Web.Core/Modules/AeroPipelineModule.cs",
+        "src/Aero.Cms.SourceGenerators/ModuleManifestGenerator.cs",
+        "src/Aero.Cms.Modules.Modules/Services/ModuleOrchestrationExtensions.cs"
+      ]
+    },
+    {
+      "title": "Deployment and operations",
+      "canonical_path": "/operations/deployment",
+      "document": "operations/deployment.md",
+      "audience": "public",
+      "feature_area": "operations",
+      "maturity": "partial",
+      "source_files": [
+        "src/Aero.Cms.AppHost/AppHost.cs",
+        "src/Aero.Cms.ServiceDefaults/Extensions.cs",
+        "src/Aero.Cms.Modules.Health/HealthModule.cs",
+        "src/Aero.Cms.Modules.OutputCache/OutputCacheModule.cs",
+        "src/Aero.Cms.Modules.OpenTelemetry/Class1.cs"
+      ]
+    },
+    {
+      "title": "Security hardening",
+      "canonical_path": "/operations/security",
+      "document": "operations/security.md",
+      "audience": "public",
+      "feature_area": "security",
+      "maturity": "required-before-production",
+      "source_files": [
+        "src/Aero.Cms.Modules.Sites/SiteResolutionMiddleware.cs",
+        "src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/SharpTsExecutor.cs",
+        "src/Aero.Cms.Core/Content/Templating/SecureScribanRenderer.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs",
+        "src/Aero.Cms.Abstractions/Security/AeroApiKeyContracts.cs",
+        "src/Aero.Cms.Abstractions/Ai/Knowledge/AeroAiContentExposure.cs"
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "canonical_path": "/operations/troubleshooting",
+      "document": "operations/troubleshooting.md",
+      "audience": "public",
+      "feature_area": "troubleshooting",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web/Program.cs",
+        "src/Aero.Cms.Modules.Setup/Bootstrap/RuntimeActivationService.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/SourcePageRendererValidation.cs",
+        "eng/theme-assets/README.md"
+      ]
+    },
+    {
+      "title": "Feature status",
+      "canonical_path": "/reference/feature-status",
+      "document": "reference/feature-status.md",
+      "audience": "public",
+      "feature_area": "feature-status",
+      "maturity": "mixed",
+      "source_files": [
+        "README.md",
+        "src/Aero.Cms.Web/Program.cs",
+        "src/Aero.Cms.Modules.Media/Areas/Api/v1/MediaApi.cs",
+        "src/Aero.Cms.Modules.OpenTelemetry/Class1.cs",
+        "src/Aero.Cms.Modules.Commerce/CommerceModule.cs"
+      ]
+    },
+    {
+      "title": "Runnable examples",
+      "canonical_path": "/reference/examples",
+      "document": "reference/examples.md",
+      "audience": "public",
+      "feature_area": "examples",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryApi.cs",
+        "src/Aero.Cms.Web/Areas/Api/v1/PublicCmsQueryContracts.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/ScribanPageScopeMapper.cs",
+        "src/Aero.Cms.Modules.Pages/Rendering/SharpTsContentVirtualModule.cs"
+      ]
+    },
+    {
+      "title": "Glossary",
+      "canonical_path": "/reference/glossary",
+      "document": "reference/glossary.md",
+      "audience": "public",
+      "feature_area": "reference",
+      "maturity": "alpha",
+      "source_files": [
+        "src/Aero.Cms.Abstractions/Content/ContentHierarchy.cs",
+        "src/Aero.Cms.Abstractions/Pages/Rendering/PageRendererDescriptor.cs",
+        "src/Aero.Cms.Modules.Mcp/AeroCmsMcpInvocationContextFactory.cs"
+      ]
+    },
+    {
+      "title": "AI ingestion",
+      "canonical_path": "/reference/ai-ingestion",
+      "document": "reference/ai-ingestion.md",
+      "audience": "public",
+      "feature_area": "documentation-system",
+      "maturity": "implemented",
+      "source_files": [
+        "docs/scripts/generate-ingestion.mjs",
+        "docs/scripts/validate-docs.mjs",
+        "docs/documentation-manifest.json"
+      ]
+    },
+    {
+      "title": "Documentation coverage",
+      "canonical_path": "/reference/coverage",
+      "document": "reference/coverage.md",
+      "audience": "public",
+      "feature_area": "documentation-system",
+      "maturity": "implemented",
+      "source_files": [
+        "docs/documentation-manifest.json",
+        "docfx/docfx.json",
+        "docfx/filterConfig.yml",
+        "docfx/api-documentation-gaps.md"
+      ]
+    }
+  ]
+}

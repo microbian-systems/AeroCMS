@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Ai.Pipeline;
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using AeroDB.Sable;
 using FluentValidation;
@@ -7,8 +10,15 @@ using FluentValidation;
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
 /// <summary>Scoped catalog persistence. Listings are never returned unless their canonical product is active in the same tenant.</summary>
-public sealed class ProductService(IDocumentSession session, IValidator<ProductDocument> productValidator, IValidator<ProductListingDocument> listingValidator) : IProductService
+public sealed class ProductService(
+    IDocumentSession session,
+    IValidator<ProductDocument> productValidator,
+    IValidator<ProductListingDocument> listingValidator,
+    IAeroAiKnowledgeProjectionService? knowledgeProjectionService = null)
+    : IProductService
 {
+    private const int MaximumProjectedListingsPerProduct = 1_000;
+
     public async Task<Result<ProductDocument?, AeroError>> GetProductAsync(long tenantId, long productId, CancellationToken ct = default)
         => await Execute(async () => await session.Query<ProductDocument>().FirstOrDefaultAsync(x => x.Id == productId && x.TenantId == tenantId, ct));
 
@@ -161,7 +171,7 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
                 "culture = $culture",
                 "is_published = true",
                 "currency = 'USD'",
-                "product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true)"
+                $"product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true)"
             };
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -180,12 +190,12 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
 
             var where = string.Join(" AND ", predicates);
             var counts = await session.RawQueryAsync<CatalogCountRow>(
-                $"SELECT count() AS total_count FROM product_listing_document WHERE {where} GROUP ALL;",
+                $"SELECT count() AS total_count FROM {Schemas.Tables.ProductListings} WHERE {where} GROUP ALL;",
                 parameters,
                 ct);
             var totalCount = counts.FirstOrDefault()?.TotalCount ?? 0;
             var items = await session.RawQueryAsync<ProductListingDocument>(
-                $"SELECT * FROM product_listing_document WHERE {where} ORDER BY name ASC, id ASC LIMIT $take START $skip;",
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE {where} ORDER BY name ASC, id ASC LIMIT $take START $skip;",
                 parameters,
                 ct);
             return Prelude.Ok<(IReadOnlyList<ProductListingDocument>, long), AeroError>((items, totalCount));
@@ -205,10 +215,10 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
                 ["culture"] = culture
             };
             var listings = await session.RawQueryAsync<ProductListingDocument>(
-                "SELECT * FROM product_listing_document WHERE tenant_id = $tenant_id AND site_id = $site_id " +
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE tenant_id = $tenant_id AND site_id = $site_id " +
                 "AND culture = $culture AND is_published = true AND currency = 'USD' " +
                 "AND category != NONE AND string::trim(category) != '' " +
-                "AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true);",
+                $"AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true);",
                 parameters,
                 ct);
             var categories = listings
@@ -240,9 +250,9 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
                 ["take"] = Math.Clamp(take, 1, 24)
             };
             var listings = await session.RawQueryAsync<ProductListingDocument>(
-                "SELECT * FROM product_listing_document WHERE tenant_id = $tenant_id AND site_id = $site_id " +
+                $"SELECT * FROM {Schemas.Tables.ProductListings} WHERE tenant_id = $tenant_id AND site_id = $site_id " +
                 "AND culture = $culture AND is_published = true AND currency = 'USD' " +
-                "AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM product_document WHERE tenant_id = $tenant_id AND is_active = true) " +
+                $"AND product_id IN (SELECT VALUE type::int(record::id(id)) FROM {Schemas.Tables.Products} WHERE tenant_id = $tenant_id AND is_active = true) " +
                 "ORDER BY created_on DESC, id DESC LIMIT $take;",
                 parameters,
                 ct);
@@ -274,8 +284,16 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         if (!validation.IsValid) return Prelude.Fail<ProductDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
         var duplicate = (await session.Query<ProductDocument>().Where(x => x.TenantId == tenantId && x.Sku == sku && x.Id != productId).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductDocument, AeroError>(AeroError.ConflictError("A product with that SKU already exists."));
-        entity.Name = product.Name; entity.Description = product.Description; entity.Sku = sku; entity.StockQuantity = product.StockQuantity; entity.IsActive = product.IsActive; entity.Attributes = product.Attributes; entity.Tags = product.Tags; entity.ModifiedOn = DateTimeOffset.UtcNow;
-        return await Store(entity, ct);
+        var listings = await session.Query<ProductListingDocument>()
+            .Where(x => x.TenantId == tenantId && x.ProductId == productId)
+            .ToListAsync(ct);
+        var incompatibleListing = listings
+            .Select(listing => ValidateListingCompatibility(product, listing))
+            .FirstOrDefault(error => error is not null);
+        if (incompatibleListing is not null)
+            return Prelude.Fail<ProductDocument, AeroError>(incompatibleListing);
+        entity.Name = product.Name; entity.Description = product.Description; entity.Sku = sku; entity.FulfillmentMode = product.FulfillmentMode; entity.StockQuantity = product.StockQuantity; entity.IsActive = product.IsActive; entity.Attributes = product.Attributes; entity.Tags = product.Tags; entity.ModifiedOn = DateTimeOffset.UtcNow;
+        return await StoreProductWithListingsAsync(entity, ct);
     }
 
     public async Task<Result<bool, AeroError>> DeleteProductAsync(long tenantId, long productId, CancellationToken ct = default)
@@ -318,6 +336,8 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         listing.Id = Snowflake.NewId(); listing.TenantId = tenantId; listing.SiteId = siteId; listing.Version = 0; listing.Currency = "USD"; listing.Culture = culture; listing.Slug = CatalogSlug.Normalize(listing.Slug); listing.CreatedOn = DateTimeOffset.UtcNow;
         var validation = await listingValidator.ValidateAsync(listing, ct);
         if (!validation.IsValid) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
+        var compatibility = ValidateListingCompatibility(product, listing);
+        if (compatibility is not null) return Prelude.Fail<ProductListingDocument, AeroError>(compatibility);
         var duplicate = (await session.Query<ProductListingDocument>().Where(x => x.SiteId == siteId && x.Culture == listing.Culture && (x.Slug == listing.Slug || x.ProductId == listing.ProductId)).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ConflictError("That site and culture already has this slug or product listing."));
         return await StoreListingWithProductAsync(product, listing, ct);
@@ -337,9 +357,11 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         listing.Culture = culture; listing.Slug = slug; listing.Currency = "USD";
         var validation = await listingValidator.ValidateAsync(listing, ct);
         if (!validation.IsValid) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ValidationError(validation.Errors.Select(x => x.ErrorMessage)));
+        var compatibility = ValidateListingCompatibility(product, listing);
+        if (compatibility is not null) return Prelude.Fail<ProductListingDocument, AeroError>(compatibility);
         var duplicate = (await session.Query<ProductListingDocument>().Where(x => x.SiteId == siteId && x.Culture == listing.Culture && x.Id != listingId && (x.Slug == slug || x.ProductId == listing.ProductId)).ToListAsync(ct)).Count > 0;
         if (duplicate) return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.ConflictError("That site and culture already has this slug or product listing."));
-        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
+        existing.ProductId = listing.ProductId; existing.Culture = listing.Culture; existing.Slug = slug; existing.Name = listing.Name; existing.ShortDescription = listing.ShortDescription; existing.Description = listing.Description; existing.Category = listing.Category; existing.ImageUrl = listing.ImageUrl; existing.Price = listing.Price; existing.CompareAtPrice = listing.CompareAtPrice; existing.SubscriptionOffer = listing.SubscriptionOffer; existing.IsPublished = listing.IsPublished; existing.IsFeatured = listing.IsFeatured; existing.IncludeInSearch = listing.IncludeInSearch; existing.IncludeInPublicAi = listing.IncludeInPublicAi; existing.Currency = "USD"; existing.ModifiedOn = DateTimeOffset.UtcNow;
         return await StoreListingWithProductAsync(product, existing, ct);
     }
 
@@ -347,7 +369,21 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
     {
         var listing = await session.Query<ProductListingDocument>().FirstOrDefaultAsync(x => x.Id == listingId && x.TenantId == tenantId && x.SiteId == siteId, ct);
         if (listing is null) return Prelude.Ok<bool, AeroError>(false);
-        try { session.Delete(listing); await session.SaveChangesAsync(ct); return Prelude.Ok<bool, AeroError>(true); }
+        try
+        {
+            session.Delete(listing);
+            if (knowledgeProjectionService is not null)
+            {
+                await knowledgeProjectionService.StageDeleteAsync(
+                    listing.TenantId,
+                    listing.SiteId,
+                    AeroAiKnowledgeSourceKinds.CommerceProduct,
+                    listing.Id,
+                    ct);
+            }
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (ConcurrencyException) { session.ClearChanges(); return Prelude.Fail<bool, AeroError>(AeroError.ConflictError("Listing changed while it was being deleted. Reload and try again.")); }
         catch (Exception) { session.ClearChanges(); return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError("Listing could not be deleted.")); }
@@ -369,6 +405,12 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
             product.ModifiedOn = DateTimeOffset.UtcNow;
             session.Store(product);
             session.Store(listing);
+            if (knowledgeProjectionService is not null)
+            {
+                await knowledgeProjectionService.StageUpsertAsync(
+                    CreateKnowledgeSource(product, listing),
+                    ct);
+            }
             await session.SaveChangesAsync(ct);
             return Prelude.Ok<ProductListingDocument, AeroError>(listing);
         }
@@ -390,6 +432,101 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
         {
             session.ClearChanges();
             return Prelude.Fail<ProductListingDocument, AeroError>(AeroError.DatabaseError("Catalog changes could not be saved."));
+        }
+    }
+
+    private async Task<Result<ProductDocument, AeroError>> StoreProductWithListingsAsync(
+        ProductDocument product,
+        CancellationToken ct)
+    {
+        try
+        {
+            session.Store(product);
+            if (knowledgeProjectionService is not null)
+            {
+                var listings = await session.Query<ProductListingDocument>()
+                    .Where(listing =>
+                        listing.TenantId == product.TenantId
+                        && listing.ProductId == product.Id)
+                    .Take(MaximumProjectedListingsPerProduct + 1)
+                    .ToListAsync(ct);
+                if (listings.Count > MaximumProjectedListingsPerProduct)
+                {
+                    throw new InvalidOperationException(
+                        "A product has too many localized listings to refresh safely in one operation.");
+                }
+
+                foreach (var listing in listings)
+                {
+                    await knowledgeProjectionService.StageUpsertAsync(
+                        CreateKnowledgeSource(product, listing),
+                        ct);
+                }
+            }
+
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<ProductDocument, AeroError>(product);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ProductDocument, AeroError>(
+                AeroError.ConflictError(
+                    "Product or listing changed while search visibility was being refreshed. Reload and try again."));
+        }
+        catch (Exception)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ProductDocument, AeroError>(
+                AeroError.DatabaseError("Product search visibility could not be refreshed."));
+        }
+    }
+
+    private static AeroAiKnowledgeSource CreateKnowledgeSource(
+        ProductDocument product,
+        ProductListingDocument listing)
+    {
+        var sections = new List<AeroAiKnowledgeSection>();
+        AddPublicSection(sections, "Product", listing.Name);
+        AddPublicSection(sections, "Summary", listing.ShortDescription);
+        AddPublicSection(sections, "Description", listing.Description);
+        AddPublicSection(sections, "Category", listing.Category);
+        AddPublicSection(
+            sections,
+            "Price",
+            $"{listing.Price.ToString(CultureInfo.InvariantCulture)} {listing.Currency}");
+
+        return new AeroAiKnowledgeSource(
+            TenantId: listing.TenantId,
+            SiteId: listing.SiteId,
+            SourceKind: AeroAiKnowledgeSourceKinds.CommerceProduct,
+            SourceId: listing.Id,
+            SourceUri: $"/shop/products/{listing.Slug.Trim('/')}",
+            Culture: listing.Culture,
+            SourceRevision: (listing.ModifiedOn ?? listing.CreatedOn).UtcTicks,
+            IsPublished: listing.IsPublished && product.IsActive,
+            IncludeInSearch: listing.IncludeInSearch,
+            IncludeInPublicAi: listing.IncludeInPublicAi,
+            Title: listing.Name,
+            PublicSections: sections,
+            ManagerSections: sections);
+    }
+
+    private static void AddPublicSection(
+        ICollection<AeroAiKnowledgeSection> sections,
+        string name,
+        string? content)
+    {
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            sections.Add(new AeroAiKnowledgeSection(
+                name,
+                content.Trim(),
+                AeroAiFieldExposure.Public));
         }
     }
 
@@ -423,6 +560,22 @@ public sealed class ProductService(IDocumentSession session, IValidator<ProductD
     }
     private static async Task<Result<T?, AeroError>> Execute<T>(Func<Task<T?>> action) where T : class { try { return Prelude.Ok<T?, AeroError>(await action()); } catch (OperationCanceledException) { throw; } catch (Exception) { return Prelude.Fail<T?, AeroError>(AeroError.DatabaseError("Catalog data could not be loaded.")); } }
     private static string NormalizeSku(string? sku) => (sku ?? string.Empty).Trim().ToUpperInvariant();
+    private static AeroError? ValidateListingCompatibility(ProductDocument product, ProductListingDocument listing)
+    {
+        if (product.FulfillmentMode == ProductFulfillmentMode.NonInventoryRecurring)
+        {
+            return listing.IsPublished && !HasEffectiveProviderBinding(listing.SubscriptionOffer)
+                ? AeroError.ValidationError(["Published recurring listings require a Stripe price or PayPal plan binding."])
+                : null;
+        }
+
+        return listing.SubscriptionOffer is not null
+            ? AeroError.ValidationError(["Only recurring products can carry a subscription offer."])
+            : null;
+    }
+    private static bool HasEffectiveProviderBinding(SubscriptionOffer? offer)
+        => offer is { IntervalDays: >= 1 and <= 365 } &&
+           (!string.IsNullOrWhiteSpace(offer.StripePriceId) || !string.IsNullOrWhiteSpace(offer.PayPalPlanId));
     private static bool TryNormalizeCulture(string? culture, out string canonical)
     {
         try

@@ -77,9 +77,15 @@ Scriban is the safer runtime-template option only while AeroCMS supplies a delib
 SharpTS does not execute in the browser, so SharpTS source does not directly receive browser DOM or cookie access. However, SharpTS is a .NET language with .NET interop. If arbitrary imports or host objects are exposed, untrusted code may reach the file system, network, processes, assemblies, application services, or secrets.
 
 The current alpha SharpTS renderer is an explicitly experimental trusted-author
-exception: it interprets in the web process, denies imports, CommonJS imports,
-and `@DotNetType`, exposes only detached page/site/content data, bounds source
-and output, and validates returned HTML. It has no hard CPU-kill boundary.
+exception: it interprets in the web process, permits only the snapshot-backed
+`aero:content` virtual module and an explicit set of collection/LINQ/task/expression
+CLR types, rejects other imports and CommonJS imports, and permits `@DotNetType`
+only for an explicit list of closed generic collection types that SharpTS cannot
+load through `dotnet:` imports. It exposes
+only typed detached page/site/content data, bounds source and output, and validates
+returned HTML. It has no hard CPU-kill boundary. The CLR allowlist is API
+minimization, not a sandbox; in particular, expression APIs remain trusted-author
+functionality until SharpTS runs in a killable worker.
 SharpTS must therefore move outside the trusted web process before it is offered
 to untrusted authors. It must never receive direct Sable, Orleans,
 service-provider, or `HttpContext` access.

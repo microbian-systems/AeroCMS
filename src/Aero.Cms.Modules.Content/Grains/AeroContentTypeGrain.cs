@@ -178,7 +178,8 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
         Structure = def.Structure,
         HierarchyRules = def.HierarchyRules,
         AllowPublicUrl = def.AllowPublicUrl,
-        HideFromSearch = def.HideFromSearch,
+        IncludeInSearch = def.IncludeInSearch,
+        IncludeInPublicAi = def.IncludeInPublicAi,
         FieldsJson = JsonSerializer.Serialize(
             def.Fields,
             ContentJsonContext.Default.ListContentFieldDefinition),
@@ -211,7 +212,8 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
             Structure = vm.Structure,
             HierarchyRules = vm.HierarchyRules,
             AllowPublicUrl = vm.AllowPublicUrl,
-            HideFromSearch = vm.HideFromSearch,
+            IncludeInSearch = vm.IncludeInSearch,
+            IncludeInPublicAi = vm.IncludeInPublicAi,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
             ScheduleConfig = vm.ScheduleConfig

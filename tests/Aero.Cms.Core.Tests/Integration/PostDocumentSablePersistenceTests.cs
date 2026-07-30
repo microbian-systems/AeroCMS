@@ -11,7 +11,8 @@ public sealed class PostDocumentSablePersistenceTests
     public async Task Strict_post_document_round_trips_markdown_content()
     {
         await using var harness = new SableTestHarness()
-            .WithSchema<PostDocument>(SchemaMode.Strict);
+            .WithSchema<PostDocument>(SchemaMode.Strict)
+            .WithConfiguration(options => options.Schema.For<PostDocument>().TableName("posts"));
         await harness.InitializeAsync();
 
         harness.Session.Store(new PostDocument
@@ -38,7 +39,8 @@ public sealed class PostDocumentSablePersistenceTests
     public async Task Strict_post_document_queries_seeded_published_content_by_site_and_culture()
     {
         await using var harness = new SableTestHarness()
-            .WithSchema<PostDocument>(SchemaMode.Strict);
+            .WithSchema<PostDocument>(SchemaMode.Strict)
+            .WithConfiguration(options => options.Schema.For<PostDocument>().TableName("posts"));
         await harness.InitializeAsync();
 
         harness.Session.Store(new PostDocument
@@ -63,9 +65,9 @@ public sealed class PostDocumentSablePersistenceTests
         stored.PublicationState.ShouldBe(ContentPublicationState.Published);
 
         var storedAsString = await verificationSession.RawQueryAsync<PostDocument>(
-            "SELECT * FROM post_document WHERE publication_state = 'Published'");
+            "SELECT * FROM posts WHERE publication_state = 'Published'");
         var storedAsInteger = await verificationSession.RawQueryAsync<PostDocument>(
-            "SELECT * FROM post_document WHERE publication_state = 1");
+            "SELECT * FROM posts WHERE publication_state = 1");
         storedAsString.Count.ShouldBe(1, $"Integer enum query returned {storedAsInteger.Count} row(s).");
 
         var matchingSite = await verificationSession.Query<PostDocument>()

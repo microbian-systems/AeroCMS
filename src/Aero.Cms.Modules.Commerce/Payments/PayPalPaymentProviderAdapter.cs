@@ -3,11 +3,12 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Aero.Cms.Modules.Commerce.Subscriptions.Webhooks;
 
 namespace Aero.Cms.Modules.Commerce.Payments;
 
 /// <summary>PayPal REST adapter with provider-side idempotency and signature verification.</summary>
-public sealed class PayPalPaymentProviderAdapter(IHttpClientFactory httpClientFactory) : IPaymentProviderAdapter
+public sealed class PayPalPaymentProviderAdapter(IHttpClientFactory httpClientFactory) : IPaymentProviderAdapter, ISubscriptionWebhookProviderAdapter
 {
     public const string HttpClientName = "Commerce.PayPal";
     public string Provider => "paypal";
@@ -118,6 +119,108 @@ public sealed class PayPalPaymentProviderAdapter(IHttpClientFactory httpClientFa
         }
     }
 
+    public async Task<Result<VerifiedSubscriptionWebhook, AeroError>> VerifyAndTranslateSubscriptionAsync(
+        PaymentProviderAccount account,
+        byte[] rawBody,
+        IHeaderDictionary headers,
+        CancellationToken ct = default)
+    {
+        if (!TryReadRequiredHeaders(headers, out var transmissionId, out var transmissionTime, out var certUrl, out var authAlgo, out var transmissionSignature))
+            return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("Invalid PayPal webhook signature headers."));
+
+        var accessToken = await GetAccessTokenAsync(account, ct);
+        if (accessToken is not Result<string, AeroError>.Ok(var token)) return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("PayPal webhook could not be verified."));
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Post, BuildUri(account, "v1/notifications/verify-webhook-signature"));
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            message.Content = BuildVerificationContent(account, rawBody, transmissionId, transmissionTime, certUrl, authAlgo, transmissionSignature);
+            using var response = await httpClientFactory.CreateClient(HttpClientName).SendAsync(message, ct);
+            if (!response.IsSuccessStatusCode) return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("PayPal webhook could not be verified."));
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var verification = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+            if (!TryGetString(verification.RootElement, "verification_status", out var status) || !string.Equals(status, "SUCCESS", StringComparison.Ordinal))
+                return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("PayPal webhook signature was not verified."));
+            return TranslateSubscriptionWebhook(rawBody);
+        }
+        catch (HttpRequestException) { return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("PayPal webhook could not be verified.")); }
+        catch (JsonException) { return Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("Invalid PayPal subscription webhook payload.")); }
+    }
+
+    internal static Result<VerifiedSubscriptionWebhook, AeroError> TranslateSubscriptionWebhook(byte[] rawBody)
+    {
+        using var callback = JsonDocument.Parse(rawBody);
+        var root = callback.RootElement;
+        if (!TryGetString(root, "id", out var eventId) || !TryGetString(root, "event_type", out var eventType)
+            || !TryReadOccurredOn(root, out var occurred) || !root.TryGetProperty("resource", out var resource)) return SubscriptionFail();
+
+        if (eventType.StartsWith("BILLING.SUBSCRIPTION.", StringComparison.Ordinal))
+            return TranslateBillingSubscription(eventId, occurred, eventType, resource);
+        if (eventType is "PAYMENT.SALE.COMPLETED" or "PAYMENT.SALE.DENIED" or "PAYMENT.SALE.REFUNDED" or "PAYMENT.SALE.REVERSED" or "PAYMENT.SALE.PAYMENT_FAILED")
+            return TranslateSale(eventId, occurred, eventType, resource);
+        return Prelude.Ok<VerifiedSubscriptionWebhook, AeroError>(new(eventId, occurred, SubscriptionWebhookEventKind.Unknown, null, null, null, null, null, null, null, null, null, [], "Unhandled PayPal subscription event."));
+    }
+
+    private static Result<VerifiedSubscriptionWebhook, AeroError> TranslateBillingSubscription(string eventId, DateTimeOffset occurred, string eventType, JsonElement resource)
+    {
+        if (!TryGetString(resource, "id", out var subscription)) return SubscriptionFail();
+        TryGetString(resource, "plan_id", out var planId);
+        TryGetString(resource, "status", out var status);
+        var customer = TryGetNestedString(resource, "subscriber", "payer_id", out var payerId) ? payerId : string.Empty;
+        var end = TryGetNestedDate(resource, "billing_info", "next_billing_time", out var nextBilling) ? nextBilling : (DateTimeOffset?)null;
+        // A provider start_time is subscription inception, not necessarily this moving billing
+        // period. Pairing it with next_billing_time would manufacture an invalid long period.
+        var start = end.HasValue ? (DateTimeOffset?)null : (TryReadDate(resource, "start_time", out var started) ? started : null);
+        var kind = eventType switch
+        {
+            "BILLING.SUBSCRIPTION.CANCELLED" => SubscriptionWebhookEventKind.SubscriptionCancelled,
+            "BILLING.SUBSCRIPTION.EXPIRED" => SubscriptionWebhookEventKind.SubscriptionExpired,
+            "BILLING.SUBSCRIPTION.SUSPENDED" => SubscriptionWebhookEventKind.SubscriptionSuspended,
+            "BILLING.SUBSCRIPTION.RE-ACTIVATED" => SubscriptionWebhookEventKind.SubscriptionReactivated,
+            "BILLING.SUBSCRIPTION.CREATED" when status == "APPROVAL_PENDING" => SubscriptionWebhookEventKind.Unknown,
+            "BILLING.SUBSCRIPTION.CREATED" or "BILLING.SUBSCRIPTION.ACTIVATED" => SubscriptionWebhookEventKind.SubscriptionActivated,
+            "BILLING.SUBSCRIPTION.UPDATED" when status is "SUSPENDED" => SubscriptionWebhookEventKind.SubscriptionSuspended,
+            "BILLING.SUBSCRIPTION.UPDATED" when status is "CANCELLED" => SubscriptionWebhookEventKind.SubscriptionCancelled,
+            _ => SubscriptionWebhookEventKind.SubscriptionUpdated
+        };
+        return Prelude.Ok<VerifiedSubscriptionWebhook, AeroError>(new(eventId, occurred, kind, subscription, subscription, customer, null, null, null, null, start, end, string.IsNullOrWhiteSpace(planId) ? [] : [planId], null));
+    }
+
+    private static Result<VerifiedSubscriptionWebhook, AeroError> TranslateSale(string eventId, DateTimeOffset occurred, string eventType, JsonElement resource)
+    {
+        if (!TryGetString(resource, "id", out var sale) || !TryGetSubscriptionReference(resource, out var subscription) || !TryReadAmount(resource, out var amount, out var currency)) return SubscriptionFail();
+        var kind = eventType == "PAYMENT.SALE.COMPLETED" ? SubscriptionWebhookEventKind.InvoicePaid : SubscriptionWebhookEventKind.InvoicePaymentFailed;
+        return Prelude.Ok<VerifiedSubscriptionWebhook, AeroError>(new(eventId, occurred, kind, subscription, subscription, null, sale, sale, amount, currency.ToUpperInvariant(), null, null, [], null));
+    }
+
+    private static bool TryGetSubscriptionReference(JsonElement resource, out string subscription)
+    {
+        if (TryGetString(resource, "billing_agreement_id", out subscription)) return true;
+        subscription = string.Empty;
+        return resource.TryGetProperty("supplementary_data", out var supplementary)
+            && supplementary.TryGetProperty("related_ids", out var related)
+            && (TryGetString(related, "billing_agreement_id", out subscription) || TryGetString(related, "subscription_id", out subscription));
+    }
+
+    private static bool TryReadOccurredOn(JsonElement value, out DateTimeOffset occurred)
+        => TryReadDate(value, "create_time", out occurred) || TryReadDate(value, "event_time", out occurred);
+    private static bool TryReadDate(JsonElement value, string name, out DateTimeOffset date)
+    {
+        date = default;
+        return TryGetString(value, name, out var raw) && DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out date);
+    }
+    private static bool TryGetNestedDate(JsonElement value, string parent, string name, out DateTimeOffset date)
+    {
+        date = default;
+        return value.TryGetProperty(parent, out var child) && TryReadDate(child, name, out date);
+    }
+    private static bool TryGetNestedString(JsonElement value, string parent, string name, out string text)
+    {
+        text = string.Empty;
+        return value.TryGetProperty(parent, out var child) && TryGetString(child, name, out text);
+    }
+    private static Result<VerifiedSubscriptionWebhook, AeroError> SubscriptionFail() => Prelude.Fail<VerifiedSubscriptionWebhook, AeroError>(AeroError.CreateError("Invalid PayPal subscription webhook payload."));
+
     private async Task<Result<string, AeroError>> GetAccessTokenAsync(PaymentProviderAccount account, CancellationToken ct)
     {
         try
@@ -209,7 +312,10 @@ public sealed class PayPalPaymentProviderAdapter(IHttpClientFactory httpClientFa
     {
         amount = 0;
         currency = string.Empty;
-        if (!resource.TryGetProperty("amount", out var amountElement) || !TryGetString(amountElement, "value", out var value) || !TryGetString(amountElement, "currency_code", out currency)) return false;
+        if (!resource.TryGetProperty("amount", out var amountElement)) return false;
+        var hasValue = TryGetString(amountElement, "value", out var value) || TryGetString(amountElement, "total", out value);
+        var hasCurrency = TryGetString(amountElement, "currency_code", out currency) || TryGetString(amountElement, "currency", out currency);
+        if (!hasValue || !hasCurrency) return false;
         return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out amount) && amount >= 0;
     }
 

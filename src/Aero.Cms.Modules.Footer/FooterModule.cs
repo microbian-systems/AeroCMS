@@ -68,18 +68,21 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
         opts.Projections.Add(new FooterDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteFooterSettingsProjection(), ProjectionLifecycle.Inline);
 
-        opts.Schema.For<FooterDocument>().Identity(x => x.Id);
-        opts.Schema.For<FooterDocument>().UseOptimisticConcurrency = true;
-        opts.Schema.For<FooterDocument>().Index(x => x.SiteId);
-        opts.Schema.For<FooterDocument>().Index(x => x.Culture);
-        opts.Schema.For<FooterDocument>().Index(x => x.TranslationGroupId);
-        opts.Schema.For<FooterDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Key });
-        opts.Schema.For<FooterDocument>().Index(x => x.State);
+        var footers = opts.Schema.For<FooterDocument>()
+            .TableName(Schemas.Tables.Footers);
+        footers.Identity(x => x.Id);
+        footers.UseOptimisticConcurrency = true;
+        footers.Index(x => x.SiteId);
+        footers.Index(x => x.Culture);
+        footers.Index(x => x.TranslationGroupId);
+        footers.UniqueIndex(x => new { x.SiteId, x.Culture, x.Key });
+        footers.Index(x => x.State);
 
-        // DocumentAlias not available in AeroDB
-        opts.Schema.For<SiteFooterSettingsDocument>().Identity(x => x.Id);
-        opts.Schema.For<SiteFooterSettingsDocument>().UniqueIndex(x => x.SiteId);
-        opts.Schema.For<SiteFooterSettingsDocument>().Index(x => x.DefaultFooterId);
+        var siteFooterSettings = opts.Schema.For<SiteFooterSettingsDocument>()
+            .TableName(Schemas.Tables.SiteFooterSettings);
+        siteFooterSettings.Identity(x => x.Id);
+        siteFooterSettings.UniqueIndex(x => x.SiteId);
+        siteFooterSettings.Index(x => x.DefaultFooterId);
     }
 
     /// <summary>

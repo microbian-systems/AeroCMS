@@ -195,53 +195,57 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 public void Configure(StoreOptions opts)
     {
         // ── PageDocument ──────────────────────────────────────────────────
-        opts.Schema.For<PageDocument>().Identity(x => x.Id);
-        opts.Schema.For<PageDocument>().SetSchemaMode(SchemaMode.Flexible);
-        opts.Schema.For<PageDocument>().UseOptimisticConcurrency = true;
+        var pages = opts.Schema.For<PageDocument>()
+            .TableName(Schemas.Tables.Pages);
+        pages.Identity(x => x.Id);
+        pages.SetSchemaMode(SchemaMode.Flexible);
+        pages.UseOptimisticConcurrency = true;
 
         // Scalar indexes
-        opts.Schema.For<PageDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PageDocument>().Index(x => x.Depth);
-        opts.Schema.For<PageDocument>().Index(x => x.Order);
-        opts.Schema.For<PageDocument>().Index(x => x.ParentId);
-        opts.Schema.For<PageDocument>().Index(x => x.Path);
-        opts.Schema.For<PageDocument>().Index(x => x.PublicationState);
-        opts.Schema.For<PageDocument>().Index(x => x.IsHidden);
-        opts.Schema.For<PageDocument>().Index(x => x.ShowInNavMenu);
-        opts.Schema.For<PageDocument>().Index(x => x.Culture);
-        opts.Schema.For<PageDocument>().Index(x => x.TranslationGroupId);
+        pages.Index(x => x.SiteId);
+        pages.Index(x => x.Depth);
+        pages.Index(x => x.Order);
+        pages.Index(x => x.ParentId);
+        pages.Index(x => x.Path);
+        pages.Index(x => x.PublicationState);
+        pages.Index(x => x.IsHidden);
+        pages.Index(x => x.ShowInNavMenu);
+        pages.Index(x => x.Culture);
+        pages.Index(x => x.TranslationGroupId);
 
         // Compound indexes for common query patterns
-        opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.Path });
-        opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.PublicationState });
-        opts.Schema.For<PageDocument>().Index(x => new { x.ParentId, x.PublicationState });
+        pages.Index(x => new { x.SiteId, x.Path });
+        pages.Index(x => new { x.SiteId, x.PublicationState });
+        pages.Index(x => new { x.ParentId, x.PublicationState });
 
         // Unique index: no two pages share (SiteId, Culture, ParentId, Slug)
-        opts.Schema.For<PageDocument>()
-            .UniqueIndex(x => new { x.SiteId, x.Culture, x.ParentId, x.Slug });
+        pages.UniqueIndex(x => new { x.SiteId, x.Culture, x.ParentId, x.Slug });
 
         // Ngram index for efficient Path prefix matching (StartsWith queries)
         // NgramIndex not available in AeroDB
 
         // Soft-delete — auto-configured via ISoftDeleted on PageDocument
-        opts.Schema.For<PageDocument>().SoftDeleted();
+        pages.SoftDeleted();
 
         // DuplicateField for DateTimeOffset (computed indexes don't support this type)
-        opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
+        pages.Duplicate(x => x.PublishedOn);
 
         // ── PageSourceVersion ─────────────────────────────────────────────
-        opts.Schema.For<PageSourceVersion>().Identity(x => x.Id);
-        opts.Schema.For<PageSourceVersion>().SetSchemaMode(SchemaMode.Flexible);
-        opts.Schema.For<PageSourceVersion>().Index(x => x.SiteId);
-        opts.Schema.For<PageSourceVersion>().Index(x => x.PageId);
-        opts.Schema.For<PageSourceVersion>().Index(x => x.RendererId);
-        opts.Schema.For<PageSourceVersion>().Index(x => new { x.SiteId, x.PageId, x.RendererId });
+        var pageSourceVersions = opts.Schema.For<PageSourceVersion>()
+            .TableName(Schemas.Tables.PageSourceVersions);
+        pageSourceVersions.Identity(x => x.Id);
+        pageSourceVersions.SetSchemaMode(SchemaMode.Flexible);
+        pageSourceVersions.Index(x => x.SiteId);
+        pageSourceVersions.Index(x => x.PageId);
+        pageSourceVersions.Index(x => x.RendererId);
+        pageSourceVersions.Index(x => new { x.SiteId, x.PageId, x.RendererId });
 
         // ── ContentSlugDocument ───────────────────────────────────────────
-        // DocumentAlias not available in AeroDB
-        opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
-        opts.Schema.For<ContentSlugDocument>().Index(x => x.Culture);
-        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedSlug });
+        var contentSlugs = opts.Schema.For<ContentSlugDocument>()
+            .TableName(Schemas.Tables.ContentSlugs);
+        contentSlugs.Index(x => x.SiteId);
+        contentSlugs.Index(x => x.Culture);
+        contentSlugs.UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedSlug });
 
     }
 

@@ -49,12 +49,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// <param name="opts">The store options whose module schema is configured.</param>
     public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<ModuleDocument>().Identity(x => x.Id);
-        opts.Schema.For<ModuleDocument>().UniqueIndex(x => x.Name);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Category);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Disabled);
-        opts.Schema.For<ModuleDocument>().Index(x => x.DisabledInProduction);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Order);
+        var modules = opts.Schema.For<ModuleDocument>()
+            .TableName(Schemas.Tables.Modules);
+        modules.Identity(x => x.Id);
+        modules.UniqueIndex(x => x.Name);
+        modules.Index(x => x.Category);
+        modules.Index(x => x.Disabled);
+        modules.Index(x => x.DisabledInProduction);
+        modules.Index(x => x.Order);
     }
 
         /// <summary>

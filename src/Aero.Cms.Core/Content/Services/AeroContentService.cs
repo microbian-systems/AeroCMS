@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -9,7 +10,9 @@ namespace Aero.Cms.Core.Content.Services;
 /// <summary>
 /// Implements <see cref="IContentService"/> with a Sable document session.
 /// </summary>
-public sealed class AeroContentService(IDocumentSession session) : IContentService
+public sealed class AeroContentService(
+    IDocumentSession session,
+    ContentSearchProjectionService? searchProjectionService = null) : IContentService
 {
     /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> LoadAsync(long siteId, long id, CancellationToken ct = default)
@@ -88,6 +91,12 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
                 continue;
             var multiple = field.Settings.TryGetValue("allowMultiple", out var setting) &&
                            setting.ValueKind == System.Text.Json.JsonValueKind.True;
+            if (!multiple
+                && value.ValueKind == System.Text.Json.JsonValueKind.String
+                && string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                continue;
+            }
             var values = multiple ? value.EnumerateArray().ToArray() : [value];
             foreach (var reference in values)
             {
@@ -102,6 +111,13 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
             item.Id = Snowflake.NewId();
         item.TranslationGroupId ??= item.Id;
         session.Store(item);
+        if (searchProjectionService is not null)
+        {
+            await searchProjectionService.StageUpsertAsync(
+                item,
+                MapDefinition(type),
+                ct);
+        }
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<ContentItem, AeroError>(item);
     }
@@ -128,6 +144,10 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
         }
 
         session.Delete(item);
+        if (searchProjectionService is not null)
+        {
+            await searchProjectionService.StageDeleteAsync(siteId, id, ct);
+        }
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);
     }
@@ -144,4 +164,16 @@ public sealed class AeroContentService(IDocumentSession session) : IContentServi
         => await session.Query<ContentItem>()
             .FirstOrDefaultAsync(x => x.SiteId == siteId && (x.Id == groupId || x.TranslationGroupId == groupId), ct)
             is not null;
+
+    private static ContentTypeDefinition MapDefinition(ContentTypeDocument document)
+        => new()
+        {
+            Id = document.Id,
+            SiteId = document.SiteId,
+            Alias = document.Alias,
+            Name = document.Name,
+            IncludeInSearch = document.IncludeInSearch,
+            IncludeInPublicAi = document.IncludeInPublicAi,
+            Fields = document.Fields
+        };
 }

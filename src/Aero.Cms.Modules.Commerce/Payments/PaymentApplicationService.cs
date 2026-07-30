@@ -9,7 +9,7 @@ public sealed record InitiatePaymentRequest(long OrderId, string Provider, strin
 
 public interface IPaymentApplicationService
 {
-    Task<Result<PaymentInitiation, AeroError>> InitiateAsync(long tenantId, long siteId, long memberId, InitiatePaymentRequest request, CancellationToken ct = default);
+    Task<Result<PaymentInitiation, AeroError>> InitiateAsync(long tenantId, long siteId, long memberId, InitiatePaymentRequest request, CancellationToken ct = default, PaymentReturnUrls? returnUrls = null);
     Task<Result<PaymentAttemptDocument?, AeroError>> GetForMemberAsync(long tenantId, long siteId, long memberId, long orderId, CancellationToken ct = default);
     Task<Result<bool, AeroError>> ReconcileAsync(string provider, string accountKey, byte[] raw, IHeaderDictionary headers, CancellationToken ct = default);
 }
@@ -23,7 +23,7 @@ public sealed class PaymentApplicationService(
     private static readonly TimeSpan StripeRetryWindow = TimeSpan.FromHours(23);
     private static readonly TimeSpan PayPalRetryWindow = TimeSpan.FromHours(5);
 
-    public async Task<Result<PaymentInitiation, AeroError>> InitiateAsync(long tenantId, long siteId, long memberId, InitiatePaymentRequest request, CancellationToken ct = default)
+    public async Task<Result<PaymentInitiation, AeroError>> InitiateAsync(long tenantId, long siteId, long memberId, InitiatePaymentRequest request, CancellationToken ct = default, PaymentReturnUrls? returnUrls = null)
     {
         var validation = await requestValidator.ValidateAsync(request, ct);
         if (!validation.IsValid || tenantId <= 0 || siteId <= 0 || memberId <= 0)
@@ -35,6 +35,7 @@ public sealed class PaymentApplicationService(
 
         var order = await FindOrderAsync(tenantId, siteId, memberId, request.OrderId, ct);
         if (order is null) return Fail("Order not found.");
+        if (order.BillingKind == OrderBillingKind.Recurring) return Fail("Recurring orders must use subscription checkout.");
         if (!PaymentAmountLimits.IsValidUsd(order.TotalAmount) || order.Currency != "USD") return Fail("Order amount is invalid.");
 
         // The order is the idempotency boundary. A request key is only a replay key for it.
@@ -44,8 +45,15 @@ public sealed class PaymentApplicationService(
             if (!string.Equals(existing.Provider, account.Provider, StringComparison.Ordinal)
                 || !string.Equals(existing.RequestIdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
                 return Fail("An existing payment attempt is already bound to this order.");
-            return await ContinueInitiationAsync(tenantId, siteId, memberId, existing.Id, account, adapter, ct);
+            return await ContinueInitiationAsync(tenantId, siteId, memberId, existing.Id, account, adapter, returnUrls, ct);
         }
+
+        // A new hosted Stripe Checkout attempt cannot be resumed without a trusted return
+        // target. Reject it before changing the order or creating a durable attempt. An
+        // already-bound RequiresCustomerAction attempt above may still be retrieved without
+        // return URLs, because it never creates a second provider session.
+        if (account.Provider == "stripe" && returnUrls is not { IsHttps: true })
+            return Fail("Secure Stripe checkout return URLs are required.");
 
         if (order.Status is not OrderStatus.Submitted || order.PaymentStatus is not OrderPaymentStatus.Unpaid)
             return Fail("Order cannot be paid.");
@@ -76,12 +84,12 @@ public sealed class PaymentApplicationService(
                 if (!string.Equals(concurrent.Provider, account.Provider, StringComparison.Ordinal)
                     || !string.Equals(concurrent.RequestIdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
                     return Fail("An existing payment attempt is already bound to this order.");
-                return await ContinueInitiationAsync(tenantId, siteId, memberId, concurrent.Id, account, adapter, ct);
+                return await ContinueInitiationAsync(tenantId, siteId, memberId, concurrent.Id, account, adapter, returnUrls, ct);
             }
             return Fail("Payment initiation could not be saved; retry with the same idempotency key.");
         }
 
-        return await ContinueInitiationAsync(tenantId, siteId, memberId, attempt.Id, account, adapter, ct);
+        return await ContinueInitiationAsync(tenantId, siteId, memberId, attempt.Id, account, adapter, returnUrls, ct);
     }
 
     public async Task<Result<PaymentAttemptDocument?, AeroError>> GetForMemberAsync(long tenantId, long siteId, long memberId, long orderId, CancellationToken ct = default)
@@ -130,7 +138,7 @@ public sealed class PaymentApplicationService(
         }
     }
 
-    private async Task<Result<PaymentInitiation, AeroError>> ContinueInitiationAsync(long tenantId, long siteId, long memberId, long attemptId, PaymentProviderAccount account, IPaymentProviderAdapter adapter, CancellationToken ct)
+    private async Task<Result<PaymentInitiation, AeroError>> ContinueInitiationAsync(long tenantId, long siteId, long memberId, long attemptId, PaymentProviderAccount account, IPaymentProviderAdapter adapter, PaymentReturnUrls? returnUrls, CancellationToken ct)
     {
         var attempt = await FindAttemptByIdAsync(tenantId, siteId, memberId, attemptId, ct);
         var order = attempt is null ? null : await FindOrderAsync(tenantId, siteId, memberId, attempt.OrderId, ct);
@@ -159,7 +167,7 @@ public sealed class PaymentApplicationService(
         // writes the same order; either it wins, or the caller observes the conflict and makes no call.
         if (!await AcquireInitiationGateAsync(tenantId, siteId, memberId, attempt.Id, ct)) return Fail("Order cannot be paid.");
 
-        var outcome = await adapter.InitiateAsync(account, new PaymentProviderInitiation(attempt.ProviderOperationKey, attempt.Amount, attempt.Currency, order.Id), ct);
+        var outcome = await adapter.InitiateAsync(account, new PaymentProviderInitiation(attempt.ProviderOperationKey, attempt.Amount, attempt.Currency, order.Id, returnUrls), ct);
         return outcome.Disposition switch
         {
             PaymentInitiationDisposition.Succeeded when outcome.Initiation is not null => await PersistSuccessfulInitiationAsync(tenantId, siteId, memberId, attempt.Id, outcome.Initiation, ct),
@@ -274,6 +282,7 @@ public sealed class PaymentApplicationService(
             case PaymentAttemptStatus.Succeeded: attempt.Status = PaymentAttemptStatus.Succeeded; attempt.FailureOrReviewDetail = null; order.PaymentStatus = OrderPaymentStatus.Paid; break;
             case PaymentAttemptStatus.Cancelled: attempt.Status = PaymentAttemptStatus.Cancelled; attempt.FailureOrReviewDetail = callback.Detail; order.PaymentStatus = OrderPaymentStatus.Cancelled; break;
             case PaymentAttemptStatus.Failed: attempt.Status = PaymentAttemptStatus.Failed; attempt.FailureOrReviewDetail = callback.Detail; order.PaymentStatus = OrderPaymentStatus.Failed; break;
+            case PaymentAttemptStatus.RequiresCustomerAction: attempt.Status = PaymentAttemptStatus.RequiresCustomerAction; attempt.FailureOrReviewDetail = callback.Detail; order.PaymentStatus = OrderPaymentStatus.Pending; break;
             default: attempt.Status = PaymentAttemptStatus.ManualReview; attempt.FailureOrReviewDetail = callback.Detail ?? "Unhandled provider payment state."; order.PaymentStatus = OrderPaymentStatus.ManualReview; break;
         }
     }

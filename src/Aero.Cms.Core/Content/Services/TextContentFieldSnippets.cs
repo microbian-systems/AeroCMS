@@ -89,6 +89,34 @@ internal sealed class NumberFieldSnippet : IFieldTemplateSnippet
     }
 }
 
+/// <summary>Generates a bounded integer-field wrapper.</summary>
+internal sealed class RangeFieldSnippet : IFieldTemplateSnippet
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Range;
+
+    /// <inheritdoc />
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "<div class=\"aero-field aero-field-range\">{{" + accessor + "}}</div>";
+    }
+}
+
+/// <summary>Generates a hexadecimal color-field wrapper.</summary>
+internal sealed class ColorFieldSnippet : IFieldTemplateSnippet
+{
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.Color;
+
+    /// <inheritdoc />
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "{{if " + accessor + "}}<div class=\"aero-field aero-field-color\">{{" + accessor + "}}</div>{{end}}";
+    }
+}
+
 /// <summary>Generates a labeled marker that is emitted only when the field value is truthy.</summary>
 internal sealed class BooleanFieldSnippet : IFieldTemplateSnippet
 {
@@ -99,5 +127,41 @@ internal sealed class BooleanFieldSnippet : IFieldTemplateSnippet
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "{{if " + a + "}}<div class=\"aero-field aero-field-boolean\">\u2713 " + (field.Label ?? field.Name) + "</div>{{end}}";
+    }
+}
+
+/// <summary>Generates an unordered list for a bounded list field.</summary>
+internal sealed class ListFieldSnippet : IFieldTemplateSnippet
+{
+    public string FieldType => ContentFieldTypes.List;
+
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "{{if " + accessor + "}}<ul class=\"aero-field aero-field-list\">{{for value in " + accessor + "}}<li>{{value}}</li>{{end}}</ul>{{end}}";
+    }
+}
+
+/// <summary>Generates an ordered group of images for a gallery field.</summary>
+internal sealed class GalleryFieldSnippet : IFieldTemplateSnippet
+{
+    public string FieldType => ContentFieldTypes.Gallery;
+
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "{{if " + accessor + "}}<div class=\"aero-field aero-field-gallery\">{{for image in " + accessor + "}}<img src=\"{{image}}\" alt=\"\" />{{end}}</div>{{end}}";
+    }
+}
+
+/// <summary>Generates a definition list for a bounded key/value field.</summary>
+internal sealed class DictionaryFieldSnippet : IFieldTemplateSnippet
+{
+    public string FieldType => ContentFieldTypes.Dictionary;
+
+    public string Render(ContentFieldDefinition field)
+    {
+        var accessor = ScribanFieldHelper.Accessor(field.Name);
+        return "{{if " + accessor + "}}<dl class=\"aero-field aero-field-dictionary\">{{for key in " + accessor + " | object.keys}}<dt>{{key}}</dt><dd>{{" + accessor + "[key]}}</dd>{{end}}</dl>{{end}}";
     }
 }

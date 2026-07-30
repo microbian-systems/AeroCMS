@@ -8,6 +8,8 @@ using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CmsAiProviderKind = Aero.Cms.Abstractions.Ai.AiProviderKind;
+using CoreAiProviderKind = Aero.Core.Ai.AiProviderKind;
 
 namespace Aero.Cms.Modules.Ai.Configuration;
 
@@ -152,12 +154,13 @@ public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationA
                     protectedApiKey = secretProtector.Protect(update.ApiKey);
                 }
 
-                var supportsContentEnhancement = SupportsContentEnhancement(update.Provider);
+                var provider = ToCoreProvider(update.Provider);
+                var supportsContentEnhancement = SupportsContentEnhancement(provider);
 
                 var profile = new AiProviderProfile(
                     update.Id.Trim(),
                     string.IsNullOrWhiteSpace(update.DisplayName) ? update.Provider.ToString() : update.DisplayName.Trim(),
-                    update.Provider,
+                    provider,
                     update.Enabled,
                     Normalize(update.Endpoint),
                     Normalize(update.Model),
@@ -475,7 +478,7 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
         => new(
             profile.Id,
             profile.DisplayName,
-            profile.Provider,
+            ToCmsProvider(profile.Provider),
             profile.Enabled,
             profile.Id.Equals(defaultProviderId, StringComparison.OrdinalIgnoreCase),
             profile.Endpoint,
@@ -505,8 +508,14 @@ public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = defa
     /// </summary>
     /// <param name="provider">The provider kind to inspect.</param>
     /// <returns><see langword="false"/> only for the reserved future-provider kind.</returns>
-    private static bool SupportsContentEnhancement(AiProviderKind provider)
-        => provider is not AiProviderKind.Future;
+    private static bool SupportsContentEnhancement(CoreAiProviderKind provider)
+        => provider is not CoreAiProviderKind.Future;
+
+    private static CoreAiProviderKind ToCoreProvider(CmsAiProviderKind provider)
+        => (CoreAiProviderKind)(int)provider;
+
+    private static CmsAiProviderKind ToCmsProvider(CoreAiProviderKind provider)
+        => (CmsAiProviderKind)(int)provider;
 
     /// <summary>
     /// Serializes and stages a provider profile in the current document session.

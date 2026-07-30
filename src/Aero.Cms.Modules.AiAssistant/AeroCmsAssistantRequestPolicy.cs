@@ -11,6 +11,8 @@ public static class AeroCmsAssistantRequestPolicy
     {
         if (request?.Messages is null || request.Messages.Count == 0)
             return AeroError.ValidationError(["At least one conversation message is required."]);
+        if (request.ConversationId is <= 0)
+            return AeroError.ValidationError(["Conversation identifiers must be positive."]);
         if (request.Messages.Count > AeroCmsAssistantLimits.MaxMessages)
             return AeroError.ValidationError([$"A conversation can contain at most {AeroCmsAssistantLimits.MaxMessages} messages."]);
 

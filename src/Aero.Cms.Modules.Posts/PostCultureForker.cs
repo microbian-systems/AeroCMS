@@ -39,6 +39,8 @@ public static PostDocument Fork(PostDocument source, long targetPostId, string t
             Excerpt = source.Excerpt,
             SeoTitle = source.SeoTitle,
             SeoDescription = source.SeoDescription,
+            IncludeInSearch = source.IncludeInSearch,
+            IncludeInPublicAi = source.IncludeInPublicAi,
             PublicationState = ContentPublicationState.Draft,
             MarkdownContent = source.MarkdownContent,
             TagIds = source.TagIds.ToList(),

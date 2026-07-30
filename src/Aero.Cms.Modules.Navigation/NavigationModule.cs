@@ -59,18 +59,21 @@ public void Configure(StoreOptions opts)
         opts.Projections.Add(new NavMenuDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteNavigationSettingsProjection(), ProjectionLifecycle.Inline);
 
-        opts.Schema.For<NavMenuDocument>().Identity(x => x.Id);
-        opts.Schema.For<NavMenuDocument>().UseOptimisticConcurrency = true;
-        opts.Schema.For<NavMenuDocument>().Index(x => x.SiteId);
-        opts.Schema.For<NavMenuDocument>().Index(x => x.Culture);
-        opts.Schema.For<NavMenuDocument>().Index(x => x.TranslationGroupId);
-        opts.Schema.For<NavMenuDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Key });
-        opts.Schema.For<NavMenuDocument>().Index(x => x.State);
+        var navigationMenus = opts.Schema.For<NavMenuDocument>()
+            .TableName(Schemas.Tables.NavigationMenus);
+        navigationMenus.Identity(x => x.Id);
+        navigationMenus.UseOptimisticConcurrency = true;
+        navigationMenus.Index(x => x.SiteId);
+        navigationMenus.Index(x => x.Culture);
+        navigationMenus.Index(x => x.TranslationGroupId);
+        navigationMenus.UniqueIndex(x => new { x.SiteId, x.Culture, x.Key });
+        navigationMenus.Index(x => x.State);
 
-        // DocumentAlias not available in AeroDB
-        opts.Schema.For<SiteNavigationSettingsDocument>().Identity(x => x.Id);
-        opts.Schema.For<SiteNavigationSettingsDocument>().UniqueIndex(x => x.SiteId);
-        opts.Schema.For<SiteNavigationSettingsDocument>().Index(x => x.DefaultNavMenuId);
+        var siteNavigationSettings = opts.Schema.For<SiteNavigationSettingsDocument>()
+            .TableName(Schemas.Tables.SiteNavigationSettings);
+        siteNavigationSettings.Identity(x => x.Id);
+        siteNavigationSettings.UniqueIndex(x => x.SiteId);
+        siteNavigationSettings.Index(x => x.DefaultNavMenuId);
     }
 
     /// <summary>

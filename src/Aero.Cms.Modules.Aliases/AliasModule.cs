@@ -113,16 +113,16 @@ public override async Task RunAsync(IEndpointRouteBuilder builder)
     /// </summary>
 public void Configure(StoreOptions opts)
     {
-        // DocumentAlias not available in AeroDB
-        opts.Schema.For<AliasDocument>().Identity(x => x.Id);
-        opts.Schema.For<AliasDocument>().Index(x => x.SiteId);
-        opts.Schema.For<AliasDocument>().Index(x => x.Culture);
-        opts.Schema.For<AliasDocument>().Index(x => x.OwnerId);
-        opts.Schema.For<AliasDocument>()
-            .UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedOldPath });
-        opts.Schema.For<AliasDocument>().Index(x => x.NewPath);
-        opts.Schema.For<AliasDocument>().Index(x => x.CreatedOn);
-        opts.Schema.For<AliasDocument>().Index(x => x.ModifiedOn);
+        var aliases = opts.Schema.For<AliasDocument>()
+            .TableName(Schemas.Tables.Aliases);
+        aliases.Identity(x => x.Id);
+        aliases.Index(x => x.SiteId);
+        aliases.Index(x => x.Culture);
+        aliases.Index(x => x.OwnerId);
+        aliases.UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedOldPath });
+        aliases.Index(x => x.NewPath);
+        aliases.Index(x => x.CreatedOn);
+        aliases.Index(x => x.ModifiedOn);
     }
 
         /// <summary>

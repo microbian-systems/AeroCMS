@@ -416,6 +416,8 @@ public static class PostsApi
                 SeoDescription = request.SeoDescription,
                 ImageUrl = request.ImageUrl,
                 SeriesId = request.SeriesId,
+                IncludeInSearch = request.IncludeInSearch,
+                IncludeInPublicAi = request.IncludeInPublicAi,
                 PublicationState = request.PublicationState,
                 MarkdownContent = request.MarkdownContent ?? string.Empty,
                 CreatedOn = DateTimeOffset.UtcNow,
@@ -497,6 +499,8 @@ public static class PostsApi
             existing.SeoDescription = request.SeoDescription;
             existing.ImageUrl = request.ImageUrl;
             existing.SeriesId = request.SeriesId;
+            existing.IncludeInSearch = request.IncludeInSearch;
+            existing.IncludeInPublicAi = request.IncludeInPublicAi;
             existing.PublicationState = request.PublicationState;
 
             // Update markdown content if provided
@@ -885,7 +889,9 @@ public static class PostsApi
             vm.ModifiedOn,
             vm.Culture,
             vm.TranslationGroupId,
-            vm.SeriesId
+            vm.SeriesId,
+            vm.IncludeInSearch,
+            vm.IncludeInPublicAi
         );
     }
 
@@ -912,7 +918,9 @@ public static class PostsApi
             document.ModifiedOn,
             document.Culture,
             document.TranslationGroupId,
-            document.SeriesId);
+            document.SeriesId,
+            document.IncludeInSearch,
+            document.IncludeInPublicAi);
 
     /// <summary>
     /// Normalizes a site's supported cultures, falling back to its default culture.

@@ -113,25 +113,27 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 public void Configure(StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
-        // DatabaseSchemaName/DocumentAlias not available in AeroDB
-        var sites = opts.Schema.For<SitesModel>();
+        var sites = opts.Schema.For<SitesModel>()
+            .TableName(Schemas.Tables.Sites);
         sites.UseOptimisticConcurrency = true;
         sites.Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host
         // prevents domain collisions across sites at the database level.
-        // DatabaseSchemaName/DocumentAlias not available in AeroDB
-        opts.Schema.For<SiteHost>().UniqueIndex(x => x.Host!);
-        opts.Schema.For<SiteHost>().Index(x => x.SiteId);
+        var siteHosts = opts.Schema.For<SiteHost>()
+            .TableName(Schemas.Tables.SiteHosts);
+        siteHosts.UniqueIndex(x => x.Host!);
+        siteHosts.Index(x => x.SiteId);
 
         // UserSiteAssignment — maps users to sites with per-site permissions.
-        // DatabaseSchemaName/DocumentAlias not available in AeroDB
-        opts.Schema.For<UserSiteAssignment>().Index(x => x.UserId);
-        opts.Schema.For<UserSiteAssignment>().Index(x => x.SiteId);
+        var siteAssignments = opts.Schema.For<UserSiteAssignment>()
+            .TableName(Schemas.Tables.UserSiteAssignments);
+        siteAssignments.Index(x => x.UserId);
+        siteAssignments.Index(x => x.SiteId);
 
-        // FK to TenantModel deferred — causes DDL ordering issue with embedded PG
-        // opts.Schema.For<SitesModel>().ForeignKey<TenantModel>(x => x.TenantId);
+        // The TenantModel foreign key is deferred because it causes DDL ordering issues
+        // in the embedded database.
 
         // base.Configure is not called — Configure<> above already adds
         // the standard entity indexes (CreatedBy, ModifiedBy, CreatedOn, ModifiedOn).

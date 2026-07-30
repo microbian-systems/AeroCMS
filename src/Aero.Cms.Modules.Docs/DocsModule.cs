@@ -70,16 +70,18 @@ public override IReadOnlyList<string> Tags => ["docs", "markdown", "kbase"];
     /// </remarks>
 public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<DocsPage>().UseOptimisticConcurrency = true;
-        opts.Schema.For<DocsPage>().Index(x => x.SiteId);
-        opts.Schema.For<DocsPage>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
-        opts.Schema.For<DocsPage>().Index(x => x.Culture);
-        opts.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
-        opts.Schema.For<DocsPage>().Index(x => x.ParentId);
-        opts.Schema.For<DocsPage>().Index(x => x.Order);
-        opts.Schema.For<DocsPage>().Index(x => x.PublishedOn);
-        opts.Schema.For<DocsPage>().Index(x => x.CreatedOn);
-        opts.Schema.For<DocsPage>().Index(x => x.ModifiedOn);
+        var docs = opts.Schema.For<DocsPage>()
+            .TableName(Schemas.Tables.Docs);
+        docs.UseOptimisticConcurrency = true;
+        docs.Index(x => x.SiteId);
+        docs.UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
+        docs.Index(x => x.Culture);
+        docs.Index(x => x.TranslationGroupId);
+        docs.Index(x => x.ParentId);
+        docs.Index(x => x.Order);
+        docs.Index(x => x.PublishedOn);
+        docs.Index(x => x.CreatedOn);
+        docs.Index(x => x.ModifiedOn);
 
         // Full-text search (Phase 1)
         // NgramIndex not available in AeroDB

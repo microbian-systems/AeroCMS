@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Ai.Memory;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -15,11 +16,44 @@ public enum AeroCmsAssistantRole
 /// <summary>A bounded, public conversation message without provider or system-prompt controls.</summary>
 public sealed record AeroCmsAssistantMessage(AeroCmsAssistantRole Role, string Content);
 
-/// <summary>A stateless assistant request. The server owns provider, model, prompt, and tool policy.</summary>
-public sealed record AeroCmsAssistantRequest(IReadOnlyList<AeroCmsAssistantMessage> Messages);
+/// <summary>
+/// A bounded assistant request. The optional conversation identifier is only a lookup key; the
+/// server re-establishes its tenant, site, audience, and principal ownership before loading history.
+/// </summary>
+public sealed record AeroCmsAssistantRequest(
+    IReadOnlyList<AeroCmsAssistantMessage> Messages,
+    long? ConversationId = null);
+
+/// <summary>A security-scoped CMS source used to ground an assistant response.</summary>
+public sealed record AeroCmsAssistantCitation(
+    string Id,
+    string SourceKind,
+    string SourceId,
+    string SourceUri,
+    string Title,
+    string Section);
+
+/// <summary>One durable conversation owned by the current site and principal.</summary>
+public sealed record AeroCmsAssistantConversationSummary(
+    long ConversationId,
+    string Title,
+    DateTimeOffset CreatedOn,
+    DateTimeOffset ModifiedOn);
+
+/// <summary>A bounded durable conversation transcript.</summary>
+public sealed record AeroCmsAssistantConversation(
+    long ConversationId,
+    string Title,
+    IReadOnlyList<AeroCmsAssistantMessage> Messages,
+    DateTimeOffset CreatedOn,
+    DateTimeOffset ModifiedOn);
 
 /// <summary>A completed assistant response.</summary>
-public sealed record AeroCmsAssistantResponse(string Text, string CorrelationId);
+public sealed record AeroCmsAssistantResponse(
+    string Text,
+    string CorrelationId,
+    long ConversationId = 0,
+    IReadOnlyList<AeroCmsAssistantCitation>? Citations = null);
 
 /// <summary>Names events emitted by assistant streaming endpoints.</summary>
 public enum AeroCmsAssistantEventKind
@@ -34,7 +68,9 @@ public enum AeroCmsAssistantEventKind
 public sealed record AeroCmsAssistantEvent(
     AeroCmsAssistantEventKind Kind,
     string? Data = null,
-    string? CorrelationId = null);
+    string? CorrelationId = null,
+    long? ConversationId = null,
+    IReadOnlyList<AeroCmsAssistantCitation>? Citations = null);
 
 /// <summary>Central protocol limits enforced independently by clients and services.</summary>
 public static class AeroCmsAssistantLimits
@@ -44,19 +80,48 @@ public static class AeroCmsAssistantLimits
     public const int MaxConversationCharacters = 32_000;
     public const int MaxOutputCharacters = 32_000;
     public const int MaxEventCharacters = 64_000;
+    public const int MaxStoredMessages = 200;
 }
 
-/// <summary>Runs provider-backed, stateless manager conversations.</summary>
+/// <summary>Runs provider-backed, server-owned manager conversations.</summary>
 public interface IAeroCmsAssistantService
 {
     Task<Result<AeroCmsAssistantResponse>> CompleteAsync(
         AeroCmsAssistantRequest request,
-        string correlationId,
+        AeroCmsToolExecutionContext executionContext,
         CancellationToken cancellationToken = default);
 
     Task<Result<IAsyncEnumerable<AeroCmsAssistantEvent>>> StreamAsync(
         AeroCmsAssistantRequest request,
-        string correlationId,
+        AeroCmsToolExecutionContext executionContext,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Server-derived scope for a public or authenticated member assistant request.
+/// </summary>
+public sealed record AeroCmsSiteAssistantContext(
+    Aero.Cms.Abstractions.Ai.Pipeline.AeroAiAudience Audience,
+    ClaimsPrincipal Principal,
+    long PrincipalId,
+    long TenantId,
+    long SiteId,
+    string Culture,
+    string CorrelationId);
+
+/// <summary>
+/// Runs public-corpus-only site conversations without exposing manager tools or internal knowledge.
+/// </summary>
+public interface IAeroCmsSiteAssistantService
+{
+    Task<Result<AeroCmsAssistantResponse>> CompleteAsync(
+        AeroCmsAssistantRequest request,
+        AeroCmsSiteAssistantContext context,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<IAsyncEnumerable<AeroCmsAssistantEvent>>> StreamAsync(
+        AeroCmsAssistantRequest request,
+        AeroCmsSiteAssistantContext context,
         CancellationToken cancellationToken = default);
 }
 
@@ -70,9 +135,33 @@ public interface IMcpAssistantHttpClient
     Task<Result<IAsyncEnumerable<AeroCmsAssistantEvent>>> StreamAsync(
         AeroCmsAssistantRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<Result<IReadOnlyList<AeroCmsAssistantConversationSummary>>> ListConversationsAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<AeroCmsAssistantConversation>> GetConversationAsync(
+        long conversationId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<bool>> DeleteConversationAsync(
+        long conversationId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<IReadOnlyList<AeroAiExplicitMemory>>> ListMemoriesAsync(
+        int take = 20,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<AeroAiExplicitMemory>> SaveMemoryAsync(
+        AeroAiExplicitMemoryWrite memory,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<bool>> DeleteMemoryAsync(
+        long memoryId,
+        CancellationToken cancellationToken = default);
 }
 
-/// <summary>Immutable authorization context supplied to one read-only tool invocation.</summary>
+/// <summary>Immutable authorization context supplied to one CMS tool invocation.</summary>
 public sealed record AeroCmsToolExecutionContext(
     ClaimsPrincipal Principal,
     long UserId,
@@ -80,18 +169,30 @@ public sealed record AeroCmsToolExecutionContext(
     long TenantId,
     string CorrelationId);
 
-/// <summary>Describes a read-only CMS tool exposed through MCP.</summary>
-public sealed record AeroCmsReadOnlyToolDescriptor(string Name, string Description);
+/// <summary>Describes one explicitly registered, policy-scoped CMS tool.</summary>
+public sealed record AeroCmsToolDescriptor(
+    string Name,
+    string Description,
+    string RequiredPolicy,
+    string PermissionDomain,
+    char PermissionOperation,
+    bool ReadOnly,
+    bool Destructive,
+    bool Idempotent);
 
 /// <summary>A serialized, bounded tool result.</summary>
-public sealed record AeroCmsReadOnlyToolResult(string Json);
+public sealed record AeroCmsToolResult(string Json);
 
-/// <summary>Single executor boundary shared by every MCP read-only tool.</summary>
-public interface IAeroCmsReadOnlyToolExecutor
+/// <summary>Single application boundary shared by MCP and the in-process manager assistant.</summary>
+public interface IAeroCmsToolExecutor
 {
-    IReadOnlyList<AeroCmsReadOnlyToolDescriptor> Tools { get; }
+    IReadOnlyList<AeroCmsToolDescriptor> Tools { get; }
 
-    Task<Result<AeroCmsReadOnlyToolResult>> ExecuteAsync(
+    Task<Result<IReadOnlyList<AeroCmsToolDescriptor>>> GetAuthorizedToolsAsync(
+        AeroCmsToolExecutionContext context,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<AeroCmsToolResult>> ExecuteAsync(
         string toolName,
         JsonElement arguments,
         AeroCmsToolExecutionContext context,

@@ -11,9 +11,9 @@ public static class PaymentEndpoints
     public static IEndpointRouteBuilder MapPaymentApi(this IEndpointRouteBuilder builder)
     {
         var customer = builder.MapGroup("/api/commerce/payments").RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy, ExternalMemberAuthenticationDefaults.SitePolicy);
-        customer.MapPost("/initiate", async (InitiatePaymentRequest request, IPaymentApplicationService payments, ICurrentPrincipal principal, ISiteContext site, CancellationToken ct) =>
+        customer.MapPost("/initiate", async (InitiatePaymentRequest request, HttpRequest httpRequest, IPaymentApplicationService payments, ICurrentPrincipal principal, ISiteContext site, CancellationToken ct) =>
         {
-            var result = await payments.InitiateAsync(site.TenantId, site.SiteId, principal.PrincipalId ?? 0, request, ct);
+            var result = await payments.InitiateAsync(site.TenantId, site.SiteId, principal.PrincipalId ?? 0, request, ct, BuildReturnUrls(httpRequest, request.OrderId));
             return result is Result<PaymentInitiation, AeroError>.Ok(var value)
                 ? Results.Ok(value)
                 : Results.BadRequest(new { title = "Payment initiation failed." });
@@ -30,6 +30,15 @@ public static class PaymentEndpoints
             return result.IsSuccess ? Results.Ok() : Results.BadRequest(new { title = "Webhook rejected." });
         }).AllowAnonymous().DisableAntiforgery();
         return builder;
+    }
+
+    private static PaymentReturnUrls? BuildReturnUrls(HttpRequest request, long orderId)
+    {
+        if (orderId <= 0 || !request.IsHttps || !request.Host.HasValue || !Uri.TryCreate($"https://{request.Host}", UriKind.Absolute, out var origin)) return null;
+        var path = request.PathBase.Add($"/shop/orders/{orderId}").ToString();
+        return Uri.TryCreate(origin, $"{path}?payment=success", out var success) && Uri.TryCreate(origin, $"{path}?payment=cancel", out var cancel)
+            ? new PaymentReturnUrls(success, cancel)
+            : null;
     }
 
     private static async Task<byte[]?> ReadRawBodyAsync(Stream body, int maximumBytes, CancellationToken ct)

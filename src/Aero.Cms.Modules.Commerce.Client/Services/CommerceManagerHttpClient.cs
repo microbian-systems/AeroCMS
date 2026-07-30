@@ -41,6 +41,12 @@ public sealed class CommerceManagerHttpClient(HttpClient httpClient, ILogger<Com
     public async Task<Result<bool, AeroError>> DeleteListingAsync(long id, CancellationToken ct = default)
         => await MapDeleteAsync(base.DeleteAsync($"listings/{id}", ct));
 
+    public Task<Result<ManagerSubscriptionPage<ManagerSubscriptionSummaryDto>, AeroError>> GetSubscriptionsAsync(int skip, int take, CancellationToken ct = default)
+        => GetAsync<ManagerSubscriptionPage<ManagerSubscriptionSummaryDto>>($"api/v1/admin/commerce/subscriptions?skip={Math.Max(0, skip)}&take={Math.Clamp(take, 1, 100)}", ct);
+
+    public Task<Result<ManagerSubscriptionReceiptDto, AeroError>> GetSubscriptionAsync(long id, CancellationToken ct = default)
+        => GetAsync<ManagerSubscriptionReceiptDto>($"api/v1/admin/commerce/subscriptions/{id}", ct);
+
     private static string BuildQuery(string resource, string? search, string? culture, int skip, int take)
     {
         var query = $"{resource}?skip={Math.Max(0, skip)}&take={Math.Clamp(take, 1, 100)}";

@@ -19,3 +19,6 @@
 [submodule "AeroVault"]
 	path = AeroVault
 	url = git@github.com:microbian-systems/AeroVault.git
+[submodule "ui"]
+	path = ui
+	url = git@github.com:blazorblueprintui/ui.git

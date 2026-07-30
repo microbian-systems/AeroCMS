@@ -1,0 +1,23 @@
+@page "/manager/commerce/subscriptions"
+@attribute [Authorize]
+
+<PageTitle>Commerce subscriptions</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div><h1 class="text-2xl font-bold pe-heading">Subscription status</h1><p class="mt-1 text-sm pe-description">Read-only recurring purchase status and billing-cycle history for the selected site.</p></div>
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="rounded border border-red-500 p-3 text-sm text-red-600">@ErrorMessage</div> }
+    @if (IsLoading) { <p class="pe-description">Loading subscriptions…</p> }
+    else if (Rows.Count == 0) { <div class="rounded-lg border p-6 text-center pe-description" style="border-color: var(--pe-border);">No subscriptions found for this site.</div> }
+    else
+    {
+        <div class="overflow-x-auto rounded-lg border" style="border-color: var(--pe-border);">
+            <table class="w-full border-collapse text-sm"><thead><tr style="background: var(--pe-bg-secondary);"><th class="p-3 text-left">Order</th><th class="p-3 text-left">Provider</th><th class="p-3 text-left">Status</th><th class="p-3 text-left">Current period</th><th class="p-3 text-right">Amount</th><th class="p-3 text-right">Details</th></tr></thead><tbody>
+            @foreach (var subscription in Rows)
+            {
+                <tr class="border-t" style="border-color: var(--pe-border);"><td class="p-3">#@subscription.OrderId</td><td class="p-3">@subscription.Provider</td><td class="p-3">@(subscription.RequiresManualReview ? "Manual review needed" : subscription.State)</td><td class="p-3">@(subscription.CurrentPeriodEndsOn?.ToString("MMM dd, yyyy") ?? "Awaiting provider confirmation")</td><td class="p-3 text-right">@subscription.Amount.ToString("C") @subscription.Currency / @subscription.IntervalDays days</td><td class="p-3 text-right"><RadzenButton Size="ButtonSize.Small" Text="View" Click="@(() => View(subscription.SubscriptionId))" /></td></tr>
+            }
+            </tbody></table>
+        </div>
+        <div class="flex items-center justify-between text-sm pe-description"><span>Showing @(Skip + 1)–@(Skip + Rows.Count) of @TotalCount</span><div class="flex gap-2"><RadzenButton Text="Previous" Disabled="@(Skip == 0 || IsLoading)" Click="PreviousPageAsync" /><RadzenButton Text="Next" Disabled="@(Skip + Rows.Count >= TotalCount || IsLoading)" Click="NextPageAsync" /></div></div>
+    }
+</div>

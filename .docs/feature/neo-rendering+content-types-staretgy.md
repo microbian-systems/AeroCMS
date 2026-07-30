@@ -48,7 +48,7 @@ This strategy distinguishes live behavior from proposed work.
 | Scriban Monaco editor | Implemented through the shared expandable source-editor component | Reuse the component for later source-backed renderers |
 | Page renderer registry and metadata | Implemented for `aero.composition`, `aero.scriban`, `aero.sharpts`, and `aero.htmx`; persisted stable IDs, API discovery, editor selection, publication validation, preview, and public dispatch are live | Keep renderer-specific behavior behind registered strategies |
 | Pure Scriban public page | Implemented end to end with immutable Sable source versions, closed script scopes, secure execution, strict HTML import, publication snapshots, draft/public selection, and full-page Monaco authoring | Retain as the reference source-renderer implementation |
-| SharpTS page or fragment | Experimental interpreted full-page and Aero-fragment renderers are implemented with a host `html` tag, detached context, denied imports, bounded output, and strict HTML import | Replace the in-process trusted-author runtime with a killable worker before untrusted authoring |
+| SharpTS page or fragment | Experimental interpreted full-page and Aero-fragment renderers are implemented with a host `html` tag, typed detached context, snapshot-only `aero:content` imports, an explicit CLR type allowlist, bounded output, and strict HTML import | Replace the in-process trusted-author runtime with a killable worker before untrusted authoring |
 | HTMX page or fragment | Full-page and Aero-fragment renderers are implemented; a bounded same-origin HTMX attribute set plus the accepted `hx-on:*` exception passes through strict HTML import | Add the logical endpoint/action registry, antiforgery conventions, and capability gating |
 | Content hierarchy fields, query, and manager UI | Persisted hierarchy rules and named queries, bounded Sable traversal, Scriban projection, expandable manager tree, breadcrumbs, search, drag/drop and explicit move controls, and cross-content-type parent selection are implemented | Add visual page-query authoring and query-input bindings |
 | Runtime SharpTS-to-RazorEngineCore call | TUnit compatibility spike passes in interpreted and in-memory compiled SharpTS modes | Promote the concept behind an Aero-owned capability boundary |
@@ -119,15 +119,18 @@ render safely today:
 - The SharpTS/RazorEngineCore compatibility test uses the normal
   `dotnet:Aero.Cms.Rendering.Interop.Tests.RazorTemplateTestBridge` import in both
   interpreted and in-memory compiled modes. A test policy rejects non-allowlisted
-  `dotnet:` imports and `@DotNetType`.
+  `dotnet:` imports and `@DotNetType` declarations.
 - Source-renderer behavior is descriptor-driven. Scriban, TypeScript, and HTMX
   use the same immutable draft/published source-version lifecycle, full-page
   Monaco workspace, preview endpoint, publication validation, and public
   renderer dispatch. The descriptor supplies Monaco language and initial source,
   preventing a newly selected source page from saving an empty draft.
 - `aero.sharpts` is an explicitly experimental, trusted-author,
-  in-process **InterpretOnly** renderer. Its first capability profile rejects
-  imports, CommonJS imports, and `@DotNetType`; exposes detached page, site,
+  in-process **InterpretOnly** renderer. Its first capability profile accepts
+  only the virtual `aero:content` module and explicitly allowlisted CLR types,
+  while rejecting CommonJS and other module imports. Because SharpTS cannot
+  import open generics with `dotnet:`, the profile permits only explicitly
+  approved closed-generic `@DotNetType` declarations. It exposes typed detached page, site,
   content, and preview values with Snowflake IDs as strings; supplies the
   encoding `html` tag; bounds output; and validates returned markup. It does not
   yet provide compilation, binary caching, RazorEngineCore, or a hard CPU-kill
@@ -618,13 +621,35 @@ type checking, interpretation, or compilation. Unapproved imports fail publicati
 Dynamic `dotnet:` imports are rejected by SharpTS; Aero additionally rejects or explicitly validates
 `@DotNetType` declarations so they cannot bypass the module-import policy.
 
+SharpTS does not support importing open generic CLR types. Approved generic
+collections therefore use an exact, closed CLR name and a deliberately small
+TypeScript surface:
+
+```typescript
+@DotNetType("System.Collections.Generic.List`1[System.String]")
+declare class StringList {
+    constructor();
+    add(item: string): void;
+    readonly count: number;
+}
+```
+
+The current profile includes selected non-generic types from
+`System.Collections`, `System.Linq`, `System.Linq.Expressions`, and
+`System.Threading.Tasks`, plus a small explicit set of closed generic
+collections. There is no `System.Threading.Expressions` namespace; expression
+trees are in `System.Linq.Expressions`.
+
 Example policy:
 
 ```text
 rendering.safe-v1
+├── aero:content (resolved immutable snapshots only)
 ├── Aero.Cms.Rendering.AeroRenderFacade
 ├── Aero.Cms.Rendering.HtmlFragment
-└── selected immutable context/value contracts
+├── selected immutable context/value contracts
+└── selected System.Collections, System.Collections.Generic,
+    System.Linq, System.Linq.Expressions, and System.Threading.Tasks types
 
 Denied by default
 ├── System.IO.*
@@ -868,6 +893,45 @@ Every query is bounded by:
 - maximum serialized size
 
 The Content module builds the complete allowed result. Scriban and SharpTS traverse `Children`; neither performs lazy database calls.
+
+### 16.1.1 Implemented SharpTS snapshot module
+
+SharpTS pages and fragments may import the renderer's already-resolved query
+snapshots:
+
+```typescript
+import { findById, flatten, getQuery } from "aero:content";
+
+export function render(context: AeroRenderContext): AeroHtmlFragment {
+    const topics = getQuery("topics");
+    if (topics === null) {
+        return html`<p>No topics are configured.</p>`;
+    }
+
+    return html`<p>${flatten(topics).length} topics</p>`;
+}
+```
+
+`aero:content` is a host-generated virtual module. It exports `getQuery`,
+`findById`, and `flatten`; it cannot open Sable, resolve Orleans actors, access
+DI, or perform a fresh query. Snowflake identifiers remain decimal strings.
+
+### 16.1.2 Implemented public HTMX/JSON query facade
+
+Fresh public reads are available from a separate Minimal API boundary:
+
+```text
+GET /api/v1/query/pages
+GET /api/v1/query/posts
+GET /api/v1/query/docs
+GET /api/v1/query/content/{contentTypeAlias}
+```
+
+The endpoints derive the site and culture from the current request, return only
+published data, and enforce paging, depth, item, and projection limits. Normal
+clients receive JSON. Requests with `HX-Request: true` or `Accept: text/html`
+receive fixed, HTML-encoded semantic fragments. Callers cannot submit template
+source or cause persisted HTML to be rendered by this API.
 
 ### 16.2 Generic example
 

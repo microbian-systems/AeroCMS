@@ -37,10 +37,15 @@ public ContentHierarchyRules HierarchyRules { get; set; } = new();
     /// Gets or sets whether items of this type may be addressed by a public URL.
     /// </summary>
 public bool AllowPublicUrl { get; set; }
-        /// <summary>
-    /// Gets or sets whether items of this type are excluded from search results.
+    /// <summary>
+    /// Gets or sets whether published items of this type may enter the site-search index.
     /// </summary>
-public bool HideFromSearch { get; set; }
+    public bool IncludeInSearch { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether otherwise eligible items may enter the public AI corpus.
+    /// </summary>
+    public bool IncludeInPublicAi { get; set; }
         /// <summary>
     /// Gets or sets the field definitions that form this content type's schema.
     /// </summary>

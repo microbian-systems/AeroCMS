@@ -1,0 +1,30 @@
+.hierarchy-reference-picker {
+    display: grid;
+    gap: .5rem;
+}
+
+.hierarchy-reference-state {
+    align-items: center;
+    background: color-mix(in srgb, var(--pe-bg-secondary) 78%, transparent);
+    border: 1px dashed var(--pe-border);
+    border-radius: .65rem;
+    color: var(--pe-text-secondary);
+    display: flex;
+    gap: .65rem;
+    min-height: 3.25rem;
+    padding: .75rem;
+}
+
+.hierarchy-reference-error {
+    border-color: color-mix(in srgb, var(--rz-danger) 45%, var(--pe-border));
+    color: var(--rz-danger);
+}
+
+.hierarchy-reference-help {
+    align-items: center;
+    color: var(--pe-text-muted, var(--pe-text-secondary));
+    display: flex;
+    font-size: .75rem;
+    gap: .35rem;
+    margin: 0;
+}

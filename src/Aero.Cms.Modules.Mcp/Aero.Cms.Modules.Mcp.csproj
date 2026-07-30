@@ -14,7 +14,11 @@
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.AiAssistant\Aero.Cms.Modules.AiAssistant.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
   </ItemGroup>

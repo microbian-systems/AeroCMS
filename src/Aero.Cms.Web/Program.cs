@@ -2,6 +2,7 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Commerce.Client;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Components;
+using Aero.Cms.Web.Areas.Api.V1;
 using Aero.Cms.Web.Generated;
 using Serilog;
 
@@ -54,8 +55,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, Bootstra
     });
 
     builder.Services.AddAeroCommerceClient();
+    builder.Services.AddPublicCmsQueryApi();
 
     var app = builder.Build();
+    app.MapPublicCmsQueryApi();
     await app.RunAeroCmsAsync<App>(
         bootstrapState,
         log,

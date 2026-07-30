@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -40,7 +39,6 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System.Globalization;
-using System.Threading.RateLimiting;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -174,6 +172,8 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 cookie.Cookie.HttpOnly = true;
                 cookie.Cookie.SameSite = SameSiteMode.Lax;
                 cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookie.LoginPath = "/shop/account";
+                cookie.AccessDeniedPath = "/shop/account";
                 cookie.SlidingExpiration = false;
                 cookie.Events.OnValidatePrincipal = context =>
                     context.HttpContext.RequestServices
@@ -219,28 +219,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
                 policy.AddRequirements(new ExternalMemberSiteRequirement());
             });
             options.ConfigureAuthorization?.Invoke(authorization);
-        });
-
-        services.AddRateLimiter(rateLimiting =>
-        {
-            rateLimiting.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            rateLimiting.AddPolicy(ManagerRecoveryDefaults.RateLimitPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    static _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(15),
-                        QueueLimit = 0,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        AutoReplenishment = true
-                    }));
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.LoginRateLimitPolicy, 5);
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.PasswordResetRateLimitPolicy, 5);
-            AddLocalMemberFixedWindowPolicy(rateLimiting,
-                LocalExternalMemberAuthentication.ActivationRateLimitPolicy, 10);
         });
 
         services.AddHttpContextAccessor();
@@ -308,28 +286,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         }
 
         return (builder, log);
-    }
-
-    private static void AddLocalMemberFixedWindowPolicy(
-        RateLimiterOptions options, string policyName, int permitLimit)
-    {
-        options.AddPolicy(policyName, httpContext =>
-        {
-            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            var siteContext = httpContext.RequestServices.GetService<ISiteContext>();
-            var scope = siteContext is { TenantId: > 0, SiteId: > 0 }
-                ? $"{siteContext.TenantId}:{siteContext.SiteId}"
-                : "unresolved";
-            return RateLimitPartition.GetFixedWindowLimiter($"{ip}|{scope}", _ =>
-                new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = permitLimit,
-                    Window = TimeSpan.FromMinutes(15),
-                    QueueLimit = 0,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    AutoReplenishment = true
-                });
-        });
     }
 
     private static void PublishResolvedInfrastructure(
@@ -423,6 +379,43 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             await next(context);
         });
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.Use(static async (context, next) =>
+            {
+                var isFrameworkAsset = context.Request.Path.StartsWithSegments(
+                    "/_framework",
+                    StringComparison.OrdinalIgnoreCase);
+                var isManagerDocument = HttpMethods.IsGet(context.Request.Method) &&
+                    context.Request.Path.StartsWithSegments(
+                        "/manager",
+                        StringComparison.OrdinalIgnoreCase);
+
+                if (isFrameworkAsset)
+                {
+                    context.Response.OnStarting(static state =>
+                    {
+                        var response = (HttpResponse)state;
+                        response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+                        response.Headers.Pragma = "no-cache";
+                        response.Headers.Expires = "0";
+                        return Task.CompletedTask;
+                    }, context.Response);
+                }
+                else if (isManagerDocument)
+                {
+                    context.Response.OnStarting(static state =>
+                    {
+                        var response = (HttpResponse)state;
+                        response.Headers["Clear-Site-Data"] = "\"cache\"";
+                        return Task.CompletedTask;
+                    }, context.Response);
+                }
+
+                await next(context);
+            });
+        }
+
         app.UseStaticFiles();
         app.MapStaticAssets();
 
@@ -451,8 +444,8 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
             options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
         });
-        app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
         app.UseCmsSetupGate();
         app.UseAeroCmsModulePipeline();

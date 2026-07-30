@@ -1,0 +1,22 @@
+{
+  "name": "aerocms-documentation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "dev": "astro dev",
+    "generate": "node scripts/generate-ingestion.mjs",
+    "check": "node scripts/validate-docs.mjs",
+    "check:dist": "node scripts/validate-built-site.mjs",
+    "build:api": "pwsh ../docfx/build-api.ps1",
+    "build:all": "pnpm run build:api && pnpm run build && pnpm run check:dist",
+    "prebuild": "pnpm run generate && pnpm run check",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.41.3",
+    "astro": "7.0.6"
+  }
+}

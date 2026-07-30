@@ -111,7 +111,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// <summary>Enables optimistic concurrency for the durable setup singleton.</summary>
     public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<SetupStateDocument>().UseOptimisticConcurrency = true;
+        var setupState = opts.Schema.For<SetupStateDocument>()
+            .TableName(Schemas.Tables.SetupState);
+        setupState.UseOptimisticConcurrency = true;
     }
 
     /// <inheritdoc />

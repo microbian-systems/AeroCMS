@@ -3,6 +3,8 @@ using Aero.Cms.Core;
 using Aero.Core.Ai;
 using Aero.Cms.Modules.Ai.Api;
 using Aero.Cms.Modules.Ai.Configuration;
+using Aero.Cms.Modules.Ai.Knowledge;
+using Aero.Cms.Modules.Ai.Memory;
 using Aero.Cms.Modules.Ai.Services;
 using Aero.Cms.Modules.Ai.Validation;
 using Aero.Cms.Web.Core.Modules;
@@ -13,6 +15,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Aero.Cms.Modules.RateLimiting;
+using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Ai.Memory;
+using Aero.Cms.Core.Content.Search;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Ai;
 
@@ -25,8 +32,10 @@ namespace Aero.Cms.Modules.Ai;
 /// AI operation can send supplied CMS content and prompts to the selected external provider.
 /// </remarks>
 [Module(nameof(AiModule))]
-public sealed class AiModule : AeroWebModule, IUiModule
+public sealed class AiModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
+    private bool _useDiskAnn;
+
         /// <summary>
     /// Gets the module identifier used by the module system.
     /// </summary>
@@ -42,8 +51,11 @@ public override string Author => AeroConstants.Author;
         /// <summary>
     /// Gets the declared module dependencies.
     /// </summary>
-    /// <remarks>The module currently declares no ordering dependencies.</remarks>
-public override IReadOnlyList<string> Dependencies => [];
+    /// <remarks>
+    /// Rate-limiting infrastructure must be registered before the AI module contributes its
+    /// manager and streaming policies.
+    /// </remarks>
+public override IReadOnlyList<string> Dependencies => [nameof(RateLimitingModule)];
         /// <summary>
     /// Gets the categories used to group the module in administrative tooling.
     /// </summary>
@@ -58,7 +70,7 @@ public override IReadOnlyList<string> Tags => ["ai", "manager", "content"];
     /// </summary>
     /// <param name="services">The service collection to update.</param>
     /// <param name="config">
-    /// The host configuration, if supplied. This implementation does not read the parameter directly.
+    /// The host configuration, if supplied. The module reads its named rate-limit profiles from it.
     /// </param>
     /// <param name="env">
     /// The host environment, if supplied. This implementation does not vary registration by environment.
@@ -71,6 +83,51 @@ public override IReadOnlyList<string> Tags => ["ai", "manager", "content"];
     /// </remarks>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        _useDiskAnn = string.Equals(
+            config?["AeroCms:Bootstrap:DatabaseMode"],
+            "Server",
+            StringComparison.OrdinalIgnoreCase);
+
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.AiPublic,
+            "AiPublic",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 20,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.AiMember,
+            "AiMember",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 60,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.AiManager,
+            "AiManager",
+            new AeroFixedWindowRateLimitOptions
+            {
+                PermitLimit = 30,
+                WindowSeconds = 60,
+                QueueLimit = 0
+            });
+        services.AddAeroConcurrencyRateLimitPolicy(
+            config,
+            AeroRateLimitPolicyNames.AiStream,
+            "AiStream",
+            new AeroConcurrencyRateLimitOptions
+            {
+                PermitLimit = 4,
+                QueueLimit = 0
+            });
+
         services.AddDataProtection();
         services.TryAddSingleton<IAiSecretProtector, DataProtectionAiSecretProtector>();
         services.AddScoped<IAiSettingsStore, AiSettingsStore>();
@@ -82,6 +139,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ITranslateDocumentPromptBuilder, TranslateDocumentPromptBuilder>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.TranslateDocumentRequest>, TranslateDocumentRequestValidator>();
+        services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();
+        services.TryAddSingleton<IAeroDocumentationKnowledgeSource, EmbeddedAeroDocumentationKnowledgeSource>();
+        services.AddScoped<IAeroDocumentationKnowledgeSynchronizer, AeroDocumentationKnowledgeSynchronizer>();
+        services.AddHostedService<AeroDocumentationKnowledgeSyncHostedService>();
+        services.AddScoped<IAeroAiKnowledgeProjectionService, AeroAiKnowledgeProjectionService>();
+        services.AddScoped<IAeroAiKnowledgeRetriever, AeroAiKnowledgeRetriever>();
+        services.AddScoped<IAeroAiConversationStore, AeroAiConversationStore>();
+        services.AddScoped<IAeroAiExplicitMemoryStore, AeroAiExplicitMemoryStore>();
         services.AddTransient<TornadoRetryHandler>();
 
         // Typed HttpClient for outbound LLM provider calls.
@@ -98,6 +163,148 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             PooledConnectionLifetime = TimeSpan.FromMinutes(5)
         });
     }
+
+    /// <summary>Configures the disposable, security-scoped AI knowledge projection.</summary>
+    public void Configure(StoreOptions opts)
+    {
+        opts.Schema.Analyzers.DefineAnalyzer(
+            AeroAiKnowledgeConstants.AnalyzerName,
+            tokenizers:
+            [
+                Search.Tokenizer.Blank,
+                Search.Tokenizer.Class,
+                Search.Tokenizer.Punct
+            ],
+            filters:
+            [
+                Search.Filter.Lowercase,
+                Search.Filter.Ascii
+            ]);
+
+        var chunks = opts.Schema.For<AeroAiKnowledgeChunkDocument>()
+            .TableName(Schemas.Tables.AiKnowledgeChunks);
+        chunks.Identity(chunk => chunk.Id);
+        chunks.Index(chunk => chunk.TenantId);
+        chunks.Index(chunk => chunk.SiteId);
+        chunks.Index(chunk => chunk.Audience);
+        chunks.Index(chunk => chunk.Culture);
+        chunks.Index(chunk => chunk.SourceKind);
+        chunks.Index(chunk => chunk.SourceId);
+        chunks.Index(chunk => new
+        {
+            chunk.TenantId,
+            chunk.SiteId,
+            chunk.Audience,
+            chunk.Culture
+        });
+        chunks.Index(chunk => new
+        {
+            chunk.TenantId,
+            chunk.SiteId,
+            chunk.SourceKind,
+            chunk.SourceId
+        });
+        chunks.FullTextIndex(
+            chunk => chunk.FullText,
+            AeroAiKnowledgeConstants.AnalyzerName);
+
+        if (_useDiskAnn)
+        {
+            chunks.DiskannIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                distance: Search.Distance.Cosine);
+        }
+        else
+        {
+            chunks.HnswIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                Search.Distance.Cosine);
+        }
+
+        var documentationChunks = opts.Schema
+            .For<AeroManagerDocumentationChunkDocument>()
+            .TableName(Schemas.Tables.AiManagerDocumentationChunks);
+        documentationChunks.Identity(chunk => chunk.Id);
+        documentationChunks.Index(chunk => chunk.CorpusId);
+        documentationChunks.Index(chunk => chunk.SourceId);
+        documentationChunks.Index(chunk => chunk.SourceUri);
+        documentationChunks.Index(chunk => chunk.Culture);
+        documentationChunks.Index(chunk => chunk.ContentHash);
+        documentationChunks.FullTextIndex(
+            chunk => chunk.FullText,
+            AeroAiKnowledgeConstants.AnalyzerName);
+
+        if (_useDiskAnn)
+        {
+            documentationChunks.DiskannIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                distance: Search.Distance.Cosine);
+        }
+        else
+        {
+            documentationChunks.HnswIndex(
+                chunk => chunk.Embedding,
+                AeroAiKnowledgeConstants.VectorDimensions,
+                Search.Distance.Cosine);
+        }
+
+        var documentationCorpusStates = opts.Schema
+            .For<AeroManagerDocumentationCorpusStateDocument>()
+            .TableName(Schemas.Tables.AiManagerDocumentationCorpusStates);
+        documentationCorpusStates.Identity(state => state.Id);
+        documentationCorpusStates.UseOptimisticConcurrency = true;
+        documentationCorpusStates.UniqueIndex(state => state.CorpusId);
+
+        var conversations = opts.Schema.For<AeroAiConversationDocument>()
+            .TableName(Schemas.Tables.AiConversations);
+        conversations.Identity(conversation => conversation.Id);
+        conversations.Index(conversation => new
+        {
+            conversation.TenantId,
+            conversation.SiteId,
+            conversation.Audience,
+            conversation.PrincipalKind,
+            conversation.PrincipalId
+        });
+
+        var messages = opts.Schema.For<AeroAiConversationMessageDocument>()
+            .TableName(Schemas.Tables.AiConversationMessages);
+        messages.Identity(message => message.Id);
+        messages.Index(message => message.ConversationId);
+        messages.Index(message => new
+        {
+            message.TenantId,
+            message.SiteId,
+            message.Audience,
+            message.PrincipalKind,
+            message.PrincipalId,
+            message.ConversationId
+        });
+        messages.Index(message => new
+        {
+            message.ConversationId,
+            message.Sequence
+        });
+
+        var memories = opts.Schema.For<AeroAiExplicitMemoryDocument>()
+            .TableName(Schemas.Tables.AiMemories);
+        memories.Identity(memory => memory.Id);
+        memories.Index(memory => new
+        {
+            memory.TenantId,
+            memory.SiteId,
+            memory.Audience,
+            memory.PrincipalKind,
+            memory.PrincipalId
+        });
+    }
+
+    /// <inheritdoc />
+    public void Configure(IServiceProvider? services, StoreOptions opts)
+        => Configure(opts);
 
         /// <summary>
     /// Maps the authorization-protected administrative AI endpoints.

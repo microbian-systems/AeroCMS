@@ -11,16 +11,18 @@ public sealed class ProductEditorModel
     public string Sku { get; set; } = string.Empty;
     public int StockQuantity { get; set; }
     public bool IsActive { get; set; } = true;
+    public ManagerProductFulfillmentMode FulfillmentMode { get; set; } = ManagerProductFulfillmentMode.Inventory;
     public string TagsText { get; set; } = string.Empty;
     public string AttributesText { get; set; } = string.Empty;
     public long Version { get; set; }
 
     public ManagerProductRequest ToRequest() => new(
-        Name.Trim(), Description?.Trim(), Sku.Trim(), StockQuantity, IsActive,
+        Name.Trim(), Description?.Trim(), Sku.Trim(), FulfillmentMode == ManagerProductFulfillmentMode.Inventory ? StockQuantity : 0, IsActive,
         ParseAttributes(AttributesText),
         TagsText.Split([',', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-        Version);
+        Version,
+        FulfillmentMode);
 
     public static ProductEditorModel From(ManagerProductDto value) => new()
     {
@@ -29,6 +31,7 @@ public sealed class ProductEditorModel
         Sku = value.Sku,
         StockQuantity = value.StockQuantity,
         IsActive = value.IsActive,
+        FulfillmentMode = value.FulfillmentMode,
         TagsText = string.Join(", ", value.Tags),
         AttributesText = string.Join(Environment.NewLine, value.Attributes.Select(pair => $"{pair.Key}={pair.Value}")),
         Version = value.Version
@@ -60,6 +63,7 @@ public sealed class ProductEditorModelValidator : AbstractValidator<ProductEdito
         RuleFor(model => model.Name).NotEmpty().MaximumLength(500);
         RuleFor(model => model.Sku).NotEmpty().MaximumLength(128).Matches("^[A-Za-z0-9._-]+$");
         RuleFor(model => model.StockQuantity).GreaterThanOrEqualTo(0);
+        RuleFor(model => model.FulfillmentMode).IsInEnum();
         RuleFor(model => model.AttributesText).Must(ProductEditorModel.HasValidAttributes)
             .WithMessage("Each attribute must use key=value on its own line.");
     }
@@ -79,11 +83,12 @@ public sealed class ListingEditorModel
     public decimal? CompareAtPrice { get; set; }
     public bool IsPublished { get; set; }
     public bool IsFeatured { get; set; }
+    public ManagerSubscriptionOffer? SubscriptionOffer { get; set; }
     public long Version { get; set; }
 
     public ManagerListingRequest ToRequest() => new(
         ProductId, Culture.Trim(), NormalizeSlug(Slug), Name.Trim(), ShortDescription?.Trim(), Description?.Trim(),
-        Category?.Trim(), ImageUrl?.Trim(), Price, CompareAtPrice, IsPublished, IsFeatured, Version);
+        Category?.Trim(), ImageUrl?.Trim(), Price, CompareAtPrice, IsPublished, IsFeatured, Version, SubscriptionOffer);
 
     public static string NormalizeSlug(string? value)
     {
@@ -120,6 +125,7 @@ public sealed class ListingEditorModel
         CompareAtPrice = value.CompareAtPrice,
         IsPublished = value.IsPublished,
         IsFeatured = value.IsFeatured,
+        SubscriptionOffer = value.SubscriptionOffer,
         Version = value.Version
     };
 }
@@ -143,8 +149,22 @@ public sealed class ListingEditorModelValidator : AbstractValidator<ListingEdito
         RuleFor(model => model.CompareAtPrice).Must((model, value) => value is null || (IsValidUsd(value.Value) && value >= model.Price));
         RuleFor(model => model.ImageUrl).MaximumLength(2_048).Must(value => string.IsNullOrWhiteSpace(value) || Uri.TryCreate(value, UriKind.RelativeOrAbsolute, out _))
             .WithMessage("Image URL must be a valid relative or absolute URL.");
+        When(model => model.SubscriptionOffer is not null, () =>
+        {
+            RuleFor(model => model.SubscriptionOffer!.IntervalDays).InclusiveBetween(1, 365);
+            RuleFor(model => model.SubscriptionOffer!.StripePriceId).MaximumLength(256).Matches("^price_[A-Za-z0-9_]+$")
+                .When(model => !string.IsNullOrWhiteSpace(model.SubscriptionOffer!.StripePriceId));
+            RuleFor(model => model.SubscriptionOffer!.PayPalPlanId).MaximumLength(256).Matches("^P-[A-Z0-9-]+$")
+                .When(model => !string.IsNullOrWhiteSpace(model.SubscriptionOffer!.PayPalPlanId));
+            RuleFor(model => model.SubscriptionOffer!).Must(HasEffectiveProviderBinding)
+                .When(model => model.IsPublished)
+                .WithMessage("Published recurring listings need a Stripe price or PayPal plan binding.");
+        });
     }
 
     private static bool IsValidUsd(decimal amount)
         => amount > 0m && amount <= 1_000_000_000m && decimal.Round(amount, 2, MidpointRounding.ToZero) == amount;
+
+    private static bool HasEffectiveProviderBinding(ManagerSubscriptionOffer offer)
+        => !string.IsNullOrWhiteSpace(offer.StripePriceId) || !string.IsNullOrWhiteSpace(offer.PayPalPlanId);
 }

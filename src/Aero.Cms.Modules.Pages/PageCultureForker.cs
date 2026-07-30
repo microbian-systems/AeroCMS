@@ -47,6 +47,8 @@ public static PageDocument Fork(PageDocument source, long targetPageId, string t
             Summary = source.Summary,
             SeoTitle = source.SeoTitle,
             SeoDescription = source.SeoDescription,
+            IncludeInSearch = source.IncludeInSearch,
+            IncludeInPublicAi = source.IncludeInPublicAi,
             ParentId = null,
             Path = "/" + normalizedSlug,
             Depth = 0,

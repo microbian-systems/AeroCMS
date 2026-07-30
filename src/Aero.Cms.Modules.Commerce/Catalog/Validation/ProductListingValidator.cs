@@ -1,5 +1,6 @@
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Payments;
+using Aero.Cms.Modules.Commerce.Subscriptions;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Validation;
@@ -21,5 +22,9 @@ public sealed class ProductListingValidator : AbstractValidator<ProductListingDo
         RuleFor(x => x.Price).Must(PaymentAmountLimits.IsValidUsd).WithMessage("Price must be a positive USD amount with no more than two decimal places.");
         RuleFor(x => x.CompareAtPrice).Must((x, value) => value is null || (PaymentAmountLimits.IsValidUsd(value.Value) && value >= x.Price));
         RuleFor(x => x.Currency).Equal("USD");
+        When(x => x.SubscriptionOffer is not null, () =>
+        {
+            RuleFor(x => x.SubscriptionOffer!).SetValidator(new SubscriptionOfferValidator());
+        });
     }
 }

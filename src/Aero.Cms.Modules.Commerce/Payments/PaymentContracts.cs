@@ -75,7 +75,14 @@ public sealed record VerifiedPaymentCallback(
     string Currency,
     string? Detail);
 
-public sealed record PaymentProviderInitiation(string OperationKey, decimal Amount, string Currency, long OrderId);
+/// <summary>Server-derived return targets for provider-hosted one-time checkout.</summary>
+public sealed record PaymentReturnUrls(Uri SuccessUrl, Uri CancelUrl)
+{
+    public bool IsHttps => SuccessUrl.IsAbsoluteUri && CancelUrl.IsAbsoluteUri
+        && SuccessUrl.Scheme == Uri.UriSchemeHttps && CancelUrl.Scheme == Uri.UriSchemeHttps;
+}
+
+public sealed record PaymentProviderInitiation(string OperationKey, decimal Amount, string Currency, long OrderId, PaymentReturnUrls? ReturnUrls = null);
 
 public interface IPaymentProviderAdapter
 {

@@ -26,17 +26,17 @@ namespace Aero.Cms.Modules.Posts;
 public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
     /// <inheritdoc />
-public override string Name => nameof(PostsModule);
+    public override string Name => nameof(PostsModule);
     /// <inheritdoc />
-public override string Version => AeroConstants.Version;
+    public override string Version => AeroConstants.Version;
     /// <inheritdoc />
-public override string Author => AeroConstants.Author;
+    public override string Author => AeroConstants.Author;
     /// <inheritdoc />
-public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
+    public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
     /// <inheritdoc />
-public override IReadOnlyList<string> Category => ["content", "blog"];
+    public override IReadOnlyList<string> Category => ["content", "blog"];
     /// <inheritdoc />
-public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
+    public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
 
     /// <summary>
     /// Registers post services, import strategies, actor proxies, validators, and public blog routes.
@@ -49,7 +49,7 @@ public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
     /// The method also adds this assembly as a Razor Pages application part and exposes both
     /// culture-prefixed and unprefixed blog routes.
     /// </remarks>
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPostContentService, PostContentService>();
         services.AddScoped<IAuditService, AuditService>();
@@ -126,34 +126,53 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// Post slugs are unique per site and culture. Tag, category, and series slugs are unique per
     /// site, while taxonomy translations are unique per owner and culture.
     /// </remarks>
-public void Configure(StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<PostDocument>().Identity(x => x.Id);
-        opts.Schema.For<PostDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PostDocument>().Index(x => x.Culture);
-        opts.Schema.For<PostDocument>().Index(x => x.TranslationGroupId);
-        opts.Schema.For<PostDocument>().Index(x => x.SeriesId);
-        opts.Schema.For<PostDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
-        opts.Schema.For<PostDocument>().Index(x => x.PublishedOn);
-        opts.Schema.For<PostDocument>().Index(x => x.CreatedOn);
-        opts.Schema.For<PostDocument>().Index(x => x.ModifiedOn);
-        
+        var posts = opts.Schema.For<PostDocument>()
+            .TableName(Schemas.Tables.Posts);
+        posts.Identity(x => x.Id);
+        posts.Index(x => x.SiteId);
+        posts.Index(x => x.Culture);
+        posts.Index(x => x.TranslationGroupId);
+        posts.Index(x => x.SeriesId);
+        posts.UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
+        posts.Index(x => x.PublishedOn);
+        posts.Index(x => x.CreatedOn);
+        posts.Index(x => x.ModifiedOn);
+
         // Tags and Categories
-        opts.Schema.For<Tag>().Index(x => x.SiteId);
-        opts.Schema.For<Tag>().UniqueIndex(x => new { x.SiteId, x.Slug });
-        opts.Schema.For<Category>().Index(x => x.SiteId);
-        opts.Schema.For<Category>().UniqueIndex(x => new { x.SiteId, x.Slug });
-        opts.Schema.For<Series>().Index(x => x.SiteId);
-        opts.Schema.For<Series>().UniqueIndex(x => new { x.SiteId, x.Slug });
-        opts.Schema.For<TagTranslation>().Index(x => x.TagId);
-        opts.Schema.For<TagTranslation>().Index(x => x.Culture);
-        opts.Schema.For<TagTranslation>().UniqueIndex(x => new { x.TagId, x.Culture });
-        opts.Schema.For<CategoryTranslation>().Index(x => x.CategoryId);
-        opts.Schema.For<CategoryTranslation>().Index(x => x.Culture);
-        opts.Schema.For<CategoryTranslation>().UniqueIndex(x => new { x.CategoryId, x.Culture });
-        opts.Schema.For<SeriesTranslation>().Index(x => x.SeriesId);
-        opts.Schema.For<SeriesTranslation>().Index(x => x.Culture);
-        opts.Schema.For<SeriesTranslation>().UniqueIndex(x => new { x.SeriesId, x.Culture });
+        var tags = opts.Schema.For<Tag>()
+            .TableName(Schemas.Tables.Tags);
+        tags.Index(x => x.SiteId);
+        tags.UniqueIndex(x => new { x.SiteId, x.Slug });
+
+        var categories = opts.Schema.For<Category>()
+            .TableName(Schemas.Tables.Categories);
+        categories.Index(x => x.SiteId);
+        categories.UniqueIndex(x => new { x.SiteId, x.Slug });
+
+        var series = opts.Schema.For<Series>()
+            .TableName(Schemas.Tables.Series);
+        series.Index(x => x.SiteId);
+        series.UniqueIndex(x => new { x.SiteId, x.Slug });
+
+        var tagTranslations = opts.Schema.For<TagTranslation>()
+            .TableName(Schemas.Tables.TagTranslations);
+        tagTranslations.Index(x => x.TagId);
+        tagTranslations.Index(x => x.Culture);
+        tagTranslations.UniqueIndex(x => new { x.TagId, x.Culture });
+
+        var categoryTranslations = opts.Schema.For<CategoryTranslation>()
+            .TableName(Schemas.Tables.CategoryTranslations);
+        categoryTranslations.Index(x => x.CategoryId);
+        categoryTranslations.Index(x => x.Culture);
+        categoryTranslations.UniqueIndex(x => new { x.CategoryId, x.Culture });
+
+        var seriesTranslations = opts.Schema.For<SeriesTranslation>()
+            .TableName(Schemas.Tables.SeriesTranslations);
+        seriesTranslations.Index(x => x.SeriesId);
+        seriesTranslations.Index(x => x.Culture);
+        seriesTranslations.UniqueIndex(x => new { x.SeriesId, x.Culture });
     }
 
     /// <summary>
@@ -161,7 +180,7 @@ public void Configure(StoreOptions opts)
     /// </summary>
     /// <param name="services">The service provider; this implementation does not resolve services.</param>
     /// <param name="opts">The mutable Sable store options.</param>
-public void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
@@ -171,7 +190,7 @@ public void Configure(IServiceProvider services, StoreOptions opts)
     /// </summary>
     /// <param name="builder">The endpoint route builder to extend.</param>
     /// <returns>A completed task after all routes have been registered.</returns>
-public override Task RunAsync(IEndpointRouteBuilder builder)
+    public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapCategoriesApi();
         builder.MapTagsApi();
