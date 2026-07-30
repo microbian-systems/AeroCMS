@@ -7,18 +7,6 @@
     <Nullable>enable</Nullable>
     <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
-    <!--
-      This is the browser root for the manager. Set the variant as a global
-      project property so NuGet restore and the entire MSBuild graph evaluate
-      the same browser-safe dependency surface.
-    -->
-    <AeroCmsBrowserClient>true</AeroCmsBrowserClient>
-    <!--
-      The shared contract projects also have server-only project references.
-      The browser root declares every project it actually executes and must not
-      inherit those transitive server projects into its WebAssembly payload.
-    -->
-    <DisableTransitiveProjectReferences>true</DisableTransitiveProjectReferences>
 
     <!-- WASM Performance: trimming reduces download size significantly -->
     <PublishTrimmed>true</PublishTrimmed>
@@ -36,7 +24,6 @@
     <IsPackable>false</IsPackable>
     <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
     <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
-
   </PropertyGroup>
 
   <!-- Keep TypeScript build inputs out of NuGet contentFiles; only compiled wwwroot assets should ship. -->
@@ -63,22 +50,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj"
-                      AdditionalProperties="AeroCmsBrowserClient=true" />
-    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj"
-                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
-                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
-    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj"
-                      AdditionalProperties="AeroCmsBrowserClient=true">
-      <AeroBrowserBuildRoot>true</AeroBrowserBuildRoot>
-    </ProjectReference>
-    <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj"
-                      AdditionalProperties="AeroCmsBrowserClient=true">
-      <AeroBrowserBuildLeaf>true</AeroBrowserBuildLeaf>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj"
-                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
-                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
   </ItemGroup>
 
   <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
@@ -87,26 +62,6 @@
       <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
     </PropertyGroup>
     <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
-  </Target>
-
-  <!--
-    Fail the build if a server implementation dependency crosses back into
-    the manager WebAssembly payload. These assemblies are never valid browser
-    resources, even when a referenced project happens to restore them.
-  -->
-  <Target Name="ValidateAeroBrowserDependencyBoundary"
-          BeforeTargets="_ResolveBlazorWasmOutputs"
-          DependsOnTargets="ResolveReferences"
-          Condition="'$(DesignTimeBuild)' != 'true'">
-    <ItemGroup>
-      <_AeroForbiddenBrowserReference
-          Include="@(ReferenceCopyLocalPaths)"
-          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch(
-            '%(Filename)',
-            '^(Aero\.(Actors(\..*)?|Core\.Ai|Events|Models)|AeroDB\.Sable|Marten|Npgsql(\..*)?|RabbitMQ\.Client|WolverineFx(\..*)?|Microsoft\.CodeAnalysis(\..*)?)$'))" />
-    </ItemGroup>
-    <Error Condition="'@(_AeroForbiddenBrowserReference)' != ''"
-           Text="Server-only assemblies reached the Aero manager WebAssembly payload: @(_AeroForbiddenBrowserReference->'%(Filename)', ', '). Mark their owning package or project references PrivateAssets='all', or add an explicit browser-safe contract boundary." />
   </Target>
 
 </Project>

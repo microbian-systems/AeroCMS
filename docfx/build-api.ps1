@@ -19,7 +19,6 @@ try {
             -m:1 `
             -p:BuildInParallel=false `
             -p:UseSharedCompilation=false `
-            -p:AeroSkipSharedTypeScriptCompile=true `
             -p:NuGetAudit=false `
             --disable-build-servers
         if ($LASTEXITCODE -ne 0) {

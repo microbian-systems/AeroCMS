@@ -379,16 +379,46 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             await next(context);
         });
 
-        // Media uploads are created after build and therefore aren't part of the
-        // static-asset manifest. Scope conventional static-file handling to this
-        // runtime-owned path so it cannot intercept fingerprinted framework files.
-        app.UseWhen(
-            context => context.Request.Path.StartsWithSegments(
-                "/media",
-                StringComparison.OrdinalIgnoreCase),
-            branch => branch.UseStaticFiles());
+        if (app.Environment.IsDevelopment())
+        {
+            app.Use(static async (context, next) =>
+            {
+                var isFrameworkAsset = context.Request.Path.StartsWithSegments(
+                    "/_framework",
+                    StringComparison.OrdinalIgnoreCase);
+                var isManagerDocument = HttpMethods.IsGet(context.Request.Method) &&
+                    context.Request.Path.StartsWithSegments(
+                        "/manager",
+                        StringComparison.OrdinalIgnoreCase);
 
+                if (isFrameworkAsset)
+                {
+                    context.Response.OnStarting(static state =>
+                    {
+                        var response = (HttpResponse)state;
+                        response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+                        response.Headers.Pragma = "no-cache";
+                        response.Headers.Expires = "0";
+                        return Task.CompletedTask;
+                    }, context.Response);
+                }
+                else if (isManagerDocument)
+                {
+                    context.Response.OnStarting(static state =>
+                    {
+                        var response = (HttpResponse)state;
+                        response.Headers["Clear-Site-Data"] = "\"cache\"";
+                        return Task.CompletedTask;
+                    }, context.Response);
+                }
+
+                await next(context);
+            });
+        }
+
+        app.UseStaticFiles();
         app.MapStaticAssets();
+
         app.UseRouting();
         app.UseRequestLocalization(options =>
         {

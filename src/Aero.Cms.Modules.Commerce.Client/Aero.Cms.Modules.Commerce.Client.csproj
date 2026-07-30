@@ -14,9 +14,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj"
-                      AdditionalProperties="AeroCmsBrowserClient=$(AeroCmsBrowserClient)" />
+                      AdditionalProperties="AeroCmsBrowserClient=true" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 
 </Project>

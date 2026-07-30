@@ -29,7 +29,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Actors.Abstractions\Aero.Actors.Abstractions.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />

@@ -1,13 +1,8 @@
 namespace Aero.Cms.Abstractions.Ai;
 
 /// <summary>
-/// Identifies an AI provider across manager HTTP contracts.
+/// Supported AI provider modes exposed through AeroCMS contracts.
 /// </summary>
-/// <remarks>
-/// This transport type deliberately lives in the browser-safe abstractions
-/// assembly. Server AI runtimes map it to their internal provider type at the
-/// module boundary instead of exposing the server AI dependency to WebAssembly.
-/// </remarks>
 public enum AiProviderKind
 {
     OpenAi = 0,
