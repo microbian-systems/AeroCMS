@@ -90,7 +90,7 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
     /// </summary>
     /// <param name="services">The service collection to receive output-cache registrations.</param>
     /// <param name="config">
-    /// Configuration containing <c>AeroCms:Bootstrap:CacheMode</c> and the <c>cache</c>
+    /// Configuration containing <c>AeroCms:Infrastructure:CacheMode</c> and the <c>cache</c>
     /// connection string. A missing configuration uses local mode and
     /// <c>localhost:33333</c>.
     /// </param>
@@ -98,7 +98,7 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
     /// The host environment. This implementation does not inspect the environment.
     /// </param>
     /// <exception cref="InvalidOperationException">
-    /// <c>AeroCms:Bootstrap:CacheMode</c> is neither <c>Local</c> nor <c>Server</c>, or server
+    /// <c>AeroCms:Infrastructure:CacheMode</c> is neither <c>Local</c> nor <c>Server</c>, or server
     /// mode has no non-blank <c>cache</c> connection string.
     /// </exception>
     /// <remarks>
@@ -112,7 +112,7 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
         IConfiguration? config = null,
         IHostEnvironment? env = null)
     {
-        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Local";
+        var cacheMode = config?.GetValue<string>("AeroCms:Infrastructure:CacheMode") ?? "Local";
         var cacheString = config?.GetConnectionString("cache");
         if (string.IsNullOrWhiteSpace(cacheString)
             && cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase))

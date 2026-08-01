@@ -9,10 +9,9 @@ namespace Aero.Cms.Web.Bootstrap;
 /// Controls service registration and endpoint-pipeline integration for Aero CMS.
 /// </summary>
 /// <remarks>
-/// These options are consumed by <see cref="AeroCmsExtensions.AddAeroCmsAsync{TProgram}"/> and
-/// <see cref="AeroCmsExtensions.RunAeroCmsAsync{TRootComponent}"/>. Configuration callbacks run while
-/// services are being registered; Boolean endpoint options are evaluated when the application pipeline
-/// is configured.
+/// These options are consumed while <see cref="AeroCmsExtensions.AddAeroCmsAsync{TProgram}"/> registers
+/// services. Boolean endpoint options are evaluated later by <see cref="AeroCmsExtensions.UseAeroCms"/>
+/// and <see cref="AeroCmsExtensions.MapAeroCms{TRootComponent}"/>.
 /// </remarks>
 public sealed class AeroCmsOptions
 {

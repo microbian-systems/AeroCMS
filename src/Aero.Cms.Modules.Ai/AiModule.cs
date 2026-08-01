@@ -84,7 +84,7 @@ public override IReadOnlyList<string> Tags => ["ai", "manager", "content"];
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         _useDiskAnn = string.Equals(
-            config?["AeroCms:Bootstrap:DatabaseMode"],
+            config?["AeroCms:Infrastructure:DatabaseMode"],
             "Server",
             StringComparison.OrdinalIgnoreCase);
 

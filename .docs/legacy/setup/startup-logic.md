@@ -1,4 +1,6 @@
-I wrote a quick plan for the logic to see if an install was complete.  we have a few scenarios
+> Legacy design record. This draft describes superseded setup logic and is retained for historical context only.
+
+I wrote a quick plan for the logic to see if an install was complete.  we have a few scenarios
 
 Startup flow App (var startup = WebApplication)
 

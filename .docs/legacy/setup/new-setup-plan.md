@@ -1,5 +1,7 @@
 # Aero CMS Two-App Startup Implementation Plan
 
+> Legacy design record. The public integration surface and runtime initialization flow described here have been superseded.
+
 ## Executive Summary
 
 This document defines the approved startup architecture for Aero CMS:

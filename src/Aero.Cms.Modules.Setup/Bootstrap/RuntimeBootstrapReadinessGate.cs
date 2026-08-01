@@ -16,7 +16,7 @@ public sealed class RuntimeBootstrapReadinessGate
     /// <summary>
     /// Initializes the gate from the immutable bootstrap mode observed while composing the process.
     /// </summary>
-    /// <param name="requiresReadiness">Whether this process started in configured mode.</param>
+    /// <param name="requiresReadiness">Whether this process is starting the normal CMS runtime.</param>
     public RuntimeBootstrapReadinessGate(bool requiresReadiness)
     {
         RequiresReadiness = requiresReadiness;

@@ -54,7 +54,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // ---- Cache connection string ----
         // The bootstrap layer resolves secrets and publishes the effective cache
         // endpoint as ConnectionStrings:cache before modules are configured.
-        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Local";
+        var cacheMode = config?.GetValue<string>("AeroCms:Infrastructure:CacheMode") ?? "Local";
         var cacheString = config?.GetConnectionString("cache");
         if (string.IsNullOrWhiteSpace(cacheString)
             && cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase))

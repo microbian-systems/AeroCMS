@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Aero.AppServer;
+using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
@@ -32,35 +33,36 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
+        var infrastructure = GetOrCreateObject(root, "AeroCms", "Infrastructure");
 
         bootstrap["State"] = BootstrapStates.Configured;
-        bootstrap["DatabaseMode"] = model.DatabaseMode;
-        bootstrap["SecretProvider"] = model.SecretProvider;
         bootstrap["RequestedManagerAuthenticationProvider"] = model.RequestedManagerAuthenticationProvider;
         bootstrap["RequestedMemberAuthenticationProvider"] = model.RequestedMemberAuthenticationProvider;
         bootstrap.Remove("AuthenticationMode");
-        bootstrap["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;
+        infrastructure[AeroCmsInfrastructureConfiguration.DatabaseMode] = model.DatabaseMode;
+        infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider] = model.SecretProvider;
+        infrastructure["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
 
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
-            PersistInfisicalAuth(bootstrap, model);
+            PersistInfisicalAuth(infrastructure, model);
         }
 
         if (model.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
-            bootstrap.Remove("DatabaseConnectionStringReference");
-            bootstrap.Remove("DatabaseUsernameReference");
-            bootstrap.Remove("DatabasePasswordReference");
+            infrastructure.Remove("DatabaseConnectionStringReference");
+            infrastructure.Remove("DatabaseUsernameReference");
+            infrastructure.Remove("DatabasePasswordReference");
             // Sable embedded (SurrealDB KV) requires no connection string.
             // The data path is derived from env.ContentRootPath at DI registration time.
         }
         else if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
             var stored = StoreDatabaseSecret(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
-            bootstrap["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
+            infrastructure["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
             if (ShouldStoreEncryptedValue(model.SecretProvider))
             {
                 SetConnectionString(root, "aero", stored);
@@ -68,15 +70,15 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
 
             if (model.DatabaseUnauthenticated)
             {
-                bootstrap.Remove("DatabaseUsernameReference");
-                bootstrap.Remove("DatabasePasswordReference");
+                infrastructure.Remove("DatabaseUsernameReference");
+                infrastructure.Remove("DatabasePasswordReference");
             }
             else
             {
                 var username = StoreDatabaseSecret(model.DatabaseUsername ?? string.Empty, "AeroCms:Database:Username", model);
                 var password = StoreDatabaseSecret(model.DatabasePassword ?? string.Empty, "AeroCms:Database:Password", model);
-                bootstrap["DatabaseUsernameReference"] = username.Metadata ?? username.Value;
-                bootstrap["DatabasePasswordReference"] = password.Metadata ?? password.Value;
+                infrastructure["DatabaseUsernameReference"] = username.Metadata ?? username.Value;
+                infrastructure["DatabasePasswordReference"] = password.Metadata ?? password.Value;
             }
         }
 
@@ -108,7 +110,7 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
     /// <summary>
     /// Protects Infisical bootstrap credentials locally so the external provider can be contacted after restart.
     /// </summary>
-    private void PersistInfisicalAuth(JsonObject bootstrap, DatabaseBootstrapModel model)
+    private void PersistInfisicalAuth(JsonObject infrastructure, DatabaseBootstrapModel model)
     {
         var infisicalSettings = infisicalSettingsProvider.GetSettings();
         var machineId = string.IsNullOrWhiteSpace(model.InfisicalMachineId) ? infisicalSettings.MachineId : model.InfisicalMachineId;
@@ -116,16 +118,16 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
 
         if (!string.IsNullOrWhiteSpace(machineId))
         {
-            var storedMachineId = secretManager.Store(machineId, "AeroCms:Bootstrap:Infisical:MachineId");
-            bootstrap["InfisicalMachineId"] = storedMachineId.Value;
-            bootstrap["InfisicalMachineIdReference"] = storedMachineId.Metadata ?? storedMachineId.Value;
+            var storedMachineId = secretManager.Store(machineId, "AeroCms:Infrastructure:Infisical:MachineId");
+            infrastructure["InfisicalMachineId"] = storedMachineId.Value;
+            infrastructure["InfisicalMachineIdReference"] = storedMachineId.Metadata ?? storedMachineId.Value;
         }
 
         if (!string.IsNullOrWhiteSpace(clientSecret))
         {
-            var storedClientSecret = secretManager.Store(clientSecret, "AeroCms:Bootstrap:Infisical:ClientSecret");
-            bootstrap["InfisicalClientSecret"] = storedClientSecret.Value;
-            bootstrap["InfisicalClientSecretReference"] = storedClientSecret.Metadata ?? storedClientSecret.Value;
+            var storedClientSecret = secretManager.Store(clientSecret, "AeroCms:Infrastructure:Infisical:ClientSecret");
+            infrastructure["InfisicalClientSecret"] = storedClientSecret.Value;
+            infrastructure["InfisicalClientSecretReference"] = storedClientSecret.Metadata ?? storedClientSecret.Value;
         }
     }
 

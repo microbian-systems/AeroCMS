@@ -120,7 +120,7 @@ but serve different concerns.
 
 ## Relationship Between Embedded Flag and DatabaseMode
 
-The existing `AeroCms:Bootstrap:DatabaseMode` (`"Embedded"` / `"Server"`)
+The `AeroCms:Infrastructure:DatabaseMode` setting (`"Embedded"` / `"Server"`)
 and the new `AeroCms:Persistence:Embedded` (`true` / `false`) carry the
 same information but for different consumers:
 

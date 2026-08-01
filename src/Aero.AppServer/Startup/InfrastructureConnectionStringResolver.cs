@@ -42,54 +42,34 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
     /// bootstrap credentials, or an error reported by the selected secret provider.
     /// </exception>
     /// <remarks>
-    /// Setup state always selects the embedded database so the host can start before configuration
-    /// is complete. Local plaintext connection values can be replaced in the environment-specific
-    /// appsettings file with newly stored secret references as a side effect of resolution.
+    /// This resolver is used only by the normal runtime host. The setup-only host does not register
+    /// database or cache infrastructure. Local plaintext connection values can be replaced in the
+    /// environment-specific appsettings file with protected references as a side effect of resolution.
     /// </remarks>
-public ResolvedInfrastructureSettings Resolve()
+    public ResolvedInfrastructureSettings Resolve()
     {
-        var embedded = AeroDbOptions.FromConfiguration(configuration);
         var bootstrap = configuration.GetSection("AeroCms:Bootstrap");
-        var hasBootstrap = bootstrap.GetValue<bool?>("HasBootstrapConfig")
-            ?? (bootstrap.Exists() && !string.IsNullOrWhiteSpace(bootstrap["DatabaseMode"]));
+        var hasBootstrap = bootstrap.GetValue<bool?>("HasBootstrapConfig") ?? false;
         var state = bootstrap["State"];
-        if (string.IsNullOrWhiteSpace(state))
+        if (!hasBootstrap ||
+            (!string.Equals(state, "Configured", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state, "Running", StringComparison.OrdinalIgnoreCase)))
         {
-            var setupComplete = bootstrap.GetValue<bool?>("SetupComplete") ?? false;
-            var seedComplete = bootstrap.GetValue<bool?>("SeedComplete") ?? false;
-            state = setupComplete && seedComplete
-                ? "Running"
-                : hasBootstrap
-                    ? "Configured"
-                    : "Setup";
+            throw new InvalidOperationException(
+                "Aero CMS runtime infrastructure cannot be resolved before setup reaches Configured or Running state.");
         }
 
-        // In Setup mode, return embedded defaults so the main app can still boot its hosted infra safely.
-        var isSetupMode = string.Equals(state, "Setup", StringComparison.OrdinalIgnoreCase);
-
-        var databaseMode = bootstrap["DatabaseMode"] ?? "Embedded";
-        var cacheMode = bootstrap["CacheMode"] ?? AeroAppServerConstants.LocalCacheMode;
-        var secretProvider = bootstrap["SecretProvider"] ?? "Local Certificate";
+        var infrastructure = configuration.GetSection(AeroCmsInfrastructureConfiguration.SectionName);
+        var databaseMode = infrastructure[AeroCmsInfrastructureConfiguration.DatabaseMode] ?? "Embedded";
+        var cacheMode = infrastructure[AeroCmsInfrastructureConfiguration.CacheMode] ?? AeroAppServerConstants.LocalCacheMode;
+        var secretProvider = infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider] ?? "Local Certificate";
         ValidateCacheMode(cacheMode);
 
-        if (isSetupMode)
-        {
-            var cacheConn = cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase)
-                ? AeroAppServerConstants.CacheUrl
-                : null;
-            return new ResolvedInfrastructureSettings(
-                embedded.ConnectionString,
-                cacheConn,
-                "Embedded",
-                cacheMode,
-                "Local Certificate");
-        }
-
         var secretManager = DataProtectionCertificateBootstrapper.CreateSecretManager(configuration);
-        var db = ResolveDatabase(databaseMode, secretProvider, bootstrap, hasBootstrap, secretManager);
-        var cache = ResolveCache(cacheMode, secretProvider, bootstrap, hasBootstrap, secretManager);
-        var databaseUnauthenticated = bootstrap.GetValue<bool?>("DatabaseUnauthenticated") ?? false;
-        var credentials = ResolveDatabaseCredentials(databaseMode, databaseUnauthenticated, secretProvider, bootstrap, secretManager);
+        var db = ResolveDatabase(databaseMode, secretProvider, infrastructure, secretManager);
+        var cache = ResolveCache(cacheMode, secretProvider, infrastructure, secretManager);
+        var databaseUnauthenticated = infrastructure.GetValue<bool?>("DatabaseUnauthenticated") ?? false;
+        var credentials = ResolveDatabaseCredentials(databaseMode, databaseUnauthenticated, secretProvider, infrastructure, secretManager);
         return new ResolvedInfrastructureSettings(db, cache, databaseMode, cacheMode, secretProvider,
             credentials.username, credentials.password, databaseUnauthenticated);
     }
@@ -98,24 +78,24 @@ public ResolvedInfrastructureSettings Resolve()
     /// Resolves an embedded database URI or the configured server database secret.
     /// </summary>
     /// <returns>The effective database connection value.</returns>
-    private string ResolveDatabase(string databaseMode, string secretProvider, IConfigurationSection bootstrap, bool hasBootstrap, ISecretManager secretManager)
+    private string ResolveDatabase(string databaseMode, string secretProvider, IConfigurationSection infrastructure, ISecretManager secretManager)
     {
-        if (!hasBootstrap || databaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        if (databaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
             return AeroDbOptions.FromConfiguration(configuration).ConnectionString;
 
-        return ResolveServerValue("aero", "DatabaseConnectionStringReference", bootstrap, secretProvider, "database", secretManager);
+        return ResolveServerValue("aero", "DatabaseConnectionStringReference", infrastructure, secretProvider, "database", secretManager);
     }
 
     /// <summary>
     /// Resolves the local Garnet endpoint or the configured server cache secret.
     /// </summary>
     /// <returns>The effective cache endpoint.</returns>
-    private string? ResolveCache(string cacheMode, string secretProvider, IConfigurationSection bootstrap, bool hasBootstrap, ISecretManager secretManager)
+    private string? ResolveCache(string cacheMode, string secretProvider, IConfigurationSection infrastructure, ISecretManager secretManager)
     {
         if (cacheMode.Equals(AeroAppServerConstants.LocalCacheMode, StringComparison.OrdinalIgnoreCase))
             return AeroAppServerConstants.CacheUrl;
 
-        return ResolveServerValue("cache", "CacheConnectionStringReference", bootstrap, secretProvider, "cache", secretManager);
+        return ResolveServerValue("cache", "CacheConnectionStringReference", infrastructure, secretProvider, "cache", secretManager);
     }
 
     /// <summary>
@@ -143,7 +123,7 @@ public ResolvedInfrastructureSettings Resolve()
         string databaseMode,
         bool databaseUnauthenticated,
         string secretProvider,
-        IConfigurationSection bootstrap,
+        IConfigurationSection infrastructure,
         ISecretManager secretManager)
     {
         if (databaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase) || databaseUnauthenticated)
@@ -152,8 +132,8 @@ public ResolvedInfrastructureSettings Resolve()
         }
 
         return (
-            ResolveOptionalServerValue("AeroCms:Database:Username", "DatabaseUsernameReference", bootstrap, secretProvider, secretManager),
-            ResolveOptionalServerValue("AeroCms:Database:Password", "DatabasePasswordReference", bootstrap, secretProvider, secretManager));
+            ResolveOptionalServerValue("AeroCms:Database:Username", "DatabaseUsernameReference", infrastructure, secretProvider, secretManager),
+            ResolveOptionalServerValue("AeroCms:Database:Password", "DatabasePasswordReference", infrastructure, secretProvider, secretManager));
     }
 
     /// <summary>
@@ -163,11 +143,11 @@ public ResolvedInfrastructureSettings Resolve()
     private string? ResolveOptionalServerValue(
         string secretName,
         string referenceKey,
-        IConfigurationSection bootstrap,
+        IConfigurationSection infrastructure,
         string secretProvider,
         ISecretManager secretManager)
     {
-        var reference = bootstrap[referenceKey];
+        var reference = infrastructure[referenceKey];
         if (string.IsNullOrWhiteSpace(reference))
         {
             return null;
@@ -175,7 +155,7 @@ public ResolvedInfrastructureSettings Resolve()
 
         if (secretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
-            var auth = ReadProtectedBootstrapAuth(bootstrap, secretManager);
+            var auth = ReadProtectedBootstrapAuth(infrastructure, secretManager);
             return CreateInfisicalManager(auth.machineId, auth.clientSecret)
                 .Read(new StoredSecretReference(SecretProviderType.Infisical, secretName, null, reference));
         }
@@ -191,15 +171,15 @@ public ResolvedInfrastructureSettings Resolve()
     /// Local-certificate values that resolve to the same plaintext stored in configuration are
     /// opportunistically upgraded to secret references.
     /// </remarks>
-    private string ResolveServerValue(string connectionName, string referenceKey, IConfigurationSection bootstrap, string secretProvider, string label, ISecretManager secretManager)
+    private string ResolveServerValue(string connectionName, string referenceKey, IConfigurationSection infrastructure, string secretProvider, string label, ISecretManager secretManager)
     {
-        var reference = bootstrap[referenceKey] ?? bootstrap[$"{label}ConnectionStringReference"];
+        var reference = infrastructure[referenceKey] ?? infrastructure[$"{label}ConnectionStringReference"];
         if (string.IsNullOrWhiteSpace(reference))
             throw new InvalidOperationException($"Bootstrap is configured for server {label} mode but no secret reference was stored.");
 
         if (secretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
-            var auth = ReadProtectedBootstrapAuth(bootstrap, secretManager);
+            var auth = ReadProtectedBootstrapAuth(infrastructure, secretManager);
             var infisical = CreateInfisicalManager(auth.machineId, auth.clientSecret);
             return infisical.Read(new StoredSecretReference(SecretProviderType.Infisical, connectionName, null, reference));
         }
@@ -238,8 +218,8 @@ public ResolvedInfrastructureSettings Resolve()
         }
 
         var stored = secretManager.Store(resolvedValue, $"ConnectionStrings:{connectionName}");
-        var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
-        bootstrap[referenceKey] = stored.Value;
+        var infrastructure = GetOrCreateObject(root, "AeroCms", "Infrastructure");
+        infrastructure[referenceKey] = stored.Value;
         GetOrCreateObject(root, "ConnectionStrings")[connectionName] = stored.Value;
         File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -274,8 +254,8 @@ public ResolvedInfrastructureSettings Resolve()
         if (string.IsNullOrWhiteSpace(machineRef) || string.IsNullOrWhiteSpace(clientRef))
             throw new InvalidOperationException("Bootstrap is configured for Infisical but encrypted auth material is missing.");
 
-        return (secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Bootstrap:Infisical:MachineId", machineRef)),
-            secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Bootstrap:Infisical:ClientSecret", clientRef)));
+        return (secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Infrastructure:Infisical:MachineId", machineRef)),
+            secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Infrastructure:Infisical:ClientSecret", clientRef)));
     }
 
     /// <summary>

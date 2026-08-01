@@ -47,7 +47,7 @@ public sealed class CacheModuleRegistrationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["AeroCms:Bootstrap:CacheMode"] = cacheMode,
+                ["AeroCms:Infrastructure:CacheMode"] = cacheMode,
                 ["ConnectionStrings:cache"] = "localhost:33333"
             })
             .Build();

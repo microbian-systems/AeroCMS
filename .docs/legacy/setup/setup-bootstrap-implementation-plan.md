@@ -1,5 +1,7 @@
 # Setup Bootstrap Implementation Plan
 
+> Legacy implementation plan. Retained for design history; do not use it as current setup guidance.
+
 ## Goal
 
 Extend first-run setup to support:

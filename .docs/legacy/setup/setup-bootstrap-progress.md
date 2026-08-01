@@ -1,5 +1,7 @@
 # Setup Bootstrap Progress Checkpoint
 
+> Legacy progress checkpoint. Retained for design history; the current hosting lifecycle is documented separately.
+
 ## Date
 
 - Updated: 2026-04-21

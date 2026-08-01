@@ -15,12 +15,45 @@ namespace Aero.Cms.Web.Bootstrap;
 /// Aero CMS startup.
 /// </summary>
 /// <remarks>
-/// The setup application runs before the main host is constructed. Main-host pipeline construction and
-/// runtime initialization are performed separately by
-/// <see cref="AeroCmsExtensions.RunAeroCmsAsync{TRootComponent}"/>.
+/// The setup application runs before the main host is constructed. The consumer then uses the ordinary
+/// ASP.NET Core middleware, endpoint, and <c>RunAsync</c> lifecycle; runtime initialization runs as a
+/// hosted service before the server accepts requests.
 /// </remarks>
 public static class AeroStartupPipeline
 {
+    /// <summary>
+    /// Ensures that the normal application builder has a completed infrastructure configuration.
+    /// </summary>
+    /// <param name="builder">The normal ASP.NET Core application builder.</param>
+    /// <param name="args">Command-line arguments forwarded to the one-time setup host.</param>
+    /// <returns>The bootstrap state that the normal runtime host will start with.</returns>
+    /// <remarks>
+    /// When setup has not completed, a lightweight setup-only application is served using the
+    /// existing setup wizard. After the wizard requests handoff, configuration is reloaded into
+    /// <paramref name="builder"/> and normal host registration continues in the same process.
+    /// </remarks>
+    public static async Task<BootstrapState> EnsureRuntimeConfigurationAsync(
+        WebApplicationBuilder builder,
+        string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(args);
+
+        var result = await RunEarlyPhasesAsync(args)
+            ?? throw new InvalidOperationException("Aero CMS bootstrap configuration could not be initialized.");
+
+        if (!result.State.IsConfiguredMode && !result.State.IsRunningMode)
+        {
+            throw new InvalidOperationException(
+                $"Invalid bootstrap state '{result.State.State}' after setup. Expected Configured or Running.");
+        }
+
+        // The normal builder was created before the setup host ran. Add the freshly reloaded
+        // snapshot at the highest priority so all subsequent registrations observe the handoff.
+        builder.Configuration.AddConfiguration(result.Config);
+        return result.State;
+    }
+
     /// <summary>
     /// Contains configuration and bootstrap state reloaded after any setup-host handoff.
     /// </summary>

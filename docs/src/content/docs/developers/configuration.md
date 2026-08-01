@@ -7,22 +7,28 @@ Configuration comes from ASP.NET Core providers, but setup persists only bootstr
 
 ## Bootstrap
 
-`AeroCms:Bootstrap` controls early startup:
+`AeroCms:Bootstrap` records setup lifecycle state:
 
 | Key | Current values/meaning |
 | --- | --- |
-| `State` | `Setup`, `Configured`, or `Running` |
+| `State` | `Setup`, `Configured`, `Running`, or `Failed` |
 | `SetupComplete`, `SeedComplete`, `HasBootstrapConfig` | bootstrap progress markers |
+| `RequestedManagerAuthenticationProvider` | manager authority selected during setup |
+| `RequestedMemberAuthenticationProvider` | member authority selected during setup |
+
+Infrastructure keys do not imply setup completion. The durable setup document remains the authoritative completion/idempotency record after initialization. Do not toggle lifecycle flags manually to skip setup or seeding.
+
+## Infrastructure
+
+`AeroCms:Infrastructure` records deployment topology and protected references:
+
+| Key | Current values/meaning |
+| --- | --- |
 | `DatabaseMode` | `Embedded` or `Server` |
 | `CacheMode` | `Local` or `Server` |
 | `SecretProvider` | selected secret-provider label |
 | `DatabaseConnectionStringReference` | protected reference, not a raw connection string |
-| `RequestedManagerAuthenticationProvider` | manager authority selected during setup |
-| `RequestedMemberAuthenticationProvider` | member authority selected during setup |
-
-The durable setup document remains the authoritative completion/idempotency record after initialization. Do not toggle these flags manually to skip seeding.
-
-## Infrastructure
+| `CacheConnectionStringReference` | protected reference, not a raw connection string |
 
 - `ConnectionStrings:aero`: effective Sable/SurrealDB connection string after secret resolution.
 - `ConnectionStrings:cache`: Redis-compatible endpoint used by FusionCache and output cache.
@@ -70,9 +76,12 @@ The current token-budget coordinator, ASP.NET request limiters, stream concurren
   "AeroCms": {
     "Bootstrap": {
       "State": "Setup",
+      "HasBootstrapConfig": false
+    },
+    "Infrastructure": {
       "DatabaseMode": "Embedded",
       "CacheMode": "Local",
-      "HasBootstrapConfig": false
+      "SecretProvider": "Local Certificate"
     },
     "DataProtection": {
       "KeyStoragePath": "keys",

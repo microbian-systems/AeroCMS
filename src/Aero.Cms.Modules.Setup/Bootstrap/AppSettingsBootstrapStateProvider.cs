@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Aero.Cms.Abstractions.Authentication;
+using Aero.AppServer.Startup;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -7,18 +8,18 @@ namespace Aero.Cms.Modules.Setup.Bootstrap;
 /// Reads the setup bootstrap state from the active application configuration.
 /// </summary>
 /// <remarks>
-/// When an explicit state is absent, the provider derives a backward-compatible state
-/// from the completion flags and the presence of a database mode. This type only reads
-/// configuration; it does not persist or validate it.
+/// Lifecycle state is read only from <c>AeroCms:Bootstrap</c>. Infrastructure selections are
+/// read independently from <c>AeroCms:Infrastructure</c>, so preconfiguring a database or cache
+/// never skips the setup wizard by itself.
 /// </remarks>
 public sealed class AppSettingsBootstrapStateProvider(IConfiguration configuration) : IBootstrapStateProvider
 {
     /// <inheritdoc />
-public BootstrapState GetState()
+    public BootstrapState GetState()
     {
         var section = configuration.GetSection("AeroCms:Bootstrap");
-        var hasBootstrapConfig = section.GetValue<bool?>("HasBootstrapConfig")
-            ?? (section.Exists() && !string.IsNullOrWhiteSpace(section["DatabaseMode"]));
+        var infrastructure = configuration.GetSection(AeroCmsInfrastructureConfiguration.SectionName);
+        var hasBootstrapConfig = section.GetValue<bool?>("HasBootstrapConfig") ?? false;
         var setupComplete = section.GetValue<bool?>("SetupComplete") ?? false;
         var seedComplete = section.GetValue<bool?>("SeedComplete") ?? false;
         var state = section["State"];
@@ -38,9 +39,9 @@ public BootstrapState GetState()
             State = state,
             SetupComplete = setupComplete,
             SeedComplete = seedComplete,
-            DatabaseMode = section["DatabaseMode"],
-            CacheMode = section["CacheMode"],
-            SecretProvider = section["SecretProvider"],
+            DatabaseMode = infrastructure[AeroCmsInfrastructureConfiguration.DatabaseMode],
+            CacheMode = infrastructure[AeroCmsInfrastructureConfiguration.CacheMode],
+            SecretProvider = infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider],
             RequestedManagerAuthenticationProvider = section["RequestedManagerAuthenticationProvider"]
                 ?? AuthenticationProviderSelections.Manager.Local,
             RequestedMemberAuthenticationProvider = section["RequestedMemberAuthenticationProvider"]

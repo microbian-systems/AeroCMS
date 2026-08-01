@@ -1,3 +1,5 @@
+> Legacy design record. This document predates the current Aero CMS hosting integration and is retained for historical context only.
+
 **Short answer:**  
 The cleanest, most idiomatic way for a `BackgroundService` to signal “I’m ready” to the rest of the ASP.NET Core app is to use a **TaskCompletionSource** (or a similar async coordination primitive) that the host waits on during startup.  
 

@@ -1,5 +1,7 @@
 # Aero CMS Startup & Configuration Specification
 
+> Legacy design record. This document describes a superseded startup model and is retained for historical context only.
+
 ## Overview
 
 Aero CMS uses a two-stage startup architecture to handle initial configuration without requiring application restarts. The system supports multiple deployment modes (embedded, local secrets, remote secrets) and uses X.509 certificates with ASP.NET Core Data Protection for secrets encryption.

@@ -8,7 +8,6 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
-using Aero.Cms.Web.Core.Diagnostics;
 using Aero.Cms.Web.Core.Middleware;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Localization;
@@ -46,13 +45,43 @@ namespace Aero.Cms.Web.Bootstrap;
 /// Package-first integration entry points for hosting Aero CMS in ASP.NET Core.
 /// </summary>
 /// <remarks>
-/// <see cref="AddAeroCmsAsync{TProgram}(WebApplicationBuilder, Action{AeroCmsOptions})"/>
-/// configures the host builder. <see cref="RunAeroCmsAsync{TRootComponent}(WebApplication, BootstrapState, Serilog.ILogger, Action{RazorComponentsEndpointConventionBuilder})"/>
-/// builds the request pipeline, maps endpoints, and owns the application start, initialization,
-/// lifetime wait, and stop sequence.
+/// <see cref="AddAeroCmsAsync{TProgram}(WebApplicationBuilder, string[], Action{AeroCmsOptions})"/>
+/// performs the one-time setup handoff and configures the host builder.
+/// <see cref="UseAeroCms(WebApplication)"/> builds the middleware pipeline and
+/// <see cref="MapAeroCms{TRootComponent}(WebApplication, Action{RazorComponentsEndpointConventionBuilder})"/>
+/// maps the framework endpoints. The consumer retains the standard ASP.NET Core application lifetime.
 /// </remarks>
 public static class AeroCmsExtensions
 {
+    /// <summary>
+    /// Runs the one-time setup handoff when required and adds Aero CMS to a normal ASP.NET Core host.
+    /// </summary>
+    /// <typeparam name="TProgram">The host application's entry-point marker type.</typeparam>
+    /// <param name="builder">The normal web application builder.</param>
+    /// <param name="args">The application's command-line arguments.</param>
+    /// <param name="configure">Configures generated catalogs and optional Aero CMS integrations.</param>
+    /// <returns>The same configured builder.</returns>
+    /// <remarks>
+    /// The method is asynchronous because first run may serve the existing setup wizard and wait for
+    /// its explicit handoff. Once configured, startup follows the ordinary ASP.NET Core builder,
+    /// middleware, endpoint, and <c>RunAsync</c> lifecycle.
+    /// </remarks>
+    public static async Task<WebApplicationBuilder> AddAeroCmsAsync<TProgram>(
+        this WebApplicationBuilder builder,
+        string[] args,
+        Action<AeroCmsOptions> configure)
+        where TProgram : class
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        ConfigureAeroCmsBootstrapLogging(builder.Environment.ContentRootPath);
+        await AeroStartupPipeline.EnsureRuntimeConfigurationAsync(builder, args);
+        _ = await builder.AddAeroCmsAsync<TProgram>(configure);
+        return builder;
+    }
+
     /// <summary>
     /// Adds Aero CMS services and host integrations to an ASP.NET Core application builder.
     /// </summary>
@@ -69,7 +98,9 @@ public static class AeroCmsExtensions
     /// This method registers services, resolves and publishes the database and cache connection settings,
     /// and invokes the supplied Wolverine, Orleans, cookie, and authorization configuration callbacks.
     /// It does not build or start the application, map endpoints, wait for infrastructure, or initialize
-    /// runtime services; those operations are performed by <see cref="RunAeroCmsAsync{TRootComponent}"/>.
+    /// runtime services; startup initialization is performed by a hosted service, while middleware and
+    /// endpoints are configured by <see cref="UseAeroCms(WebApplication)"/> and
+    /// <see cref="MapAeroCms{TRootComponent}(WebApplication, Action{RazorComponentsEndpointConventionBuilder})"/>.
     /// Hydro services are registered only when <see cref="AeroCmsOptions.EnableHydro"/> is enabled.
     /// <para>
     /// Authentication defaults to the <c>AeroCms.Manager</c> policy scheme for the general,
@@ -98,7 +129,7 @@ public static class AeroCmsExtensions
     /// <exception cref="InvalidOperationException">
     /// The configuration callback does not provide <see cref="AeroCmsOptions.ModuleDescriptors"/>.
     /// </exception>
-public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsAsync<TProgram>(
+    public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsAsync<TProgram>(
         this WebApplicationBuilder builder,
         Action<AeroCmsOptions> configure)
         where TProgram : class
@@ -277,6 +308,7 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         RuntimeBootstrapReadinessStartupFilterOrdering.MoveReadinessFilterToStart(services);
         services.AddSingleton(options.ModuleDescriptors);
         services.AddSingleton(options);
+        services.AddHostedService<AeroCmsRuntimeInitializationHostedService>();
 
         if (options.EnableHydro)
         {
@@ -297,58 +329,21 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
     }
 
     /// <summary>
-    /// Configures and runs the Aero CMS request pipeline for an already built application.
+    /// Adds the Aero CMS middleware pipeline to a built ASP.NET Core application.
     /// </summary>
-    /// <typeparam name="TRootComponent">The root Razor component mapped by the application.</typeparam>
-    /// <param name="app">The application whose middleware, endpoints, and lifetime are managed.</param>
-    /// <param name="bootstrapState">
-    /// The early bootstrap state that controls infrastructure waiting and configured-mode initialization.
-    /// </param>
-    /// <param name="log">The logger used for startup, failure, and shutdown diagnostics.</param>
-    /// <param name="configureComponents">
-    /// An optional callback invoked after the root component endpoint is mapped and its default render modes
-    /// and additional assemblies have been added.
-    /// </param>
-    /// <returns>A task that completes after the application receives a shutdown signal and is stopped.</returns>
-    /// <remarks>
-    /// Middleware and endpoints are configured before the host is started. After start, the method waits
-    /// for required infrastructure, prepares the runtime, optionally invokes
-    /// <see cref="IRuntimeBootstrapInitializer"/> in configured mode, initializes runtime services, and
-    /// then waits for shutdown. Hydro, when enabled, is appended after all endpoint mappings.
-    /// Configured-mode failures during readiness, preparation, initialization, or lifetime waiting trigger
-    /// a best-effort transition to the failed bootstrap state. Startup and runtime failures are logged and
-    /// rethrown; stop failures are logged as non-fatal.
-    /// <para>
-    /// The method maps <c>GET /culture/set</c>. That endpoint writes the framework request-culture cookie
-    /// with a one-year expiration, <see cref="CookieOptions.HttpOnly"/> and
-    /// <see cref="CookieOptions.Secure"/> enabled, and <see cref="SameSiteMode.Lax"/>, then redirects
-    /// directly to the supplied <c>returnUrl</c>. The mapping adds no local authentication,
-    /// authorization, rate-limiting, or antiforgery metadata and does not validate that
-    /// <c>returnUrl</c> is local. As implemented, its state-changing GET and unrestricted redirect are
-    /// cross-site request and open-redirect concerns that the host must account for if the endpoint is exposed.
-    /// </para>
-    /// </remarks>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="app"/> or <paramref name="log"/> is <see langword="null"/>.
-    /// </exception>
-public static async Task RunAeroCmsAsync<TRootComponent>(
-        this WebApplication app,
-        BootstrapState bootstrapState,
-        Serilog.ILogger log,
-        Action<RazorComponentsEndpointConventionBuilder>? configureComponents = null)
-        where TRootComponent : IComponent
+    /// <param name="app">The application to configure.</param>
+    /// <returns>The same application.</returns>
+    public static WebApplication UseAeroCms(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
-        ArgumentNullException.ThrowIfNull(log);
 
-        var options = app.Services.GetService<AeroCmsOptions>() ?? new AeroCmsOptions();
+        var infrastructure = app.Services.GetRequiredService<ResolvedInfrastructureSettings>();
 
         app.UseExceptionHandler();
-        if (string.Equals(bootstrapState.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(infrastructure.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase))
         {
             app.UseMiddleware<RequestCancellationIsolationMiddleware>();
         }
-        app.MapDefaultEndpoints();
 
         if (app.Environment.IsDevelopment() &&
             bool.TryParse(app.Configuration["AeroCms:EnableWebAssemblyDebugging"], out var enableWasmDebugging) &&
@@ -417,7 +412,6 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         }
 
         app.UseStaticFiles();
-        app.MapStaticAssets();
 
         app.UseRouting();
         app.UseRequestLocalization(options =>
@@ -450,6 +444,27 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         app.UseCmsSetupGate();
         app.UseAeroCmsModulePipeline();
         app.UseAntiforgery();
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps Aero CMS framework, Razor, component, identity, module, and API-reference endpoints.
+    /// </summary>
+    /// <typeparam name="TRootComponent">The host application's root Razor component.</typeparam>
+    /// <param name="app">The application to configure.</param>
+    /// <param name="configureComponents">Optionally adds host-owned component assemblies.</param>
+    /// <returns>The same application.</returns>
+    public static WebApplication MapAeroCms<TRootComponent>(
+        this WebApplication app,
+        Action<RazorComponentsEndpointConventionBuilder>? configureComponents = null)
+        where TRootComponent : IComponent
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var options = app.Services.GetService<AeroCmsOptions>() ?? new AeroCmsOptions();
+        app.MapDefaultEndpoints();
+        app.MapStaticAssets();
 
         // Culture cookie setter — allows the Manager UI to persist user language preference.
         app.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
@@ -506,96 +521,26 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             app.UseHydro(app.Environment);
         }
 
-        var startupStage = "host startup";
+        return app;
+    }
 
-        try
-        {
-            startupStage = "host start";
-            log.Information("Starting main Aero application host...");
-            await app.StartAsync();
+    /// <summary>
+    /// Compatibility wrapper for hosts using the former all-in-one runtime method.
+    /// </summary>
+    [Obsolete("Use app.UseAeroCms(), app.MapAeroCms<TRootComponent>(), and await app.RunAsync().")]
+    public static Task RunAeroCmsAsync<TRootComponent>(
+        this WebApplication app,
+        BootstrapState bootstrapState,
+        Serilog.ILogger log,
+        Action<RazorComponentsEndpointConventionBuilder>? configureComponents = null)
+        where TRootComponent : IComponent
+    {
+        ArgumentNullException.ThrowIfNull(bootstrapState);
+        ArgumentNullException.ThrowIfNull(log);
 
-            try
-            {
-                startupStage = "infrastructure readiness";
-                await AeroStartupPipeline.WaitForRequiredInfrastructureAsync(app, bootstrapState, log);
-
-                startupStage = "runtime preparation";
-                log.Information("Applying runtime preparation...");
-                await app.PrepareAeroAppAsync();
-
-                if (bootstrapState.IsConfiguredMode)
-                {
-                    startupStage = "runtime bootstrap initialization";
-                    await using var runtimeBootstrapScope = app.Services.CreateAsyncScope();
-                    var initializer = runtimeBootstrapScope.ServiceProvider.GetService<IRuntimeBootstrapInitializer>();
-                    if (initializer is not null)
-                    {
-                        log.Information("Running runtime bootstrap initializer...");
-                        await initializer.InitializeAsync();
-                        log.Information("Runtime bootstrap initialization completed.");
-                    }
-                }
-
-                startupStage = "runtime service initialization";
-                log.Information("Initializing runtime services...");
-                await app.InitializeAeroAppAsync();
-
-                if (bootstrapState.IsConfiguredMode)
-                {
-                    app.Services.GetRequiredService<RuntimeBootstrapReadinessGate>().SignalReady();
-                }
-
-                startupStage = "application lifetime";
-                await app.WaitForShutdownAsync();
-            }
-            catch (Exception ex) when (bootstrapState.IsConfiguredMode)
-            {
-                var rootCauses = ExceptionDiagnostics.GetRootCauses(ex);
-                log.Error(
-                    ex,
-                    "Bootstrap initialization failed during {StartupStage}. RootCauseCount={RootCauseCount}",
-                    startupStage,
-                    rootCauses.Count);
-
-                for (var index = 0; index < rootCauses.Count; index++)
-                {
-                    var rootCause = rootCauses[index];
-                    log.Error(
-                        rootCause,
-                        "Bootstrap root cause {RootCauseIndex}/{RootCauseCount} during {StartupStage}: {ExceptionType}: {ExceptionMessage}",
-                        index + 1,
-                        rootCauses.Count,
-                        startupStage,
-                        rootCause.GetType().FullName,
-                        rootCause.Message);
-                }
-
-                app.Services.GetRequiredService<RuntimeBootstrapReadinessGate>().SignalFailure();
-                await AeroStartupPipeline.TryMarkBootstrapFailedAsync(app, log);
-                throw;
-            }
-            finally
-            {
-                try
-                {
-                    log.Information("Stopping main Aero application host...");
-                    await app.StopAsync();
-                }
-                catch (Exception stopEx)
-                {
-                    log.Warning(stopEx, "Error shutting down host (non-fatal)");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            log.Fatal(ex, "Error starting the main Aero CMS application during {StartupStage}", startupStage);
-            throw;
-        }
-        finally
-        {
-            log.Information("Main application exiting");
-        }
+        app.UseAeroCms();
+        app.MapAeroCms<TRootComponent>(configureComponents);
+        return app.RunAsync();
     }
 
     /// <summary>
