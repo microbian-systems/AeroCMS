@@ -189,6 +189,25 @@ public sealed class HtmlPageEditorSessionTests
     }
 
     [Test]
+    public async Task AddPatternComponent_inserts_an_editable_undoable_composition_by_stable_key()
+    {
+        var session = CreateSession();
+
+        var added = session.AddComponent("pattern.product-card") as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        await Assert.That(added!.Value.TagName).IsEqualTo("article");
+        await Assert.That(added.Value.ThemeClasses).Contains("d-card");
+        await Assert.That(session.SelectedNodeId).IsEqualTo(added.Value.NodeId);
+        await Assert.That(session.CanUndo).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children).IsEmpty();
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children.Single().TagName).IsEqualTo("article");
+    }
+
+    [Test]
     public async Task AddTable_creates_an_editable_semantic_two_column_table()
     {
         var session = CreateSession();

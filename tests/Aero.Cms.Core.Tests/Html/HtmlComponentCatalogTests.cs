@@ -396,6 +396,81 @@ public sealed class HtmlComponentCatalogDetailedTests
         await Assert.That(Flatten(accordion).Any(node => node.TagName == "summary")).IsTrue();
     }
 
+    [Test]
+    public async Task Patterns_are_unique_safe_responsive_and_use_semantic_accessible_compositions()
+    {
+        var expectedKeys = new[]
+        {
+            "pattern.marketing-hero-actions",
+            "pattern.feature-card-grid",
+            "pattern.call-to-action-banner",
+            "pattern.product-card"
+        };
+
+        await Assert.That(Factory.Patterns.Select(descriptor => descriptor.Key)).IsEquivalentTo(expectedKeys);
+        await Assert.That(Factory.Patterns.All(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Patterns)).IsTrue();
+        await Assert.That(Factory.Patterns.All(descriptor => descriptor.Preview is
+        {
+            AspectRatio: "16:9",
+            ThumbnailUrl: var thumbnailUrl
+        } && thumbnailUrl.StartsWith("/_content/Aero.Cms.Shared/images/page-builder/pattern-previews/", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(Factory.All.Where(descriptor => descriptor.Group != HtmlComponentCatalogGroup.Patterns)
+            .All(descriptor => descriptor.Preview is null)).IsTrue();
+        await Assert.That(Factory.All.Select(descriptor => descriptor.Key).Distinct(StringComparer.Ordinal).Count())
+            .IsEqualTo(Factory.All.Count);
+
+        var marketingHero = (Factory.Create("pattern.marketing-hero-actions") as Result<HtmlNode>.Ok)!.Value;
+        var featureGrid = (Factory.Create("pattern.feature-card-grid") as Result<HtmlNode>.Ok)!.Value;
+        var callToAction = (Factory.Create("pattern.call-to-action-banner") as Result<HtmlNode>.Ok)!.Value;
+        var productCard = (Factory.Create("pattern.product-card") as Result<HtmlNode>.Ok)!.Value;
+
+        await Assert.That(marketingHero.TagName).IsEqualTo("section");
+        await Assert.That(marketingHero.ThemeClasses).Contains("d-hero");
+        await Assert.That(Flatten(marketingHero).Single(node => node.TagName == "nav").Attributes["aria-label"])
+            .IsEqualTo("Marketing hero actions");
+        await Assert.That(Flatten(marketingHero).Where(node => node.TagName == "a")
+            .All(link => link.Attributes.TryGetValue("href", out var href) && href.StartsWith('#'))).IsTrue();
+
+        var grid = Flatten(featureGrid).Single(node => node.TagName == "ul");
+        await Assert.That(grid.ThemeClasses).Contains("grid");
+        await Assert.That(grid.ThemeClasses).Contains("md:grid-cols-3");
+        await Assert.That(grid.Children.Count(node => node.TagName == "li")).IsEqualTo(3);
+        await Assert.That(Flatten(featureGrid).Count(node => node.TagName == "article")).IsEqualTo(3);
+
+        await Assert.That(callToAction.TagName).IsEqualTo("section");
+        await Assert.That(callToAction.ThemeClasses).Contains("d-hero");
+        await Assert.That(Flatten(callToAction).Single(node => node.TagName == "nav").Attributes["aria-label"])
+            .IsEqualTo("Call to action choices");
+        await Assert.That(Flatten(callToAction).SelectMany(node => node.ThemeClasses).Contains("sm:flex-row")).IsTrue();
+
+        await Assert.That(productCard.TagName).IsEqualTo("article");
+        var image = Flatten(productCard).Single(node => node.TagName == "img");
+        await Assert.That(image.Attributes["src"]).StartsWith("/_content/Aero.Cms.Shared/images/page-builder/");
+        await Assert.That(image.Attributes["alt"]).IsNotEmpty();
+        await Assert.That(Flatten(productCard).Single(node => node.TagName == "button").Attributes["type"])
+            .IsEqualTo("button");
+        await Assert.That(Flatten(productCard).SelectMany(node => node.ThemeClasses).Contains("sm:flex-row")).IsTrue();
+
+        foreach (var key in expectedKeys)
+        {
+            var created = (Factory.Create(key) as Result<HtmlNode>.Ok)!.Value;
+            var content = new HtmlPageContent();
+            content.Root.Children.Add(created);
+            await Assert.That(Validator.Validate(content)).IsTypeOf<Result<bool>.Ok>();
+            var compilation = new NativeCssStyleCompiler().Compile(content, new NativeStyleProfile());
+            if (compilation is Result<CompiledPageStyles>.Failure { Error: AeroError.Validation error })
+            {
+                throw new InvalidOperationException($"{key}: {string.Join("; ", error.Errors)}");
+            }
+
+            var compiled = (Result<CompiledPageStyles>.Ok)compilation;
+            var rendered = Renderer.RenderPage(content, compiled.Value) as Result<RenderedHtmlPage>.Ok;
+            await Assert.That(rendered).IsNotNull();
+            await Assert.That(rendered!.Value.Markup.Contains("<script", StringComparison.OrdinalIgnoreCase)).IsFalse();
+            await Assert.That(rendered.Value.Markup.Contains("javascript:", StringComparison.OrdinalIgnoreCase)).IsFalse();
+        }
+    }
+
     private static IEnumerable<HtmlNode> Flatten(HtmlNode root)
     {
         yield return root;

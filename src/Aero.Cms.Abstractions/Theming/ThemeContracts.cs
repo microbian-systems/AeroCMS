@@ -58,9 +58,28 @@ public interface IThemeCatalog
 public sealed record ResolvedThemeStylesheets(
     string ThemeId,
     string ThemeVersion,
+    string DataThemeName,
     long ThemeRevision,
     IReadOnlyList<ThemeStylesheetAsset> Stylesheets,
     bool UsedSafeDefault);
+
+/// <summary>Identifies whether a resolved theme originates in deployment or a tenant publication.</summary>
+public enum ThemeSource { Deployment, Generated }
+
+/// <summary>Describes a theme resolved for a site-rendering boundary.</summary>
+public sealed record ResolvedThemeManifest(
+    string ThemeId,
+    string ThemeVersion,
+    string DataThemeName,
+    ThemeSource Source,
+    IReadOnlyList<ThemeStylesheetAsset> Stylesheets);
+
+/// <summary>Combines immutable deployment themes with tenant-published generated versions.</summary>
+public interface IThemeLibrary
+{
+    ValueTask<IReadOnlyList<ResolvedThemeManifest>> GetAvailableAsync(long tenantId, CancellationToken cancellationToken = default);
+    ValueTask<ResolvedThemeManifest?> ResolveAsync(long tenantId, string themeId, string themeVersion, CancellationToken cancellationToken = default);
+}
 
 /// <summary>
 /// Resolves the exact current-site theme to browser-ready local stylesheet assets.

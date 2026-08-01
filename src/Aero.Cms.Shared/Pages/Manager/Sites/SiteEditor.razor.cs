@@ -133,6 +133,12 @@ private bool IsSelectedThemeCurrent
        && string.Equals(ThemeCatalog[SelectedThemeIndex].Id, CurrentThemeId, StringComparison.Ordinal)
        && string.Equals(ThemeCatalog[SelectedThemeIndex].Version, CurrentThemeVersion, StringComparison.Ordinal);
 
+private void OpenThemeStudio()
+{
+    if (Id is long siteId && siteId > 0)
+        Navigation.NavigateTo($"/manager/sites/{siteId}/theme-studio");
+}
+
         /// <summary>
     /// Gets or sets the Filtered Locales.
     /// </summary>

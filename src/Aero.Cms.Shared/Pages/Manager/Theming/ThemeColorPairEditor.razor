@@ -1,0 +1,41 @@
+<fieldset class="color-pair">
+    <legend>@Label</legend>
+    <div class="color-pair__grid">
+        <label>
+            <span>Surface</span>
+            <div class="color-control">
+                <RadzenColorPicker Value="@Background"
+                                   ValueChanged="OnBackgroundPickerChanged"
+                                   ShowHSV="true"
+                                   ShowRGBA="false"
+                                   ShowColors="true"
+                                   ShowButton="true"
+                                   ShowArrow="true"
+                                   ToggleAriaLabel="@($"Choose {Label} surface color")" />
+                <input value="@Background"
+                       @oninput="OnBackgroundTextChanged"
+                       aria-label="@($"{Label} surface hexadecimal color")"
+                       spellcheck="false"
+                       class="@(!ThemeStudioTokens.IsHex(Background) ? "invalid" : string.Empty)" />
+            </div>
+        </label>
+        <label>
+            <span>Content</span>
+            <div class="color-control">
+                <RadzenColorPicker Value="@Foreground"
+                                   ValueChanged="OnForegroundPickerChanged"
+                                   ShowHSV="true"
+                                   ShowRGBA="false"
+                                   ShowColors="true"
+                                   ShowButton="true"
+                                   ShowArrow="true"
+                                   ToggleAriaLabel="@($"Choose {Label} content color")" />
+                <input value="@Foreground"
+                       @oninput="OnForegroundTextChanged"
+                       aria-label="@($"{Label} content hexadecimal color")"
+                       spellcheck="false"
+                       class="@(!ThemeStudioTokens.IsHex(Foreground) ? "invalid" : string.Empty)" />
+            </div>
+        </label>
+    </div>
+</fieldset>

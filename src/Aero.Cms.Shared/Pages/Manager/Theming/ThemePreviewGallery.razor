@@ -1,0 +1,54 @@
+<section class="preview-shell" aria-labelledby="theme-preview-title">
+    <div class="preview-toolbar">
+        <div>
+            <span class="eyebrow">Live canvas</span>
+            <h2 id="theme-preview-title">Preview gallery</h2>
+        </div>
+        <div class="preview-controls">
+            <div class="segment" role="group" aria-label="Preview content">
+                <button type="button" aria-pressed="@(Panel == ThemeStudioPanel.Components)" class="@(Panel == ThemeStudioPanel.Components ? "active" : null)" @onclick="ShowComponentsAsync">Components</button>
+                <button type="button" aria-pressed="@(Panel == ThemeStudioPanel.Patterns)" class="@(Panel == ThemeStudioPanel.Patterns ? "active" : null)" @onclick="ShowPatternsAsync">Patterns</button>
+            </div>
+            <div class="viewport" role="group" aria-label="Preview viewport">
+                @foreach (var item in Viewports)
+                {
+                    <button type="button" title="@item.Label" aria-label="@($"{item.Label} preview")" aria-pressed="@(Viewport == item.Value)" class="@(Viewport == item.Value ? "active" : null)" @onclick="() => ChangeViewportAsync(item.Value)"><span class="rzi @item.Icon" aria-hidden="true"></span></button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-stage">
+        <div class="preview-frame preview-frame--@Viewport.ToString().ToLowerInvariant()" data-theme="@DataThemeName">
+            @if (Panel == ThemeStudioPanel.Components)
+            {
+                <div class="component-gallery">
+                    <section class="d-hero d-bg-base-200 preview-hero">
+                        <div class="d-hero-content d-text-center">
+                            <div class="d-max-w-md"><span class="d-badge d-badge-primary d-badge-outline">Theme Studio</span><h1 class="d-text-4xl d-font-bold">A living design system</h1><p class="d-py-4">Every token updates this isolated canvas immediately. The selected site stays unchanged until publish and assign.</p><button class="d-btn d-btn-primary">Primary action</button> <button class="d-btn d-btn-ghost">Secondary</button></div>
+                        </div>
+                    </section>
+                    <div class="preview-grid">
+                        <article class="d-card d-bg-base-100 d-shadow-xl"><div class="d-card-body"><div class="d-flex d-items-center d-justify-between"><h2 class="d-card-title">Component card</h2><span class="d-badge d-badge-secondary">New</span></div><p>Cards, buttons, badges and form fields use the real prefixed Daisy classes.</p><div class="d-card-actions d-justify-end"><button class="d-btn d-btn-accent d-btn-sm">Explore</button></div></div></article>
+                        <div class="d-bg-base-100 d-rounded-box d-p-5"><label class="d-form-control d-w-full"><span class="d-label"><span class="d-label-text">Email address</span></span><input class="d-input d-input-bordered d-w-full" placeholder="hello@example.com" /><span class="d-label"><span class="d-label-text-alt">We only use this for updates.</span></span></label></div>
+                    </div>
+                    <div class="alerts"><div class="d-alert d-alert-info"><span>Information message</span></div><div class="d-alert d-alert-success"><span>Everything looks good.</span></div><div class="d-alert d-alert-warning"><span>Review this setting.</span></div><div class="d-alert d-alert-error"><span>Something needs attention.</span></div></div>
+                </div>
+            }
+            else
+            {
+                <div class="pattern-gallery">
+                    <section class="d-hero d-min-h-64 d-bg-base-200"><div class="d-hero-content d-flex-col d-text-center"><span class="d-badge d-badge-accent">Marketing hero</span><h2 class="d-text-4xl d-font-bold">Build a clearer digital front door</h2><p class="d-max-w-xl">Pair a focused message with one primary action and one low-friction alternative.</p><div><button class="d-btn d-btn-primary">Start a project</button> <button class="d-btn d-btn-link">Read the story</button></div></div></section>
+                    <section class="d-grid d-gap-4 d-md-grid-cols-3">
+                        @foreach (var item in FeatureCards)
+                        {
+                            <article class="d-card d-bg-base-100 d-shadow-md"><div class="d-card-body"><span class="d-badge @item.BadgeClass">@item.Kicker</span><h3 class="d-card-title">@item.Title</h3><p>@item.Copy</p></div></article>
+                        }
+                    </section>
+                    <section class="d-card d-bg-primary d-text-primary-content"><div class="d-card-body d-items-center d-text-center"><h2 class="d-card-title">Call to action banner</h2><p>Publish when contrast, shape and semantic states are all ready.</p><div class="d-card-actions"><button class="d-btn">Review release</button></div></div></section>
+                    <article class="d-card d-bg-base-100 d-shadow-xl d-lg-card-side"><figure><img src="/_content/Aero.Cms.Shared/images/page-builder/pattern-previews/product-card.svg" alt="Abstract product placeholder" /></figure><div class="d-card-body"><span class="d-badge d-badge-success">In stock</span><h2 class="d-card-title">Product card</h2><p>A representative commerce pattern using the current theme roles.</p><div class="d-card-actions d-justify-end"><button type="button" class="d-btn d-btn-primary">Add to cart</button></div></div></article>
+                </div>
+            }
+        </div>
+    </div>
+</section>

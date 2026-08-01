@@ -1,4 +1,5 @@
 using Aero.AppServer;
+using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
@@ -8,6 +9,7 @@ using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.Identity;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Infrastructure;
@@ -17,6 +19,7 @@ using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
@@ -73,6 +76,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     private WebApplication? _app;
     private CancellationTokenSource? _appCts;
     private Task? _appTask;
+    private int _disposeState;
 
     public string BaseUrl { get; private set; } = "http://localhost:5555";
     public IPage? Page { get; private set; }
@@ -181,6 +185,25 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                     E2EAuthenticationScheme,
                     _ => { });
 
+            // Production manager endpoints intentionally pin their policies to the
+            // manager routing scheme. Replace only those manager policies in this
+            // in-process test host so every browser and typed-client request uses the
+            // deterministic E2E principal instead of requiring a real login cookie.
+            builder.Services.PostConfigure<AuthorizationOptions>(authorization =>
+            {
+                var managerPolicy = new AuthorizationPolicyBuilder(E2EAuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .Build();
+                authorization.DefaultPolicy = managerPolicy;
+                authorization.AddPolicy(ManagerRecoveryDefaults.ManagerPolicy, managerPolicy);
+                authorization.AddPolicy(
+                    "AeroAdmin",
+                    new AuthorizationPolicyBuilder(E2EAuthenticationScheme)
+                        .RequireAuthenticatedUser()
+                        .RequireRole(CmsRoleNames.Admin)
+                        .Build());
+            });
+
             // Remove the embedded DB background service (already have PG running externally)
             var embeddedDbDescriptor = builder.Services.FirstOrDefault(d =>
                 d.ImplementationType?.Name == "AeroEmbeddedDbService");
@@ -188,6 +211,16 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 builder.Services.Remove(embeddedDbDescriptor);
 
             _app = builder.Build();
+
+            // The E2E host replaces the production embedded Sable store with an
+            // in-memory Sable store and therefore removes AeroEmbeddedDbService.
+            // Publish the equivalent readiness state explicitly so runtime startup
+            // does not wait for a hosted service that this fixture intentionally
+            // removed.
+            var readiness = _app.Services.GetRequiredService<IInfrastructureReadinessSnapshot>();
+            readiness.AeroDbReady = true;
+            _app.Services.GetRequiredService<IMultiStartupSignal>()
+                .MarkReady(StartupServiceNames.AeroDb);
 
             // Configure middleware pipeline (mirrors RunAeroCmsAsync without HTTPS)
             ConfigureTestMiddleware(_app);
@@ -225,7 +258,10 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             }, _appCts.Token);
 
             // Wait for the app to start responding
-            await WaitForAppReadyAsync(maxRetries: 20);
+            // A cold Aero host starts Orleans, Garnet, embedded persistence, and the
+            // complete module graph. Twenty seconds is not a reliable budget on a
+            // clean CI or developer machine, even though subsequent runs are faster.
+            await WaitForAppReadyAsync();
 
             // ── 4. Seed database (roles, admin user, site, homepage) ────
             await SeedDatabaseAfterStartAsync();
@@ -873,6 +909,38 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     }
 
     /// <summary>
+    /// Creates an isolated blank draft for editor acceptance tests that exercise
+    /// composition, persistence, preview, and publication rather than page creation.
+    /// </summary>
+    public async Task<long> CreateBlankDraftPageAsync(string title, string slug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+        var normalizedSlug = slug.Trim().Trim('/');
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = SiteId,
+            Slug = normalizedSlug,
+            Title = title.Trim(),
+            Path = $"/{normalizedSlug}",
+            Depth = 0,
+            Order = 100,
+            Kind = PageKind.Standard,
+            PublicationState = ContentPublicationState.Draft,
+            ShowInNavMenu = false,
+            ShowHeaderNavigation = false
+        };
+        page.ReplaceDraftContent(new HtmlPageContent(), DateTimeOffset.UtcNow);
+
+        await using var session = await _store!.LightweightSessionAsync();
+        session.Store(page);
+        await session.SaveChangesAsync();
+        return page.Id;
+    }
+
+    /// <summary>
     /// Seeds one disposable structured-content palette fixture for PageEditor browser tests.
     /// </summary>
     public async Task SeedContentPaletteAsync(string alias, int itemCount)
@@ -999,6 +1067,9 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+            return;
+
         if (Page is not null) await Page.CloseAsync();
         if (BrowserContext is not null) await BrowserContext.DisposeAsync();
         if (Browser is not null) await Browser.DisposeAsync();

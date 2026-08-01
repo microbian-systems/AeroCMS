@@ -13,8 +13,7 @@ public sealed class HtmlComponentCatalog
     private readonly IReadOnlyDictionary<string, HtmlComponentDescriptor> _byKey;
     private readonly IReadOnlyList<HtmlComponentDescriptor> _basics;
     private readonly IReadOnlyList<HtmlComponentDescriptor> _daisy;
-    private static readonly IReadOnlyList<HtmlComponentDescriptor> NoPatterns =
-        Array.AsReadOnly(Array.Empty<HtmlComponentDescriptor>());
+    private readonly IReadOnlyList<HtmlComponentDescriptor> _patterns;
     private const string PlaceholderBasePath = "/_content/Aero.Cms.Shared/images/page-builder";
 
     public HtmlComponentCatalog(HtmlElementCatalog catalog)
@@ -64,11 +63,16 @@ public sealed class HtmlComponentCatalog
         Descriptor("daisy.table", "Table", "A structured comparison table.", HtmlComponentCatalogGroup.Daisy, "▤", "table", ["data", "comparison"], CreateDaisyTable),
         Descriptor("daisy.pagination", "Pagination", "A page navigation control.", HtmlComponentCatalogGroup.Daisy, "»", "nav", ["navigation", "pages"], CreateDaisyPagination),
         Descriptor("daisy.accordion", "Accordion", "A script-free native details disclosure.", HtmlComponentCatalogGroup.Daisy, "⌄", "details", ["questions", "disclosure"], CreateDaisyAccordion),
+        Descriptor("pattern.marketing-hero-actions", "Marketing hero + actions", "A responsive hero composition with a heading, supporting copy, and two clear calls to action.", HtmlComponentCatalogGroup.Patterns, "◆", "section", ["marketing", "hero", "actions"], CreatePatternMarketingHeroActions, PatternPreview("Marketing", "marketing-hero-actions")),
+        Descriptor("pattern.feature-card-grid", "Feature card grid", "A responsive three-card feature composition with semantic articles and named links.", HtmlComponentCatalogGroup.Patterns, "▦", "section", ["features", "cards", "grid"], CreatePatternFeatureCardGrid, PatternPreview("Content", "feature-card-grid")),
+        Descriptor("pattern.call-to-action-banner", "Call-to-action banner", "A high-contrast responsive call-to-action composition with primary and secondary links.", HtmlComponentCatalogGroup.Patterns, "→", "section", ["conversion", "banner", "actions"], CreatePatternCallToActionBanner, PatternPreview("Conversion", "call-to-action-banner")),
+        Descriptor("pattern.product-card", "Product card", "A responsive product composition with a local placeholder image, price, and accessible purchase actions.", HtmlComponentCatalogGroup.Patterns, "▣", "article", ["product", "commerce", "card"], CreatePatternProductCard, PatternPreview("Commerce", "product-card")),
         ];
         _all = Array.AsReadOnly(_all.ToArray());
         _byKey = _all.ToDictionary(descriptor => descriptor.Key, StringComparer.Ordinal);
         _basics = Array.AsReadOnly(_all.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Basics).ToArray());
         _daisy = Array.AsReadOnly(_all.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Daisy).ToArray());
+        _patterns = Array.AsReadOnly(_all.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Patterns).ToArray());
     }
 
     /// <summary>Gets every descriptor in deterministic registration order.</summary>
@@ -76,7 +80,7 @@ public sealed class HtmlComponentCatalog
 
     public IReadOnlyList<HtmlComponentDescriptor> Basics => _basics;
     public IReadOnlyList<HtmlComponentDescriptor> Daisy => _daisy;
-    public IReadOnlyList<HtmlComponentDescriptor> Patterns => NoPatterns;
+    public IReadOnlyList<HtmlComponentDescriptor> Patterns => _patterns;
 
     public bool TryGet(string? key, out HtmlComponentDescriptor? descriptor)
     {
@@ -94,8 +98,12 @@ public sealed class HtmlComponentCatalog
         ? descriptor!.Create()
         : AeroError.ValidationError(["The requested component key is not supported."]);
 
-    private static HtmlComponentDescriptor Descriptor(string key, string displayName, string description, HtmlComponentCatalogGroup group, string icon, string rootTagName, IReadOnlyList<string> keywords, Func<HtmlNode> create) =>
-        new(key, displayName, description, group, icon, rootTagName, Array.AsReadOnly(keywords.ToArray()), () => new Result<HtmlNode>.Ok(create()));
+    private static HtmlComponentDescriptor Descriptor(string key, string displayName, string description, HtmlComponentCatalogGroup group, string icon, string rootTagName, IReadOnlyList<string> keywords, Func<HtmlNode> create, HtmlComponentPreview? preview = null) =>
+        new(key, displayName, description, group, icon, rootTagName, Array.AsReadOnly(keywords.ToArray()), () => new Result<HtmlNode>.Ok(create()), preview);
+
+    private static HtmlComponentPreview PatternPreview(string category, string thumbnailName) => new(
+        category,
+        $"/_content/Aero.Cms.Shared/images/page-builder/pattern-previews/{thumbnailName}.svg");
 
 
     /// <summary>Builds a centered introductory section with editable copy, action, and media nodes.</summary>
@@ -1235,6 +1243,112 @@ public sealed class HtmlComponentCatalog
     }
 
     // Daisy templates deliberately use literal prefixed tokens so Tailwind source scanning retains them.
+    private HtmlNode CreatePatternMarketingHeroActions()
+    {
+        var hero = Element("section");
+        hero.ThemeClasses.AddRange(["d-hero", "bg-base-200", "p-6", "md:p-12"]);
+        var content = Element("div");
+        content.ThemeClasses.AddRange(["d-hero-content", "flex-col", "text-center"]);
+        var header = Element("header");
+        header.ThemeClasses.AddRange(["max-w-2xl", "space-y-4"]);
+        header.Children.Add(Element("h1", "Build a clearer launch", Typography(size: CssLength.Rem(3), weight: 800)));
+        header.Children.Add(Element("p", "A composed hero that keeps the message, proof, and next actions easy to edit."));
+        var actions = Element("nav");
+        actions.Attributes["aria-label"] = "Marketing hero actions";
+        actions.ThemeClasses.AddRange(["flex", "flex-col", "justify-center", "gap-3", "sm:flex-row"]);
+        actions.Children.Add(PatternLink("Explore plans", "#plans", "d-btn", "d-btn-primary"));
+        actions.Children.Add(PatternLink("See how it works", "#details", "d-btn", "d-btn-ghost"));
+        header.Children.Add(actions);
+        content.Children.Add(header);
+        hero.Children.Add(content);
+        return hero;
+    }
+
+    private HtmlNode CreatePatternFeatureCardGrid()
+    {
+        var section = Element("section");
+        section.ThemeClasses.AddRange(["p-6", "md:p-10"]);
+        var header = Element("header");
+        header.ThemeClasses.AddRange(["mb-6", "space-y-2"]);
+        header.Children.Add(Element("h2", "Everything your team needs", Typography(size: CssLength.Rem(2), weight: 700)));
+        header.Children.Add(Element("p", "Three editable feature cards in a responsive composition."));
+        var list = Element("ul");
+        list.ThemeClasses.AddRange(["grid", "grid-cols-1", "gap-6", "md:grid-cols-3"]);
+        list.Children.Add(PatternFeatureCard("Plan with confidence", "Keep work visible with a clear, shared starting point.", "Explore planning"));
+        list.Children.Add(PatternFeatureCard("Ship with focus", "Give every release a concise path from idea to outcome.", "Explore delivery"));
+        list.Children.Add(PatternFeatureCard("Learn from results", "Turn feedback into the next useful improvement.", "Explore insights"));
+        section.Children.Add(header);
+        section.Children.Add(list);
+        return section;
+    }
+
+    private HtmlNode CreatePatternCallToActionBanner()
+    {
+        var banner = Element("section");
+        banner.ThemeClasses.AddRange(["d-hero", "bg-primary", "text-primary-content", "p-6", "md:p-10"]);
+        var content = Element("div");
+        content.ThemeClasses.AddRange(["d-hero-content", "flex-col", "text-center"]);
+        content.Children.Add(Element("h2", "Ready to make the next move?", Typography(size: CssLength.Rem(2.25m), weight: 800)));
+        content.Children.Add(Element("p", "Use this focused banner when visitors need one clear decision and one lower-commitment alternative."));
+        var actions = Element("nav");
+        actions.Attributes["aria-label"] = "Call to action choices";
+        actions.ThemeClasses.AddRange(["flex", "flex-col", "gap-3", "sm:flex-row"]);
+        actions.Children.Add(PatternLink("Start a conversation", "#contact", "d-btn", "d-btn-neutral"));
+        actions.Children.Add(PatternLink("Read the guide", "#guide", "d-btn", "d-btn-ghost"));
+        content.Children.Add(actions);
+        banner.Children.Add(content);
+        return banner;
+    }
+
+    private HtmlNode CreatePatternProductCard()
+    {
+        var card = Element("article");
+        card.ThemeClasses.AddRange(["d-card", "bg-base-100", "shadow-xl", "max-w-sm"]);
+        var figure = Element("figure");
+        figure.Children.Add(Image($"{PlaceholderBasePath}/gallery-1.svg", "Placeholder product image"));
+        var body = Element("div");
+        body.ThemeClasses.Add("d-card-body");
+        body.Children.Add(Element("h2", "Field notebook", Typography(size: CssLength.Rem(1.5m), weight: 700)));
+        body.Children.Add(Element("p", "A durable, editable product card composition with local placeholder media."));
+        var price = Element("p", "$18.00", Typography(size: CssLength.Rem(1.25m), weight: 700));
+        price.ThemeClasses.Add("d-badge");
+        body.Children.Add(price);
+        var actions = Element("div");
+        actions.ThemeClasses.AddRange(["d-card-actions", "flex-col", "justify-between", "gap-3", "sm:flex-row"]);
+        actions.Children.Add(PatternLink("View notebook details", "#product-details", "d-btn", "d-btn-ghost"));
+        var addButton = Element("button", "Add to draft");
+        addButton.Attributes["type"] = "button";
+        addButton.ThemeClasses.AddRange(["d-btn", "d-btn-primary"]);
+        actions.Children.Add(addButton);
+        body.Children.Add(actions);
+        card.Children.Add(figure);
+        card.Children.Add(body);
+        return card;
+    }
+
+    private HtmlNode PatternFeatureCard(string heading, string description, string actionText)
+    {
+        var item = Element("li");
+        var card = Element("article");
+        card.ThemeClasses.AddRange(["d-card", "bg-base-100", "shadow-sm"]);
+        var body = Element("div");
+        body.ThemeClasses.Add("d-card-body");
+        body.Children.Add(Element("h3", heading, Typography(size: CssLength.Rem(1.25m), weight: 700)));
+        body.Children.Add(Element("p", description));
+        body.Children.Add(PatternLink(actionText, "#feature-details", "d-btn", "d-btn-ghost"));
+        card.Children.Add(body);
+        item.Children.Add(card);
+        return item;
+    }
+
+    private HtmlNode PatternLink(string text, string href, params string[] themeClasses)
+    {
+        var link = Element("a", text);
+        link.Attributes["href"] = href;
+        link.ThemeClasses.AddRange(themeClasses);
+        return link;
+    }
+
     private HtmlNode CreateDaisyButton()
     {
         var button = Element("button", "Get started");

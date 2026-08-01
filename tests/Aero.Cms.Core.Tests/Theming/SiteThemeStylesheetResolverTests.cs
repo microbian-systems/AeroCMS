@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Theming;
 using Aero.Cms.Modules.Theming;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,7 @@ public sealed class SiteThemeStylesheetResolverTests
         var resolver = new SiteThemeStylesheetResolver(
             accessor,
             catalog,
+            CreateLibrary(catalog),
             Substitute.For<ILogger<SiteThemeStylesheetResolver>>());
 
         var resolved = await resolver.ResolveAsync();
@@ -58,6 +60,7 @@ public sealed class SiteThemeStylesheetResolverTests
         var resolver = new SiteThemeStylesheetResolver(
             new HttpContextAccessor { HttpContext = context },
             catalog,
+            CreateLibrary(catalog),
             Substitute.For<ILogger<SiteThemeStylesheetResolver>>());
 
         var resolved = await resolver.ResolveAsync();
@@ -67,5 +70,15 @@ public sealed class SiteThemeStylesheetResolverTests
         await Assert.That(resolved.ThemeRevision).IsEqualTo(12);
         await Assert.That(slice.ThemeId).IsEqualTo("removed-theme");
         await Assert.That(slice.ThemeVersion).IsEqualTo("9.9.9");
+    }
+
+    private static IThemeLibrary CreateLibrary(IThemeCatalog catalog)
+    {
+        var library = Substitute.For<IThemeLibrary>();
+        library.ResolveAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call => ValueTask.FromResult(catalog.Find(call.ArgAt<string>(1), call.ArgAt<string>(2)) is { } found
+                ? new ResolvedThemeManifest(found.Id, found.Version, BuiltInThemeDefaults.ComponentThemeName, ThemeSource.Deployment, found.Stylesheets)
+                : null));
+        return library;
     }
 }

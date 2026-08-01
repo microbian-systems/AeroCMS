@@ -237,6 +237,70 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task ThemeStudioRendersScopedResponsivePreviewWithoutAssigningSite()
+    {
+        await Fixture.LoginAsync();
+        await Fixture.WarmUpBlazorAsync();
+        var page = Fixture.Page!;
+
+        await page.GotoAsync($"{Fixture.BaseUrl}/manager/sites/{Fixture.SiteId}/theme-studio", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = 30_000
+        });
+
+        await page.GetByRole(AriaRole.Heading, new() { Name = "Theme Studio" }).WaitForAsync(Visible());
+        await page.GetByRole(AriaRole.Button, new() { Name = "Light" }).WaitForAsync(Visible());
+        (await page.Locator("[data-theme='theme-studio-light'] .d-btn").CountAsync()).Should().BeGreaterThan(0);
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Patterns" }).ClickAsync();
+        await page.GetByText("Marketing hero", new() { Exact = true }).WaitForAsync(Visible());
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Phone preview" }).ClickAsync();
+        await page.Locator(".preview-frame--phone").WaitForAsync(Visible());
+    }
+
+    [Test]
+    public async Task PatternPaletteFiltersAndInsertsAResponsiveAccessibleFeatureComposition()
+    {
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var page = await OpenBlankDraftEditorAsync(
+            $"Pattern palette {suffix}",
+            $"pattern-palette-{suffix}");
+        await OpenPaletteAsync(page);
+
+        var patternsFilter = page.GetByRole(AriaRole.Button, new() { Name = "Patterns", Exact = true });
+        await patternsFilter.ClickAsync();
+        await Assertions.Expect(patternsFilter).ToHaveAttributeAsync("aria-pressed", "true");
+
+        var patterns = page.Locator("[data-aero-palette-kind='component'][data-aero-palette-category='Patterns']");
+        await Assertions.Expect(patterns).ToHaveCountAsync(4);
+        await Assertions.Expect(page.Locator("[data-aero-palette-value='pattern.marketing-hero-actions']"))
+            .ToHaveAttributeAsync("data-aero-palette-label", "Marketing hero + actions");
+        await Assertions.Expect(page.Locator("[data-aero-palette-value='pattern.feature-card-grid']"))
+            .ToHaveAttributeAsync("data-aero-palette-label", "Feature card grid");
+        await Assertions.Expect(page.Locator("[data-aero-palette-value='pattern.call-to-action-banner']"))
+            .ToHaveAttributeAsync("data-aero-palette-label", "Call-to-action banner");
+        await Assertions.Expect(page.Locator("[data-aero-palette-value='pattern.product-card']"))
+            .ToHaveAttributeAsync("data-aero-palette-label", "Product card");
+        var featurePreview = page.Locator("img[data-aero-pattern-preview-for='pattern.feature-card-grid']");
+        await Assertions.Expect(featurePreview).ToHaveAttributeAsync(
+            "src",
+            "/_content/Aero.Cms.Shared/images/page-builder/pattern-previews/feature-card-grid.svg");
+        await Assertions.Expect(featurePreview).ToHaveAttributeAsync("alt", string.Empty);
+        await page.Locator("[data-aero-palette-value='pattern.feature-card-grid']")
+            .GetByText("Pattern · Content", new() { Exact = true })
+            .WaitForAsync(Visible());
+
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "pattern.feature-card-grid");
+        var responsiveGrid = page.Locator(".aero-page-canvas__surface ul[class~='md:grid-cols-3']");
+        await responsiveGrid.WaitForAsync(Visible());
+        await page.Locator(".aero-page-canvas__surface")
+            .GetByRole(AriaRole.Link, new() { Name = "Explore planning", Exact = true })
+            .WaitForAsync(Visible());
+    }
+
+    [Test]
     public async Task TypedContentPalettePagesItemsAndEditsListQueryWithUndoRedo()
     {
         var alias = $"page-editor-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
@@ -1017,6 +1081,77 @@ public sealed class EditorSmokeTests
     }
 
     [Test]
+    public async Task DaisyAccordionCanBeDraggedSavedReloadedPreviewedPublishedAndRendered()
+    {
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var title = $"Daisy Accordion {suffix}";
+        var slug = $"daisy-accordion-{suffix}";
+        var page = await OpenBlankDraftEditorAsync(title, slug);
+        const string summaryText = "What is included?";
+        const string contentText = "Everything in this component is ordinary editable HTML.";
+
+        await OpenPaletteAsync(page);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Daisy", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Daisy", Exact = true }))
+            .ToHaveAttributeAsync("aria-pressed", "true");
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "daisy.accordion");
+
+        var accordion = page.Locator(".aero-page-canvas__surface details[data-aero-node-id]");
+        await accordion.WaitForAsync(Visible());
+        await accordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        await accordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await page.GetByText("Page saved successfully", new() { Exact = true }).WaitForAsync(Visible());
+
+        await page.ReloadAsync(new() { WaitUntil = WaitUntilState.Load, Timeout = 30_000 });
+        accordion = page.Locator(".aero-page-canvas__surface details[data-aero-node-id]");
+        await accordion.WaitForAsync(Visible());
+        await accordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        await accordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true }).ClickAsync();
+        var preview = page.Locator("iframe[title='Page preview']");
+        await preview.WaitForAsync(Visible());
+        var previewFrame = page.FrameLocator("iframe[title='Page preview']");
+        var previewAccordion = previewFrame.Locator("details");
+        await previewAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        await previewAccordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
+        await page.GetByRole(AriaRole.Button, new() { Name = "Close Preview", Exact = true }).ClickAsync();
+
+        var persistedPath = await GetPersistedPagePathAsync(page);
+        persistedPath.Should().Be($"/{slug}");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Publish", Exact = true }).ClickAsync();
+        await page.GetByText("Page published!", new() { Exact = true }).WaitForAsync(Visible());
+
+        var publicUrl = $"{Fixture.BaseUrl}{persistedPath}";
+        string publicBody = string.Empty;
+        var publicStatus = 0;
+        for (var attempt = 0; attempt < 40; attempt++)
+        {
+            var publicResponse = await page.APIRequest.GetAsync(publicUrl);
+            publicStatus = publicResponse.Status;
+            publicBody = await publicResponse.TextAsync();
+            if (publicStatus == 200 && publicBody.Contains(contentText, StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            await Task.Delay(250);
+        }
+
+        publicStatus.Should().Be(200, publicBody);
+        publicBody.Should().Contain("<details");
+        publicBody.Should().Contain(summaryText);
+        publicBody.Should().Contain(contentText);
+
+        await page.GotoAsync(publicUrl, new() { WaitUntil = WaitUntilState.Load, Timeout = 30_000 });
+        var publicAccordion = page.Locator("details");
+        await publicAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        await publicAccordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
+    }
+
+    [Test]
     public async Task VisualStylesPersistResponsivelyThroughReloadAndPublicRendering()
     {
         var page = await OpenNewEditorAsync();
@@ -1597,6 +1732,7 @@ public sealed class EditorSmokeTests
                 Name = "Create page",
                 Exact = true
             })
+            .Last
             .ClickAsync();
 
         await Assertions.Expect(page.Locator(".pe-page-title-input:visible").Last)
@@ -1608,6 +1744,25 @@ public sealed class EditorSmokeTests
             ? ".aero-page-canvas__surface"
             : ".pe-source-workspace";
         await page.Locator(editorSurface).WaitForAsync(Visible());
+        return page;
+    }
+
+    private static async Task<IPage> OpenBlankDraftEditorAsync(string title, string slug)
+    {
+        await Fixture.LoginAsync();
+        await Fixture.WarmUpBlazorAsync();
+        var pageId = await Fixture.CreateBlankDraftPageAsync(title, slug);
+        var page = Fixture.Page!;
+
+        await page.GotoAsync($"{Fixture.BaseUrl}/manager/page/editor/{pageId}", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = 30_000
+        });
+
+        await Assertions.Expect(page.Locator(".pe-page-title-input:visible").Last)
+            .ToHaveValueAsync(title);
+        await page.Locator(".aero-page-canvas__surface").WaitForAsync(Visible());
         return page;
     }
 

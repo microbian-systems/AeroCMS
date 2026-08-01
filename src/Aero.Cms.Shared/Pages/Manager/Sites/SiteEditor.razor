@@ -107,12 +107,21 @@
                                 </p>
                             </div>
 
-                            <button type="button"
-                                    class="pe-btn pe-btn-primary"
-                                    disabled="@(!CanApplyTheme)"
-                                    @onclick="ApplyThemeAsync">
-                                @(IsApplyingTheme ? L["Applying..."] : L["Apply Theme"])
-                            </button>
+                            <div class="flex flex-wrap gap-2">
+                                @if (!IsNew)
+                                {
+                                    <button type="button" class="pe-btn pe-btn-secondary" disabled="@(IsLoading || IsApplyingTheme || IsSaving)" @onclick="OpenThemeStudio">
+                                        <span class="rzi rzi-palette" aria-hidden="true"></span>
+                                        @L["Customize"]
+                                    </button>
+                                }
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary"
+                                        disabled="@(!CanApplyTheme)"
+                                        @onclick="ApplyThemeAsync">
+                                    @(IsApplyingTheme ? L["Applying..."] : L["Apply Theme"])
+                                </button>
+                            </div>
                         </div>
 
                         @if (IsNew)

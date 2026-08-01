@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Feature card grid layout preview">
+  <rect width="320" height="180" rx="16" fill="#f8fafc"/>
+  <rect x="38" y="24" width="156" height="16" rx="8" fill="#0f172a"/>
+  <rect x="38" y="49" width="214" height="9" rx="4.5" fill="#94a3b8"/>
+  <g fill="#ffffff" stroke="#cbd5e1" stroke-width="2">
+    <rect x="28" y="78" width="80" height="72" rx="10"/>
+    <rect x="120" y="78" width="80" height="72" rx="10"/>
+    <rect x="212" y="78" width="80" height="72" rx="10"/>
+  </g>
+  <g fill="#2563eb"><rect x="41" y="92" width="37" height="8" rx="4"/><rect x="133" y="92" width="37" height="8" rx="4"/><rect x="225" y="92" width="37" height="8" rx="4"/></g>
+  <g fill="#94a3b8"><rect x="41" y="109" width="51" height="7" rx="3.5"/><rect x="133" y="109" width="51" height="7" rx="3.5"/><rect x="225" y="109" width="51" height="7" rx="3.5"/></g>
+</svg>

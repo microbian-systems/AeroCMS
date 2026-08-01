@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Call to action banner layout preview">
+  <rect width="320" height="180" rx="16" fill="#4f46e5"/>
+  <rect x="62" y="35" width="196" height="17" rx="8.5" fill="#ffffff"/>
+  <rect x="88" y="65" width="144" height="9" rx="4.5" fill="#c7d2fe"/>
+  <rect x="75" y="80" width="170" height="9" rx="4.5" fill="#c7d2fe"/>
+  <rect x="88" y="112" width="77" height="27" rx="13" fill="#ffffff"/>
+  <rect x="174" y="112" width="61" height="27" rx="13" fill="#6366f1" stroke="#e0e7ff"/>
+</svg>

@@ -1,0 +1,28 @@
+<header class="studio-header">
+    <div class="studio-header__topline">
+        <div class="studio-header__identity">
+            <button type="button" class="back" @onclick="BackAsync" aria-label="Back to site design system"><span class="rzi rzi-arrow-back" aria-hidden="true"></span></button>
+            <div><span class="eyebrow">@SiteName · Design system</span><h1>Theme Studio</h1><p>Author a closed token set, preview it locally, then publish an immutable version.</p></div>
+        </div>
+        <div class="studio-header__status">
+            @if (IsBusy) { <span class="status working"><span class="rzi rzi-sync" aria-hidden="true"></span> @BusyLabel</span> }
+            else if (IsDirty) { <span class="status dirty"><span aria-hidden="true">●</span> Unsaved changes</span> }
+            else { <span class="status saved"><span class="rzi rzi-check" aria-hidden="true"></span> Saved</span> }
+            @if (Revision > 0) { <span class="revision">r@Revision</span> }
+        </div>
+    </div>
+    <div class="studio-header__editing">
+        <label><span>Draft</span><select value="@SelectedDraftId" @onchange="DraftSelectionChangedAsync" disabled="@IsBusy"><option value="0">New draft</option>@foreach (var draft in Drafts) { <option value="@draft.Id">@draft.Name · r@draft.Revision</option> }</select></label>
+        <label><span>Name</span><input value="@Name" @oninput="NameInputAsync" disabled="@IsBusy" /></label>
+        <label><span>Slug</span><input value="@Slug" @oninput="SlugInputAsync" spellcheck="false" disabled="@IsBusy" /></label>
+        <label><span>Description</span><input value="@Description" @oninput="DescriptionInputAsync" disabled="@IsBusy" /></label>
+    </div>
+    <div class="studio-header__actions" aria-label="Theme actions">
+        <button type="button" class="pe-btn pe-btn-secondary" @onclick="SaveAsync" disabled="@IsBusy"><span class="rzi rzi-save" aria-hidden="true"></span> Save draft</button>
+        <button type="button" class="pe-btn pe-btn-secondary" @onclick="PreviewAsync" disabled="@(IsBusy || SelectedDraftId == 0 || IsDirty)"><span class="rzi rzi-visibility" aria-hidden="true"></span> Preview saved</button>
+        <button type="button" class="pe-btn pe-btn-primary" @onclick="PublishAsync" disabled="@(IsBusy || SelectedDraftId == 0 || HasBlockingProblems)"><span class="rzi rzi-publish" aria-hidden="true"></span> Publish &amp; assign</button>
+        <span class="action-divider" aria-hidden="true"></span>
+        <button type="button" class="pe-btn pe-btn-ghost" @onclick="ExportAsync" disabled="@(IsBusy || SelectedDraftId == 0)"><span class="rzi rzi-download" aria-hidden="true"></span> Export</button>
+        <label class="import-button @(IsBusy ? "disabled" : null)"><span class="rzi rzi-upload" aria-hidden="true"></span> Import JSON<InputFile OnChange="ImportAsync" accept="application/json,.json" disabled="@IsBusy" /></label>
+    </div>
+</header>

@@ -118,16 +118,33 @@
                     {
                         <button @key="descriptor.Key"
                                 type="button"
-                                class="aero-element-palette__item aero-element-palette__item--component"
+                                class="aero-element-palette__item aero-element-palette__item--component @(descriptor.Preview is null ? string.Empty : "aero-element-palette__item--pattern")"
                                 title="@($"{descriptor.Description}. Click to add or drag onto the page.")"
                                 data-aero-palette-kind="component"
                                 data-aero-palette-value="@descriptor.Key"
                                 data-aero-palette-label="@descriptor.DisplayName"
                                 data-aero-palette-category="@descriptor.Group"
+                                data-aero-preview-aspect="@(descriptor.Preview?.AspectRatio)"
                                 @onclick="() => RequestComponentAsync(descriptor.Key)">
-                            <span class="aero-element-palette__component-icon" aria-hidden="true">@descriptor.Icon</span>
-                            <span>@descriptor.DisplayName</span>
-                            <small>@descriptor.Description</small>
+                            @if (descriptor.Preview is { } preview)
+                            {
+                                <span class="aero-element-palette__pattern-thumbnail" aria-hidden="true">
+                                    <img src="@preview.ThumbnailUrl"
+                                         alt=""
+                                         data-aero-pattern-preview-for="@descriptor.Key" />
+                                </span>
+                                <span class="aero-element-palette__pattern-content">
+                                    <span>@descriptor.DisplayName</span>
+                                    <small>@descriptor.Description</small>
+                                    <span class="aero-element-palette__pattern-meta">Pattern · @preview.Category</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="aero-element-palette__component-icon" aria-hidden="true">@descriptor.Icon</span>
+                                <span>@descriptor.DisplayName</span>
+                                <small>@descriptor.Description</small>
+                            }
                         </button>
                     }
                 </div>

@@ -1,5 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+using Aero.Cms.Abstractions.Theming;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
@@ -23,6 +24,17 @@ public interface IThemesHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The theme detail or an error.</returns>
     Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, string version, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> SaveDraftAsync(long id, SaveThemeDraftCommand command, CancellationToken ct = default);
+    Task<Result<ThemePreviewView, AeroError>> CreatePreviewAsync(long id, CancellationToken ct = default);
+    Task<Result<ThemeVersionView, AeroError>> PublishAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ThemeVersionView>, AeroError>> ListVersionsAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<SiteThemePublicationView>, AeroError>> GetPublicationHistoryAsync(CancellationToken ct = default);
+    Task<Result<SiteThemePublicationView, AeroError>> AssignAsync(AssignThemeCommand command, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> ImportAsync(ThemeImportEnvelope envelope, CancellationToken ct = default);
+    Task<Result<ThemeImportEnvelope, AeroError>> ExportAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -45,6 +57,17 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
     {
         return GetAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}/{Uri.EscapeDataString(version)}", ct);
     }
+    public Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default) => GetAsync<IReadOnlyList<ThemeDefinitionView>>("drafts", ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default) => GetAsync<ThemeDefinitionView>($"drafts/{id}", ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default) => PostAsync<CreateThemeCommand, ThemeDefinitionView>("drafts", command, ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> SaveDraftAsync(long id, SaveThemeDraftCommand command, CancellationToken ct = default) => PutAsync<SaveThemeDraftCommand, ThemeDefinitionView>($"drafts/{id}", command, ct);
+    public Task<Result<ThemePreviewView, AeroError>> CreatePreviewAsync(long id, CancellationToken ct = default) => PostAsync<object, ThemePreviewView>($"drafts/{id}/preview", new(), ct);
+    public Task<Result<ThemeVersionView, AeroError>> PublishAsync(long id, CancellationToken ct = default) => PostAsync<object, ThemeVersionView>($"drafts/{id}/publish", new(), ct);
+    public Task<Result<IReadOnlyList<ThemeVersionView>, AeroError>> ListVersionsAsync(long id, CancellationToken ct = default) => GetAsync<IReadOnlyList<ThemeVersionView>>($"drafts/{id}/versions", ct);
+    public Task<Result<IReadOnlyList<SiteThemePublicationView>, AeroError>> GetPublicationHistoryAsync(CancellationToken ct = default) => GetAsync<IReadOnlyList<SiteThemePublicationView>>("publication-history", ct);
+    public Task<Result<SiteThemePublicationView, AeroError>> AssignAsync(AssignThemeCommand command, CancellationToken ct = default) => PostAsync<AssignThemeCommand, SiteThemePublicationView>("assign", command, ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> ImportAsync(ThemeImportEnvelope envelope, CancellationToken ct = default) => PostAsync<ThemeImportEnvelope, ThemeDefinitionView>("import", envelope, ct);
+    public Task<Result<ThemeImportEnvelope, AeroError>> ExportAsync(long id, CancellationToken ct = default) => GetAsync<ThemeImportEnvelope>($"drafts/{id}/export", ct);
 }
 
 #pragma warning disable SA1402 // File may only contain a single type

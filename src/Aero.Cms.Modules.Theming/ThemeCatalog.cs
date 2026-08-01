@@ -123,29 +123,30 @@ internal static class BuiltInThemeManifest
 public sealed class SiteThemeStylesheetResolver(
     IHttpContextAccessor httpContextAccessor,
     IThemeCatalog catalog,
+    IThemeLibrary library,
     ILogger<SiteThemeStylesheetResolver> logger) : IThemeStylesheetResolver
 {
     /// <inheritdoc />
-    public ValueTask<ResolvedThemeStylesheets> ResolveAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<ResolvedThemeStylesheets> ResolveAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var slice = httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
         if (slice is null)
         {
             logger.LogDebug("No public site context is available; using the safe built-in theme.");
-            return ValueTask.FromResult(ToResolved(catalog.SafeDefault, 0, true));
+            return ToResolved(catalog.SafeDefault, 0, true);
         }
 
-        var selected = catalog.Find(slice.ThemeId, slice.ThemeVersion);
+        var selected = await library.ResolveAsync(slice.TenantId, slice.ThemeId, slice.ThemeVersion, cancellationToken);
         if (selected is not null)
-            return ValueTask.FromResult(ToResolved(selected, slice.ThemeRevision, false));
+            return new(selected.ThemeId, selected.ThemeVersion, selected.DataThemeName, slice.ThemeRevision, selected.Stylesheets, false);
 
         logger.LogWarning(
             "Site {SiteId} selects missing theme {ThemeId}@{ThemeVersion}; rendering safe default without changing the stored selection.",
             slice.SiteId, slice.ThemeId, slice.ThemeVersion);
-        return ValueTask.FromResult(ToResolved(catalog.SafeDefault, slice.ThemeRevision, true));
+        return ToResolved(catalog.SafeDefault, slice.ThemeRevision, true);
     }
 
     private static ResolvedThemeStylesheets ToResolved(InstalledThemeManifest manifest, long revision, bool usedSafeDefault)
-        => new(manifest.Id, manifest.Version, revision, manifest.Stylesheets, usedSafeDefault);
+        => new(manifest.Id, manifest.Version, BuiltInThemeDefaults.ComponentThemeName, revision, manifest.Stylesheets, usedSafeDefault);
 }

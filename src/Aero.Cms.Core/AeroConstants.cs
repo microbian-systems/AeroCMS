@@ -101,6 +101,9 @@ public static class Schemas
         public const string SubscriptionWebhookReceipts = "subscription_webhook_receipts";
         public const string Tags = "tags";
         public const string TagTranslations = "tag_translations";
+        public const string ThemeDefinitions = "theme_definitions";
+        public const string ThemeVersions = "theme_versions";
+        public const string SiteThemePublications = "site_theme_publications";
         public const string Tenants = "tenants";
         public const string Users = "users";
         public const string UserSiteAssignments = "user_site_assignments";
