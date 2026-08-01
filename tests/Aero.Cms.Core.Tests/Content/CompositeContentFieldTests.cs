@@ -44,6 +44,73 @@ public sealed class CompositeContentFieldTests
     }
 
     [Test]
+    public async Task Optional_list_accepts_no_selection_even_with_a_configured_minimum()
+    {
+        var definition = CreateDefinition();
+        definition.Fields[0].Settings[CompositeContentFieldSettings.MinimumItems] =
+            JsonSerializer.SerializeToElement(2);
+        using var values = JsonDocument.Parse("""{"tags":[],"photos":[],"facts":{}}""");
+
+        var result = CreateValidator(
+                definition,
+                ContentValidationMode.Publish)
+            .Validate(CreateItem(values));
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task Required_list_may_remain_empty_in_a_draft()
+    {
+        var definition = CreateDefinition();
+        definition.Fields[0].Required = true;
+        definition.Fields[0].Settings[CompositeContentFieldSettings.MinimumItems] =
+            JsonSerializer.SerializeToElement(2);
+        using var values = JsonDocument.Parse("""{"tags":[],"photos":[],"facts":{}}""");
+
+        var result = CreateValidator(
+                definition,
+                ContentValidationMode.Draft)
+            .Validate(CreateItem(values));
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task Generated_schema_keeps_optional_lists_empty_and_required_lists_nonempty()
+    {
+        var definition = CreateDefinition();
+        definition.Fields[0].Settings[CompositeContentFieldSettings.MinimumItems] =
+            JsonSerializer.SerializeToElement(2);
+
+        using var optionalSchema = ContentTypeSchemaGenerator.GenerateSchema(definition);
+        var optionalMinimum = optionalSchema.RootElement
+            .GetProperty("properties")
+            .GetProperty("tags")
+            .GetProperty("minItems")
+            .GetInt32();
+        var optionalAlternatives = optionalSchema.RootElement
+            .GetProperty("properties")
+            .GetProperty("tags")
+            .GetProperty("anyOf");
+
+        definition.Fields[0].Required = true;
+        using var requiredSchema = ContentTypeSchemaGenerator.GenerateSchema(definition);
+        var requiredMinimum = requiredSchema.RootElement
+            .GetProperty("properties")
+            .GetProperty("tags")
+            .GetProperty("minItems")
+            .GetInt32();
+
+        await Assert.That(optionalMinimum).IsEqualTo(0);
+        await Assert.That(optionalAlternatives[0].GetProperty("maxItems").GetInt32())
+            .IsEqualTo(0);
+        await Assert.That(optionalAlternatives[1].GetProperty("minItems").GetInt32())
+            .IsEqualTo(2);
+        await Assert.That(requiredMinimum).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Registered_composite_snippets_generate_valid_scriban()
     {
         var services = new ServiceCollection();

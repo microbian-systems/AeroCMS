@@ -43,8 +43,16 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
 /// </remarks>
 public sealed class ReferenceExistenceValidator(
     IContentService contentService,
-    IDocumentSession session) : IAsyncContentValidator
+    IDocumentSession session,
+    IEnumerable<IContentReferenceSourceProvider>? sourceProviders = null,
+    IContentTypeService? contentTypeService = null) : IAsyncContentValidator
 {
+    private readonly IReadOnlyDictionary<string, IContentReferenceSourceProvider>
+        cmsSourceProviders = (sourceProviders ?? [])
+            .ToDictionary(
+                provider => provider.SourceKey,
+                StringComparer.OrdinalIgnoreCase);
+
     /// <inheritdoc />
     public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
     {
@@ -54,6 +62,17 @@ public sealed class ReferenceExistenceValidator(
         {
             if (!item.Fields.TryGetValue(field.Name, out var element)) continue;
             if (element.ValueKind == System.Text.Json.JsonValueKind.Null) continue;
+
+            if (ReferenceFieldValidator.IsCmsDocumentReference(field))
+            {
+                await CheckCmsDocumentReference(
+                    item,
+                    element,
+                    field,
+                    failures,
+                    ct);
+                continue;
+            }
 
             if (field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowMultiple, out var multiple)
                 && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
@@ -68,6 +87,112 @@ public sealed class ReferenceExistenceValidator(
         }
 
         return failures;
+    }
+
+    private async Task CheckCmsDocumentReference(
+        ContentItem item,
+        System.Text.Json.JsonElement element,
+        ContentFieldDefinition field,
+        List<ValidationFailure> failures,
+        CancellationToken ct)
+    {
+        if (element.ValueKind != System.Text.Json.JsonValueKind.Object
+            || !element.TryGetProperty("source", out var sourceElement)
+            || sourceElement.ValueKind != System.Text.Json.JsonValueKind.String
+            || !element.TryGetProperty("id", out var idElement)
+            || idElement.ValueKind != System.Text.Json.JsonValueKind.String
+            || !long.TryParse(
+                idElement.GetString(),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var id))
+        {
+            return;
+        }
+
+        var source = sourceElement.GetString()!;
+        if (CmsContentReferenceSources.TryGetContentTypeAlias(
+                source,
+                out var contentTypeAlias))
+        {
+            await CheckContentItemPageReference(
+                item,
+                field,
+                id,
+                contentTypeAlias,
+                failures,
+                ct);
+            return;
+        }
+
+        if (!cmsSourceProviders.TryGetValue(source, out var provider))
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"The '{source}' reference source is unavailable."));
+            return;
+        }
+
+        var result = await provider.ExistsAsync(item.SiteId, id, ct);
+        switch (result)
+        {
+            case Result<bool>.Ok { Value: true }:
+                return;
+            case Result<bool>.Ok:
+                failures.Add(new ValidationFailure(
+                    field.Name,
+                    $"Referenced {provider.DisplayName.ToLowerInvariant()} item '{id}' was not found."));
+                return;
+            case Result<bool>.Failure failure:
+                failures.Add(new ValidationFailure(
+                    field.Name,
+                    failure.Error.ToString()));
+                return;
+        }
+    }
+
+    private async Task CheckContentItemPageReference(
+        ContentItem item,
+        ContentFieldDefinition field,
+        long id,
+        string contentTypeAlias,
+        List<ValidationFailure> failures,
+        CancellationToken ct)
+    {
+        if (contentTypeService is null)
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                "Public content-entry references are unavailable."));
+            return;
+        }
+
+        var targetType = await contentTypeService.GetByAliasAsync(
+            item.SiteId,
+            contentTypeAlias,
+            ct);
+        if (targetType is not Result<ContentTypeDefinition, AeroError>.Ok
+            {
+                Value: { AllowPublicUrl: true }
+            })
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"The '{contentTypeAlias}' public content type was not found."));
+            return;
+        }
+
+        var referenced = await contentService.LoadAsync(item.SiteId, id, ct);
+        if (referenced is not Result<ContentItem, AeroError>.Ok ok
+            || !string.Equals(
+                ok.Value.ContentTypeAlias,
+                contentTypeAlias,
+                StringComparison.Ordinal))
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                $"Referenced {contentTypeAlias} entry '{id}' was not found."));
+        }
     }
 
     private async Task CheckReference(

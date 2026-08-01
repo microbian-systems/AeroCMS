@@ -15,4 +15,8 @@ public T? GetItem<T>(string key) => default;
     /// <inheritdoc />
     /// <remarks>Discards the value because prerendering has no browser storage.</remarks>
 public void SetItem<T>(string key, T value) { }
+
+    /// <inheritdoc />
+    /// <remarks>Does nothing because prerendering has no browser storage.</remarks>
+public void RemoveItem(string key) { }
 }

@@ -19,6 +19,7 @@ namespace Aero.Cms.Abstractions.Content.Serialization;
 [JsonSerializable(typeof(List<decimal>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, decimal>))]
+[JsonSerializable(typeof(CmsContentReferenceValue))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

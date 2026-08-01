@@ -28,4 +28,11 @@ public interface IAdminStorage
     /// <param name="value">The value to store.</param>
     /// <remarks>Normal completion does not guarantee that the value was retained.</remarks>
     void SetItem<T>(string key, T value);
+
+    /// <summary>
+    /// Requests removal of the value associated with a key.
+    /// </summary>
+    /// <param name="key">The storage key to remove.</param>
+    /// <remarks>Normal completion does not guarantee that the value was removed.</remarks>
+    void RemoveItem(string key);
 }

@@ -2,10 +2,37 @@
     'use strict';
 
     const markerKey = 'aero-setup-handoff';
+    const siteIdKey = 'aero-admin-state.siteId';
+    const siteNameKey = 'aero-admin-state.siteName';
     const maximumWaitMs = 5 * 60 * 1000;
     let controller = null;
     let startedAt = 0;
     let lastState = '';
+
+    function clearSiteSelection() {
+        try {
+            localStorage.removeItem(siteIdKey);
+            localStorage.removeItem(siteNameKey);
+        } catch {
+            // Browser storage can be unavailable in restricted browsing modes.
+        }
+    }
+
+    function persistCreatedSite(status) {
+        const siteId = String(status.createdSiteId || '');
+        if (!/^[1-9]\d*$/.test(siteId)) return false;
+
+        try {
+            // Store the Snowflake identifier as a JSON string. JavaScript numbers
+            // cannot safely represent every 64-bit Aero identifier.
+            localStorage.setItem(siteIdKey, JSON.stringify(siteId));
+            localStorage.setItem(siteNameKey, JSON.stringify(status.siteName || 'Site'));
+        } catch {
+            // The setup-status response still writes the authoritative HttpOnly cookie.
+        }
+
+        return true;
+    }
 
     function elements() {
         return {
@@ -94,7 +121,10 @@
                     return;
                 }
 
-                if (String(status.state).toLowerCase() === 'running' && status.setupComplete === true && status.seedComplete === true) {
+                if (String(status.state).toLowerCase() === 'running'
+                    && status.setupComplete === true
+                    && status.seedComplete === true
+                    && persistCreatedSite(status)) {
                     setState('opening', 'Your site is ready', 'Opening your homepage…');
                     const home = await fetchWithTimeout(
                         '/',
@@ -194,4 +224,5 @@
     }, { once: true });
 
     window.AeroSetupHandoff = { begin, fail, resumeIfPending };
+    clearSiteSelection();
 })();

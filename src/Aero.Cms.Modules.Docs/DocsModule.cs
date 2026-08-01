@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Content;
 using Aero.Core.Http;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -146,6 +147,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             return new DocsContentService(session, bus, siteContext, logger, actor, cache);
         });
         services.AddScoped<IDocsTreeService, DocsTreeService>();
+        services.AddScoped<
+            IContentReferenceSourceProvider,
+            DocsContentReferenceSourceProvider>();
 
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroDocsActor>(sp =>

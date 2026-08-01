@@ -1,3 +1,4 @@
+using System.Globalization;
 using Aero.Cms.Contracts.Abstractions;
 
 namespace Aero.Cms.Shared.Services;
@@ -62,18 +63,44 @@ public string? CurrentView { get; set; }
     }
 
     /// <summary>
+    /// Clears the selected site from memory and browser storage.
+    /// </summary>
+    public void ClearSite()
+    {
+        CurrentSiteId = null;
+        CurrentSiteName = null;
+
+        try
+        {
+            _storage.RemoveItem($"{StorageKey}.siteId");
+            _storage.RemoveItem($"{StorageKey}.siteName");
+        }
+        catch
+        {
+            // localStorage unavailable — in-memory state is still cleared
+        }
+
+        NotifyStateChanged();
+    }
+
+    /// <summary>
     /// Hydrates state from localStorage. Call once on app startup.
     /// </summary>
     public void LoadFromStorage()
     {
         try
         {
-            var siteId = _storage.GetItem<long?>($"{StorageKey}.siteId");
+            var siteIdValue = _storage.GetItem<string>($"{StorageKey}.siteId");
             var siteName = _storage.GetItem<string>($"{StorageKey}.siteName");
 
-            if (siteId.HasValue && siteId.Value > 0)
+            if (long.TryParse(
+                    siteIdValue,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var siteId)
+                && siteId > 0)
             {
-                CurrentSiteId = siteId.Value;
+                CurrentSiteId = siteId;
                 CurrentSiteName = siteName;
             }
         }
@@ -91,7 +118,9 @@ public string? CurrentView { get; set; }
     {
         try
         {
-            _storage.SetItem($"{StorageKey}.siteId", CurrentSiteId);
+            _storage.SetItem(
+                $"{StorageKey}.siteId",
+                CurrentSiteId?.ToString(CultureInfo.InvariantCulture));
             _storage.SetItem($"{StorageKey}.siteName", CurrentSiteName);
         }
         catch

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Core.Content.Indexing;
 
 namespace Aero.Cms.Core.Tests.Content;
@@ -37,6 +38,17 @@ public sealed class ContentIndexServiceTests
                 {
                     Name = "related",
                     FieldType = ContentFieldTypes.Reference
+                },
+                new ContentFieldDefinition
+                {
+                    Name = "featured-page",
+                    FieldType = ContentFieldTypes.Reference,
+                    Settings = new Dictionary<string, JsonElement>
+                    {
+                        [ReferenceContentFieldSettings.TargetKind] =
+                            JsonSerializer.SerializeToElement(
+                                ReferenceContentFieldSettings.TargetKindCmsDocument)
+                    }
                 },
                 new ContentFieldDefinition
                 {
@@ -79,6 +91,11 @@ public sealed class ContentIndexServiceTests
                 ["description"] = JsonSerializer.SerializeToElement("<p>A social canid.</p>"),
                 ["genus"] = JsonSerializer.SerializeToElement("200"),
                 ["related"] = JsonSerializer.SerializeToElement(new[] { "200", "300" }),
+                ["featured-page"] = JsonSerializer.SerializeToElement(
+                    new CmsContentReferenceValue(
+                        CmsContentReferenceSources.Pages,
+                        "1530221140281556994"),
+                    ContentJsonContext.Default.CmsContentReferenceValue),
                 ["website"] = JsonSerializer.SerializeToElement("https://example.test/wolf"),
                 ["weight"] = JsonSerializer.SerializeToElement(12.5m),
                 ["private-note"] = JsonSerializer.SerializeToElement("hidden")
@@ -100,6 +117,9 @@ public sealed class ContentIndexServiceTests
                 .Where(facet => facet.FieldName == "related")
                 .Select(facet => facet.NormalizedValue))
             .IsEquivalentTo(["200", "300"]);
+        await Assert.That(artifacts.Facets.Any(
+            facet => facet.FieldName == "featured-page"
+                && facet.NormalizedValue == "PAGES:1530221140281556994")).IsTrue();
         await Assert.That(artifacts.Facets.Any(
             facet => facet.FieldName == "weight" && facet.NormalizedValue == "12.5")).IsTrue();
     }

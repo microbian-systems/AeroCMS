@@ -159,9 +159,17 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             };
 
             var result = await contentTypeActor.CreateAsync(vm, siteId, ct);
-            return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to create content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
-                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-types/{result.data.Alias}", MapToDetail(result.data));
+            if (!string.IsNullOrWhiteSpace(result.error.Message))
+            {
+                logger.LogWarning(
+                    "Content type {Alias} was rejected for site {SiteId}: {Reason}",
+                    request.Alias,
+                    siteId,
+                    result.error.Message);
+                return TypedResults.BadRequest(new ProblemDetails { Title = "Failed to create content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest });
+            }
+
+            return TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-types/{result.data.Alias}", MapToDetail(result.data));
         }
         catch (Exception ex)
         {
@@ -213,9 +221,17 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.ScheduleConfig = request.ScheduleConfig;
 
             var result = await contentTypeActor.UpdateAsync(existing, siteId, ct);
-            return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to update content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
-                : TypedResults.Ok(MapToDetail(result.data));
+            if (!string.IsNullOrWhiteSpace(result.error.Message))
+            {
+                logger.LogWarning(
+                    "Content type {Alias} was rejected for site {SiteId}: {Reason}",
+                    alias,
+                    siteId,
+                    result.error.Message);
+                return TypedResults.BadRequest(new ProblemDetails { Title = "Failed to update content type", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest });
+            }
+
+            return TypedResults.Ok(MapToDetail(result.data));
         }
         catch (Exception ex)
         {

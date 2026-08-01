@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -55,14 +57,22 @@ public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, 
         /// <summary>
     /// CreateAsync method.
     /// </summary>
-public Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
-        => PostAsync<CreateContentTypeRequest, ContentTypeDetail>(string.Empty, request, ct);
+public async Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
+        => NormalizeProblemDetails(
+            await PostAsync<CreateContentTypeRequest, ContentTypeDetail>(
+                string.Empty,
+                request,
+                ct));
 
         /// <summary>
     /// UpdateAsync method.
     /// </summary>
-public Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
-        => PutAsync<CreateContentTypeRequest, ContentTypeDetail>(Uri.EscapeDataString(alias), request, ct);
+public async Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
+        => NormalizeProblemDetails(
+            await PutAsync<CreateContentTypeRequest, ContentTypeDetail>(
+                Uri.EscapeDataString(alias),
+                request,
+                ct));
 
         /// <summary>
     /// DeleteAsync method.
@@ -79,6 +89,49 @@ public Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken
             Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
             _ => AeroError.CreateError("Unexpected result from HTTP operation")
         };
+    }
+
+    private static Result<T, AeroError> NormalizeProblemDetails<T>(
+        Result<T, AeroError> result)
+        where T : class
+    {
+        if (result is not Result<T, AeroError>.Failure
+            {
+                Error: AeroError.HttpRequest
+                {
+                    code: HttpStatusCode.BadRequest,
+                    msg: { } responseBody
+                }
+            }
+            || !TryReadProblemDetail(responseBody, out var detail))
+        {
+            return result;
+        }
+
+        return AeroError.ValidationError([detail]);
+    }
+
+    private static bool TryReadProblemDetail(
+        string responseBody,
+        out string detail)
+    {
+        detail = string.Empty;
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            if (!document.RootElement.TryGetProperty("detail", out var value)
+                || value.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            detail = value.GetString()?.Trim() ?? string.Empty;
+            return detail.Length > 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }
 
@@ -100,6 +153,17 @@ Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alia
         string? filterValue = null,
         int take = 100,
         CancellationToken ct = default);
+    /// <summary>Lists registered CMS document and public content-entry sources.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetCmsReferenceSourcesAsync(CancellationToken ct = default);
+    /// <summary>Gets bounded options for one first-class CMS content source.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceOption>, AeroError>>
+        GetCmsReferenceOptionsAsync(
+            string source,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default);
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
@@ -188,6 +252,33 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
         var url =
             $"{Uri.EscapeDataString(alias)}/reference-options?{string.Join("&", parameters)}";
         return GetAsync<IReadOnlyList<ContentReferenceOption>>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetCmsReferenceSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<CmsContentReferenceSource>>(
+            "reference-sources",
+            ct);
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceOption>, AeroError>>
+        GetCmsReferenceOptionsAsync(
+            string source,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default)
+    {
+        var parameters = new List<string>
+        {
+            $"take={Math.Clamp(take, 1, 100)}"
+        };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        return GetAsync<IReadOnlyList<CmsContentReferenceOption>>(
+            $"reference-sources/{Uri.EscapeDataString(source)}/options?{string.Join("&", parameters)}",
+            ct);
     }
 
         /// <summary>

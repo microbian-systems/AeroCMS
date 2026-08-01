@@ -67,6 +67,43 @@ public sealed class ContentGrainScopeTests
     }
 
     [Test]
+    public async Task Content_type_grain_preserves_human_readable_validation_errors()
+    {
+        var contentTypeService = Substitute.For<IContentTypeService>();
+        contentTypeService
+            .SaveAsync(
+                Arg.Any<ContentTypeDefinition>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                AeroError.ValidationError(
+                [
+                    "Reference field 'Species' must select a target content type.",
+                    "List field 'Tags' must define at least one allowed value."
+                ])));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(contentTypeService);
+
+        await using var provider = services.BuildServiceProvider();
+        var grain = new AeroContentTypeGrain(
+            NullLogger<AeroActor>.Instance,
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        var result = await grain.CreateAsync(
+            new ContentTypeViewModel
+            {
+                Alias = "animal",
+                Name = "Animal",
+                FieldsJson = "[]"
+            },
+            42);
+
+        await Assert.That(result.error.Message).IsEqualTo(
+            "Reference field 'Species' must select a target content type.; " +
+            "List field 'Tags' must define at least one allowed value.");
+    }
+
+    [Test]
     public async Task Content_item_scoped_operations_isolate_foreign_site_and_allow_owning_site()
     {
         await using var harness = new SableTestHarness()

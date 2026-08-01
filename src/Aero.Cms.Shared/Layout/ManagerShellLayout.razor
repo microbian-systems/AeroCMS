@@ -117,33 +117,32 @@
             var siteId = AdminState.CurrentSiteId
                 ?? await CurrentSiteAccessor.GetCurrentSiteIdAsync();
 
-            if (AdminState.CurrentSiteId.HasValue)
+            // Validate the selected site before publishing it back to either store.
+            if (siteId is not null)
             {
-                await CurrentSiteAccessor.SetCurrentSiteAsync(AdminState.CurrentSiteId.Value);
+                var infoResult = await SitesClient.GetByIdAsync(siteId.Value);
+                if (infoResult is Result<SiteInfo, AeroError>.Ok siteOk)
+                {
+                    var siteName = siteOk.Value.Name ?? AdminState.CurrentSiteName ?? "Site";
+                    AdminState.SetSite(siteId.Value, siteName);
+                    await CurrentSiteAccessor.SetCurrentSiteAsync(siteId.Value);
+                    AppState.SetSite(siteId.Value, siteName, siteOk.Value.TenantId);
+                    shellState = ShellState.Ready;
+                    return;
+                }
+
+                // The browser selected a site from an earlier database. Remove both copies.
+                AdminState.ClearSite();
+                await CurrentSiteAccessor.ClearCurrentSiteAsync();
             }
 
             // Final fallback: call the default site API (creates one if needed)
-            if (siteId is null)
-            {
-                siteId = await TryGetDefaultSiteAsync();
-            }
+            siteId = await TryGetDefaultSiteAsync();
 
             if (siteId is null)
             {
                 redirectTarget = "/manager/select-site";
                 return;
-            }
-
-            // Resolve TenantId from the current site
-            var infoResult = await SitesClient.GetByIdAsync(siteId.Value);
-            if (infoResult is Result<SiteInfo, AeroError>.Ok siteOk)
-            {
-                AppState.SetSite(siteId.Value, siteOk.Value.Name ?? AdminState.CurrentSiteName, siteOk.Value.TenantId);
-            }
-            else
-            {
-                // Site exists (we have the ID) but fetch failed — use 0 which will throw
-                AppState.SetSite(siteId.Value, AdminState.CurrentSiteName ?? "Unknown", 0);
             }
 
             shellState = ShellState.Ready;

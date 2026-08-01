@@ -1,4 +1,6 @@
 using Aero.Cms.Modules.Setup;
+using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
@@ -20,6 +22,7 @@ using Orleans;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using Radzen;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -54,6 +57,82 @@ public sealed class SetupGateIntegrationTests
         aliveResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
         frameworkResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
         errorResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+    }
+
+
+    [Test]
+    public async Task Setup_host_expires_the_previous_selected_site_cookie()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+        await using var app = await CreateAppAsync(harness);
+        using var client = app.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/setup");
+        request.Headers.Add("Cookie", "AeroCms.SiteId=999999999999999999");
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        var setCookie = string.Join(
+            Environment.NewLine,
+            response.Headers.GetValues("Set-Cookie"));
+        setCookie.ShouldContain("AeroCms.SiteId=");
+        setCookie.ShouldContain("expires=");
+    }
+
+    [Test]
+    public async Task Running_setup_status_hands_off_the_created_site_to_cookie_and_browser()
+    {
+        const long siteId = 1_530_221_140_281_556_994;
+        var initialization = Substitute.For<ISetupInitializationService>();
+        initialization.GetBootstrapState().Returns(new BootstrapState
+        {
+            State = BootstrapStates.Running,
+            SetupComplete = true,
+            SeedComplete = true,
+            DatabaseMode = "Server",
+            CacheMode = "Server",
+            HasBootstrapConfig = true
+        });
+        var setupStateStore = Substitute.For<ISetupStateStore>();
+        setupStateStore.LoadAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<SetupStateDocument?>(new SetupStateDocument
+            {
+                IsComplete = true,
+                CreatedSiteId = siteId,
+                SiteName = "Contoso"
+            }));
+
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.WebHost.UseTestServer();
+        builder.Services.AddSingleton(initialization);
+        builder.Services.AddSingleton(setupStateStore);
+
+        await using var app = builder.Build();
+        app.MapSetupStatusEndpoints();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        using var response = await client.GetAsync("/setup/status");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        payload.RootElement.GetProperty("createdSiteId").GetString()
+            .ShouldBe(siteId.ToString());
+        payload.RootElement.GetProperty("siteName").GetString()
+            .ShouldBe("Contoso");
+
+        var setCookie = string.Join(
+            Environment.NewLine,
+            response.Headers.GetValues("Set-Cookie"));
+        setCookie.ShouldContain($"AeroCms.SiteId={siteId}");
+        setCookie.ShouldContain("httponly");
+        setCookie.ShouldContain("path=/");
     }
 
     [Test]
@@ -198,6 +277,7 @@ public sealed class SetupGateIntegrationTests
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseSetupSiteSelectionReset();
         app.UseCmsSetupGate();
         if (enableAntiforgery)
         {

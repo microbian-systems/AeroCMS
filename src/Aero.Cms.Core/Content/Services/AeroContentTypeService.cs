@@ -243,6 +243,12 @@ public sealed class AeroContentTypeService(
                      field => field.FieldType == ContentFieldTypes.Reference))
         {
             var label = field.Label ?? field.Name;
+            if (ReferenceFieldValidator.IsCmsDocumentReference(field))
+            {
+                ValidateCmsDocumentReferenceDefinition(field, label, errors);
+                continue;
+            }
+
             var targetAlias = GetStringSetting(
                 field,
                 ReferenceContentFieldSettings.TargetContentType);
@@ -352,6 +358,46 @@ public sealed class AeroContentTypeService(
         return errors.Count == 0
             ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
             : AeroError.ValidationError(errors);
+    }
+
+    private static void ValidateCmsDocumentReferenceDefinition(
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors)
+    {
+        var sources = ReferenceFieldValidator.GetAllowedSources(field);
+        if (sources.Count == 0)
+        {
+            errors.Add(
+                $"Reference field '{label}' must allow at least one CMS content source.");
+        }
+        else
+        {
+            var unsupported = sources
+                .Where(source =>
+                    !CmsContentReferenceSources.All.Contains(source))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (unsupported.Length > 0)
+            {
+                errors.Add(
+                    $"Reference field '{label}' contains unsupported sources: {string.Join(", ", unsupported)}.");
+            }
+        }
+
+        if (IsHierarchyReference(field)
+            || !string.IsNullOrWhiteSpace(
+                GetStringSetting(
+                    field,
+                    ReferenceContentFieldSettings.DependsOnField))
+            || !string.IsNullOrWhiteSpace(
+                GetStringSetting(
+                    field,
+                    ReferenceContentFieldSettings.TargetFilterField)))
+        {
+            errors.Add(
+                $"Reference field '{label}' cannot combine CMS documents with hierarchy or cascading settings.");
+        }
     }
 
     private static bool IsHierarchyReference(ContentFieldDefinition field) =>

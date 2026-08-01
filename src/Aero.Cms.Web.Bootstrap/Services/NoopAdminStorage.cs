@@ -16,4 +16,10 @@ public T? GetItem<T>(string key) => default;
 public void SetItem<T>(string key, T value)
     {
     }
+
+    /// <inheritdoc />
+    /// <remarks>This server-side implementation has no browser storage to modify.</remarks>
+public void RemoveItem(string key)
+    {
+    }
 }

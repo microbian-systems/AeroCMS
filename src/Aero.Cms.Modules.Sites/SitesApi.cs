@@ -86,14 +86,26 @@ public static class SitesApi
         CancellationToken cancellationToken)
     {
         var cookie = httpContext.Request.Cookies["AeroCms.SiteId"];
-        if (string.IsNullOrEmpty(cookie) || !long.TryParse(cookie, out var siteId))
+        if (string.IsNullOrEmpty(cookie))
             return Results.Ok(null);
+
+        if (!long.TryParse(cookie, out var siteId))
+        {
+            ExpireCurrentSiteCookie(httpContext);
+            return Results.Ok(null);
+        }
+
+        var allSites = await siteLookup.GetAllAsync(cancellationToken);
+        var site = allSites.FirstOrDefault(s => s.Id == siteId);
+        if (site is null)
+        {
+            ExpireCurrentSiteCookie(httpContext);
+            return Results.Ok(null);
+        }
 
         if (!await CanReadSiteAsync(httpContext.User, siteId, userSiteService, cancellationToken))
             return Results.Forbid();
 
-        var allSites = await siteLookup.GetAllAsync(cancellationToken);
-        var site = allSites.FirstOrDefault(s => s.Id == siteId);
         return Results.Ok(site);
     }
 
@@ -205,13 +217,24 @@ public static class SitesApi
     /// <returns>An empty HTTP 200 response.</returns>
     private static IResult ClearCurrentSite(HttpContext httpContext)
     {
+        ExpireCurrentSiteCookie(httpContext);
+        return Results.Ok();
+    }
+
+    /// <summary>
+    /// Writes an expired selected-site cookie using the same attributes as selection.
+    /// </summary>
+    /// <param name="httpContext">The response receiving the expired cookie.</param>
+    private static void ExpireCurrentSiteCookie(HttpContext httpContext)
+    {
         httpContext.Response.Cookies.Delete("AeroCms.SiteId", new CookieOptions
         {
+            Path = "/",
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
-            Secure = httpContext.Request.IsHttps
+            Secure = httpContext.Request.IsHttps,
+            IsEssential = true
         });
-        return Results.Ok();
     }
 
     /// <summary>
@@ -511,17 +534,29 @@ public static class SitesApi
     /// Deletes a site and maps the railway result to an HTTP response.
     /// </summary>
     /// <param name="id">The site identifier to delete.</param>
+    /// <param name="httpContext">The request whose selection cookie may reference the deleted site.</param>
     /// <param name="siteService">The site mutation service.</param>
     /// <returns>HTTP 204 on success or an HTTP 500 problem response on failure.</returns>
     /// <remarks>Related assignments and content are not removed by this endpoint.</remarks>
     private static async Task<IResult> DeleteSite(
         long id,
+        HttpContext httpContext,
         [FromServices] ISiteService siteService)
     {
         var result = await siteService.DeleteSiteAsync(id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            var selectedSite = httpContext.Request.Cookies["AeroCms.SiteId"];
+            if (long.TryParse(selectedSite, out var selectedSiteId) && selectedSiteId == id)
+            {
+                ExpireCurrentSiteCookie(httpContext);
+            }
+
+            return Results.NoContent();
+        }
+
         return result switch
         {
-            Result<bool, AeroError>.Ok => Results.NoContent(),
             Result<bool, AeroError>.Failure f => Results.Problem(f.Error.ToString()),
             _ => Results.Problem("Unexpected result")
         };

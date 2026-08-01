@@ -114,6 +114,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // Publishing workflow over the tracked PageDocument aggregate.
         services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
         services.AddScoped<IPageSourceVersionStore, PageSourceVersionStore>();
+        services.AddScoped<
+            IContentReferenceSourceProvider,
+            PageContentReferenceSourceProvider>();
 
         // HTML page model, validation, and native style compilation.
         services.AddSingleton(_ => HtmlElementCatalog.CreateDefault());

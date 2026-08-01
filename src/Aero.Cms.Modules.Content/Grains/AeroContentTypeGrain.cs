@@ -94,7 +94,7 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(Content
 
         return result switch
         {
-            Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(failure.Error.ToString()),
+            Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(GetErrorMessage(failure.Error)),
             _ => Fail("Unexpected result")
         };
     }
@@ -122,7 +122,7 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(Content
 
         return result switch
         {
-            Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(failure.Error.ToString()),
+            Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(GetErrorMessage(failure.Error)),
             _ => Fail("Unexpected result")
         };
     }
@@ -161,6 +161,28 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
     /// <summary>Creates an empty-data response carrying a failure message.</summary>
     private static AeroRequestResponse<ContentTypeViewModel> Fail(string msg)
         => new(new ContentTypeViewModel(), new ContentTypeErrorViewModel { Message = msg });
+
+    /// <summary>Extracts a human-readable message from a railway error.</summary>
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
 
     // ── Mapping ───────────────────────────────────────────────────────
 

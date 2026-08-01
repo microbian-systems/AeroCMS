@@ -131,6 +131,10 @@ public static class SetupAppFactory
         }
 
         app.UseHttpsRedirection();
+
+        // A reinstallation must not carry the previous database's selected-site cookie.
+        // The paired browser local-storage values are removed by setup-handoff.js.
+        app.UseSetupSiteSelectionReset();
         
         // Static assets must be mapped before Antiforgery/Routing
         app.MapStaticAssets();

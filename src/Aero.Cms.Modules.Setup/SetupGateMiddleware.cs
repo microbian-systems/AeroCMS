@@ -74,4 +74,30 @@ public static class SetupApplicationBuilderExtensions
     /// <returns>The application builder for continued pipeline configuration.</returns>
 public static IApplicationBuilder UseCmsSetupGate(this IApplicationBuilder app)
         => app.UseMiddleware<SetupGateMiddleware>();
+
+    /// <summary>
+    /// Expires manager site selection while the setup-only host is active.
+    /// </summary>
+    /// <param name="app">The setup application builder.</param>
+    /// <returns>The application builder for continued pipeline configuration.</returns>
+    /// <remarks>
+    /// Browser local-storage selection is cleared by the setup host's
+    /// <c>setup-handoff.js</c> before Blazor starts.
+    /// </remarks>
+    public static IApplicationBuilder UseSetupSiteSelectionReset(this IApplicationBuilder app)
+    {
+        return app.Use(static async (context, next) =>
+        {
+            context.Response.Cookies.Delete("AeroCms.SiteId", new CookieOptions
+            {
+                Path = "/",
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = context.Request.IsHttps,
+                IsEssential = true
+            });
+
+            await next(context);
+        });
+    }
 }

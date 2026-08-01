@@ -98,6 +98,12 @@ protected async Task DeleteSiteAsync(SiteViewModel site)
         var result = await SitesClient.DeleteAsync(site.Id);
         if (result is Result<bool, AeroError>.Ok)
         {
+            if (AdminState.CurrentSiteId == site.Id)
+            {
+                AdminState.ClearSite();
+                await CurrentSiteAccessor.ClearCurrentSiteAsync();
+            }
+
             NotificationService.Notify(NotificationSeverity.Success, $"Site '{site.Name}' deleted");
             if (Grid is not null)
                 await Grid.Reload();

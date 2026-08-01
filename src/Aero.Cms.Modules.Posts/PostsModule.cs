@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Validators;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Audit;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Modules.Posts.Areas.Api.v1;
 using Aero.Cms.Modules.Posts.Parsers;
 using Aero.Cms.Web.Core.Modules;
@@ -52,6 +53,9 @@ public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPostContentService, PostContentService>();
+        services.AddScoped<
+            IContentReferenceSourceProvider,
+            PostContentReferenceSourceProvider>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddHttpClient<IStaticPhotosClient, StaticPhotosClient>(client =>
         {

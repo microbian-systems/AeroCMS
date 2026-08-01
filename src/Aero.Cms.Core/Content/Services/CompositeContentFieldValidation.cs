@@ -200,6 +200,15 @@ public sealed class ListFieldValidator : IContentFieldValidator
 
     internal static void ValidateCount(ContentFieldDefinition field, int count, string minimumKey, string maximumKey, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
+        // Empty composite values are valid while drafting, and remain valid
+        // after publish when the field itself is optional. A configured
+        // minimum applies only after an optional field has a value.
+        if (count == 0
+            && (mode == ContentValidationMode.Draft || !field.Required))
+        {
+            return;
+        }
+
         var minimum = CompositeContentFieldDefinitionValidator.GetInt(field, minimumKey, 0);
         if (field.Required && mode == ContentValidationMode.Publish) minimum = Math.Max(1, minimum);
         var maximum = CompositeContentFieldDefinitionValidator.GetInt(field, maximumKey, CompositeContentFieldDefinitionValidator.MaximumItems);
@@ -239,6 +248,12 @@ public sealed partial class DictionaryFieldValidator : IContentFieldValidator
         }
 
         var properties = element.EnumerateObject().ToArray();
+        if (properties.Length == 0
+            && (mode == ContentValidationMode.Draft || !field.Required))
+        {
+            return;
+        }
+
         var minimum = CompositeContentFieldDefinitionValidator.GetInt(field, CompositeContentFieldSettings.MinimumEntries, 0);
         if (field.Required && mode == ContentValidationMode.Publish) minimum = Math.Max(1, minimum);
         var maximum = CompositeContentFieldDefinitionValidator.GetInt(field, CompositeContentFieldSettings.MaximumEntries, CompositeContentFieldDefinitionValidator.MaximumEntries);

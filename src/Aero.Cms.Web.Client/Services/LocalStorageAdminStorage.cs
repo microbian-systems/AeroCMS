@@ -27,4 +27,10 @@ public T? GetItem<T>(string key) => localStorage.GetItem<T>(key);
     /// <param name="key">The local-storage key.</param>
     /// <param name="value">The value to persist.</param>
 public void SetItem<T>(string key, T value) => localStorage.SetItem(key, value);
+
+    /// <summary>
+    /// Removes a value from browser local storage.
+    /// </summary>
+    /// <param name="key">The key to remove.</param>
+public void RemoveItem(string key) => localStorage.RemoveItem(key);
 }

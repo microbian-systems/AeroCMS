@@ -1,5 +1,6 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
+using System.Globalization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -19,9 +20,9 @@ public static class SetupStatusEndpoints
     /// <param name="endpoints">The endpoint route builder to modify.</param>
     /// <returns>The same route builder for fluent registration.</returns>
     /// <remarks>
-    /// The response exposes bootstrap modes, completion flags, and readiness booleans but
-    /// does not include connection strings or credentials. Missing readiness infrastructure
-    /// is reported as not ready.
+    /// The response exposes bootstrap modes, completion flags, readiness booleans, and the
+    /// non-secret site selection created by setup. It does not include connection strings or
+    /// credentials. Missing readiness infrastructure is reported as not ready.
     /// </remarks>
 public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -38,6 +39,31 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
                 bootstrap.CacheMode,
                 AeroAppServerConstants.LocalCacheMode,
                 StringComparison.OrdinalIgnoreCase);
+            SetupStateDocument? durableState = null;
+
+            if (bootstrap.IsRunningMode
+                && bootstrap.SeedComplete
+                && sp.GetService<ISetupStateStore>() is { } setupStateStore)
+            {
+                durableState = await setupStateStore.LoadAsync(cancellationToken);
+            }
+
+            var createdSiteId = durableState?.CreatedSiteId is > 0
+                ? durableState.CreatedSiteId.Value.ToString(CultureInfo.InvariantCulture)
+                : null;
+
+            if (createdSiteId is not null)
+            {
+                httpContext.Response.Cookies.Append("AeroCms.SiteId", createdSiteId, new CookieOptions
+                {
+                    Path = "/",
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddDays(30),
+                    IsEssential = true,
+                    Secure = httpContext.Request.IsHttps
+                });
+            }
 
             return Results.Ok(new
             {
@@ -52,7 +78,9 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
                 GarnetReady = garnetReady,
                 RequiresAeroDb = requiresAeroDb,
                 RequiresGarnet = requiresGarnet,
-                IsReady = (!requiresAeroDb || aeroDbReady) && (!requiresGarnet || garnetReady)
+                IsReady = (!requiresAeroDb || aeroDbReady) && (!requiresGarnet || garnetReady),
+                CreatedSiteId = createdSiteId,
+                SiteName = durableState?.SiteName
             });
         });
 

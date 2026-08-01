@@ -189,6 +189,12 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
     /// </remarks>
     public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
+        if (IsCmsDocumentReference(field))
+        {
+            ValidateCmsDocumentReference(field, element, mode, context);
+            return;
+        }
+
         var targetContentType = field.Settings.TryGetValue("targetContentType", out var target)
             && target.ValueKind == JsonValueKind.String
                 ? target.GetString()
@@ -234,4 +240,74 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
                 context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be a valid reference ID.");
         }
     }
+
+    private static void ValidateCmsDocumentReference(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (element.ValueKind == JsonValueKind.Null)
+        {
+            if (field.Required && mode == ContentValidationMode.Publish)
+                context.AddFailure(field.Name, $"{field.Label ?? field.Name} is required.");
+            return;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty("source", out var sourceElement)
+            || sourceElement.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(sourceElement.GetString())
+            || !element.TryGetProperty("id", out var idElement)
+            || idElement.ValueKind != JsonValueKind.String
+            || !long.TryParse(
+                idElement.GetString(),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var id)
+            || id <= 0)
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} must select a valid page, post, or documentation item.");
+            return;
+        }
+
+        var source = sourceElement.GetString()!;
+        var allowedSources = GetAllowedSources(field);
+        if (!CmsContentReferenceSources.IsSupportedSource(source)
+            || (allowedSources.Count > 0
+                && !CmsContentReferenceSources.IsAllowedSource(
+                    source,
+                    allowedSources)))
+        {
+            context.AddFailure(
+                field.Name,
+                $"{field.Label ?? field.Name} uses an unsupported content source.");
+        }
+    }
+
+    internal static bool IsCmsDocumentReference(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(
+            ReferenceContentFieldSettings.TargetKind,
+            out var targetKind)
+        && targetKind.ValueKind == JsonValueKind.String
+        && string.Equals(
+            targetKind.GetString(),
+            ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    internal static IReadOnlyList<string> GetAllowedSources(
+        ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(
+            ReferenceContentFieldSettings.AllowedSources,
+            out var sources)
+        && sources.ValueKind == JsonValueKind.Array
+            ? sources.EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .ToArray()
+            : [];
 }

@@ -219,7 +219,15 @@
                                     <RadzenDatePicker TValue="DateTime?" Value="@_dateValues[field.Name]" Change="@(args => SetDateValue(field.Name, args))" Class="w-full" />
                                     break;
                                 case "reference":
-                                    @if (IsHierarchyReference(field))
+                                    @if (IsCmsDocumentReference(field))
+                                    {
+                                        <CmsContentReferencePicker
+                                            Culture="@_culture"
+                                            AllowedSources="@GetAllowedCmsReferenceSources(field)"
+                                            Value="@_cmsReferenceValues[field.Name]"
+                                            ValueChanged="@(value => _cmsReferenceValues[field.Name] = value)" />
+                                    }
+                                    else if (IsHierarchyReference(field))
                                     {
                                         <ContentHierarchyReferencePicker
                                             TargetContentTypeAlias="@GetStringSetting(field, ReferenceContentFieldSettings.TargetContentType)"

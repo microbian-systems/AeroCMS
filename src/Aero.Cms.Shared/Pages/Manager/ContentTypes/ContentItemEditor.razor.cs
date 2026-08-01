@@ -51,6 +51,7 @@ public partial class ContentItemEditor
     private readonly Dictionary<string, List<string>> _listValues = [];
     private readonly Dictionary<string, List<string>> _galleryValues = [];
     private readonly Dictionary<string, List<KeyValueEditorRow>> _dictionaryValues = [];
+    private readonly Dictionary<string, CmsContentReferenceValue?> _cmsReferenceValues = [];
     private readonly Dictionary<string, string> _fieldErrors = [];
 
     private IReadOnlyList<ContentItemDetail> _cultureVariants = [];
@@ -83,6 +84,34 @@ public partial class ContentItemEditor
             GetStringSetting(field, ReferenceContentFieldSettings.SelectionMode),
             ReferenceContentFieldSettings.SelectionModeHierarchy,
             StringComparison.Ordinal);
+
+    private static bool IsCmsDocumentReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    private static IReadOnlyList<string> GetAllowedCmsReferenceSources(
+        ContentFieldDefinition field)
+    {
+        if (!field.Settings.TryGetValue(
+                ReferenceContentFieldSettings.AllowedSources,
+                out var allowedSources)
+            || allowedSources.ValueKind != JsonValueKind.Array)
+        {
+            return CmsContentReferenceSources.All.ToArray();
+        }
+
+        return allowedSources
+            .EnumerateArray()
+            .Where(value => value.ValueKind == JsonValueKind.String)
+            .Select(value => value.GetString())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     private static bool GetBoolSetting(
         ContentFieldDefinition field,
@@ -246,6 +275,12 @@ protected override async Task OnInitializedAsync()
 
         foreach (var field in _typeDefinition.Fields)
         {
+            if (IsCmsDocumentReference(field))
+            {
+                _cmsReferenceValues.TryAdd(field.Name, null);
+                continue;
+            }
+
             switch (field.FieldType)
             {
                 case "number":
@@ -385,6 +420,15 @@ protected override async Task OnInitializedAsync()
         foreach (var field in _typeDefinition.Fields)
         {
             if (!source.TryGetValue(field.Name, out var element)) continue;
+
+            if (IsCmsDocumentReference(field))
+            {
+                _cmsReferenceValues[field.Name] =
+                    element.ValueKind == JsonValueKind.Object
+                        ? element.Deserialize(ContentJsonContext.Default.CmsContentReferenceValue)
+                        : null;
+                continue;
+            }
 
             switch (field.FieldType)
             {
@@ -757,7 +801,12 @@ protected override async Task OnInitializedAsync()
     }
 
     private bool IsFieldEmpty(ContentFieldDefinition field)
-        => field.FieldType switch
+        => IsCmsDocumentReference(field)
+            ? !_cmsReferenceValues.TryGetValue(field.Name, out var cmsReference)
+              || cmsReference is null
+              || string.IsNullOrWhiteSpace(cmsReference.Source)
+              || string.IsNullOrWhiteSpace(cmsReference.Id)
+            : field.FieldType switch
         {
             "number" => !_numberValues.TryGetValue(field.Name, out var value) || value is null,
             ContentFieldTypes.Range => !_rangeValues.TryGetValue(field.Name, out var range) || range is null,
@@ -776,6 +825,14 @@ protected override async Task OnInitializedAsync()
 
         foreach (var field in _typeDefinition.Fields)
         {
+            if (IsCmsDocumentReference(field))
+            {
+                dict[field.Name] = JsonSerializer.SerializeToElement(
+                    _cmsReferenceValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.CmsContentReferenceValue);
+                continue;
+            }
+
             dict[field.Name] = field.FieldType switch
             {
                 "number" => JsonSerializer.SerializeToElement(
@@ -979,21 +1036,24 @@ protected override async Task OnInitializedAsync()
                 var count = _listValues.GetValueOrDefault(field.Name, []).Count;
                 var minimum = GetIntSetting(field, CompositeContentFieldSettings.MinimumItems, 0);
                 var maximum = GetIntSetting(field, CompositeContentFieldSettings.MaximumItems, 50);
-                if (count < minimum || count > maximum) _fieldErrors[field.Name] = $"Choose between {minimum} and {maximum} options.";
+                if ((count > 0 && count < minimum) || count > maximum)
+                    _fieldErrors[field.Name] = $"Choose between {minimum} and {maximum} options.";
             }
             else if (field.FieldType == ContentFieldTypes.Gallery)
             {
                 var count = _galleryValues.GetValueOrDefault(field.Name, []).Count;
                 var minimum = GetIntSetting(field, CompositeContentFieldSettings.MinimumItems, 0);
                 var maximum = GetIntSetting(field, CompositeContentFieldSettings.MaximumItems, 50);
-                if (count < minimum || count > maximum) _fieldErrors[field.Name] = $"Choose between {minimum} and {maximum} images.";
+                if ((count > 0 && count < minimum) || count > maximum)
+                    _fieldErrors[field.Name] = $"Choose between {minimum} and {maximum} images.";
             }
             else if (field.FieldType == ContentFieldTypes.Dictionary)
             {
                 var rows = _dictionaryValues.GetValueOrDefault(field.Name, []).Where(row => !string.IsNullOrWhiteSpace(row.Key)).ToList();
                 var minimum = GetIntSetting(field, CompositeContentFieldSettings.MinimumEntries, 0);
                 var maximum = GetIntSetting(field, CompositeContentFieldSettings.MaximumEntries, 50);
-                if (rows.Count < minimum || rows.Count > maximum) _fieldErrors[field.Name] = $"Add between {minimum} and {maximum} values.";
+                if ((rows.Count > 0 && rows.Count < minimum) || rows.Count > maximum)
+                    _fieldErrors[field.Name] = $"Add between {minimum} and {maximum} values.";
                 else if (rows.Any(row => !string.Equals(row.Key, row.Key.Trim(), StringComparison.Ordinal))) _fieldErrors[field.Name] = "Keys cannot start or end with spaces.";
                 else if (rows.Select(row => row.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != rows.Count) _fieldErrors[field.Name] = "Keys must be unique.";
                 else if (rows.Any(row => !DictionaryKeyPattern().IsMatch(row.Key.Trim()))) _fieldErrors[field.Name] = "Keys must be 1-64 characters and use letters, numbers, internal spaces, dots, dashes, or underscores.";

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -147,6 +148,142 @@ public sealed class ContentReferenceValidatorTests
                 "Referenced item '301' does not belong to the selected 'genus' entry.");
     }
 
+    [Test]
+    public async Task Cms_document_reference_uses_the_registered_site_scoped_provider()
+    {
+        var contentService = Substitute.For<IContentService>();
+        var session = Substitute.For<IDocumentSession>();
+        var provider = Substitute.For<IContentReferenceSourceProvider>();
+        provider.SourceKey.Returns(CmsContentReferenceSources.Pages);
+        provider.DisplayName.Returns("Pages");
+        provider.ExistsAsync(42, 1530221140281556994, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool>>(
+                new Result<bool>.Ok(true)));
+        var validator = new ReferenceExistenceValidator(
+            contentService,
+            session,
+            [provider]);
+        var type = new ContentTypeDefinition
+        {
+            Alias = "feature",
+            Fields = [CmsDocumentReferenceField()]
+        };
+        var item = new ContentItem
+        {
+            SiteId = 42,
+            ContentTypeAlias = "feature",
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["related-page"] = JsonSerializer.SerializeToElement(
+                    new CmsContentReferenceValue(
+                        CmsContentReferenceSources.Pages,
+                        "1530221140281556994"),
+                    ContentJsonContext.Default.CmsContentReferenceValue)
+            }
+        };
+
+        var failures = await validator.ValidateAsync(
+            item,
+            type,
+            CancellationToken.None);
+
+        await Assert.That(failures).IsEmpty();
+        await provider.Received(1).ExistsAsync(
+            42,
+            1530221140281556994,
+            Arg.Any<CancellationToken>());
+        await contentService.DidNotReceiveWithAnyArgs()
+            .LoadAsync(default, default, default);
+    }
+
+    [Test]
+    public async Task Cms_document_reference_accepts_a_public_content_entry_of_the_selected_type()
+    {
+        var contentService = Substitute.For<IContentService>();
+        contentService.LoadAsync(42, 300, Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<ContentItem, AeroError>(new ContentItem
+            {
+                Id = 300,
+                SiteId = 42,
+                ContentTypeAlias = "species",
+                Title = "K-9"
+            }));
+        var contentTypeService = Substitute.For<IContentTypeService>();
+        contentTypeService.GetByAliasAsync(
+                42,
+                "species",
+                Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<ContentTypeDefinition, AeroError>(
+                new ContentTypeDefinition
+                {
+                    SiteId = 42,
+                    Alias = "species",
+                    Name = "Species",
+                    AllowPublicUrl = true
+                }));
+        var validator = new ReferenceExistenceValidator(
+            contentService,
+            Substitute.For<IDocumentSession>(),
+            contentTypeService: contentTypeService);
+        var item = CmsContentEntryReferenceItem(
+            CmsContentReferenceSources.ForContentType("species"),
+            "300");
+
+        var failures = await validator.ValidateAsync(
+            item,
+            new ContentTypeDefinition
+            {
+                Alias = "animal",
+                Fields = [CmsDocumentReferenceField()]
+            },
+            CancellationToken.None);
+
+        await Assert.That(failures).IsEmpty();
+        await contentService.Received(1).LoadAsync(
+            42,
+            300,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Cms_document_reference_rejects_an_entry_from_a_non_public_content_type()
+    {
+        var contentService = Substitute.For<IContentService>();
+        var contentTypeService = Substitute.For<IContentTypeService>();
+        contentTypeService.GetByAliasAsync(
+                42,
+                "species",
+                Arg.Any<CancellationToken>())
+            .Returns(Prelude.Ok<ContentTypeDefinition, AeroError>(
+                new ContentTypeDefinition
+                {
+                    SiteId = 42,
+                    Alias = "species",
+                    Name = "Species",
+                    AllowPublicUrl = false
+                }));
+        var validator = new ReferenceExistenceValidator(
+            contentService,
+            Substitute.For<IDocumentSession>(),
+            contentTypeService: contentTypeService);
+
+        var failures = await validator.ValidateAsync(
+            CmsContentEntryReferenceItem(
+                CmsContentReferenceSources.ForContentType("species"),
+                "300"),
+            new ContentTypeDefinition
+            {
+                Alias = "animal",
+                Fields = [CmsDocumentReferenceField()]
+            },
+            CancellationToken.None);
+
+        await Assert.That(failures.Select(failure => failure.ErrorMessage))
+            .Contains("The 'species' public content type was not found.");
+        await contentService.DidNotReceiveWithAnyArgs()
+            .LoadAsync(default, default, default);
+    }
+
     private static ContentItem ItemWithReference(long id) =>
         new()
         {
@@ -229,4 +366,36 @@ public sealed class ContentReferenceValidatorTests
 
         return field;
     }
+
+    private static ContentFieldDefinition CmsDocumentReferenceField() =>
+        new()
+        {
+            Name = "related-page",
+            Label = "Related page",
+            FieldType = ContentFieldTypes.Reference,
+            Settings = new Dictionary<string, JsonElement>
+            {
+                [ReferenceContentFieldSettings.TargetKind] =
+                    JsonSerializer.SerializeToElement(
+                        ReferenceContentFieldSettings.TargetKindCmsDocument),
+                [ReferenceContentFieldSettings.AllowedSources] =
+                    JsonSerializer.SerializeToElement(
+                        CmsContentReferenceSources.All.ToArray())
+            }
+        };
+
+    private static ContentItem CmsContentEntryReferenceItem(
+        string source,
+        string id) =>
+        new()
+        {
+            SiteId = 42,
+            ContentTypeAlias = "animal",
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["related-page"] = JsonSerializer.SerializeToElement(
+                    new CmsContentReferenceValue(source, id),
+                    ContentJsonContext.Default.CmsContentReferenceValue)
+            }
+        };
 }

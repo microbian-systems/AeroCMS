@@ -29,12 +29,21 @@ const elementIds = [
 ];
 const elements = new Map(elementIds.map(id => [id, createElement()]));
 const storage = new Map();
+const localValues = new Map([
+    ['aero-admin-state.siteId', JSON.stringify('999999999999999999')],
+    ['aero-admin-state.siteName', JSON.stringify('Old Site')]
+]);
 const requests = [];
+let statusPayload = { state: 'Configured', setupComplete: false, seedComplete: false };
+let openedHomepage = false;
 
 globalThis.window = globalThis;
 globalThis.window.location = {
     origin: 'https://localhost:333',
-    replace() { assert.fail('The homepage must not open before runtime readiness.'); }
+    replace(path) {
+        assert.equal(path, '/');
+        openedHomepage = true;
+    }
 };
 globalThis.document = {
     body: { style: {} },
@@ -46,14 +55,27 @@ globalThis.sessionStorage = {
     setItem(key, value) { storage.set(key, String(value)); },
     removeItem(key) { storage.delete(key); }
 };
+globalThis.localStorage = {
+    getItem(key) { return localValues.get(key) ?? null; },
+    setItem(key, value) { localValues.set(key, String(value)); },
+    removeItem(key) { localValues.delete(key); }
+};
 globalThis.fetch = async url => {
     requests.push(String(url));
+    if (String(url) === '/') {
+        return {
+            ok: true,
+            status: 200,
+            url: 'https://localhost:333/'
+        };
+    }
+
     return {
         ok: true,
         status: 200,
         url: 'https://localhost:333/setup/status',
         async json() {
-            return { state: 'Configured', setupComplete: false, seedComplete: false };
+            return statusPayload;
         }
     };
 };
@@ -64,6 +86,8 @@ process.on('unhandledRejection', error => unhandled.push(error));
 vm.runInThisContext(fs.readFileSync(scriptPath, 'utf8'), { filename: scriptPath });
 
 globalThis.AeroSetupHandoff.begin();
+assert.equal(localValues.has('aero-admin-state.siteId'), false);
+assert.equal(localValues.has('aero-admin-state.siteName'), false);
 await new Promise(resolve => setTimeout(resolve, 25));
 assert.equal(storage.get('aero-setup-handoff'), 'pending');
 assert.ok(requests.includes('/setup/status'), 'begin() must immediately poll setup status.');
@@ -75,3 +99,14 @@ assert.ok(requests.length > requestCount, 'A pending handoff must resume polling
 assert.equal(unhandled.length, 0, 'Restarting a pending poll must not leak an abort rejection.');
 
 process.exit(0);
+
+statusPayload = {
+    state: 'Running',
+    setupComplete: true,
+    seedComplete: true,
+    createdSiteId: '1530221140281556994',
+    siteName: 'Contoso'
+};
+globalThis.AeroSetupHandoff.begin();
+await new Promise(resolve => setTimeout(resolve, 25));
+assert.equal(localValues.get('aero-admin-state.siteId'), JSON.stringify('1530221140281556994'));

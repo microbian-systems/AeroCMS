@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Http;
@@ -41,6 +42,12 @@ public static class ContentItemsApi
         group.MapGet("/{alias}/reference-options", ListReferenceOptions)
             .RequireAuthorization("site:read")
             .WithName("ListContentReferenceOptions");
+        group.MapGet("/reference-sources", ListCmsReferenceSources)
+            .RequireAuthorization("site:read")
+            .WithName("ListCmsContentReferenceSources");
+        group.MapGet("/reference-sources/{source}/options", ListCmsReferenceOptions)
+            .RequireAuthorization("site:read")
+            .WithName("ListCmsContentReferenceOptions");
         group.MapPost("/{alias}", CreateContentItem)
             .RequireAuthorization("site:create")
             .WithName("CreateContentItem");
@@ -617,6 +624,133 @@ public static class ContentItemsApi
             Detail = "The requested content mutation could not be completed.",
             Status = StatusCodes.Status400BadRequest
         });
+    }
+
+    private static async Task<IResult> ListCmsReferenceSources(
+        [FromServices] IEnumerable<IContentReferenceSourceProvider> providers,
+        [FromServices] IContentTypeService contentTypeService,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (siteContext.SiteId <= 0)
+        {
+            return MissingSite();
+        }
+
+        var sources = providers
+            .Select(provider => new CmsContentReferenceSource(
+                provider.SourceKey,
+                provider.DisplayName))
+            .ToList();
+        var types = await contentTypeService.GetAllAsync(
+            siteContext.SiteId,
+            ct);
+        if (types is Result<IReadOnlyList<ContentTypeDefinition>, AeroError>.Ok ok)
+        {
+            sources.AddRange(
+                ok.Value
+                    .Where(type => type.AllowPublicUrl)
+                    .Select(type => new CmsContentReferenceSource(
+                        CmsContentReferenceSources.ForContentType(type.Alias),
+                        $"{type.Name} entries")));
+        }
+
+        var ordered = sources
+            .DistinctBy(source => source.Key, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(source => source.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return TypedResults.Ok<IReadOnlyList<CmsContentReferenceSource>>(ordered);
+    }
+
+    private static async Task<IResult> ListCmsReferenceOptions(
+        string source,
+        [FromServices] IEnumerable<IContentReferenceSourceProvider> providers,
+        [FromServices] IContentQueryService queryService,
+        [FromServices] IContentTypeService contentTypeService,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] string? culture = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int take = 50,
+        CancellationToken ct = default)
+    {
+        if (siteContext.SiteId <= 0)
+        {
+            return MissingSite();
+        }
+
+        if (CmsContentReferenceSources.TryGetContentTypeAlias(
+                source,
+                out var contentTypeAlias))
+        {
+            var type = await contentTypeService.GetByAliasAsync(
+                siteContext.SiteId,
+                contentTypeAlias,
+                ct);
+            if (type is not Result<ContentTypeDefinition, AeroError>.Ok
+                {
+                    Value: { AllowPublicUrl: true }
+                })
+            {
+                return TypedResults.NotFound();
+            }
+
+            var boundedTake = Math.Clamp(take, 1, 100);
+            var searchResult = await queryService.SearchIndexAsync(
+                new ContentSearchRequest(
+                    siteContext.SiteId,
+                    contentTypeAlias,
+                    search?.Trim() ?? string.Empty,
+                    string.IsNullOrWhiteSpace(culture)
+                        ? null
+                        : culture.Trim(),
+                    ContentSearchMode.FullText,
+                    PublishedOnly: false,
+                    Skip: 0,
+                    Take: boundedTake,
+                    ExactFilters: new Dictionary<string, string>(
+                        StringComparer.Ordinal)),
+                ct);
+            return searchResult switch
+            {
+                Result<ContentSearchResult>.Ok ok =>
+                    TypedResults.Ok<IReadOnlyList<CmsContentReferenceOption>>(
+                        ok.Value.Items
+                            .Select(item => new CmsContentReferenceOption(
+                                item.Id.ToString(CultureInfo.InvariantCulture),
+                                item.Title ?? item.Slug,
+                                item.Slug,
+                                item.Culture))
+                            .ToArray()),
+                Result<ContentSearchResult>.Failure failure =>
+                    TypedResults.Problem(failure.Error.ToString()),
+                _ => TypedResults.Problem(
+                    "The content-entry page options could not be loaded.")
+            };
+        }
+
+        var provider = providers.FirstOrDefault(candidate => string.Equals(
+            candidate.SourceKey,
+            source,
+            StringComparison.OrdinalIgnoreCase));
+        if (provider is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var result = await provider.SearchAsync(
+            siteContext.SiteId,
+            culture,
+            search,
+            Math.Clamp(take, 1, 100),
+            ct);
+        return result switch
+        {
+            Result<IReadOnlyList<CmsContentReferenceOption>>.Ok ok =>
+                TypedResults.Ok(ok.Value),
+            Result<IReadOnlyList<CmsContentReferenceOption>>.Failure failure =>
+                TypedResults.Problem(failure.Error.ToString()),
+            _ => TypedResults.Problem("The reference options could not be loaded.")
+        };
     }
 
     /// <summary>

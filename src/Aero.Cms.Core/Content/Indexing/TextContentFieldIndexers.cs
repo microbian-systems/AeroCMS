@@ -60,9 +60,13 @@ public sealed class RichTextFieldIndexer : IContentFieldIndexer
 }
 
 /// <summary>
-/// Emits scalar and array reference values as search tokens.
+/// Emits scalar, array, and typed CMS reference values as search tokens.
 /// </summary>
-/// <remarks>Non-string members and other JSON values emit no tokens.</remarks>
+/// <remarks>
+/// Typed CMS references use a source-qualified token such as
+/// <c>pages:1530221140281556994</c> so identifiers from different source
+/// collections cannot collide.
+/// </remarks>
 public sealed class ReferenceFieldIndexer : IContentFieldIndexer
 {
     /// <inheritdoc />
@@ -77,6 +81,25 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
             yield break;
         }
 
+        if (value.ValueKind == JsonValueKind.Object
+            && IsCmsDocumentReference(field)
+            && value.TryGetProperty("source", out var sourceElement)
+            && sourceElement.ValueKind == JsonValueKind.String
+            && value.TryGetProperty("id", out var idElement)
+            && idElement.ValueKind == JsonValueKind.String
+            && long.TryParse(
+                idElement.GetString(),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var id)
+            && id > 0)
+        {
+            var source = sourceElement.GetString()?.Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(source))
+                yield return $"{source}:{id.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            yield break;
+        }
+
         if (value.ValueKind != JsonValueKind.Array)
             yield break;
 
@@ -86,6 +109,16 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
                 yield return reference.GetString() ?? string.Empty;
         }
     }
+
+    private static bool IsCmsDocumentReference(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(
+            ReferenceContentFieldSettings.TargetKind,
+            out var targetKind)
+        && targetKind.ValueKind == JsonValueKind.String
+        && string.Equals(
+            targetKind.GetString(),
+            ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
 }
 
 /// <summary>

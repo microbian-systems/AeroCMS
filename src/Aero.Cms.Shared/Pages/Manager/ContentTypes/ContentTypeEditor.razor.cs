@@ -23,6 +23,7 @@ public partial class ContentTypeEditor
 {
     private const int MaximumHierarchyDepthLimit = 32;
     private const string HierarchyReferenceFieldOption = "hierarchy-reference";
+    private const string CmsReferenceFieldOption = "cms-reference";
     private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
         Enum.GetValues<AeroAiFieldExposure>();
 
@@ -50,8 +51,9 @@ public partial class ContentTypeEditor
         new("boolean", L["Yes/No"], "toggle_on", L["A simple on/off choice."]),
         new("url", L["Link"], "link", L["Website or call-to-action URL."]),
         new("date", L["Date"], "event", L["Dates and milestones."]),
-        new("reference", L["Reference"], "account_tree", L["Link to another content entry."]),
-        new(HierarchyReferenceFieldOption, L["Hierarchy reference"], "family_history", L["Choose an entry from a hierarchy with its full path."]),
+        new("reference", L["Related content"], "account_tree", L["Relate this item to an entry from another content type."]),
+        new(HierarchyReferenceFieldOption, L["Hierarchy entry"], "family_history", L["Choose an entry from a hierarchy with its full path."]),
+        new(CmsReferenceFieldOption, L["Site content"], "article", L["Choose an existing page, post, doc, or public content entry."]),
         new(ContentFieldTypes.Dictionary, L["Key/value"], "data_object", L["Add a small set of labeled values."])
     ];
 
@@ -202,7 +204,7 @@ protected override async Task OnInitializedAsync()
         var option = GetFieldOption(fieldType);
         var baseLabel = option.Label == "Short text" ? "Title" : option.Label;
         var handle = CreateUniqueFieldName(GenerateHandle(baseLabel));
-        var storedFieldType = fieldType == HierarchyReferenceFieldOption
+        var storedFieldType = fieldType is HierarchyReferenceFieldOption or CmsReferenceFieldOption
             ? ContentFieldTypes.Reference
             : fieldType;
 
@@ -225,6 +227,16 @@ protected override async Task OnInitializedAsync()
                 ReferenceContentFieldSettings.SelectionModeHierarchy);
             SetSetting(field, ReferenceContentFieldSettings.SelectLeafOnly, true);
             SetSetting(field, ReferenceContentFieldSettings.ShowAncestors, true);
+        }
+        else if (fieldType == CmsReferenceFieldOption)
+        {
+            SetSetting(
+                field,
+                ReferenceContentFieldSettings.TargetKind,
+                ReferenceContentFieldSettings.TargetKindCmsDocument);
+            field.Settings[ReferenceContentFieldSettings.AllowedSources] =
+                JsonSerializer.SerializeToElement(
+                    CmsContentReferenceSources.All.ToArray());
         }
         else if (fieldType == ContentFieldTypes.List)
         {
@@ -256,6 +268,55 @@ protected override async Task OnInitializedAsync()
 
     private void SelectField(int index)
     {
+        _selectedFieldIndex = index;
+    }
+
+    private void OnSelectedFieldChanged(ContentFieldDefinition field)
+    {
+        field.Name = CreateUniqueFieldName(
+            GenerateHandle(field.Name),
+            field);
+    }
+
+    private async Task OpenFieldSettingsDialogAsync(int index)
+    {
+        if (index < 0 || index >= Fields.Count)
+        {
+            return;
+        }
+
+        var clone = CloneField(Fields[index]);
+        var ownerFields = Fields
+            .Select((field, fieldIndex) => fieldIndex == index ? clone : field)
+            .ToList();
+        var option = GetFieldOption(clone);
+        var result = await DialogService.OpenAsync<ContentFieldSettingsDialog>(
+            L["Edit {0}", FieldLabel(clone)],
+            new Dictionary<string, object?>
+            {
+                [nameof(ContentFieldSettingsDialog.Field)] = clone,
+                [nameof(ContentFieldSettingsDialog.OwnerFields)] = ownerFields,
+                [nameof(ContentFieldSettingsDialog.ContentTypes)] = _availableParentContentTypes,
+                [nameof(ContentFieldSettingsDialog.CurrentContentTypeAlias)] = AliasValue,
+                [nameof(ContentFieldSettingsDialog.FieldTypeLabel)] = option.Label
+            },
+            new DialogOptions
+            {
+                Width = "740px",
+                Resizable = true,
+                Draggable = false,
+                CloseDialogOnOverlayClick = false
+            });
+
+        if (result is not ContentFieldDefinition updated)
+        {
+            return;
+        }
+
+        updated.Name = CreateUniqueFieldName(
+            GenerateHandle(updated.Name),
+            Fields[index]);
+        Fields[index] = updated;
         _selectedFieldIndex = index;
     }
 
@@ -316,9 +377,17 @@ protected override async Task OnInitializedAsync()
             ?? FieldOptions[0];
 
     private FieldTypeOption GetFieldOption(ContentFieldDefinition field) =>
-        IsHierarchyReference(field)
-            ? GetFieldOption(HierarchyReferenceFieldOption)
-            : GetFieldOption(field.FieldType);
+        IsCmsDocumentReference(field)
+            ? GetFieldOption(CmsReferenceFieldOption)
+            : IsHierarchyReference(field)
+                ? GetFieldOption(HierarchyReferenceFieldOption)
+                : GetFieldOption(field.FieldType);
+
+    private static bool IsCmsDocumentReference(ContentFieldDefinition field) =>
+        string.Equals(
+            GetSettingString(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
 
     private static string FieldLabel(ContentFieldDefinition field)
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
@@ -703,7 +772,7 @@ protected override async Task OnInitializedAsync()
 
             if (result is Result<ContentTypeDetail, AeroError>.Failure failure)
             {
-                Notify(NotificationSeverity.Error, "Save failed", failure.Error.ToString());
+                Notify(NotificationSeverity.Error, "Save failed", FormatError(failure.Error));
                 return;
             }
 
@@ -824,6 +893,59 @@ protected override async Task OnInitializedAsync()
         }
 
         foreach (var field in Fields.Where(
+                     field => field.FieldType == ContentFieldTypes.Reference))
+        {
+            if (IsCmsDocumentReference(field))
+            {
+                if (!field.Settings.TryGetValue(
+                        ReferenceContentFieldSettings.AllowedSources,
+                        out var allowedSources)
+                    || allowedSources.ValueKind != JsonValueKind.Array
+                    || allowedSources.GetArrayLength() == 0)
+                {
+                    Notify(
+                        NotificationSeverity.Warning,
+                        "Missing content source",
+                        $"Choose at least one site content source for {FieldLabel(field)}.");
+                    _activeTab = EditorTab.Fields;
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    GetSettingString(
+                        field,
+                        ReferenceContentFieldSettings.TargetContentType)))
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Missing content type",
+                    $"Choose the content type linked by {FieldLabel(field)}.");
+                _activeTab = EditorTab.Fields;
+                return false;
+            }
+
+            var dependsOn = GetSettingString(
+                field,
+                ReferenceContentFieldSettings.DependsOnField);
+            var targetFilter = GetSettingString(
+                field,
+                ReferenceContentFieldSettings.TargetFilterField);
+            if (string.IsNullOrWhiteSpace(dependsOn)
+                != string.IsNullOrWhiteSpace(targetFilter))
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Incomplete cascading reference",
+                    $"Choose both the dependent field and target relationship field for {FieldLabel(field)}, or clear both.");
+                _activeTab = EditorTab.Fields;
+                return false;
+            }
+        }
+
+        foreach (var field in Fields.Where(
                      field => field.FieldType == ContentFieldTypes.Range))
         {
             var start = GetIntSetting(field, RangeContentFieldSettings.Start);
@@ -864,6 +986,18 @@ protected override async Task OnInitializedAsync()
 
         return true;
     }
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        AeroError.Error value => value.msg,
+        AeroError.NotFound value => value.msg,
+        AeroError.Conflict value => value.msg,
+        AeroError.BadRequest value => value.msg,
+        AeroError.InvalidRequest value => value.msg,
+        AeroError.HttpRequest value => value.msg ?? "The request failed.",
+        _ => error.ToString()
+    };
 
     private void Cancel()
         => Navigation.NavigateTo("/manager/content-types");

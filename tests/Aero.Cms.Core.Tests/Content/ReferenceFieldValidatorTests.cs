@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Core.Content.Services;
 
 namespace Aero.Cms.Core.Tests.Content;
@@ -63,6 +64,108 @@ public sealed class ReferenceFieldValidatorTests
         await Assert.That(result.IsValid).IsFalse();
         await Assert.That(result.Errors.Select(error => error.ErrorMessage)).Contains("Related is required.");
     }
+
+    [Test]
+    public async Task Cms_document_reference_accepts_a_typed_page_selection()
+    {
+        var result = Validate(
+            CmsDocumentReference(),
+            JsonSerializer.SerializeToElement(
+                new CmsContentReferenceValue(
+                    CmsContentReferenceSources.Pages,
+                    "1530221140281556994"),
+                ContentJsonContext.Default.CmsContentReferenceValue),
+            ContentValidationMode.Publish);
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task Cms_document_reference_rejects_a_source_outside_its_allow_list()
+    {
+        var field = CmsDocumentReference();
+        field.Settings[ReferenceContentFieldSettings.AllowedSources] =
+            JsonSerializer.SerializeToElement(
+                new[] { CmsContentReferenceSources.Pages });
+
+        var result = Validate(
+            field,
+            JsonSerializer.SerializeToElement(
+                new CmsContentReferenceValue(
+                    CmsContentReferenceSources.Posts,
+                    "1530221140281556994"),
+                ContentJsonContext.Default.CmsContentReferenceValue),
+            ContentValidationMode.Publish);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Errors.Select(error => error.ErrorMessage))
+            .Contains("Related content uses an unsupported content source.");
+    }
+
+    [Test]
+    public async Task Cms_document_reference_accepts_a_public_content_entry_source()
+    {
+        var result = Validate(
+            CmsDocumentReference(),
+            JsonSerializer.SerializeToElement(
+                new CmsContentReferenceValue(
+                    CmsContentReferenceSources.ForContentType("species"),
+                    "1530221140281556994"),
+                ContentJsonContext.Default.CmsContentReferenceValue),
+            ContentValidationMode.Publish);
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task Cms_document_reference_rejects_a_public_content_entry_when_not_allowed()
+    {
+        var field = CmsDocumentReference();
+        field.Settings[ReferenceContentFieldSettings.AllowedSources] =
+            JsonSerializer.SerializeToElement(
+                new[] { CmsContentReferenceSources.Pages });
+
+        var result = Validate(
+            field,
+            JsonSerializer.SerializeToElement(
+                new CmsContentReferenceValue(
+                    CmsContentReferenceSources.ForContentType("species"),
+                    "1530221140281556994"),
+                ContentJsonContext.Default.CmsContentReferenceValue),
+            ContentValidationMode.Publish);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Errors.Select(error => error.ErrorMessage))
+            .Contains("Related content uses an unsupported content source.");
+    }
+
+    [Test]
+    public async Task Optional_cms_document_reference_accepts_a_null_selection()
+    {
+        var result = Validate(
+            CmsDocumentReference(),
+            JsonSerializer.SerializeToElement<object?>(null),
+            ContentValidationMode.Publish);
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    private static ContentFieldDefinition CmsDocumentReference() =>
+        new()
+        {
+            Name = "related-content",
+            Label = "Related content",
+            FieldType = ContentFieldTypes.Reference,
+            Settings = new Dictionary<string, JsonElement>
+            {
+                [ReferenceContentFieldSettings.TargetKind] =
+                    JsonSerializer.SerializeToElement(
+                        ReferenceContentFieldSettings.TargetKindCmsDocument),
+                [ReferenceContentFieldSettings.AllowedSources] =
+                    JsonSerializer.SerializeToElement(
+                        CmsContentReferenceSources.All.ToArray())
+            }
+        };
 
     private static FluentValidation.Results.ValidationResult Validate(
         ContentFieldDefinition field,
