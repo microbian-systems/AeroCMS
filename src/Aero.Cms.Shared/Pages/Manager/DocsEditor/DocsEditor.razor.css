@@ -1,0 +1,71 @@
+.pe-doc-markdown-editor {
+    min-height: 620px;
+    padding: 20px;
+    background: var(--pe-bg-primary);
+}
+
+.pe-doc-inspector-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: var(--pe-bg-primary);
+}
+
+.pe-doc-inspector-tabs button {
+    min-width: 0;
+    border: 0;
+    border-radius: var(--pe-radius-sm);
+    background: transparent;
+    color: var(--pe-text-muted);
+    cursor: pointer;
+    padding: 8px 5px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pe-doc-inspector-tabs button:hover,
+.pe-doc-inspector-tabs button.active {
+    background: var(--pe-bg-tertiary);
+    color: var(--pe-text-primary);
+}
+
+.pe-doc-inspector-tabs button.active {
+    box-shadow: inset 0 -2px 0 var(--pe-primary);
+}
+
+.pe-doc-inspector-stack,
+.pe-doc-translation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pe-doc-inspector-help {
+    margin: 6px 0 0;
+    color: var(--pe-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.pe-doc-translation-set {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    background: var(--pe-bg-primary);
+    color: var(--pe-text-muted);
+    padding: 5px 8px;
+    font-size: 11px;
+    text-overflow: ellipsis;
+}
+
+.pe-doc-translation-list button {
+    justify-content: flex-start;
+    width: 100%;
+    white-space: normal;
+    text-align: left;
+}

@@ -1,33 +1,40 @@
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Posts;
+using Aero.Cms.Modules.Posts.Models;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
-using FluentAssertions;
-using Marten;
+using AeroDB.Sable;
 using NSubstitute;
-using TUnit.Core;
+using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Services;
 
 public sealed class BlogPostContentServiceTests
 {
+    private SableTestHarness _harness = null!;
     private IDocumentSession _session = null!;
     private ISiteContext _siteContext = null!;
-    private MartenBlogPostContentService _service = null!;
+    private PostContentService _service = null!;
 
     [Before(Test)]
     public async Task Setup()
     {
-        _session = Substitute.For<IDocumentSession>();
-        _siteContext = Substitute.For<ISiteContext>();
+        _harness = new SableTestHarness()
+            .WithSchema<PostDocument>()
+            .WithSchema<ContentSlugDocument>()
+            .WithSchema<Tag>()
+            .WithSchema<Category>()
+            .WithSchema<Series>();
+        await _harness.InitializeAsync();
+        _session = _harness.Session;
 
+        _siteContext = Substitute.For<ISiteContext>();
         _siteContext.SiteId.Returns(42);
 
-        // Configure SaveChangesAsync to succeed (it's called at the end of SaveAsync / DeleteAsync)
-        _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
-
-        _service = new MartenBlogPostContentService(
+        _service = new PostContentService(
             _session,
             _siteContext
         );
@@ -36,7 +43,7 @@ public sealed class BlogPostContentServiceTests
     [After(Test)]
     public async Task TearDown()
     {
-        // No-op cleanup
+        await _harness.DisposeAsync();
     }
 
     // -----------------------------------------------------------------------
@@ -45,24 +52,52 @@ public sealed class BlogPostContentServiceTests
     [Test]
     public async Task SaveAsync_StampsSiteId_FromContext()
     {
-        var session = Substitute.For<IDocumentSession>();
-        session.LoadAsync<BlogPostDocument>(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns((BlogPostDocument?)null);
-
-        var post = new BlogPostDocument { Id = Snowflake.NewId(), Title = "Test Blog Post", Slug = "test-blog-post" };
-        var service = new MartenBlogPostContentService(session, CreateSiteContext(42));
-
-        var result = await service.SaveAsync(post, CancellationToken.None);
-
-        // SiteId should be stamped regardless of whether the slug query succeeds on the mock
-        if (result.IsFailure)
+        var post = new PostDocument
         {
-            await Assert.That(post.SiteId).IsEqualTo(42);
-        }
-        else
+            Id = Snowflake.NewId(),
+            Title = "Test Blog Post",
+            Slug = "test-blog-post"
+        };
+
+        var result = await _service.SaveAsync(post, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+
+        // The SaveAsync stamps SiteId on the post object itself before persisting.
+        // Verify the stamped value is correct.
+        post.SiteId.ShouldBe(42);
+    }
+
+    [Test]
+    public async Task FindBySlugAsync_RoundTripsMarkdownContent_InFreshSession()
+    {
+        var post = new PostDocument
         {
-            session.Received(1).Store(Arg.Is<BlogPostDocument>(p => p.SiteId == 42));
-        }
+            Id = Snowflake.NewId(),
+            Title = "Post with body",
+            Slug = "post-with-body",
+            MarkdownContent = "# Persisted body",
+            PublicationState = ContentPublicationState.Published
+        };
+
+        var saveResult = await _service.SaveAsync(post, CancellationToken.None);
+        saveResult.IsSuccess.ShouldBeTrue();
+
+        await using var readSession = await _harness.OpenSessionAsync(
+            new SessionOptions { Tracking = DocumentTracking.None });
+        var readService = new PostContentService(readSession, _siteContext);
+
+        var result = await readService.FindBySlugAsync(
+            post.Slug,
+            post.Culture,
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var loaded = result is Result<PostDocument?, AeroError>.Ok ok
+            ? ok.Value
+            : null;
+        loaded.ShouldNotBeNull();
+        loaded.MarkdownContent.ShouldBe(post.MarkdownContent);
     }
 
     // -----------------------------------------------------------------------
@@ -71,31 +106,24 @@ public sealed class BlogPostContentServiceTests
     [Test]
     public async Task DeleteAsync_OwnSite_Succeeds()
     {
-        // Arrange
-        const long postId = 100;
-        var existingPost = new BlogPostDocument
+        var postId = Snowflake.NewId();
+
+        // Seed the post by using SaveAsync (which creates the document via the service)
+        var seedPost = new PostDocument
         {
             Id = postId,
             Title = "Own Blog Post",
             Slug = "own-blog-post",
             SiteId = 42 // matches context
         };
-
-        _session.LoadAsync<BlogPostDocument>(postId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<BlogPostDocument?>(existingPost));
+        var saveResult = await _service.SaveAsync(seedPost, CancellationToken.None);
+        saveResult.IsSuccess.ShouldBeTrue();
 
         // Act
         var result = await _service.DeleteAsync(postId, CancellationToken.None);
 
-        // Assert — if the slug-reservation query can't be fully mocked, Delete
-        // may not be called.  The ownership guard *did* succeed (SameSite).
-        // We verify that the method returned either success or failure.
-        existingPost.SiteId.Should().Be(42, "loaded post should have matching SiteId");
-        if (result.IsSuccess)
-        {
-            _session.Received(1).Delete<BlogPostDocument>(postId);
-        }
-        // else: ReserveAsync exception caught — ownership check passed nonetheless
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
     }
 
     // -----------------------------------------------------------------------
@@ -104,32 +132,317 @@ public sealed class BlogPostContentServiceTests
     [Test]
     public async Task DeleteAsync_CrossSite_Rejected()
     {
-        // Arrange
-        const long postId = 200;
-        var existingPost = new BlogPostDocument
+        var postId = Snowflake.NewId();
+
+        // Use a separate context for seeding so the post is created with SiteId=99
+        var otherSiteCtx = Substitute.For<ISiteContext>();
+        otherSiteCtx.SiteId.Returns(99);
+
+        var otherService = new PostContentService(_session, otherSiteCtx);
+
+        var seedPost = new PostDocument
         {
             Id = postId,
             Title = "Other Site Blog Post",
-            Slug = "other-blog-post",
-            SiteId = 99 // different site
+            Slug = "other-blog-post"
         };
+        var saveResult = await otherService.SaveAsync(seedPost, CancellationToken.None);
+        saveResult.IsSuccess.ShouldBeTrue();
 
-        _session.LoadAsync<BlogPostDocument>(postId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<BlogPostDocument?>(existingPost));
-
-        // Act
+        // Act — _service has SiteId=42, the post has SiteId=99
         var result = await _service.DeleteAsync(postId, CancellationToken.None);
 
         // Assert
-        _session.DidNotReceive().Delete<BlogPostDocument>(Arg.Any<long>());
-        result.IsFailure.Should().BeTrue();
+        result.IsFailure.ShouldBeTrue();
     }
 
-    private static ISiteContext CreateSiteContext(long siteId)
+    [Test]
+    public async Task SaveAsync_ExplicitForeignSite_IsRejected()
     {
-        var ctx = Substitute.For<ISiteContext>();
-        ctx.SiteId.Returns(siteId);
-        ctx.TenantId.Returns(siteId * 10);
-        return ctx;
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Foreign",
+            Slug = "foreign"
+        };
+
+        var result = await _service.SaveAsync(post, CancellationToken.None);
+
+        result.IsFailure.ShouldBeTrue();
+        var persisted = await _session.LoadAsync<PostDocument>(post.Id);
+        persisted.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsSuppliedMismatch()
+    {
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 99,
+            Title = "Foreign",
+            Slug = "foreign-explicit"
+        };
+
+        var result = await _service.SaveAsync(post, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PostDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        (await _session.LoadAsync<PostDocument>(post.Id)).ShouldBeNull();
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_RejectsPersistedForeignPost()
+    {
+        var postId = Snowflake.NewId();
+        _session.Store(new PostDocument
+        {
+            Id = postId,
+            SiteId = 99,
+            Title = "Foreign original",
+            Slug = "foreign-original-explicit"
+        });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new PostDocument
+        {
+            Id = postId,
+            SiteId = 42,
+            Title = "Attempted overwrite",
+            Slug = "attempted-overwrite-explicit"
+        }, authorizedSiteId: 42, CancellationToken.None);
+
+        result.ShouldBeOfType<Result<PostDocument, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
+        var persisted = await _session.LoadAsync<PostDocument>(postId);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(99);
+        persisted.Title.ShouldBe("Foreign original");
+    }
+
+    [Test]
+    public async Task SaveAsync_ExplicitAuthorizedSite_ValidatesSameSiteTaxonomyWithoutAmbientSite()
+    {
+        const long authorizedSiteId = 77;
+        var seriesId = Snowflake.NewId();
+        var tagId = Snowflake.NewId();
+        var categoryId = Snowflake.NewId();
+        _session.Store(new Series { Id = seriesId, SiteId = authorizedSiteId, Name = "Series", Slug = "series" });
+        _session.Store(new Tag { Id = tagId, SiteId = authorizedSiteId, Name = "Tag", Slug = "tag" });
+        _session.Store(new Category { Id = categoryId, SiteId = authorizedSiteId, Name = "Category", Slug = "category" });
+        await _session.SaveChangesAsync();
+
+        var contextWithoutSite = Substitute.For<ISiteContext>();
+        contextWithoutSite.SiteId.Returns(0);
+        var service = new PostContentService(_session, contextWithoutSite);
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            Title = "Setup post",
+            Slug = "setup-post",
+            SeriesId = seriesId,
+            TagIds = [tagId],
+            CategoryIds = [categoryId]
+        };
+
+        var result = await service.SaveAsync(post, authorizedSiteId, CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        post.SiteId.ShouldBe(authorizedSiteId);
+        var persisted = await _session.LoadAsync<PostDocument>(post.Id);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(authorizedSiteId);
+        persisted.SeriesId.ShouldBe(seriesId);
+        persisted.TagIds.ShouldBe([tagId]);
+        persisted.CategoryIds.ShouldBe([categoryId]);
+    }
+
+    [Test]
+    public async Task SaveAsync_ExistingForeignPost_IsRejectedWithoutMutation()
+    {
+        var postId = Snowflake.NewId();
+        _session.Store(new PostDocument
+        {
+            Id = postId,
+            SiteId = 99,
+            Title = "Foreign original",
+            Slug = "foreign-original"
+        });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new PostDocument
+        {
+            Id = postId,
+            SiteId = 42,
+            Title = "Attempted overwrite",
+            Slug = "attempted-overwrite"
+        });
+
+        result.IsFailure.ShouldBeTrue();
+        await using var readSession = await _harness.OpenSessionAsync(
+            new SessionOptions { Tracking = DocumentTracking.None });
+        var persisted = await readSession.LoadAsync<PostDocument>(postId);
+        persisted.ShouldNotBeNull();
+        persisted.SiteId.ShouldBe(99);
+        persisted.Title.ShouldBe("Foreign original");
+    }
+
+    [Test]
+    public async Task SaveAsync_ForeignTaxonomyReferences_AreRejected()
+    {
+        var seriesId = Snowflake.NewId();
+        var tagId = Snowflake.NewId();
+        var categoryId = Snowflake.NewId();
+        _session.Store(new Series { Id = seriesId, SiteId = 99, Name = "Other", Slug = "other" });
+        _session.Store(new Tag { Id = tagId, SiteId = 99, Name = "Other", Slug = "other" });
+        _session.Store(new Category { Id = categoryId, SiteId = 99, Name = "Other", Slug = "other" });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SaveAsync(new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 42,
+            Title = "Cross-site relationships",
+            Slug = "cross-site-relationships",
+            SeriesId = seriesId,
+            TagIds = [tagId],
+            CategoryIds = [categoryId]
+        });
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task SetTranslationGroupPublicationStateAsync_UpdatesOnlyCurrentSite()
+    {
+        var groupId = Snowflake.NewId();
+        var ownId = Snowflake.NewId();
+        var foreignId = Snowflake.NewId();
+        _session.Store(new PostDocument
+        {
+            Id = ownId,
+            SiteId = 42,
+            TranslationGroupId = groupId,
+            Title = "Own",
+            Slug = "own",
+            PublicationState = ContentPublicationState.Draft
+        });
+        _session.Store(new PostDocument
+        {
+            Id = foreignId,
+            SiteId = 99,
+            TranslationGroupId = groupId,
+            Title = "Foreign",
+            Slug = "foreign",
+            PublicationState = ContentPublicationState.Draft
+        });
+        await _session.SaveChangesAsync();
+
+        var result = await _service.SetTranslationGroupPublicationStateAsync(
+            groupId,
+            ContentPublicationState.Published);
+
+        result.IsSuccess.ShouldBeTrue();
+        await using var readSession = await _harness.OpenSessionAsync(
+            new SessionOptions { Tracking = DocumentTracking.None });
+        var own = await readSession.LoadAsync<PostDocument>(ownId);
+        var foreign = await readSession.LoadAsync<PostDocument>(foreignId);
+        own!.PublicationState.ShouldBe(ContentPublicationState.Published);
+        foreign!.PublicationState.ShouldBe(ContentPublicationState.Draft);
+    }
+
+    [Test]
+    public async Task DeleteTranslationGroupAsync_DeletesOnlyCurrentSiteVariantsAndReservations()
+    {
+        var groupId = Snowflake.NewId();
+        var foreignOnlyGroupId = Snowflake.NewId();
+        var ownVariantIds = new[] { Snowflake.NewId(), Snowflake.NewId() };
+        var foreignSameGroupId = Snowflake.NewId();
+        var foreignOnlyId = Snowflake.NewId();
+
+        foreach (var (id, slug) in ownVariantIds.Zip(new[] { "own-en", "own-fr" }))
+        {
+            _session.Store(new PostDocument
+            {
+                Id = id,
+                SiteId = 42,
+                TranslationGroupId = groupId,
+                Title = slug,
+                Slug = slug
+            });
+            _session.Store(ContentSlugDocument.Create(
+                slug,
+                id,
+                ContentSlugOwnerType.BlogPost,
+                siteId: 42));
+        }
+
+        _session.Store(new PostDocument
+        {
+            Id = foreignSameGroupId,
+            SiteId = 99,
+            TranslationGroupId = groupId,
+            Title = "Foreign same group",
+            Slug = "foreign-same-group"
+        });
+        var foreignSameGroupReservation = ContentSlugDocument.Create(
+            "foreign-same-group",
+            foreignSameGroupId,
+            ContentSlugOwnerType.BlogPost,
+            siteId: 99);
+        _session.Store(foreignSameGroupReservation);
+
+        _session.Store(new PostDocument
+        {
+            Id = foreignOnlyId,
+            SiteId = 99,
+            TranslationGroupId = foreignOnlyGroupId,
+            Title = "Foreign only",
+            Slug = "foreign-only"
+        });
+        var foreignOnlyReservation = ContentSlugDocument.Create(
+            "foreign-only",
+            foreignOnlyId,
+            ContentSlugOwnerType.BlogPost,
+            siteId: 99);
+        _session.Store(foreignOnlyReservation);
+        await _session.SaveChangesAsync();
+
+        await using (var deleteSession = await _harness.OpenSessionAsync())
+        {
+            var deleteService = new PostContentService(deleteSession, _siteContext);
+            var result = await deleteService.DeleteTranslationGroupAsync(groupId);
+
+            result.ShouldBeOfType<Result<int, AeroError>.Ok>().Value.ShouldBe(2);
+        }
+
+        await using (var verificationSession = await _harness.OpenSessionAsync(
+                         new SessionOptions { Tracking = DocumentTracking.None }))
+        {
+            foreach (var ownVariantId in ownVariantIds)
+            {
+                (await verificationSession.LoadAsync<PostDocument>(ownVariantId)).ShouldBeNull();
+                var ownReservations = await verificationSession.Query<ContentSlugDocument>()
+                    .Where(x =>
+                        x.SiteId == 42
+                        && x.OwnerId == ownVariantId
+                        && x.OwnerType == ContentSlugOwnerType.BlogPost)
+                    .ToListAsync();
+                ownReservations.ShouldBeEmpty();
+            }
+
+            (await verificationSession.LoadAsync<PostDocument>(foreignSameGroupId)).ShouldNotBeNull();
+            (await verificationSession.LoadAsync<ContentSlugDocument>(foreignSameGroupReservation.Id)).ShouldNotBeNull();
+            (await verificationSession.LoadAsync<PostDocument>(foreignOnlyId)).ShouldNotBeNull();
+            (await verificationSession.LoadAsync<ContentSlugDocument>(foreignOnlyReservation.Id)).ShouldNotBeNull();
+        }
+
+        await using var foreignOnlyDeleteSession = await _harness.OpenSessionAsync();
+        var foreignOnlyDeleteService = new PostContentService(foreignOnlyDeleteSession, _siteContext);
+        var foreignOnlyResult = await foreignOnlyDeleteService.DeleteTranslationGroupAsync(foreignOnlyGroupId);
+
+        foreignOnlyResult.ShouldBeOfType<Result<int, AeroError>.Failure>()
+            .Error.ShouldBeOfType<AeroError.NotFound>();
     }
 }

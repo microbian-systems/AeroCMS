@@ -1,0 +1,63 @@
+@using Aero.Cms.Abstractions.Theming
+
+<section class="token-editor" aria-label="Theme tokens">
+    <div class="token-editor__mode" role="group" aria-label="Color mode">
+        <button type="button" aria-pressed="@(Mode == ThemeDefaultMode.Light)" class="@(Mode == ThemeDefaultMode.Light ? "active" : null)" @onclick="SelectLightAsync">
+            <span class="rzi rzi-light-mode" aria-hidden="true"></span> Light
+        </button>
+        <button type="button" aria-pressed="@(Mode == ThemeDefaultMode.Dark)" class="@(Mode == ThemeDefaultMode.Dark ? "active" : null)" @onclick="SelectDarkAsync">
+            <span class="rzi rzi-dark-mode" aria-hidden="true"></span> Dark
+        </button>
+        <label class="token-editor__default-mode">
+            <span>Published default</span>
+            <select value="@DefaultMode" @onchange="ChangeDefaultModeAsync" aria-label="Published default color mode">
+                <option value="@ThemeDefaultMode.Light">Light</option>
+                <option value="@ThemeDefaultMode.Dark">Dark</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="token-editor__section">
+        <div class="section-heading">
+            <div><span class="eyebrow">Palette</span><h2>@Mode colors</h2></div>
+            <span class="section-note">Surface + readable content</span>
+        </div>
+        <div class="pair-list">
+            <ThemeColorPairEditor Label="Base" Background="@Colors.Base100" Foreground="@Colors.BaseContent" BackgroundChanged="@(value => ChangeColorAsync("Base100", value))" ForegroundChanged="@(value => ChangeColorAsync("BaseContent", value))" />
+            <div class="base-steps">
+                <ThemeColorPairEditor Label="Base step 2" Background="@Colors.Base200" Foreground="@Colors.BaseContent" BackgroundChanged="@(value => ChangeColorAsync("Base200", value))" ForegroundChanged="@(value => ChangeColorAsync("BaseContent", value))" />
+                <ThemeColorPairEditor Label="Base step 3" Background="@Colors.Base300" Foreground="@Colors.BaseContent" BackgroundChanged="@(value => ChangeColorAsync("Base300", value))" ForegroundChanged="@(value => ChangeColorAsync("BaseContent", value))" />
+            </div>
+            <ThemeColorPairEditor Label="Primary" Background="@Colors.Primary" Foreground="@Colors.PrimaryContent" BackgroundChanged="@(value => ChangeColorAsync("Primary", value))" ForegroundChanged="@(value => ChangeColorAsync("PrimaryContent", value))" />
+            <ThemeColorPairEditor Label="Secondary" Background="@Colors.Secondary" Foreground="@Colors.SecondaryContent" BackgroundChanged="@(value => ChangeColorAsync("Secondary", value))" ForegroundChanged="@(value => ChangeColorAsync("SecondaryContent", value))" />
+            <ThemeColorPairEditor Label="Accent" Background="@Colors.Accent" Foreground="@Colors.AccentContent" BackgroundChanged="@(value => ChangeColorAsync("Accent", value))" ForegroundChanged="@(value => ChangeColorAsync("AccentContent", value))" />
+            <ThemeColorPairEditor Label="Neutral" Background="@Colors.Neutral" Foreground="@Colors.NeutralContent" BackgroundChanged="@(value => ChangeColorAsync("Neutral", value))" ForegroundChanged="@(value => ChangeColorAsync("NeutralContent", value))" />
+        </div>
+    </div>
+
+    <details class="token-editor__section" open>
+        <summary><span><span class="eyebrow">Feedback</span><strong>Semantic colors</strong></span><span class="rzi rzi-expand-more" aria-hidden="true"></span></summary>
+        <div class="pair-list pair-list--details">
+            <ThemeColorPairEditor Label="Info" Background="@Colors.Info" Foreground="@Colors.InfoContent" BackgroundChanged="@(value => ChangeColorAsync("Info", value))" ForegroundChanged="@(value => ChangeColorAsync("InfoContent", value))" />
+            <ThemeColorPairEditor Label="Success" Background="@Colors.Success" Foreground="@Colors.SuccessContent" BackgroundChanged="@(value => ChangeColorAsync("Success", value))" ForegroundChanged="@(value => ChangeColorAsync("SuccessContent", value))" />
+            <ThemeColorPairEditor Label="Warning" Background="@Colors.Warning" Foreground="@Colors.WarningContent" BackgroundChanged="@(value => ChangeColorAsync("Warning", value))" ForegroundChanged="@(value => ChangeColorAsync("WarningContent", value))" />
+            <ThemeColorPairEditor Label="Error" Background="@Colors.Error" Foreground="@Colors.ErrorContent" BackgroundChanged="@(value => ChangeColorAsync("Error", value))" ForegroundChanged="@(value => ChangeColorAsync("ErrorContent", value))" />
+        </div>
+    </details>
+
+    <details class="token-editor__section" open>
+        <summary><span><span class="eyebrow">Shape</span><strong>Radius, size &amp; finish</strong></span><span class="rzi rzi-expand-more" aria-hidden="true"></span></summary>
+        <div class="shape-grid">
+            @foreach (var control in ShapeControls)
+            {
+                <label>
+                    <span>@control.Label</span>
+                    <div><input type="range" min="0" max="@control.Maximum" step="@control.Step" value="@control.Value" @oninput="args => ChangeShapeAsync(control.Token, args)" />
+                    <RadzenNumeric TValue="decimal" Value="@control.Value" ValueChanged="@(value => ChangeShapeAsync(control.Token, value))" Min="0" Max="@control.Maximum" Step="@control.Step.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></div>
+                </label>
+            }
+            <label class="binary"><span>Depth</span><input type="checkbox" checked="@(Shape.Depth == 1)" @onchange="ChangeDepthAsync" /></label>
+            <label class="binary"><span>Noise</span><input type="checkbox" checked="@(Shape.Noise == 1)" @onchange="ChangeNoiseAsync" /></label>
+        </div>
+    </details>
+</section>

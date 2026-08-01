@@ -63,6 +63,10 @@
 # ---------------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
+# AspNetCore.SassCompiler uses the Dart Sass runtime, which needs glibc
+# compatibility when the build runs on Alpine.
+RUN apk add --no-cache gcompat
+
 ARG BUILD_CONFIGURATION=Release
 ARG PUBLISH_READY_TO_RUN=true
 
@@ -89,6 +93,7 @@ RUN dotnet restore "./src/Aero.Cms.slnx" \
 #    EnableCompressionInSingleFile → trims metadata
 #    SelfContained=false          → framework-dependent (runtime image has .NET 10)
 #    If R2R causes musl issues, toggle PUBLISH_READY_TO_RUN=false at build time.
+#    dotnet publish -c Release -r win-x64 --self-contained false /p:PublishReadyToRun=true
 RUN dotnet publish "./src/Aero.Cms.Web/Aero.Cms.Web.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \

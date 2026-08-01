@@ -1,0 +1,137 @@
+@using Aero.Cms.Abstractions.Http.Clients
+
+<section class="aero-content-hierarchy" aria-label="@($"{Title} hierarchy")">
+    <div class="aero-content-hierarchy__toolbar">
+        <label>
+            <span class="sr-only">Search entries</span>
+            <input type="search"
+                   value="@_search"
+                   placeholder="Search entries"
+                   @oninput="OnSearchInput" />
+        </label>
+        <label class="aero-content-hierarchy__culture">
+            <span>Culture</span>
+            <input value="@_culture" @onchange="OnCultureChangedAsync" />
+        </label>
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="ToggleExpandAll">
+            @(_allExpanded ? "Collapse all" : "Expand all")
+        </button>
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="LoadAsync">
+            Refresh
+        </button>
+    </div>
+
+    <nav class="aero-content-hierarchy__breadcrumbs" aria-label="Content breadcrumb">
+        <button type="button" @onclick="ClearSelection">All entries</button>
+        @foreach (var crumb in SelectedBreadcrumbs)
+        {
+            <span aria-hidden="true">/</span>
+            <button type="button"
+                    aria-current="@(crumb.Id == _selectedId ? "page" : null)"
+                    @onclick="() => SelectNode(crumb)">
+                @crumb.Title
+            </button>
+        }
+    </nav>
+
+    @if (_isLoading)
+    {
+        <div class="aero-content-hierarchy__state" role="status">Loading hierarchy…</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="aero-content-hierarchy__state aero-content-hierarchy__state--error" role="alert">
+            <strong>Hierarchy unavailable</strong>
+            <span>@_error</span>
+        </div>
+    }
+    else if (FilteredRoots.Count == 0)
+    {
+        <div class="aero-content-hierarchy__state">
+            <strong>@(string.IsNullOrWhiteSpace(_search) ? "No entries yet" : "No matching entries")</strong>
+            <span>
+                @(string.IsNullOrWhiteSpace(_search)
+                    ? "Create the first entry to start this hierarchy."
+                    : "Try another search or clear the filters.")
+            </span>
+            @if (string.IsNullOrWhiteSpace(_search))
+            {
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CreateRoot">
+                    Create root entry
+                </button>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="aero-content-hierarchy__workspace">
+            <div class="aero-content-hierarchy__tree-shell">
+                <ul role="tree" aria-label="@($"{Title} entries")">
+                    @foreach (var root in FilteredRoots)
+                    {
+                        <ContentHierarchyTreeNodeRow @key="root.Id"
+                                                     Node="root"
+                                                     ExpandedIds="EffectiveExpandedIds"
+                                                     SelectedId="_selectedId"
+                                                     Dragging="@(_draggedId.HasValue)"
+                                                     Selected="SelectNode"
+                                                     ToggleRequested="ToggleNode"
+                                                     MoveCommandRequested="HandleMoveCommandAsync"
+                                                     DragStarted="StartDrag"
+                                                     DragEnded="EndDrag"
+                                                     DropRequested="HandleDropAsync" />
+                    }
+                </ul>
+            </div>
+
+            <aside class="aero-content-hierarchy__selection" aria-label="Selected entry">
+                @if (SelectedNode is { } selected)
+                {
+                    <div>
+                        <span class="aero-content-hierarchy__eyebrow">@selected.ContentTypeAlias</span>
+                        <h3>@selected.Title</h3>
+                    </div>
+                    <dl>
+                        <div><dt>Parent</dt><dd>@(FindParent(selected.Id)?.Title ?? "All entries")</dd></div>
+                        <div><dt>Position</dt><dd>@(GetSiblingIndex(selected) + 1) of @GetSiblings(selected.ParentId).Count</dd></div>
+                        <div><dt>Culture</dt><dd>@selected.Culture</dd></div>
+                        <div><dt>Status</dt><dd>@selected.PublicationState</dd></div>
+                    </dl>
+                    <div class="aero-content-hierarchy__selection-actions">
+                        <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="() => Edit(selected)">
+                            Edit entry
+                        </button>
+                        @if (selected.CanAcceptChildren)
+                        {
+                            <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="() => AddChild(selected)">
+                                Add child
+                            </button>
+                        }
+                        @if (selected.IsTargetType && selected.ParentId is not null)
+                        {
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => HandleMoveCommandAsync(new(selected.Id, ContentHierarchyMoveCommand.Root))">
+                                Move to root
+                            </button>
+                        }
+                        @if (selected.IsTargetType)
+                        {
+                            <button type="button" class="pe-btn pe-btn-danger pe-btn-sm" @onclick="() => DeleteAsync(selected)">
+                                Delete
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="aero-content-hierarchy__selection-empty">
+                        <strong>Select an entry</strong>
+                        <span>Choose a row to see its path and hierarchy actions.</span>
+                    </div>
+                }
+            </aside>
+        </div>
+    }
+
+    <div class="sr-only" aria-live="polite">@_liveMessage</div>
+</section>

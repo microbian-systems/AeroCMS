@@ -7,6 +7,8 @@ namespace Aero.Cms.Modules.Modules.Services;
 /// Default implementation of <see cref="IModuleRuntimeStateMerger"/>.
 /// Merges discovered module descriptors with stored state from <see cref="IModuleStateStore"/>.
 /// </summary>
+/// <param name="stateStore">The optional store; when absent, descriptors are returned unchanged.</param>
+/// <param name="logger">The logger used for merge diagnostics.</param>
 public sealed class ModuleRuntimeStateMerger(
     IModuleStateStore? stateStore,
     ILogger<ModuleRuntimeStateMerger> logger)
@@ -58,6 +60,13 @@ public sealed class ModuleRuntimeStateMerger(
         return merged;
     }
 
+    /// <summary>
+    /// Applies mutable stored state while preserving code-derived identity and capability metadata.
+    /// </summary>
+    /// <returns>
+    /// A new descriptor. Empty stored dependency, category, or tag collections fall back to discovered
+    /// values and therefore cannot explicitly clear those collections.
+    /// </returns>
     private static ModuleDescriptor Merge(ModuleDescriptor discovered, ModuleDocument stored)
     {
         return new ModuleDescriptor
@@ -76,8 +85,8 @@ public sealed class ModuleRuntimeStateMerger(
             IsAdminModule = discovered.IsAdminModule,
             IsFilterModule = discovered.IsFilterModule,
             IsContentDefinitionModule = discovered.IsContentDefinitionModule,
-            IsMartenConfigurator = discovered.IsMartenConfigurator,
-            IsAsyncMartenConfigurator = discovered.IsAsyncMartenConfigurator,
+            IsAeroDbConfigurator = discovered.IsAeroDbConfigurator,
+            IsAsyncAeroDbConfigurator = discovered.IsAsyncAeroDbConfigurator,
             Order = stored.Order,
             Category = stored.Category.Count > 0 ? stored.Category : discovered.Category,
             Tags = stored.Tags.Count > 0 ? stored.Tags : discovered.Tags,

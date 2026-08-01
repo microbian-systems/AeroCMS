@@ -1,3 +1,11 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
+
 # Aero.Cms Advanced Spec Pack
 
 This pack contains an agent-ready, spec-driven blueprint for the next layer of the Aero.Cms platform.
@@ -25,7 +33,7 @@ These documents assume the previously generated specs for:
 
 Target stack:
 - ASP.NET Core (.NET 10+)
-- PostgreSQL + Marten
+- SurrealDB via AeroDB.Sable (document store — embedded SurrealKV or remote server)
 - Redis Backed Output Caching
 - FusionCache (L1/L2)
 - TickerQ for distributed jobs

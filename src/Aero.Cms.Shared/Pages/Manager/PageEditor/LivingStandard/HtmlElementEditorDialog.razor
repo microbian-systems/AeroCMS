@@ -1,0 +1,40 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<div class="aero-element-editor-overlay" @onclick="CloseAsync">
+    <section class="aero-element-editor-dialog"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-element-editor-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-element-editor-dialog__header">
+            <div>
+                <span>Element properties</span>
+                <h2 id="aero-element-editor-title">Edit @Definition.DisplayName <code>&lt;@Definition.Tag&gt;</code></h2>
+            </div>
+            <button type="button"
+                    class="aero-element-editor-dialog__close"
+                    @ref="_closeButton"
+                    @onclick="CloseAsync"
+                    aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-element-editor-dialog__body">
+            <HtmlElementPropertyPanel @key="Node.NodeId"
+                                      Node="Node"
+                                      Definition="Definition"
+                                      ErrorMessage="@ErrorMessage"
+                                      ShowHeader="false"
+                                      ShowElementActions="false"
+                                      PropertiesChanged="PropertiesChanged"
+                                      SelectionCleared="Closed"
+                                      RichTextRequested="RichTextRequested"
+                                      CollectionActionRequested="CollectionActionRequested"
+                                      DuplicateRequested="DuplicateRequested"
+                                      RemoveRequested="RemoveRequested"
+                                      MediaRequested="MediaRequested" />
+        </div>
+    </section>
+</div>

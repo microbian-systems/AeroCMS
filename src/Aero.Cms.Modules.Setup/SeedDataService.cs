@@ -1,36 +1,46 @@
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Posts;
+using Aero.Cms.Modules.Posts.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
-using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Infrastructure;
+using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Modular;
-using Marten;
+using AeroDB.Sable;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
-using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Commerce.Data;
+using Aero.Cms.Modules.Footer.Domain;
+using Aero.Cms.Modules.Footer.Events;
+using Aero.Cms.Modules.Navigation.Domain;
+using Aero.Cms.Modules.Navigation.Events;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
+using System.Globalization;
+using Aero.Cms.Abstractions.Authentication;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Contains the infrastructure selections and initial content needed to seed a new installation.
+/// </summary>
+/// <remarks>
+/// Passwords, connection strings, database credentials, and Infisical credentials are
+/// sensitive workflow inputs. They must not be logged or stored in the durable setup-state document.
+/// </remarks>
 public sealed record SeedDatabaseRequest(
     string DatabaseMode,
     string CacheMode,
     string SecretProvider,
-    string AuthenticationMode,
+    string RequestedManagerAuthenticationProvider,
+    string RequestedMemberAuthenticationProvider,
     string? ConnectionString,
     string? CacheConnectionString,
     string? InfisicalMachineId,
@@ -42,24 +52,75 @@ public sealed record SeedDatabaseRequest(
     string HomepageTitle,
     string BlogName,
     string Hostname,
-    string DefaultCulture);
+    string DefaultCulture,
+    IReadOnlyList<string> SupportedCultures)
+{
+    /// <summary>Gets whether the configured server accepts unauthenticated connections.</summary>
+    public bool DatabaseUnauthenticated { get; init; }
 
+    /// <summary>Gets the configured SurrealDB server username.</summary>
+    public string? DatabaseUsername { get; init; }
+
+    /// <summary>Gets the configured SurrealDB server password.</summary>
+    public string? DatabasePassword { get; init; }
+}
+
+/// <summary>
+/// Describes installation artifacts created by a setup completion attempt.
+/// </summary>
 public sealed class SeedDatabaseResult
 {
-    public bool Succeeded => Errors.Count == 0;
-    public bool AlreadyComplete { get; init; }
-    public bool CreatedAdmin { get; init; }
-    public bool CreatedRoles { get; init; }
-    public bool CreatedTenant { get; init; }
-    public bool CreatedSite { get; init; }
-    public long? TenantId { get; init; }
-    public long? SiteId { get; init; }
-    public List<string> Errors { get; } = [];
+    /// <summary>
+    /// Gets whether the result contains no reported errors.
+    /// </summary>
+public bool Succeeded => Errors.Count == 0;
+    /// <summary>
+    /// Gets whether the database already contained a completed setup marker.
+    /// </summary>
+public bool AlreadyComplete { get; init; }
+    /// <summary>
+    /// Gets whether this attempt created the initial administrator account.
+    /// </summary>
+public bool CreatedAdmin { get; init; }
+    /// <summary>
+    /// Gets whether this attempt created any CMS role or administrator role assignment.
+    /// </summary>
+public bool CreatedRoles { get; init; }
+    /// <summary>
+    /// Gets whether the result reports a successfully provisioned tenant.
+    /// </summary>
+public bool CreatedTenant { get; init; }
+    /// <summary>
+    /// Gets whether the result reports a successfully provisioned site.
+    /// </summary>
+public bool CreatedSite { get; init; }
+    /// <summary>
+    /// Gets the provisioned or reused tenant identifier.
+    /// </summary>
+public long? TenantId { get; init; }
+    /// <summary>
+    /// Gets the provisioned or reused site identifier.
+    /// </summary>
+public long? SiteId { get; init; }
+    /// <summary>
+    /// Gets failure messages returned by expected setup operations.
+    /// </summary>
+public List<string> Errors { get; } = [];
 
-    public static SeedDatabaseResult Failure(params string[] errors)
+    /// <summary>
+    /// Creates a failed result from zero or more error messages.
+    /// </summary>
+    /// <param name="errors">The messages to include after blank values are removed.</param>
+    /// <returns>A result containing the supplied non-blank errors.</returns>
+public static SeedDatabaseResult Failure(params string[] errors)
         => Failure(errors.AsEnumerable());
 
-    public static SeedDatabaseResult Failure(IEnumerable<string> errors)
+    /// <summary>
+    /// Creates a failed result from an error sequence.
+    /// </summary>
+    /// <param name="errors">The messages to include after blank values are removed.</param>
+    /// <returns>A result containing the supplied non-blank errors.</returns>
+public static SeedDatabaseResult Failure(IEnumerable<string> errors)
     {
         var result = new SeedDatabaseResult();
         result.Errors.AddRange(errors.Where(error => !string.IsNullOrWhiteSpace(error)));
@@ -67,9 +128,22 @@ public sealed class SeedDatabaseResult
     }
 }
 
+/// <summary>
+/// Completes durable initialization of a newly configured AeroCMS installation.
+/// </summary>
 public interface ISeedDatabaseService
 {
-    Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Provisions identity, tenant, site, starter content, module state, and completion markers.
+    /// </summary>
+    /// <param name="request">The infrastructure and initial-content selections.</param>
+    /// <param name="cancellationToken">Cancels database, identity, media, module, or file operations.</param>
+    /// <returns>
+    /// A result describing created artifacts or expected failures. Infrastructure exceptions
+    /// outside the starter-content stage may propagate.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -77,28 +151,57 @@ public interface ISeedDatabaseService
 /// </summary>
 public interface ISetupCompletionService : ISeedDatabaseService { }
 
+// todo - each module should have its own seeding service via SRP and Verticle Slices 
+
+/// <summary>
+/// Coordinates initial installation seeding across Identity, AeroDB, content modules, and bootstrap persistence.
+/// </summary>
+/// <remarks>
+/// The durable setup-state document is authoritative for idempotency. If it is already
+/// complete, this service repairs the file-based completion flags and skips all seeding.
+/// The workflow spans multiple stores and is not transactional as a whole: Identity,
+/// tenant/site, content, module, and settings changes may commit at different points.
+/// Required starter-page and starter-post failures prevent the setup completion marker from being written.
+/// </remarks>
 public sealed class SeedDatabaseService(
     IDocumentSession session,
     IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
-    IBlogPostContentService blogPostContentService,
+    IPagePublishingWorkflowService pagePublishingWorkflowService,
+    IPostContentService blogPostContentService,
     IMediaService mediaService,
     ICommerceSeedService commerceSeedService,
     IModuleInitializationService moduleInitializationService,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
     ISiteService siteService,
-    IApiKeyService apiKeyService,
     IReadOnlyList<ModuleDescriptor> moduleDescriptors) : ISeedDatabaseService, ISetupCompletionService
 {
-    public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        if (!AuthenticationProviderSelections.Manager.IsCanonical(request.RequestedManagerAuthenticationProvider)
+            || !AuthenticationProviderSelections.Manager.IsAvailable(request.RequestedManagerAuthenticationProvider))
+        {
+            return SeedDatabaseResult.Failure("The selected CMS manager authentication provider is not available.");
+        }
+
+        if (!AuthenticationProviderSelections.Member.IsCanonical(request.RequestedMemberAuthenticationProvider)
+            || !AuthenticationProviderSelections.Member.IsAvailable(request.RequestedMemberAuthenticationProvider))
+        {
+            return SeedDatabaseResult.Failure("The selected storefront member authentication provider is not available.");
+        }
 
         var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, ct);
         if (existingState?.IsComplete == true)
         {
+            // The database is authoritative. If the prior process committed the
+            // setup transaction but stopped before updating appsettings, repair
+            // the bootstrap flags on the next run.
+            await bootstrapCompletionWriter.MarkCompleteAsync(ct);
             return new SeedDatabaseResult
             {
                 AlreadyComplete = true
@@ -116,10 +219,6 @@ public sealed class SeedDatabaseService(
         {
             return SeedDatabaseResult.Failure(identityResult.Errors.Select(error => error.Description));
         }
-
-        // Create default admin API key
-        // TODO: Remove this pre-defined key later once stable
-        var apiKey = await apiKeyService.CreateKeyAsync(identityResult.AdminUser!.Id, request.AdminEmail, cancellationToken: ct);
 
         // Create tenant and site for multi-tenant foundation
         var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, ct);
@@ -141,9 +240,21 @@ public sealed class SeedDatabaseService(
             return SeedDatabaseResult.Failure("Failed to create tenant or site");
         }
 
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture, request.SupportedCultures);
+
         try
         {
-            await SeedStarterContentAsync(request, site.Id, ct);
+            var starterContentResult = await SeedStarterContentAsync(
+                request,
+                site.Id,
+                cultureSettings.DefaultCulture,
+                cultureSettings.SupportedCultures,
+                ct);
+            if (starterContentResult is Result<bool, AeroError>.Failure starterContentFailure)
+            {
+                session.ClearChanges();
+                return SeedDatabaseResult.Failure(GetErrorMessages(starterContentFailure.Error));
+            }
         }
         catch (Exception ex)
         {
@@ -151,6 +262,33 @@ public sealed class SeedDatabaseService(
         }
 
         var completedAtUtc = existingState?.CompletedAtUtc ?? DateTimeOffset.UtcNow;
+        if (request.RequestedMemberAuthenticationProvider == AuthenticationProviderSelections.Member.Local)
+        {
+            var localAuthorities = await session.Query<ExternalMemberLocalAuthority>()
+                .Where(authority => authority.TenantId == tenant.Id)
+                .ToListAsync(ct);
+            var activeRemoteBindings = await session.Query<ExternalOrganizationBinding>()
+                .Where(binding => binding.TenantId == tenant.Id && binding.IsActive)
+                .ToListAsync(ct);
+            if (localAuthorities.Count > 1 || activeRemoteBindings.Count != 0)
+                return SeedDatabaseResult.Failure("The storefront member authority conflicts with existing configuration.");
+
+            var now = DateTimeOffset.UtcNow;
+            var localAuthority = localAuthorities.SingleOrDefault() ?? new ExternalMemberLocalAuthority
+            {
+                Id = Snowflake.NewId(),
+                TenantId = tenant.Id,
+                CreatedOn = now,
+                CreatedBy = "setup"
+            };
+            if (!localAuthority.IsActive)
+            {
+                localAuthority.IsActive = true;
+                localAuthority.ModifiedOn = now;
+                localAuthority.ModifiedBy = "setup";
+            }
+            session.Store(localAuthority);
+        }
         session.Store(new SetupStateDocument
         {
             Id = SetupStateDocument.FixedId,
@@ -159,16 +297,33 @@ public sealed class SeedDatabaseService(
             DatabaseMode = request.DatabaseMode,
             CacheMode = request.CacheMode,
             SecretProvider = request.SecretProvider,
+            RequestedManagerAuthenticationProvider = request.RequestedManagerAuthenticationProvider,
+            RequestedMemberAuthenticationProvider = request.RequestedMemberAuthenticationProvider,
             AdminEmail = request.AdminEmail,
+            RecoveryAdministratorUserId = identityResult.AdminUser.Id,
             SiteName = request.SiteName,
             HomepageTitle = request.HomepageTitle,
             BlogName = request.BlogName,
             CreatedTenantId = tenant.Id,
             CreatedSiteId = site.Id,
             Hostname = request.Hostname,
-            DefaultCulture = request.DefaultCulture
+            DefaultCulture = cultureSettings.DefaultCulture,
+            SupportedCultures = cultureSettings.SupportedCultures
         });
-        await session.SaveChangesAsync(ct);
+        try
+        {
+            await session.SaveChangesAsync(ct);
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return SeedDatabaseResult.Failure("The storefront member authority changed concurrently; restart setup.");
+        }
+        catch (Exception exception) when (IsUniqueConflict(exception))
+        {
+            session.ClearChanges();
+            return SeedDatabaseResult.Failure("The storefront member authority conflicts with existing configuration.");
+        }
 
         // Discover and save all available modules
         await SaveModuleStateAsync(ct);
@@ -185,10 +340,51 @@ public sealed class SeedDatabaseService(
         };
     }
 
+    private static bool IsUniqueConflict(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            var message = current.Message;
+            if ((message.Contains("unique", StringComparison.OrdinalIgnoreCase) &&
+                 (message.Contains("index", StringComparison.OrdinalIgnoreCase) ||
+                  message.Contains("constraint", StringComparison.OrdinalIgnoreCase))) ||
+                (message.Contains("Database index `uidx_", StringComparison.OrdinalIgnoreCase) &&
+                 message.Contains("already contains", StringComparison.OrdinalIgnoreCase)))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Reuses a matching tenant/site pair or creates both and assigns the requested primary host.
+    /// </summary>
+    /// <remarks>Creation is sequential and a site or host failure does not roll back an already-created tenant.</remarks>
     private async Task<(Result<TenantModel, AeroError> Tenant, Result<SitesModel, AeroError> Site)> CreateTenantAndSiteAsync(
         SeedDatabaseRequest request, 
         CancellationToken cancellationToken)
     {
+        var existing = await FindExistingTenantAndSiteAsync(request, cancellationToken);
+        if (existing is { Tenant: not null, Site: not null })
+        {
+            var hostResult = await siteService.AddHostAsync(
+                existing.Site.Id,
+                request.Hostname,
+                isPrimary: true,
+                cancellationToken);
+
+            if (hostResult.IsFailure)
+            {
+                return (
+                    new Result<TenantModel, AeroError>.Ok(existing.Tenant),
+                    new Result<SitesModel, AeroError>.Failure(
+                        AeroError.CreateError(GetHostFailureMessage(hostResult))));
+            }
+
+            return (
+                new Result<TenantModel, AeroError>.Ok(existing.Tenant),
+                new Result<SitesModel, AeroError>.Ok(existing.Site));
+        }
+
         // Create tenant with SiteName as the tenant name
         var tenant = new TenantModel
         {
@@ -213,6 +409,8 @@ public sealed class SeedDatabaseService(
             ? to.Value.Id 
             : tenant.Id;
 
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture, request.SupportedCultures);
+
         // Create site linked to the tenant
         var site = new SitesModel
         {
@@ -220,7 +418,8 @@ public sealed class SeedDatabaseService(
             TenantId = createdTenantId,
             Name = request.SiteName,
             IsEnabled = true,
-            DefaultCulture = request.DefaultCulture
+            DefaultCulture = cultureSettings.DefaultCulture,
+            SupportedCultures = cultureSettings.SupportedCultures
         };
 
         var siteResult = await siteService.CreateSiteAsync(site, cancellationToken);
@@ -229,59 +428,234 @@ public sealed class SeedDatabaseService(
         {
             // Create a SiteHost entry for the primary host/domain
             var siteId = siteResult is Result<SitesModel, AeroError>.Ok ok ? ok.Value.Id : site.Id;
-            await siteService.AddHostAsync(siteId, request.Hostname!, isPrimary: true, cancellationToken);
+            var hostResult = await siteService.AddHostAsync(
+                siteId,
+                request.Hostname!,
+                isPrimary: true,
+                cancellationToken);
+
+            if (hostResult.IsFailure)
+            {
+                return (
+                    tenantResult,
+                    new Result<SitesModel, AeroError>.Failure(
+                        AeroError.CreateError(GetHostFailureMessage(hostResult))));
+            }
         }
         
         return (tenantResult, siteResult);
     }
 
-    private async Task SeedStarterContentAsync(SeedDatabaseRequest request, long siteId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Finds an existing site through its normalized host, then falls back to tenant and site names.
+    /// </summary>
+    private async Task<(TenantModel? Tenant, SitesModel? Site)> FindExistingTenantAndSiteAsync(
+        SeedDatabaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedHost = HostNormalizer.Normalize(request.Hostname);
+
+        var existingHost = await session.Query<SiteHost>()
+            .Where(siteHost => siteHost.Host == normalizedHost)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingHost is not null)
+        {
+            var existingSite = await session.LoadAsync<SitesModel>(existingHost.SiteId, cancellationToken);
+            if (existingSite is not null)
+            {
+                var existingTenant = await session.LoadAsync<TenantModel>(existingSite.TenantId, cancellationToken);
+                if (existingTenant is not null)
+                {
+                    return (existingTenant, existingSite);
+                }
+            }
+        }
+
+        var tenant = await session.Query<TenantModel>()
+            .Where(candidate =>
+                candidate.Hostname == normalizedHost &&
+                candidate.Name == request.SiteName)
+            .OrderBy(candidate => candidate.CreatedOn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tenant is null)
+        {
+            return (null, null);
+        }
+
+        var site = await session.Query<SitesModel>()
+            .Where(candidate =>
+                candidate.TenantId == tenant.Id &&
+                candidate.Name == request.SiteName)
+            .OrderBy(candidate => candidate.CreatedOn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return (tenant, site);
+    }
+
+    /// <summary>
+    /// Extracts a user-facing site-host failure message from a railway result.
+    /// </summary>
+    private static string GetHostFailureMessage(Result<SiteHost, AeroError> hostResult)
+        => hostResult is Result<SiteHost, AeroError>.Failure failure
+            ? failure.Error is AeroError.Error error
+                ? error.msg
+                : "Failed to create site host"
+            : "Failed to create site host";
+
+    /// <summary>
+    /// Seeds initial pages, navigation, footer, media, posts, error aliases, products, and global settings.
+    /// </summary>
+    /// <remarks>
+    /// Spanish (Mexico) variants are added only when <c>es-MX</c> is supported but is not
+    /// the default culture. Several collaborators persist independently during this method.
+    /// </remarks>
+    private async Task<Result<bool, AeroError>> SeedStarterContentAsync(
+        SeedDatabaseRequest request,
+        long siteId,
+        string defaultCulture,
+        IReadOnlyList<string> supportedCultures,
+        CancellationToken cancellationToken)
     {
         // Build pages first to get their IDs for navigation items
-        var (homepage, homepageBlocks) = BuildHomepage(request);
-        var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
-        var (aboutPage, aboutBlocks) = BuildAboutPage();
-        var (contactPage, contactBlocks) = BuildContactPage();
+        var homepage = BuildHomepage(request);
+        homepage.DraftContent = LivingStandardSeedPageFactory.Create(
+            Normalize(request.HomepageTitle),
+            homepage.Summary!,
+            [
+                ("Performance First", "Built on .NET 10 with a document-oriented content model designed for fast, predictable publishing."),
+                ("Editor Friendly", "Compose semantic HTML sections, layouts, text, media, lists, and calls to action without framework lock-in.")
+            ],
+            backgroundImageUrl: "/media/data-center.png");
+        var blogListing = BuildBlogListingPage(request);
+        blogListing.DraftContent = LivingStandardSeedPageFactory.Create(
+            blogListing.Title,
+            blogListing.Summary!,
+            [("Latest Articles", "Ten example posts are already published so the site is useful immediately.")]);
+        var aboutPage = BuildAboutPage();
+        aboutPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            aboutPage.Title,
+            aboutPage.Summary!,
+            [
+                ("Our Mission", "We build tools that help teams publish clear, accessible content without unnecessary technical friction."),
+                ("Our Values", "Integrity, innovation, and inclusivity guide how we design and ship Aero CMS.")
+            ]);
+        var contactPage = BuildContactPage();
+        contactPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            contactPage.Title,
+            contactPage.Summary!,
+            [
+                ("Get In Touch", "Our team typically responds within one business day."),
+                ("Visit Us", "123 Main Street, Suite 100, Anytown, USA")
+            ],
+            callToAction: ("Send Us a Message", "mailto:hello@example.com"));
+        var privacyPage = BuildPrivacyPage();
+        privacyPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            privacyPage.Title,
+            privacyPage.Summary!,
+            [
+                ("Information We Collect", "We collect only the information needed to provide and improve the site."),
+                ("Your Rights", "You may request access, correction, or deletion of your personal information.")
+            ]);
+        var termsPage = BuildTermsPage();
+        termsPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            termsPage.Title,
+            termsPage.Summary!,
+            [
+                ("Use of the Site", "Use this site only for lawful purposes and do not interfere with its operation."),
+                ("Intellectual Property", "Site content remains the property of Aero CMS or its respective licensors.")
+            ]);
+        var cookiesPage = BuildCookiesPage();
+        cookiesPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            cookiesPage.Title,
+            cookiesPage.Summary!,
+            [
+                ("What Are Cookies?", "Cookies are small files that help sites remember preferences and improve performance."),
+                ("Managing Cookies", "You can control or remove cookies through your browser settings.")
+            ]);
         var docs = BuildStarterDocsContent();
         var rootDoc = docs.First(d => d.Slug == "docs");
 
-        // Create main navigation menu
-        var mainNav = new NavigationBlock
+        StampPageCulture(homepage, defaultCulture);
+        StampPageCulture(blogListing, defaultCulture);
+        StampPageCulture(aboutPage, defaultCulture);
+        StampPageCulture(contactPage, defaultCulture);
+        StampPageCulture(privacyPage, defaultCulture);
+        StampPageCulture(termsPage, defaultCulture);
+        StampPageCulture(cookiesPage, defaultCulture);
+        PageDocument[] defaultPages =
+        [
+            homepage,
+            blogListing,
+            aboutPage,
+            contactPage,
+            privacyPage,
+            termsPage,
+            cookiesPage
+        ];
+        foreach (var page in defaultPages)
         {
-            Id = Snowflake.NewId(),
-            Name = "Main Navigation",
-            Items =
-            {
-                { 0, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Home", Url = "/", PageId = homepage.Id, Order = 0, AltText = "Home Page" } },
-                { 1, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "About", Url = "/about", PageId = aboutPage.Id, Order = 1, AltText = "About Us" } },
-                { 2, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Contact", Url = "/contact", PageId = contactPage.Id, Order = 2, AltText = "Contact Us" } },
-                { 3, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" } },
-                { 4, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Docs", Url = "/docs", PageId = rootDoc.Id, Order = 4, AltText = "Documentation" } }
-            }
-        };
-        session.Store(mainNav);
+            page.SiteId = siteId;
+        }
+        await ReconcilePageIdentitiesAsync(defaultPages, siteId, cancellationToken);
 
-        // Store pages and their blocks
-        homepage.SiteId = siteId;
-        foreach (var block in homepageBlocks) session.Store(block);
-        await pageContentService.SaveAsync(homepage, cancellationToken);
+        // Store Living Standard pages.
+        var homeR = await SavePublishedPageAsync(homepage, siteId, cancellationToken);
+        if (homeR is Result<PageDocument, AeroError>.Failure homeFailure)
+            return StarterContentFailure("homepage", homeFailure.Error);
 
-        blogListing.SiteId = siteId;
-        foreach (var block in blogListingBlocks) session.Store(block);
-        await pageContentService.SaveAsync(blogListing, cancellationToken);
+        var blogR = await SavePublishedPageAsync(blogListing, siteId, cancellationToken);
+        if (blogR is Result<PageDocument, AeroError>.Failure blogFailure)
+            return StarterContentFailure("blog listing page", blogFailure.Error);
 
-        aboutPage.SiteId = siteId;
-        foreach (var block in aboutBlocks) session.Store(block);
-        await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        var aboutR = await SavePublishedPageAsync(aboutPage, siteId, cancellationToken);
+        if (aboutR is Result<PageDocument, AeroError>.Failure aboutFailure)
+            return StarterContentFailure("about page", aboutFailure.Error);
 
-        contactPage.SiteId = siteId;
-        foreach (var block in contactBlocks) session.Store(block);
-        await pageContentService.SaveAsync(contactPage, cancellationToken);
+        var contactR = await SavePublishedPageAsync(contactPage, siteId, cancellationToken);
+        if (contactR is Result<PageDocument, AeroError>.Failure contactFailure)
+            return StarterContentFailure("contact page", contactFailure.Error);
+
+        var privacyR = await SavePublishedPageAsync(privacyPage, siteId, cancellationToken);
+        if (privacyR is Result<PageDocument, AeroError>.Failure privacyFailure)
+            return StarterContentFailure("privacy page", privacyFailure.Error);
+
+        var termsR = await SavePublishedPageAsync(termsPage, siteId, cancellationToken);
+        if (termsR is Result<PageDocument, AeroError>.Failure termsFailure)
+            return StarterContentFailure("terms page", termsFailure.Error);
+
+        var cookiesR = await SavePublishedPageAsync(cookiesPage, siteId, cancellationToken);
+        if (cookiesR is Result<PageDocument, AeroError>.Failure cookiesFailure)
+            return StarterContentFailure("cookies page", cookiesFailure.Error);
         
         foreach (var doc in docs)
         {
             doc.SiteId = siteId;
+        }
+        await ReconcileDocsPageIdentitiesAsync(docs, siteId, cancellationToken);
+        foreach (var doc in docs)
+        {
             session.Store(doc);
+        }
+
+        var navMenuTranslationGroupId = await SeedDefaultNavMenuAsync(siteId, defaultCulture, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+        var footerTranslationGroupId = await SeedDefaultFooterAsync(siteId, defaultCulture, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+
+        if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
+        {
+            var spanishResult = await SeedSpanishMexicoStarterContentAsync(
+                request,
+                siteId,
+                homepage.Id,
+                blogListing.Id,
+                aboutPage.Id,
+                contactPage.Id,
+                navMenuTranslationGroupId,
+                footerTranslationGroupId,
+                cancellationToken);
+            if (spanishResult is Result<bool, AeroError>.Failure spanishFailure)
+                return spanishFailure;
         }
 
         // Seed starter media assets from wwwroot/media
@@ -290,31 +664,546 @@ public sealed class SeedDatabaseService(
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request);
 
+        var tagIdMap = await ReconcileTagIdentitiesAsync(tags, siteId, cancellationToken);
+        foreach (var post in posts)
+        {
+            post.TagIds = post.TagIds
+                .Select(tagId => tagIdMap.TryGetValue(tagId, out var existingId) ? existingId : tagId)
+                .ToList();
+        }
+
         // Store tags first
         foreach (var tag in tags)
         {
-            tag.SiteId = siteId;
             session.Store(tag);
         }
+
+        if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
+        {
+            var translations = BuildSpanishMexicoTagTranslations(tags);
+            await ReconcileTagTranslationIdentitiesAsync(translations, cancellationToken);
+            foreach (var translation in translations)
+            {
+                session.Store(translation);
+            }
+        }
+
+        // Relationship validation in PostContentService queries persisted taxonomy.
+        // Commit the complete staged tag/translation set once before saving posts.
+        await session.SaveChangesAsync(cancellationToken);
+
+        foreach (var post in posts)
+        {
+            post.SiteId = siteId;
+            post.Culture = defaultCulture;
+        }
+        await ReconcilePostIdentitiesAsync(posts, siteId, cancellationToken);
 
         // Save blog posts (blocks are stored inline in Content)
         foreach (var post in posts)
         {
-            post.SiteId = siteId;
-            await blogPostContentService.SaveAsync(post, cancellationToken);
+            post.TranslationGroupId ??= post.Id;
+            var postResult = await blogPostContentService.SaveAsync(post, siteId, cancellationToken);
+            if (postResult is Result<PostDocument, AeroError>.Failure postFailure)
+                return StarterContentFailure($"blog post '{post.Title}'", postFailure.Error);
         }
 
         // Seed /oops 404 page with alias
-        await SeedOopsPageAsync(siteId, cancellationToken);
+        var oopsResult = await SeedOopsPageAsync(siteId, defaultCulture, cancellationToken);
+        if (oopsResult is Result<PageDocument, AeroError>.Failure oopsFailure)
+            return StarterContentFailure("/oops page", oopsFailure.Error);
 
         // Seed commerce products
         await commerceSeedService.SeedAsync(siteId, cancellationToken);
 
         // Seed default global settings
-        SeedDefaultSettings();
+        SeedDefaultSettings(defaultCulture);
+
+        return Prelude.Ok<bool, AeroError>(true);
     }
 
-    private void SeedDefaultSettings()
+    /// <summary>
+    /// Reuses or event-sources the default navigation menu and ensures it is selected for the site.
+    /// </summary>
+    /// <returns>The menu translation-group identifier used by localized variants.</returns>
+    private async Task<long> SeedDefaultNavMenuAsync(
+        long siteId,
+        string culture,
+        long homepageId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string navMenuName = "Header Menu";
+        const string navMenuKey = "header-menu";
+
+        var existingMenu = await session.Query<NavMenuDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == navMenuKey, cancellationToken);
+        var settings = await session.Query<SiteNavigationSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingMenu is not null)
+        {
+            if (settings?.DefaultNavMenuId is null)
+            {
+                var changed = new SiteDefaultNavMenuChanged(siteId, existingMenu.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), new object[] { changed });
+                else
+                    session.Events.Append(NavMenuStreams.SiteSettings(siteId), new object[] { changed });
+            }
+
+            return existingMenu.TranslationGroupId ?? existingMenu.Id;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var navMenuId = Snowflake.NewId();
+        var snapshot = BuildSeedNavMenuSnapshot(
+            [
+                new NavLink { Key = "home", Label = "Home", Href = "/", PageId = homepageId, AltText = "Home Page", Alignment = NavAlignment.Left },
+                new NavLink { Key = "about", Label = "About", Href = "/about", PageId = aboutPageId, AltText = "About Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "contact", Label = "Contact", Href = "/contact", PageId = contactPageId, AltText = "Contact Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "docs", Label = "Docs", Href = "/docs", AltText = "Documentation", Alignment = NavAlignment.Left },
+                new NavLink { Key = "blog", Label = "Blog", Href = "/blog", PageId = blogListingPageId, AltText = "Blog and Field Notes", Alignment = NavAlignment.Left }
+            ]);
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            NavMenuStreams.Menu(navMenuId),
+            new object[]
+            {
+                new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: navMenuId),
+                new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
+                new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation")
+            });
+
+        if (settings?.DefaultNavMenuId is null)
+        {
+            var defaultChanged = new SiteDefaultNavMenuChanged(siteId, navMenuId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), new object[] { defaultChanged });
+            else
+                session.Events.Append(NavMenuStreams.SiteSettings(siteId), new object[] { defaultChanged });
+        }
+
+        return navMenuId;
+    }
+
+    /// <summary>
+    /// Reuses or event-sources the default footer and ensures it is selected for the site.
+    /// </summary>
+    /// <returns>The footer translation-group identifier used by localized variants.</returns>
+    private async Task<long> SeedDefaultFooterAsync(
+        long siteId,
+        string culture,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string footerName = "Site Footer";
+        const string footerKey = "site-footer";
+
+        var existingFooter = await session.Query<FooterDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == footerKey, cancellationToken);
+        var settings = await session.Query<SiteFooterSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingFooter is not null)
+        {
+            if (settings?.DefaultFooterId is null)
+            {
+                var changed = new SiteDefaultFooterChanged(siteId, existingFooter.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(FooterStreams.SiteSettings(siteId), new object[] { changed });
+                else
+                    session.Events.Append(FooterStreams.SiteSettings(siteId), new object[] { changed });
+            }
+
+            return existingFooter.TranslationGroupId ?? existingFooter.Id;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var footerId = Snowflake.NewId();
+        var snapshot = new FooterSnapshot
+        {
+            Brand = new FooterBrandSettings
+            {
+                CompanyName = "Aero CMS",
+                Tagline = "A fast, modular CMS for modern .NET sites.",
+                LogoAltText = "Aero CMS logo"
+            },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = "Aero CMS. All rights reserved.",
+                LegalLinks =
+                [
+                    new FooterLink("Privacy", "/privacy"),
+                    new FooterLink("Terms", "/terms"),
+                    new FooterLink("Cookies", "/cookies")
+                ]
+            },
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Company",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("About", "/about"),
+                            new FooterLink("Contact", "/contact")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Content",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/blog"),
+                            new FooterLink("Docs", "/docs")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "site",
+                        Title = "Site",
+                        Order = 2,
+                        Links =
+                        [
+                            new FooterLink("Home", "/"),
+                            new FooterLink("Sitemap", "/sitemap.xml")
+                        ]
+                    }
+                ])
+        };
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            FooterStreams.Footer(footerId),
+            new object[]
+            {
+                new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationGroupId: footerId),
+                new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
+                new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer")
+            });
+
+        if (settings?.DefaultFooterId is null)
+        {
+            var defaultChanged = new SiteDefaultFooterChanged(siteId, footerId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(FooterStreams.SiteSettings(siteId), new object[] { defaultChanged });
+            else
+                session.Events.Append(FooterStreams.SiteSettings(siteId), new object[] { defaultChanged });
+        }
+
+        return footerId;
+    }
+
+    /// <summary>
+    /// Seeds the supported Spanish (Mexico) page, navigation, and footer variants.
+    /// </summary>
+    private async Task<Result<bool, AeroError>> SeedSpanishMexicoStarterContentAsync(
+        SeedDatabaseRequest request,
+        long siteId,
+        long homepageTranslationGroupId,
+        long blogTranslationGroupId,
+        long aboutTranslationGroupId,
+        long contactTranslationGroupId,
+        long navMenuTranslationGroupId,
+        long footerTranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        var homepage = BuildSpanishHomepage(request, homepageTranslationGroupId);
+        homepage.DraftContent = LivingStandardSeedPageFactory.Create(
+            homepage.Title,
+            homepage.Summary!,
+            [
+                ("Bienvenidos", "Crea sitios claros y atractivos con un CMS moderno y rapido."),
+                ("Contenido Flexible", "Organiza y publica paginas semanticas con un flujo sencillo para todo el equipo.")
+            ],
+            backgroundImageUrl: "/media/data-center.png");
+        var blogListing = BuildSpanishBlogListingPage(request, blogTranslationGroupId);
+        blogListing.DraftContent = LivingStandardSeedPageFactory.Create(
+            blogListing.Title,
+            blogListing.Summary!,
+            [("Articulos Recientes", "Notas, novedades y articulos publicados por el equipo.")]);
+        var aboutPage = BuildSpanishAboutPage(aboutTranslationGroupId);
+        aboutPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            aboutPage.Title,
+            aboutPage.Summary!,
+            [("Nuestra Mision", "Creamos herramientas que ayudan a los equipos a publicar con claridad y confianza.")]);
+        var contactPage = BuildSpanishContactPage(contactTranslationGroupId);
+        contactPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            contactPage.Title,
+            contactPage.Summary!,
+            [("Comunicate", "Envianos un mensaje y te responderemos a la brevedad.")],
+            callToAction: ("Enviar un mensaje", "mailto:hello@example.com"));
+
+        PageDocument[] spanishPages = [homepage, blogListing, aboutPage, contactPage];
+        foreach (var page in spanishPages)
+        {
+            page.SiteId = siteId;
+        }
+        await ReconcilePageIdentitiesAsync(spanishPages, siteId, cancellationToken);
+
+        var homeR = await SavePublishedPageAsync(homepage, siteId, cancellationToken);
+        if (homeR is Result<PageDocument, AeroError>.Failure homeFailure)
+            return StarterContentFailure("es-MX homepage", homeFailure.Error);
+
+        var blogR = await SavePublishedPageAsync(blogListing, siteId, cancellationToken);
+        if (blogR is Result<PageDocument, AeroError>.Failure blogFailure)
+            return StarterContentFailure("es-MX blog listing page", blogFailure.Error);
+
+        var aboutR = await SavePublishedPageAsync(aboutPage, siteId, cancellationToken);
+        if (aboutR is Result<PageDocument, AeroError>.Failure aboutFailure)
+            return StarterContentFailure("es-MX about page", aboutFailure.Error);
+
+        var contactR = await SavePublishedPageAsync(contactPage, siteId, cancellationToken);
+        if (contactR is Result<PageDocument, AeroError>.Failure contactFailure)
+            return StarterContentFailure("es-MX contact page", contactFailure.Error);
+
+        await SeedSpanishMexicoNavMenuAsync(
+            siteId,
+            homepage.Id,
+            aboutPage.Id,
+            contactPage.Id,
+            blogListing.Id,
+            navMenuTranslationGroupId,
+            cancellationToken);
+
+        await SeedSpanishMexicoFooterAsync(
+            siteId,
+            aboutPage.Id,
+            contactPage.Id,
+            blogListing.Id,
+            footerTranslationGroupId,
+            cancellationToken);
+
+        return Prelude.Ok<bool, AeroError>(true);
+    }
+
+    /// <summary>
+    /// Creates the Spanish (Mexico) navigation stream unless that site, culture, and key already exist.
+    /// </summary>
+    private async Task SeedSpanishMexicoNavMenuAsync(
+        long siteId,
+        long homepageId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        long TranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        const string culture = "es-MX";
+        const string navMenuName = "Menu Principal";
+        const string navMenuKey = "header-menu";
+
+        var existingMenu = await session.Query<NavMenuDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == navMenuKey, cancellationToken);
+
+        if (existingMenu is not null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var navMenuId = Snowflake.NewId();
+        var snapshot = BuildSeedNavMenuSnapshot(
+            [
+                new NavLink { Key = "home", Label = "Inicio", Href = "/es-mx/", PageId = homepageId, AltText = "Pagina de inicio", Alignment = NavAlignment.Left },
+                new NavLink { Key = "about", Label = "Acerca de", Href = "/es-mx/acerca-de", PageId = aboutPageId, AltText = "Acerca de nosotros", Alignment = NavAlignment.Left },
+                new NavLink { Key = "contact", Label = "Contacto", Href = "/es-mx/contacto", PageId = contactPageId, AltText = "Contactanos", Alignment = NavAlignment.Left },
+                new NavLink { Key = "blog", Label = "Blog", Href = "/es-mx/blog", PageId = blogListingPageId, AltText = "Blog y notas", Alignment = NavAlignment.Left }
+            ]);
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            NavMenuStreams.Menu(navMenuId),
+            new object[]
+            {
+                new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+                new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded es-MX starter navigation"),
+                new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter navigation")
+            });
+    }
+
+    /// <summary>
+    /// Creates the Spanish (Mexico) footer stream unless that site, culture, and key already exist.
+    /// </summary>
+    private async Task SeedSpanishMexicoFooterAsync(
+        long siteId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        long TranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        const string culture = "es-MX";
+        const string footerName = "Pie del sitio";
+        const string footerKey = "site-footer";
+
+        var existingFooter = await session.Query<FooterDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == footerKey, cancellationToken);
+
+        if (existingFooter is not null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var footerId = Snowflake.NewId();
+        var snapshot = new FooterSnapshot
+        {
+            Brand = new FooterBrandSettings
+            {
+                CompanyName = "Aero CMS",
+                Tagline = "Un CMS modular y rapido para sitios modernos en .NET.",
+                LogoAltText = "Logo de Aero CMS"
+            },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = "Aero CMS. Todos los derechos reservados.",
+                LegalLinks =
+                [
+                    new FooterLink("Privacidad", "/es-mx/privacidad"),
+                    new FooterLink("Terminos", "/es-mx/terminos"),
+                    new FooterLink("Cookies", "/es-mx/cookies")
+                ]
+            },
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Compania",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("Acerca de", "/es-mx/acerca-de"),
+                            new FooterLink("Contacto", "/es-mx/contacto")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Contenido",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/es-mx/blog"),
+                            new FooterLink("Mapa del sitio", "/sitemap-es-mx.xml")
+                        ]
+                    }
+                ])
+        };
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            FooterStreams.Footer(footerId),
+            new object[]
+            {
+                new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+                new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
+                new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer")
+            });
+    }
+
+    /// <summary>
+    /// Places ordered navigation components into a single responsive full-width row.
+    /// </summary>
+    private static NavMenuSnapshot BuildSeedNavMenuSnapshot(IReadOnlyList<INavMenuComponent> components)
+        => new()
+        {
+            Layout = NavMenuLayout.Default,
+            Responsive = NavMenuResponsiveSettings.Default,
+            Style = NavMenuStyleSettings.Default,
+            Rows =
+            [
+                new NavCanvasRow
+                {
+                    Key = "header-row",
+                    Order = 0,
+                    Label = "Header",
+                    DesktopDisplay = "Flex",
+                    TabletDisplay = "Flex",
+                    MobileDisplay = "Stack",
+                    Columns =
+                    [
+                        new NavCanvasColumn
+                        {
+                            Key = "primary-nav",
+                            Order = 0,
+                            DesktopSpan = 12,
+                            TabletSpan = 12,
+                            MobileSpan = 12,
+                            Blocks = components
+                                .Select((component, index) => new NavCanvasBlock
+                                {
+                                    Key = component.Key,
+                                    Order = index,
+                                    Component = component
+                                })
+                                .ToList()
+                        }
+                    ]
+                }
+            ]
+        };
+
+    /// <summary>
+    /// Distributes ordered footer components across responsive columns.
+    /// </summary>
+    private static List<FooterCanvasRow> BuildSeedFooterRows(IReadOnlyList<IFooterComponent> components)
+    {
+        var orderedComponents = components.OrderBy(component => component.Order).ToList();
+        var columnSpan = orderedComponents.Count switch
+        {
+            <= 1 => 12,
+            2 => 6,
+            3 => 4,
+            _ => 3
+        };
+
+        return
+        [
+            new FooterCanvasRow
+            {
+                Key = "footer-main",
+                Order = 0,
+                Label = "Main footer",
+                DesktopDisplay = "Grid",
+                TabletDisplay = "Grid",
+                MobileDisplay = "Stack",
+                Columns = orderedComponents.Select((component, index) => new FooterCanvasColumn
+                {
+                    Key = $"footer-column-{index + 1}",
+                    Order = index,
+                    DesktopSpan = columnSpan,
+                    TabletSpan = orderedComponents.Count <= 2 ? 6 : 12,
+                    MobileSpan = 12,
+                    Blocks =
+                    [
+                        new FooterCanvasBlock
+                        {
+                            Key = component.Key,
+                            Order = 0,
+                            Component = component
+                        }
+                    ]
+                }).ToList()
+            }
+        ];
+    }
+
+    /// <summary>
+    /// Stages the initial security, general, SEO, and API settings in the current session.
+    /// </summary>
+    private void SeedDefaultSettings(string defaultCulture)
     {
         var defaults = new List<Setting>
         {
@@ -325,7 +1214,7 @@ public sealed class SeedDatabaseService(
             new() { Key = "Security.MaintenanceMessage", Category = "Security", Value = "", Type = "string", Description = "Message shown during maintenance." },
 
             // General
-            new() { Key = "General.DefaultLocale", Category = "General", Value = "en-US", Type = "string", Description = "Default culture code." },
+            new() { Key = "General.DefaultLocale", Category = "General", Value = defaultCulture, Type = "string", Description = "Default culture code." },
             new() { Key = "General.DefaultTimezone", Category = "General", Value = "UTC", Type = "string", Description = "Default timezone." },
             new() { Key = "General.AdminPagination", Category = "General", Value = "20", Type = "int", Description = "Items per page in admin lists." },
             new() { Key = "General.MaxUploadSizeMB", Category = "General", Value = "50", Type = "int", Description = "Max file upload size in MB." },
@@ -347,99 +1236,95 @@ public sealed class SeedDatabaseService(
         }
     }
 
-    private async Task SeedOopsPageAsync(long siteId, CancellationToken ct)
+    /// <summary>
+    /// Publishes the fallback page and stores aliases for 404, 500, and the retired setup route.
+    /// </summary>
+    private async Task<Result<PageDocument, AeroError>> SeedOopsPageAsync(
+        long siteId,
+        string defaultCulture,
+        CancellationToken ct)
     {
-        var heroBlock = new BoringHeroBlock
-        {
-            Id = Snowflake.NewId(),
-            Title = "Page Not Found",
-            Summary = "The page you're looking for doesn't exist or has been moved.",
-            FullWidth = true,
-            Order = 0
-        };
-        var bodyBlock = new RichTextBlock
-        {
-            Id = Snowflake.NewId(),
-            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-8'>We couldn't find the page you were looking for. It might have been moved, renamed, or deleted.</p>" +
-                      "<p class='text-lg leading-relaxed text-slate-700'>Head back to the homepage or use the navigation to find what you need.</p>",
-            Order = 1
-        };
-
         var oopsPage = new PageDocument
         {
             Id = Snowflake.NewId(),
             Kind = PageKind.Standard,
             Slug = "oops",
+            Path = "/oops",
+            Depth = 0,
+            Order = 0,
             Title = "Page Not Found",
             Summary = "The page you're looking for doesn't exist or has been moved.",
             SeoTitle = "Page Not Found",
-            Blocks = new List<EditorBlock>
-            {
-                new() { Type = "boring_hero", MainText = "Page Not Found", SubText = "The page you're looking for doesn't exist or has been moved.", FullWidth = true },
-                new() { Type = "content", Content = bodyBlock.Content }
-            },
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks =
-                            [
-                                new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
-                                new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
-                            ]
-                        }
-                    ]
-                }
-            ],
-            PublicationState = ContentPublicationState.Published,
+            DraftContent = LivingStandardSeedPageFactory.Create(
+                "Page Not Found",
+                "The page you're looking for doesn't exist or has been moved.",
+                [("Let's get you back on track", "Check the address or return to the homepage and continue browsing.")],
+                callToAction: ("Return Home", "/")),
+            PublicationState = ContentPublicationState.Draft,
+            Culture = defaultCulture,
             CreatedBy = "seed",
             ModifiedBy = "seed"
         };
 
         // Stamp siteId on the oopsPage before storing
         oopsPage.SiteId = siteId;
-
-        // Store blocks first, then save page (matches BuildHomepage pattern)
-        session.Store(heroBlock);
-        session.Store(bodyBlock);
+        oopsPage.TranslationGroupId = oopsPage.Id;
+        await ReconcilePageIdentitiesAsync([oopsPage], siteId, ct);
 
         // Use SaveAsync for proper slug reservation
-        await pageContentService.SaveAsync(oopsPage, ct);
+        var pageResult = await SavePublishedPageAsync(oopsPage, siteId, ct);
+        if (pageResult is Result<PageDocument, AeroError>.Failure pageFailure)
+            return pageFailure;
 
-        // Create alias /404 → /oops
-        var alias404 = new AliasDocument
+        AliasDocument[] aliases =
+        [
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/404",
+                NormalizedOldPath = AliasDocument.NormalizePath("/404"),
+                NewPath = "/oops",
+                Notes = "Auto-seeded 404 redirect"
+            },
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/500",
+                NormalizedOldPath = AliasDocument.NormalizePath("/500"),
+                NewPath = "/oops",
+                Notes = "Auto-seeded 500 redirect"
+            },
+            new()
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = defaultCulture,
+                OldPath = "/setup",
+                NormalizedOldPath = AliasDocument.NormalizePath("/setup"),
+                NewPath = "/",
+                Notes = "Auto-seeded setup redirect"
+            }
+        ];
+        await ReconcileAliasIdentitiesAsync(aliases, siteId, defaultCulture, ct);
+        foreach (var alias in aliases)
         {
-            Id = Snowflake.NewId(),
-            SiteId = siteId,
-            OldPath = "/404",
-            NewPath = "/oops",
-            Notes = "Auto-seeded 404 redirect"
-        };
-        session.Store(alias404);
-
-        // Create alias /500 → /oops
-        var alias500 = new AliasDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = siteId,
-            OldPath = "/500",
-            NewPath = "/oops",
-            Notes = "Auto-seeded 500 redirect"
-        };
-        session.Store(alias500);
+            session.Store(alias);
+        }
 
         await session.SaveChangesAsync(ct);
-        Log.Information("Seeded /oops error page with /404 → /oops and /500 → /oops aliases");
+        Log.Information("Seeded /oops error page with /404 → /oops, /500 → /oops, /setup → / aliases");
+        return pageResult;
     }
 
+
+    /// <summary>
+    /// Stages top-level web-root media and delegates hydrated-image import to the media service.
+    /// </summary>
+    /// <remarks>A missing media directory and hydrated-image failures are logged and do not fail setup.</remarks>
     private async Task SeedStarterMediaAsync(CancellationToken ct)
     {
         var mediaDir = Path.Combine(env.WebRootPath, "media");
@@ -503,313 +1388,295 @@ public sealed class SeedDatabaseService(
             Directory.GetFiles(mediaDir).Length);
     }
 
+    /// <summary>
+    /// Initializes persisted state for every descriptor supplied to the setup service.
+    /// </summary>
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
     {
         await moduleInitializationService.InitializeModulesAsync(moduleDescriptors, cancellationToken);
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SeedDatabaseRequest request)
+    /// <summary>
+    /// Builds the default-culture home-page metadata before HTML content is attached.
+    /// </summary>
+    private static PageDocument BuildHomepage(SeedDatabaseRequest request)
     {
         var homepageSummary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.";
-        var heroBlock = new BoringHeroBlock
+
+        return new PageDocument
         {
             Id = Snowflake.NewId(),
+            Kind = PageKind.Homepage,
+            Slug = "/",
+            Path = "/",
+            Depth = 0,
+            Order = 0,
             Title = Normalize(request.HomepageTitle),
             Summary = homepageSummary,
-            BackgroundImageUrl = "/assets/hero-01.svg",
-            FullWidth = true,
-            Order = 0
+            SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
+            SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, AeroDB, and Microsoft Orleans.",
+            PublicationState = ContentPublicationState.Published
         };
-        var bodyBlock = new RichTextBlock
-        {
-            Id = Snowflake.NewId(),
-            Content = @"
-                <div class='max-w-4xl mx-auto'>
-                    <p class='text-xl leading-relaxed text-slate-700 mb-10'>
-                        <strong>Aero CMS</strong> is a high-performance content platform designed for the next generation of web experience. 
-                        Engineered with a relentless focus on efficiency, our ultimate goal is full <strong>Native AOT</strong> compatibility—delivering 
-                        blindingly fast startup times and a minimal memory footprint.
-                    </p>
-
-                    <div class='grid grid-cols-1 md:grid-cols-2 gap-12 mb-16'>
-                        <div class='space-y-4'>
-                            <h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>
-                                <span class='h-1 w-6 bg-indigo-600 rounded-full'></span>
-                                The Power Core
-                            </h3>
-                            <p class='text-slate-600 leading-relaxed font-medium'>
-                                Built on <strong>.NET 10</strong>, <strong>Marten</strong>, and <strong>PostgreSQL</strong>, we provide a sophisticated 
-                                document-database experience with the reliability of a relational backend. <strong>Wolverine</strong> and 
-                                <strong>LavinMQ</strong> handle our high-performance messaging, while <strong>S3 compatible storage</strong> 
-                                ensures your assets are served globally at scale.
-                            </p>
-                        </div>
-                        <div class='space-y-4'>
-                            <h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>
-                                <span class='h-1 w-6 bg-violet-600 rounded-full'></span>
-                                Modern Frontend
-                            </h3>
-                            <p class='text-slate-600 leading-relaxed font-medium'>
-                                We embrace the hypermedia revolution with <strong>HTMX</strong> and <strong>Alpine.js</strong>, supplemented by 
-                                <strong>Lit</strong> and <strong>Preact</strong> for standard-based components. The entire ecosystem is 
-                                <strong>.NET Aspire</strong> compatible and managed via powerful <strong>.NET MAUI</strong> clients.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class='mt-24 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 border-y border-slate-100'>
-                        <div class='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center'>
-                            <h2 class='text-2xl font-black text-slate-900 uppercase tracking-widest mb-12'>Tech we use:</h2>
-                            <div class='flex flex-wrap gap-8 sm:gap-12 md:gap-16 items-center justify-center px-4'>
-                                <img src='/img/dotnet-logo.svg' alt='DotNet' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/csharp.DJ9MidBD_1dalL.svg' alt='C#' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/postgresql.webp' alt='PostgreSQL' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/htmx-logo.png' alt='HTMX' class='h-8 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/preact-logo.svg' alt='Preact' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/lavinmq.png' alt='LavinMQ' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/aspire.png' alt='Aspire' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                            </div>
-                        </div>
-                    </div>
-                </div>",
-            Order = 1
-        };
-
-        return (
-            new PageDocument
-            {
-                Id = Snowflake.NewId(),
-                Kind = PageKind.Homepage,
-                Slug = "/",
-                Title = Normalize(request.HomepageTitle),
-                Summary = homepageSummary,
-                SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
-                SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
-                Blocks = new List<EditorBlock>
-                {
-                    new() { Type = "boring_hero", MainText = Normalize(request.HomepageTitle), SubText = homepageSummary, BackgroundImage = "/assets/hero-01.svg", FullWidth = true },
-                    new() { Type = "content", Content = bodyBlock.Content }
-                },
-                LayoutRegions =
-                [
-                    new LayoutRegion
-                    {
-                        Name = "MainContent",
-                        Order = 0,
-                        Columns =
-                        [
-                            new LayoutColumn
-                            {
-                                Width = 12,
-                                Order = 0,
-                                Blocks =
-                                [
-                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
-                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
-                                ]
-                            }
-                        ]
-                    }
-                ],
-                PublicationState = ContentPublicationState.Published
-            },
-            new List<BlockBase> { heroBlock, bodyBlock }
-        );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildBlogListingPage(SeedDatabaseRequest request)
+
+    /// <summary>
+    /// Builds the default-culture blog listing metadata before HTML content is attached.
+    /// </summary>
+    private static PageDocument BuildBlogListingPage(SeedDatabaseRequest request)
     {
-        var headingBlock = new HeadingBlock
+        return new PageDocument
         {
             Id = Snowflake.NewId(),
-            Level = 1,
-            Text = Normalize(request.BlogName),
-            Order = 0
+            Kind = PageKind.BlogListing,
+            Slug = "blog",
+            Path = "/blog",
+            Depth = 0,
+            Order = 0,
+            Title = Normalize(request.BlogName),
+            Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
+            SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
+            SeoDescription = $"Read the latest posts from {Normalize(request.SiteName)}.",
+            PublicationState = ContentPublicationState.Published
         };
-        var bodyBlock = new RichTextBlock
-        {
-            Id = Snowflake.NewId(),
-            Content = "<p>Ten example posts are already published so the site is usable right away.</p>",
-            Order = 1
-        };
-
-        return (
-            new PageDocument
-            {
-                Id = Snowflake.NewId(),
-                Kind = PageKind.BlogListing,
-                Slug = "blog",
-                Title = Normalize(request.BlogName),
-                Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
-                SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
-                SeoDescription = $"Read the latest posts from {Normalize(request.SiteName)}.",
-                Blocks = new List<EditorBlock>
-                {
-                    new() { Type = "text", Content = Normalize(request.BlogName) },
-                    new() { Type = "content", Content = bodyBlock.Content }
-                },
-                LayoutRegions =
-                [
-                    new LayoutRegion
-                    {
-                        Name = "MainContent",
-                        Order = 0,
-                        Columns =
-                        [
-                            new LayoutColumn
-                            {
-                                Width = 12,
-                                Order = 0,
-                                Blocks =
-                                [
-                                    new BlockPlacement { BlockId = headingBlock.Id, BlockType = headingBlock.BlockType, Order = 0 },
-                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
-                                ]
-                            }
-                        ]
-                    }
-                ],
-                PublicationState = ContentPublicationState.Published
-            },
-            new List<BlockBase> { headingBlock, bodyBlock }
-        );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildAboutPage()
+
+    /// <summary>
+    /// Builds the default-culture about-page metadata.
+    /// </summary>
+    private static PageDocument BuildAboutPage()
     {
         const string summary = "Learn more about our mission and the team behind the platform.";
-        var heroBlock = new BoringHeroBlock
+
+        return new PageDocument
         {
             Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "about",
+            Path = "/about",
+            Depth = 0,
+            Order = 0,
             Title = "About Us",
             Summary = summary,
-            FullWidth = true,
-            Order = 0
+            SeoTitle = "About Us | Aero CMS",
+            SeoDescription = "Discover our story, mission, and commitment to building great digital experiences.",
+            PublicationState = ContentPublicationState.Published
         };
-        var bodyBlock = new RichTextBlock
-        {
-            Id = Snowflake.NewId(),
-            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We believe that content management should be intuitive, performant, and extensible. Our team is dedicated to building tools that empower creators to share their vision without technical friction.</p>" +
-                      "<p class='text-lg leading-relaxed text-slate-700'>Founded on the principles of clarity and engineering excellence, Aero CMS is the culmination of years of experience in distributed systems and modern web architecture.</p>",
-            Order = 1
-        };
-
-        return (
-            new PageDocument
-            {
-                Id = Snowflake.NewId(),
-                Kind = PageKind.Standard,
-                Slug = "about",
-                Title = "About Us",
-                Summary = summary,
-                SeoTitle = "About Us | Aero CMS",
-                SeoDescription = "Discover our story, mission, and commitment to building great digital experiences.",
-                Blocks = new List<EditorBlock>
-                {
-                    new() { Type = "boring_hero", MainText = "About Us", SubText = summary, FullWidth = true },
-                    new() { Type = "content", Content = bodyBlock.Content }
-                },
-                LayoutRegions =
-                [
-                    new LayoutRegion
-                    {
-                        Name = "MainContent",
-                        Order = 0,
-                        Columns =
-                        [
-                            new LayoutColumn
-                            {
-                                Width = 12,
-                                Order = 0,
-                                Blocks =
-                                [
-                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
-                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
-                                ]
-                            }
-                        ]
-                    }
-                ],
-                PublicationState = ContentPublicationState.Published
-            },
-            new List<BlockBase> { heroBlock, bodyBlock }
-        );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildContactPage()
+
+    /// <summary>
+    /// Builds the default-culture contact-page metadata.
+    /// </summary>
+    private static PageDocument BuildContactPage()
     {
         const string summary = "Get in touch with our team.";
-        var heroBlock = new BoringHeroBlock
+
+        return new PageDocument
         {
             Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "contact",
+            Path = "/contact",
+            Depth = 0,
+            Order = 0,
             Title = "Contact Us",
             Summary = summary,
-            FullWidth = true,
-            Order = 0
+            SeoTitle = "Contact Us | Aero CMS",
+            SeoDescription = "Have questions? We'd love to hear from you. Send us a message today.",
+            PublicationState = ContentPublicationState.Published
         };
-        var bodyBlock = new RichTextBlock
-        {
-            Id = Snowflake.NewId(),
-            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-8'>Have a question or looking to collaborate? We'd love to hear from you. Our team typically responds within 24 hours.</p>",
-            Order = 1
-        };
-        var ctaBlock = new CtaBlock
-        {
-            Id = Snowflake.NewId(),
-            Text = "Send Us a Message",
-            Url = "mailto:hello@example.com",
-            Style = "primary",
-            Order = 2
-        };
-
-        return (
-            new PageDocument
-            {
-                Id = Snowflake.NewId(),
-                Kind = PageKind.Standard,
-                Slug = "contact",
-                Title = "Contact Us",
-                Summary = summary,
-                SeoTitle = "Contact Us | Aero CMS",
-                SeoDescription = "Have questions? We'd love to hear from you. Send us a message today.",
-                Blocks = new List<EditorBlock>
-                {
-                    new() { Type = "boring_hero", MainText = "Contact Us", SubText = summary, FullWidth = true },
-                    new() { Type = "content", Content = bodyBlock.Content },
-                    new() { Type = "aero_cta", MainText = ctaBlock.Text, CtaText = ctaBlock.Text, CtaUrl = ctaBlock.Url }
-                },
-                LayoutRegions =
-                [
-                    new LayoutRegion
-                    {
-                        Name = "MainContent",
-                        Order = 0,
-                        Columns =
-                        [
-                            new LayoutColumn
-                            {
-                                Width = 12,
-                                Order = 0,
-                                Blocks =
-                                [
-                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
-                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 },
-                                    new BlockPlacement { BlockId = ctaBlock.Id, BlockType = ctaBlock.BlockType, Order = 2 }
-                                ]
-                            }
-                        ]
-                    }
-                ],
-                PublicationState = ContentPublicationState.Published
-            },
-            new List<BlockBase> { heroBlock, bodyBlock, ctaBlock }
-        );
     }
 
-    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
+
+    /// <summary>
+    /// Builds the default-culture privacy-page metadata.
+    /// </summary>
+    private static PageDocument BuildPrivacyPage()
+    {
+        const string summary = "Our commitment to your privacy and data protection.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "privacy",
+            Path = "/privacy",
+            Depth = 0,
+            Order = 0,
+            Title = "Privacy Policy",
+            Summary = summary,
+            SeoTitle = "Privacy Policy | Aero CMS",
+            SeoDescription = "Learn how we collect, use, and protect your personal information.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the default-culture terms-page metadata.
+    /// </summary>
+    private static PageDocument BuildTermsPage()
+    {
+        const string summary = "Terms and conditions governing the use of our site.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "terms",
+            Path = "/terms",
+            Depth = 0,
+            Order = 0,
+            Title = "Terms of Service",
+            Summary = summary,
+            SeoTitle = "Terms of Service | Aero CMS",
+            SeoDescription = "Read the terms and conditions for using our site.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the default-culture cookie-policy metadata.
+    /// </summary>
+    private static PageDocument BuildCookiesPage()
+    {
+        const string summary = "How we use cookies to improve your browsing experience.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "cookies",
+            Path = "/cookies",
+            Depth = 0,
+            Order = 0,
+            Title = "Cookie Policy",
+            Summary = summary,
+            SeoTitle = "Cookie Policy | Aero CMS",
+            SeoDescription = "Learn how we use cookies and how you can manage them.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the Spanish (Mexico) home-page variant for an existing translation group.
+    /// </summary>
+    private static PageDocument BuildSpanishHomepage(
+        SeedDatabaseRequest request,
+        long TranslationGroupId)
+    {
+        var title = $"Bienvenido a {Normalize(request.SiteName)}";
+        var summary = "Una plataforma de contenido modular, rapida y preparada para sitios modernos.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = 0,
+            TranslationGroupId = TranslationGroupId,
+            Culture = "es-MX",
+            Kind = PageKind.Homepage,
+            Slug = "/",
+            Path = "/",
+            Depth = 0,
+            Order = 0,
+            Title = title,
+            Summary = summary,
+            SeoTitle = $"{title} | {Normalize(request.SiteName)}",
+            SeoDescription = $"Bienvenido a {Normalize(request.SiteName)}.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the Spanish (Mexico) blog-listing variant for an existing translation group.
+    /// </summary>
+    private static PageDocument BuildSpanishBlogListingPage(
+        SeedDatabaseRequest request,
+        long TranslationGroupId)
+    {
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            TranslationGroupId = TranslationGroupId,
+            Culture = "es-MX",
+            Kind = PageKind.BlogListing,
+            Slug = "blog",
+            Path = "/blog",
+            Depth = 0,
+            Order = 0,
+            Title = "Blog",
+            Summary = $"Novedades y notas de {Normalize(request.SiteName)}.",
+            SeoTitle = $"Blog | {Normalize(request.SiteName)}",
+            SeoDescription = $"Lee las publicaciones mas recientes de {Normalize(request.SiteName)}.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the Spanish (Mexico) about-page variant for an existing translation group.
+    /// </summary>
+    private static PageDocument BuildSpanishAboutPage(long TranslationGroupId)
+    {
+        const string title = "Acerca de";
+        const string summary = "Conoce nuestra mision y la historia detras de la plataforma.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            TranslationGroupId = TranslationGroupId,
+            Culture = "es-MX",
+            Kind = PageKind.Standard,
+            Slug = "acerca-de",
+            Path = "/acerca-de",
+            Depth = 0,
+            Order = 0,
+            Title = title,
+            Summary = summary,
+            SeoTitle = "Acerca de | Aero CMS",
+            SeoDescription = "Conoce nuestra historia y nuestra forma de construir experiencias digitales.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds the Spanish (Mexico) contact-page variant for an existing translation group.
+    /// </summary>
+    private static PageDocument BuildSpanishContactPage(long TranslationGroupId)
+    {
+        const string title = "Contacto";
+        const string summary = "Ponte en contacto con nuestro equipo.";
+
+        return new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            TranslationGroupId = TranslationGroupId,
+            Culture = "es-MX",
+            Kind = PageKind.Standard,
+            Slug = "contacto",
+            Path = "/contacto",
+            Depth = 0,
+            Order = 0,
+            Title = title,
+            Summary = summary,
+            SeoTitle = "Contacto | Aero CMS",
+            SeoDescription = "Tienes preguntas? Envia un mensaje al equipo.",
+            PublicationState = ContentPublicationState.Published
+        };
+    }
+
+
+    /// <summary>
+    /// Builds tags and randomized starter posts without storing them.
+    /// </summary>
+    /// <remarks>Like counts and three-tag selections are intentionally non-deterministic.</remarks>
+    private static (IReadOnlyList<PostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {
         var random = new Random();
         var tags = CreateTags();
@@ -825,7 +1692,7 @@ public sealed class SeedDatabaseService(
             $"{H}pexels-36009140.jpg", $"{H}pexels-36578877.jpg"
         };
 
-        var posts = new List<BlogPostDocument>
+        var posts = new List<PostDocument>
         {
             BuildPost(Snowflake.NewId(), "welcome-to-our-new-platform", "Welcome to Our New Platform",
                 "Launching a better way to share updates and connect with our community.",
@@ -834,7 +1701,7 @@ public sealed class SeedDatabaseService(
                 $"{H}pexels-34077030.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "behind-the-scenes-building-a-content-management-system", "Behind the Scenes: Building a Content Management System",
                 "A deep dive into the technical decisions that power our content platform.",
-                "# Behind the Scenes: Building a Content Management System\n\nCreating a CMS from scratch is both exhilarating and challenging. In this post, we're pulling back the curtain on the architectural decisions that shape our platform.\n\nWe chose **.NET 10** for its performance and robust ecosystem. **MartenDB** provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.\n\nThe result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.\n\n> The best systems are those that disappear, letting creators focus on what matters&#8212;creating.\n\n&#8212; Our Team",
+                "# Behind the Scenes: Building a Content Management System\n\nCreating a CMS from scratch is both exhilarating and challenging. In this post, we're pulling back the curtain on the architectural decisions that shape our platform.\n\nWe chose **.NET 10** for its performance and robust ecosystem. **AeroDB** provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.\n\nThe result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.\n\n> The best systems are those that disappear, letting creators focus on what matters&#8212;creating.\n\n&#8212; Our Team",
                 [tagMap["architecture"], tagMap["cms"], tagMap[".net"]],
                 $"{H}pexels-27254940.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "design-principles-for-modern-web-platforms", "Design Principles for Modern Web Platforms",
@@ -854,7 +1721,7 @@ public sealed class SeedDatabaseService(
                 $"{H}pexels-36391026.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "scaling-postgres-for-high-traffic", "Scaling Postgres for High Traffic",
                 "Lessons learned from optimizing our database layer for performance.",
-                "# Scaling Postgres for High Traffic\n\nPostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.\n\n**Indexing is everything.** Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.\n\n**Connection pooling is essential.** With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.\n\n**And always, always monitor.** Query stats, connection counts, cache hit ratios&#8212;know your system's vital signs before problems arise.\n\n> Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
+                "# Scaling Postgres for High Traffic\n\nPostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.\n\n**Indexing is everything.** Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.\n\n**Connection pooling is essential.** With AeroDB's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.\n\n**And always, always monitor.** Query stats, connection counts, cache hit ratios&#8212;know your system's vital signs before problems arise.\n\n> Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
                 [tagMap["postgresql"], tagMap["performance"], tagMap["database"]],
                 $"{H}pexels-34043108.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "embracing-blazor-and-htmx", "Embracing Blazor and HTMX for Interactive UIs",
@@ -909,13 +1776,11 @@ public sealed class SeedDatabaseService(
         return (posts, tags);
     }
 
-    private static List<BlockBase> BuildMarkdownContent(string markdown) =>
-    [
-        new MarkdownBlock { Id = Snowflake.NewId(), Content = markdown, Order = 0 }
-    ];
-
-    private static BlogPostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
-        new BlogPostDocument
+    /// <summary>
+    /// Builds a published starter post with matching SEO metadata.
+    /// </summary>
+    private static PostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
+        new PostDocument
         {
             Id = id,
             Slug = slug,
@@ -923,7 +1788,7 @@ public sealed class SeedDatabaseService(
             Excerpt = excerpt,
             SeoTitle = title,
             SeoDescription = excerpt,
-            Content = BuildMarkdownContent(markdown),
+            MarkdownContent = markdown,
             PublishedOn = DateTimeOffset.UtcNow,
             PublicationState = ContentPublicationState.Published,
             TagIds = tagIds ?? [],
@@ -931,9 +1796,356 @@ public sealed class SeedDatabaseService(
             Likes = likes
         };
 
+    /// <summary>
+    /// Trims setup-supplied display text before it is copied into starter content.
+    /// </summary>
     private static string Normalize(string value)
         => value.Trim();
 
+    /// <summary>
+    /// Wraps a required starter-content failure with the failed artifact's name.
+    /// </summary>
+    private static Result<bool, AeroError> StarterContentFailure(string artifact, AeroError error)
+    {
+        var detail = GetErrorMessages(error).FirstOrDefault() ?? "Starter content seeding failed.";
+        return Prelude.Fail<bool, AeroError>(
+            AeroError.CreateError($"Failed to seed {artifact}: {detail}"));
+    }
+
+    /// <summary>
+    /// Converts railway errors into user-facing setup failure messages.
+    /// </summary>
+    private static IReadOnlyList<string> GetErrorMessages(AeroError error)
+        => error switch
+        {
+            AeroError.Validation validation => validation.Errors,
+            AeroError.Error generic => [generic.msg],
+            AeroError.Cancelled cancelled => [cancelled.msg],
+            AeroError.NotAllowed notAllowed => [notAllowed.msg],
+            AeroError.NotFound notFound => [notFound.msg],
+            AeroError.Conflict conflict => [conflict.msg],
+            AeroError.Database database => [database.msg],
+            AeroError.Unauthorized unauthorized => [unauthorized.msg],
+            AeroError.Forbidden forbidden => [forbidden.msg],
+            AeroError.Timeout timeout => [timeout.msg],
+            AeroError.InvalidRequest invalidRequest => [invalidRequest.msg],
+            AeroError.BadRequest badRequest => [badRequest.msg],
+            AeroError.Exists exists => [exists.msg],
+            AeroError.NullReferro nullReference => [nullReference.msg],
+            AeroError.HttpRequest httpRequest => [httpRequest.msg ?? $"HTTP request failed with status {(int)httpRequest.code}."],
+            AeroError.Configuration configuration => [configuration.msg],
+            _ => ["Starter content seeding failed."]
+        };
+
+    private async Task ReconcilePageIdentitiesAsync(
+        IReadOnlyList<PageDocument> pages,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingPages = await session.Query<PageDocument>()
+            .Where(page => page.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = pages
+            .Select(page => new
+            {
+                Page = page,
+                OriginalId = page.Id,
+                page.ParentId,
+                page.TranslationGroupId,
+                page.SourcePageId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+
+        foreach (var reference in references)
+        {
+            var page = reference.Page;
+            page.SiteId = siteId;
+            page.Culture = NormalizeCultureName(page.Culture);
+            page.Path = AliasDocument.NormalizePath(page.Path);
+            var existing = existingPages.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), page.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(AliasDocument.NormalizePath(candidate.Path), page.Path, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            if (existing is not null)
+            {
+                page.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Page.ParentId = RemapReference(reference.ParentId, idMap);
+            reference.Page.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap);
+            reference.Page.SourcePageId = RemapReference(reference.SourcePageId, idMap);
+        }
+    }
+
+    private async Task ReconcileDocsPageIdentitiesAsync(
+        IReadOnlyList<DocsPage> docs,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingDocs = await session.Query<DocsPage>()
+            .Where(doc => doc.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = docs
+            .Select(doc => new
+            {
+                Doc = doc,
+                OriginalId = doc.Id,
+                doc.ParentId,
+                doc.TranslationGroupId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+        var preservedTranslationGroups = new Dictionary<DocsPage, long?>();
+
+        foreach (var reference in references)
+        {
+            var doc = reference.Doc;
+            doc.SiteId = siteId;
+            doc.Culture = NormalizeCultureName(doc.Culture);
+            doc.Slug = NormalizeSeedSlug(doc.Slug);
+            var existing = existingDocs.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), doc.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormalizeSeedSlug(candidate.Slug), doc.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            preservedTranslationGroups[doc] = existing?.TranslationGroupId;
+            if (existing is not null)
+            {
+                doc.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Doc.ParentId = RemapReference(reference.ParentId, idMap);
+            reference.Doc.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap)
+                ?? preservedTranslationGroups[reference.Doc];
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<long, long>> ReconcileTagIdentitiesAsync(
+        IReadOnlyList<Tag> tags,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingTags = await session.Query<Tag>()
+            .Where(tag => tag.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var idMap = new Dictionary<long, long>();
+
+        foreach (var tag in tags)
+        {
+            var originalId = tag.Id;
+            tag.SiteId = siteId;
+            tag.Slug = NormalizeSeedSlug(tag.Slug);
+            var existing = existingTags.FirstOrDefault(candidate =>
+                string.Equals(NormalizeSeedSlug(candidate.Slug), tag.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[originalId] = existing?.Id ?? originalId;
+            if (existing is not null)
+            {
+                tag.Id = existing.Id;
+            }
+        }
+
+        return idMap;
+    }
+
+    private async Task ReconcileTagTranslationIdentitiesAsync(
+        IReadOnlyList<TagTranslation> translations,
+        CancellationToken cancellationToken)
+    {
+        var tagIds = translations.Select(translation => translation.TagId).ToHashSet();
+        var existingTranslations = (await session.Query<TagTranslation>()
+                .ToListAsync(cancellationToken))
+            .Where(translation => tagIds.Contains(translation.TagId))
+            .ToList();
+
+        foreach (var translation in translations)
+        {
+            translation.Culture = NormalizeCultureName(translation.Culture);
+            var existing = existingTranslations.FirstOrDefault(candidate =>
+                candidate.TagId == translation.TagId
+                && string.Equals(
+                    NormalizeCultureName(candidate.Culture),
+                    translation.Culture,
+                    StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                translation.Id = existing.Id;
+            }
+        }
+    }
+
+    private async Task ReconcilePostIdentitiesAsync(
+        IReadOnlyList<PostDocument> posts,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var existingPosts = await session.Query<PostDocument>()
+            .Where(post => post.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+        var references = posts
+            .Select(post => new
+            {
+                Post = post,
+                OriginalId = post.Id,
+                post.TranslationGroupId,
+                post.SourcePostId
+            })
+            .ToList();
+        var idMap = new Dictionary<long, long>();
+        var preservedTranslationGroups = new Dictionary<PostDocument, long?>();
+
+        foreach (var reference in references)
+        {
+            var post = reference.Post;
+            post.SiteId = siteId;
+            post.Culture = NormalizeCultureName(post.Culture);
+            post.Slug = NormalizeSeedSlug(post.Slug);
+            var existing = existingPosts.FirstOrDefault(candidate =>
+                string.Equals(NormalizeCultureName(candidate.Culture), post.Culture, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormalizeSeedSlug(candidate.Slug), post.Slug, StringComparison.OrdinalIgnoreCase));
+            idMap[reference.OriginalId] = existing?.Id ?? reference.OriginalId;
+            preservedTranslationGroups[post] = existing?.TranslationGroupId;
+            if (existing is not null)
+            {
+                post.Id = existing.Id;
+            }
+        }
+
+        foreach (var reference in references)
+        {
+            reference.Post.TranslationGroupId = RemapReference(reference.TranslationGroupId, idMap)
+                ?? preservedTranslationGroups[reference.Post];
+            reference.Post.SourcePostId = RemapReference(reference.SourcePostId, idMap);
+        }
+    }
+
+    private async Task ReconcileAliasIdentitiesAsync(
+        IReadOnlyList<AliasDocument> aliases,
+        long siteId,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCulture = NormalizeCultureName(culture);
+        var existingAliases = await session.Query<AliasDocument>()
+            .Where(alias => alias.SiteId == siteId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var alias in aliases)
+        {
+            alias.SiteId = siteId;
+            alias.Culture = normalizedCulture;
+            alias.NormalizedOldPath = AliasDocument.NormalizePath(alias.OldPath);
+            var existing = existingAliases.FirstOrDefault(candidate =>
+                string.Equals(
+                    NormalizeCultureName(candidate.Culture),
+                    normalizedCulture,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    AliasDocument.NormalizePath(candidate.NormalizedOldPath),
+                    alias.NormalizedOldPath,
+                    StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                alias.Id = existing.Id;
+            }
+        }
+    }
+
+    private static long? RemapReference(long? id, IReadOnlyDictionary<long, long> idMap)
+        => id is { } value && idMap.TryGetValue(value, out var remapped) ? remapped : id;
+
+    private static string NormalizeSeedSlug(string? slug)
+        => (slug ?? string.Empty).Trim().Trim('/').ToLowerInvariant();
+
+    /// <summary>
+    /// Saves a page draft and immediately publishes it when the save succeeds.
+    /// </summary>
+    private async Task<Result<PageDocument, AeroError>> SavePublishedPageAsync(
+        PageDocument page,
+        long authorizedSiteId,
+        CancellationToken cancellationToken)
+    {
+        var saved = await pageContentService.SaveAsync(page, authorizedSiteId, cancellationToken);
+        if (saved is Result<PageDocument, AeroError>.Failure saveFailure)
+        {
+            return saveFailure;
+        }
+
+        var published = await pagePublishingWorkflowService.PublishNowAsync(
+            page.Id,
+            authorizedSiteId,
+            cancellationToken);
+        return published is Result<bool, AeroError>.Failure publishFailure
+            ? Prelude.Fail<PageDocument, AeroError>(publishFailure.Error)
+            : saved;
+    }
+
+    /// <summary>
+    /// Assigns a page culture and initializes its translation group to its own identifier.
+    /// </summary>
+    private static void StampPageCulture(PageDocument page, string culture)
+    {
+        page.Culture = culture;
+        page.TranslationGroupId ??= page.Id;
+    }
+
+    /// <summary>
+    /// Determines whether a separate Spanish (Mexico) variant should be seeded.
+    /// </summary>
+    private static bool ShouldSeedSpanishMexico(string defaultCulture, IReadOnlyList<string> supportedCultures)
+        => !string.Equals(defaultCulture, "es-MX", StringComparison.OrdinalIgnoreCase)
+           && supportedCultures.Any(culture => string.Equals(culture, "es-MX", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Canonicalizes culture names, removes duplicates, and ensures the default is supported.
+    /// </summary>
+    private static (string DefaultCulture, List<string> SupportedCultures) NormalizeCultureSettings(
+        string? defaultCulture,
+        IEnumerable<string>? supportedCultures)
+    {
+        var normalizedDefault = NormalizeCultureName(defaultCulture);
+        var cultures = (supportedCultures ?? [])
+            .Select(NormalizeCultureName)
+            .Where(culture => !string.IsNullOrWhiteSpace(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!cultures.Any(culture => string.Equals(culture, normalizedDefault, StringComparison.OrdinalIgnoreCase)))
+        {
+            cultures.Insert(0, normalizedDefault);
+        }
+
+        return (normalizedDefault, cultures.Count == 0 ? [normalizedDefault] : cultures);
+    }
+
+    /// <summary>
+    /// Returns a canonical culture name or the site default when the input is blank or invalid.
+    /// </summary>
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return SitesModel.DefaultCultureName;
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
+
+    /// <summary>
+    /// Builds the fixed starter tag catalog with new Snowflake identifiers.
+    /// </summary>
     private static List<Tag> CreateTags()
     {
         var tagNames = new[]
@@ -951,6 +2163,55 @@ public sealed class SeedDatabaseService(
         }).ToList();
     }
 
+    /// <summary>
+    /// Builds Spanish (Mexico) translations for recognized starter tags.
+    /// </summary>
+    private static IReadOnlyList<TagTranslation> BuildSpanishMexicoTagTranslations(IReadOnlyList<Tag> tags)
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["announcements"] = "anuncios",
+            ["community"] = "comunidad",
+            ["architecture"] = "arquitectura",
+            ["cms"] = "cms",
+            [".net"] = ".net",
+            ["design"] = "diseno",
+            ["ux"] = "ux",
+            ["orleans"] = "orleans",
+            ["distributed-systems"] = "sistemas distribuidos",
+            ["content-strategy"] = "estrategia de contenido",
+            ["blogging"] = "blogging",
+            ["postgresql"] = "postgresql",
+            ["performance"] = "rendimiento",
+            ["database"] = "base de datos",
+            ["blazor"] = "blazor",
+            ["htmx"] = "htmx",
+            ["frontend"] = "frontend",
+            ["observability"] = "observabilidad",
+            ["opentelemetry"] = "opentelemetry",
+            ["monitoring"] = "monitoreo",
+            ["tutorial"] = "tutorial",
+            ["guide"] = "guia",
+            ["future"] = "futuro",
+            ["trends"] = "tendencias"
+        };
+
+        return tags
+            .Where(tag => names.ContainsKey(tag.Name))
+            .Select(tag => new TagTranslation
+            {
+                Id = Snowflake.NewId(),
+                TagId = tag.Id,
+                Culture = "es-MX",
+                Name = names[tag.Name],
+                Description = $"Etiqueta para contenido sobre {names[tag.Name]}."
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Builds the initial published documentation hierarchy without storing it.
+    /// </summary>
     private List<DocsPage> BuildStarterDocsContent()
     {
         var docs = new List<DocsPage>();

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Aero.Cms.Web.Bootstrap</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Aero.Cms.AspNetCore</PackageId>
+    <Title>Aero CMS ASP.NET Core Integration</Title>
+    <Description>Package-first ASP.NET Core integration facade for adding Aero CMS to new or existing web applications.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hydro" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Radzen.Blazor" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Aero framework -->
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
+
+    <!-- CMS core -->
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
+
+    <!-- CMS infrastructure -->
+    <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+  </ItemGroup>
+
+</Project>

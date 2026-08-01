@@ -1,8 +1,7 @@
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Http;
-using Aero.Core.Railway;
+using Aero.Cms.Html;
+using Aero.Cms.Abstractions.Pages.Composition;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -31,19 +30,28 @@ public interface IPreviewHttpClient
     /// Renders an unsaved page document to an HTML fragment.
     /// </summary>
     Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<EditorBlock>? blocks = null,
-        IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        HtmlPageContent content,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders an unsaved page document and its optional typed-content composition.
+    /// </summary>
+    Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        HtmlPageContent content,
+        PageCompositionDocument? composition,
+        string? culture,
+        CancellationToken ct = default);
+
+    /// <summary>Renders a renderer-aware unsaved page preview request.</summary>
+    Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        PreviewPageFragmentRequest request,
         CancellationToken ct = default);
 
     /// <summary>
     /// Renders an unsaved blog post document to an HTML fragment.
     /// </summary>
-    Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default);
+    Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(string markdownContent, CancellationToken ct = default);
 
-    /// <summary>
-    /// Renders an unsaved block to an HTML fragment.
-    /// </summary>
-    Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -69,26 +77,43 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
 
     /// <inheritdoc />
     public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<EditorBlock>? blocks = null,
-        IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        HtmlPageContent content,
+        CancellationToken ct = default)
+        => await RenderPageFragmentAsync(content, composition: null, culture: null, ct);
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        HtmlPageContent content,
+        PageCompositionDocument? composition,
+        string? culture,
+        CancellationToken ct = default)
+        => await RenderPageFragmentAsync(
+            new PreviewPageFragmentRequest(content, composition, culture),
+            ct);
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        PreviewPageFragmentRequest request,
         CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
             "pages/render-fragment",
-            new PreviewPageFragmentRequest(blocks, layoutRegions),
+            request,
             ct);
 
         if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)
             return new Result<string, AeroError>.Ok(ok.Value.Html);
-        return new Result<string, AeroError>.Failure(((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error);
+        return new Result<string, AeroError>.Failure(
+            NormalizePreviewError(
+                ((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error));
     }
 
     /// <inheritdoc />
-    public async Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default)
+    public async Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(string markdownContent, CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewBlogPostFragmentRequest, PreviewBlogPostFragmentResponse>(
             "blog-posts/render-fragment",
-            new PreviewBlogPostFragmentRequest(content),
+            new PreviewBlogPostFragmentRequest(markdownContent),
             ct);
 
         if (result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok)
@@ -96,16 +121,33 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
         return new Result<string, AeroError>.Failure(((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error);
     }
 
-    /// <inheritdoc />
-    public async Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default)
+    private static AeroError NormalizePreviewError(AeroError error)
     {
-        var result = await PostAsync<PreviewBlockFragmentRequest, PreviewBlockFragmentResponse>(
-            "blocks/render-fragment",
-            new PreviewBlockFragmentRequest(block),
-            ct);
+        if (error is not AeroError.HttpRequest { msg: { Length: > 0 } body })
+            return error;
 
-        if (result is Result<PreviewBlockFragmentResponse, AeroError>.Ok ok)
-            return new Result<string, AeroError>.Ok(ok.Value.Html);
-        return new Result<string, AeroError>.Failure(((Result<PreviewBlockFragmentResponse, AeroError>.Failure)result).Error);
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            foreach (var propertyName in new[] { "error", "detail", "title" })
+            {
+                if (root.TryGetProperty(propertyName, out var property)
+                    && property.ValueKind == JsonValueKind.String
+                    && property.GetString() is { Length: > 0 } message)
+                {
+                    return AeroError.ValidationError([message]);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // The transport may return plain text. Preserve it as the actionable
+            // message rather than exposing the HttpRequest record representation.
+            return AeroError.ValidationError([body]);
+        }
+
+        return error;
     }
+
 }

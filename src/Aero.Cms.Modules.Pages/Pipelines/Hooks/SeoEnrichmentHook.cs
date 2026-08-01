@@ -1,12 +1,15 @@
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Pipelines;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
 
 /// <summary>
-/// Hook that enriches the context with SEO metadata extracted from the page document.
+/// Adds page-derived SEO and page-kind values to read-pipeline metadata.
 /// </summary>
+/// <param name="logger">The hook logger.</param>
+/// <remarks>
+/// Existing <c>SeoTitle</c> and <c>PageKind</c> values are overwritten. An empty SEO
+/// description leaves any existing <c>SeoDescription</c> value unchanged.
+/// </remarks>
 public class SeoEnrichmentHook(ILogger<SeoEnrichmentHook> logger) : IPageReadHook
 {
     /// <summary>
@@ -14,7 +17,13 @@ public class SeoEnrichmentHook(ILogger<SeoEnrichmentHook> logger) : IPageReadHoo
     /// </summary>
     public int Order => 50;
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+    /// <summary>
+    /// Enriches metadata when a page is present and the context has not short-circuited.
+    /// </summary>
+    /// <param name="ctx">The mutable page-read context.</param>
+    /// <param name="ct">Unused; the operation performs no asynchronous work.</param>
+    /// <returns>A completed task.</returns>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         // Skip if context is already short-circuited
         if (ctx.IsShortCircuited)

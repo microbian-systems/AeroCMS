@@ -1,0 +1,30 @@
+.cms-reference-picker {
+    display: grid;
+    gap: .75rem;
+}
+
+.cms-reference-state {
+    align-items: center;
+    background: var(--pe-bg-secondary);
+    border: 1px solid var(--pe-border);
+    border-radius: .5rem;
+    color: var(--pe-text-secondary);
+    display: flex;
+    gap: .5rem;
+    min-height: 3rem;
+    padding: .75rem;
+}
+
+.cms-reference-error {
+    border-color: color-mix(in srgb, var(--pe-danger) 45%, var(--pe-border));
+    color: var(--pe-danger);
+}
+
+.cms-reference-help {
+    align-items: center;
+    color: var(--pe-text-muted);
+    display: flex;
+    font-size: .75rem;
+    gap: .35rem;
+    margin: 0;
+}

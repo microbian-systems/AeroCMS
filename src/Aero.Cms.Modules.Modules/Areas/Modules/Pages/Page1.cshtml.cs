@@ -1,10 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Modules.Areas.MyFeature.Pages
 {
-    public class Page1Model : PageModel
+        /// <summary>
+    /// Provides the Razor Page model for the module-management placeholder page.
+    /// </summary>
+public class Page1Model : PageModel
     {
-        public void OnGet()
+                /// <summary>
+        /// Handles GET requests without producing page-specific state.
+        /// </summary>
+public void OnGet()
         {
 
         }

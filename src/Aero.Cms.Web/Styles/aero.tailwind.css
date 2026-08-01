@@ -1,0 +1,117 @@
+@import "tailwindcss" source(none);
+
+/* Scan application-owned UI sources without traversing static/vendor or build output trees. */
+@source "../Components";
+@source "../Pages";
+@source "../Views";
+@source "../ts";
+@source "../../Aero.Cms.Shared/{Components,Layout,Pages,ts}";
+@source "../../Aero.Cms.Modules.*/{Areas,Components,Pages,Views}";
+/* The wildcard/brace form above is not expanded by every Tailwind CLI host.
+   Keep the public blog pages explicit so their layout utilities are emitted. */
+@source "../../Aero.Cms.Modules.Posts/Areas";
+@source "../../Aero.Cms.Modules.Navigation/Views";
+@source "../../Aero.Cms.Modules.Footer/Views";
+@source "../../Aero.Cms.Modules.Footer/Rendering";
+/* Setup owns bootstrap-only utilities, so keep its pre-runtime wizard source explicit. */
+@source "../../Aero.Cms.Modules.Setup/Areas/Setup/Pages";
+@source "../../Aero.Cms.Html";
+
+@plugin "./vendor/daisyui/5.7.9/daisyui.mjs" {
+  themes: false;
+  prefix: "d-";
+  logs: false;
+}
+
+@plugin "./vendor/daisyui/5.7.9/daisyui-theme.mjs" {
+  name: "corporate";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(93% 0 0);
+  --color-base-300: oklch(86% 0 0);
+  --color-base-content: oklch(22.389% 0.031 278.072);
+  --color-primary: oklch(58% 0.158 241.966);
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(55% 0.046 257.417);
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(60% 0.118 184.704);
+  --color-accent-content: oklch(100% 0 0);
+  --color-neutral: oklch(0% 0 0);
+  --color-neutral-content: oklch(100% 0 0);
+  --color-info: oklch(60% 0.126 221.723);
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(62% 0.194 149.214);
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(85% 0.199 91.936);
+  --color-warning-content: oklch(0% 0 0);
+  --color-error: oklch(70% 0.191 22.216);
+  --color-error-content: oklch(0% 0 0);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/*
+  Aero CMS Web Client Theme
+  Compiled by the pinned Tailwind CSS standalone CLI in eng/theme-assets.
+*/
+
+@theme {
+  /* Fonts */
+  --font-display: "Satoshi", "Inter", sans-serif;
+  --font-sans: "Inter", "system-ui", sans-serif;
+
+  /* Screen Breakpoints */
+  --breakpoint-3xl: 120rem;
+
+  /* Custom Color Palette (Avocado) */
+  --color-avocado-100: oklch(0.99 0 0);
+  --color-avocado-200: oklch(0.98 0.04 113.22);
+  --color-avocado-300: oklch(0.94 0.11 115.03);
+  --color-avocado-400: oklch(0.92 0.19 114.08);
+  --color-avocado-500: oklch(0.84 0.18 117.33);
+  --color-avocado-600: oklch(0.53 0.12 118.34);
+
+  /* Brand Accents */
+  --color-brand-600: oklch(0.51 0.22 262.38);
+  --color-brand-700: oklch(0.44 0.19 261.21);
+
+  /* Animation Easing */
+  --ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Styling Hooks */
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-sans;
+  }
+
+  html[dir="rtl"] .prose,
+  html[dir="rtl"] article,
+  html[dir="rtl"] main {
+    text-align: start;
+  }
+
+  html[dir="rtl"] svg {
+    transform-origin: center;
+  }
+
+  .container-wide {
+    @apply mx-auto px-4 sm:px-6 lg:px-12 max-w-[100rem];
+  }
+}

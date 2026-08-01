@@ -1,5 +1,4 @@
-﻿using TUnit.Core;
-using Aero.Cms.Core.Tests.TestModules;
+﻿using Aero.Cms.Core.Tests.TestModules;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.Discovery;

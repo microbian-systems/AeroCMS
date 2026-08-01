@@ -1,25 +1,20 @@
-@using Microsoft.AspNetCore.Identity
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Shop</title>
-    <link rel="stylesheet" href="~/css/commerce.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/_content/Aero.Cms.Modules.Commerce/css/commerce.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="eshop-body">
-    @* ─── Header ─── *@
     <div class="eshop-header@(ViewData["IsHome"] is true ? " eshop-header-home" : "")">
-        <div class="eshop-header-hero">
-            <img role="presentation"
-                 src="@(ViewData["IsHome"] is true ? "~/images/header-home.webp" : "~/images/header.webp")"
-                 alt="" asp-append-version="true" />
-        </div>
         <div class="eshop-header-container">
             <nav class="eshop-header-navbar">
-                <partial name="_UserMenuPartial" />
-                <partial name="_CartMenuPartial" />
+                <a class="eshop-brand" href="/shop">Shop</a>
+                <a href="/shop/products">Products</a>
+                <partial name="/Areas/Commerce/Shared/_UserMenuPartial.cshtml" />
+                <partial name="/Areas/Commerce/Shared/_CartMenuPartial.cshtml" />
             </nav>
             <div class="eshop-header-intro">
                 <h1>@ViewData["HeaderTitle"]</h1>
@@ -28,17 +23,15 @@
         </div>
     </div>
 
-    @* ─── Page Body ─── *@
     <main>
         @RenderBody()
     </main>
 
-    @* ─── Footer ─── *@
     <footer class="eshop-footer">
         <div class="eshop-footer-content">
             <div class="eshop-footer-row">
-                <img role="presentation" src="~/images/logo-footer.svg" alt="" class="logo logo-footer" />
-                <p>&copy; @DateTime.Now.Year Shop</p>
+                <a class="eshop-footer-brand" href="/shop">Shop</a>
+                <p>&copy; @DateTime.UtcNow.Year</p>
             </div>
         </div>
     </footer>

@@ -1,3 +1,24 @@
 [submodule "Aero"]
 	path = Aero
 	url = git@github.com:microbian-systems/Aero.git
+[submodule "NeoUI"]
+	path = NeoUI
+	url = git@github.com:microbian-systems/NeoUI.git
+[submodule "hyperui"]
+	path = hyperui
+	url = git@github.com:markmead/hyperui.git
+[submodule "craft.js"]
+	path = craft.js
+	url = https://github.com/prevwong/craft.js.git
+[submodule "AeroDB"]
+	path = AeroDB
+	url = git@github.com:microbian-systems/AeroDB.git
+[submodule "tiptap-dotnet"]
+	path = tiptap-dotnet
+	url = git@github.com:microbian-systems/tiptap-dotnet.git
+[submodule "AeroVault"]
+	path = AeroVault
+	url = git@github.com:microbian-systems/AeroVault.git
+[submodule "ui"]
+	path = ui
+	url = git@github.com:blazorblueprintui/ui.git

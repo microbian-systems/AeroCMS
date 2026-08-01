@@ -1,35 +1,38 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Aero.Core.Entities;
-using Marten.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using AeroDB.Sable;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aero.Cms.Data.Queries;
 
+/// <summary>Selects the first site-host document whose stored host exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no hostname normalization and returns <see langword="null"/> when no host matches.</remarks>
 public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 {
-    public string hostname { get; set; } = null!;
+    /// <summary>The pre-normalized hostname used by the equality predicate.</summary>
+public string hostname { get; set; } = null!;
 
-    public Expression<Func<IMartenQueryable<SiteHost>, SiteHost?>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Host == hostname);
     }
 }
 
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class SiteByIdQuery : EntityByIdQuery<SitesModel>;
 
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class SitesByIdsQuery : EntitiesByIdsQuery<SitesModel>;
 
+/// <summary>Selects sites owned by one tenant, ordered by stored site name.</summary>
 public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required long TenantId { get; set; }
+    /// <summary>The tenant identifier that must match <see cref="SitesModel.TenantId"/>.</summary>
+public required long TenantId { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.TenantId == TenantId)
@@ -39,11 +42,15 @@ public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<Site
 }
 
 
+/// <summary>Selects sites whose stored name exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored site name.</remarks>
 public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required string Name { get; set; }
+    /// <summary>The site name used by the equality predicate.</summary>
+public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -52,9 +59,11 @@ public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesMod
     }
 }
 
+/// <summary>Selects enabled sites, ordered by stored site name.</summary>
 public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.IsEnabled)
@@ -63,9 +72,11 @@ public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesMo
     }
 }
 
+/// <summary>Selects disabled sites, ordered by stored site name.</summary>
 public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => !x.IsEnabled)
@@ -74,11 +85,15 @@ public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesM
     }
 }
 
+/// <summary>Selects sites whose stored default culture exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no culture normalization and orders matches by stored site name.</remarks>
 public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required string DefaultCulture { get; set; }
+    /// <summary>The culture value used by the equality predicate.</summary>
+public required string DefaultCulture { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.DefaultCulture == DefaultCulture)
@@ -87,6 +102,8 @@ public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, ILis
     }
 }
 
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class SitesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<SitesModel>;
 
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class SitesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<SitesModel>;

@@ -15,7 +15,7 @@ Public request flow:
 HTTP client/proxy response cache
   -> ASP.NET Core OutputCache
     -> FusionCache data/object cache
-      -> Marten DB
+      -> AeroDB.Sable (SurrealDB)
 ```
 
 Manager/admin data flow:
@@ -23,7 +23,7 @@ Manager/admin data flow:
 ```text
 Manager UI / admin API
   -> FusionCache data/object cache
-    -> Marten DB
+    -> AeroDB.Sable (SurrealDB)
 ```
 
 ## Architecture
@@ -213,8 +213,10 @@ services.AddFusionCache()
 **Redis/Garnet compatibility:** Both speak the Redis wire protocol. Garnet uses the same `StackExchange.Redis` library. Just point `AddStackExchangeRedisCache()` at the Garnet endpoint and it works.
 
 **Current `CacheModule.cs` reads cache config from:**
-- `AeroCms:Bootstrap:CacheMode` — `"Memory"` (default, no external cache) or `"Embedded"` (uses local Garnet/Redis on port 33333)
-- Connection string from config when in production
+- `AeroCms:Infrastructure:CacheMode` — `"Local"` (embedded Garnet) or `"Server"` (external Redis-compatible cache)
+- `AeroCms:Infrastructure:CacheConnectionStringReference` and the configured secret provider for protected server endpoints
+
+Setup lifecycle flags remain under `AeroCms:Bootstrap`; selecting a cache topology does not mark setup complete.
 
 ## Middleware Pipeline Order
 

@@ -1,50 +1,83 @@
-﻿using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core;
-using Aero.Marten;
 using Aero.Modular;
-using Marten;
+using AeroDB.Sable;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Text;
 
 namespace Aero.Cms.Modules.Banner;
 
+/// <summary>
+/// Represents a class for BannerModule.
+/// </summary>
 [Module(nameof(BannerModule))]
-public class BannerModule : AeroModuleBase
+public class BannerModule : AeroModuleBase, IConfigureAeroDB
 {
-    public override string Name => nameof(BannerModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(BannerModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["infrastructure"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["infrastructure"];
 
-    public override IReadOnlyList<string> Tags => ["web", "infrastructure"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["web", "infrastructure"];
 
 
     // <inheritdoc />
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 
         services.AddScoped<IBannerService, BannerService>();
     }
 
-    // <inheritdoc />
-    public override void Configure(IServiceProvider services, StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions options)
     {
-        base.Configure(services, options);
+        options.Schema.For<BannerModel>()
+            .TableName(Schemas.Tables.Banners)
+            .Identity(x => x.Id);
+    }
+
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        Configure(options);
     }
 
     // <inheritdoc />
-    public override Task RunAsync(IServiceProvider sp)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IServiceProvider sp)
     {
         return base.RunAsync(sp);
     }

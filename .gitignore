@@ -22,6 +22,7 @@ pg_embed/
 openobserve_data/
 *.lscache
 .codex-tmp/
+appsettings.UnitTest*.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -434,3 +435,12 @@ openobserve_data/db/metadata.sqlite-wal
 openobserve_data/db/metadata.sqlite-shm
 
 .fake
+
+# Local Aero CMS embedded runtime data
+src/Aero.Cms.Web/App_Data/
+
+# Repository-local, verified frontend tool binaries (restored by eng/theme-assets).
+.tools/
+
+# Playwright MCP browser session artifacts
+.playwright-mcp/

@@ -4,9 +4,15 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 /// <summary>
-/// Implementation of runtime activation service that coordinates in-process
-/// activation of runtime services after bootstrap configuration.
+/// Serializes in-process activation and coordinates setup completion with bootstrap state persistence.
 /// </summary>
+/// <remarks>
+/// Only one activation attempt may run at a time. Expected workflow failures are returned
+/// as <see cref="RuntimeActivationResult"/> values; unexpected exceptions are logged,
+/// captured as the activation error, and converted to failed results. After an attempt claims
+/// the gate, an expected invalid-state, missing-payload, or unsuccessful-completion result
+/// leaves the activation latch set and prevents a later retry on this service instance.
+/// </remarks>
 public sealed class RuntimeActivationService : IRuntimeActivationService, IDisposable
 {
     private readonly ISetupInitializationService _setupInitializationService;
@@ -21,11 +27,22 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
     private bool _isActivating;
     private string? _activationError;
 
-    public bool IsActivated => _isActivated;
-    public bool IsActivating => _isActivating;
-    public string? ActivationError => _activationError;
+    /// <inheritdoc />
+public bool IsActivated => _isActivated;
+    /// <inheritdoc />
+public bool IsActivating => _isActivating;
+    /// <inheritdoc />
+public string? ActivationError => _activationError;
 
-    public RuntimeActivationService(
+    /// <summary>
+    /// Initializes a runtime activation coordinator.
+    /// </summary>
+    /// <param name="setupInitializationService">Provides the current persisted bootstrap state.</param>
+    /// <param name="setupCompletionService">Performs setup seeding and completion.</param>
+    /// <param name="pendingSetupRequestStore">Provides and removes the protected pending setup request.</param>
+    /// <param name="completionWriter">Persists the transition to the running state.</param>
+    /// <param name="logger">Records activation decisions and failures.</param>
+public RuntimeActivationService(
         ISetupInitializationService setupInitializationService,
         ISetupCompletionService setupCompletionService,
         IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
@@ -39,7 +56,8 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         _logger = logger;
     }
 
-    public async Task<RuntimeActivationResult> ActivateAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task<RuntimeActivationResult> ActivateAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
@@ -118,7 +136,8 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         }
     }
 
-    public async Task WaitForActivationAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task WaitForActivationAsync(CancellationToken cancellationToken = default)
     {
         if (_isActivated)
             return;
@@ -126,7 +145,10 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         await _activationChannel.Reader.ReadAsync(cancellationToken);
     }
 
-    public void Dispose()
+    /// <summary>
+    /// Completes the activation signal channel so outstanding or future waits can observe disposal.
+    /// </summary>
+public void Dispose()
     {
         _activationChannel.Writer.TryComplete();
     }

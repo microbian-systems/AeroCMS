@@ -3,14 +3,14 @@
 ## Tech Stack
 - **Backend framework**: asp.net core (.net 10)
 - **Service Layer**: Orleans - main services layer
-- **Data persistence**: MartenDB, Postgres
+- **Data persistence**: SurrealDB via AeroDB.Sable document store (embedded SurrealKV or remote ws:// server) — exclusive backend database
 - **Messaging/Workflow**: Wolverine
     - Wolverine FX for event sourcing
 - TickerQ for background jobs
-- **ORM**: Entityframework Core (npgsql)
+- **ORM**: none for backend persistence (document store via AeroDB.Sable); legacy EF Core (npgsql) code has been removed
 - Scalar for API
 - **Patterns**:
-    - Heavy use of the repository pattern (`IGenericMartenRepository<T>` and `GenericMartenRepository<T>`) between MartenDB and database.
+    - Data access goes through AeroDB.Sable `IDocumentSession`/`IDocumentStore` (session.Query / Store / SaveChangesAsync) against SurrealDB.
     - HTMX.NET for server-side interactivity.
 - Open Telemetry using serilog and openobserve (serilog sinkg for openobserve)
 
@@ -34,7 +34,7 @@
 - Entity : IEntity<long>; for database entities
     - IEntity<long> { long Id { get; set; } }
     - using Snowflake to assign IDs (Snowflake.NewId())
-    - This includes MartenDB entities and EF Core entities and aspnet Identity
+    - This includes SableDocument entities (AeroDB.Sable) and aspnet Identity (AeroDB.AspNetIdentity)
 - Use the **Railway Oriented Programming** patterns:
     - `Result<T>`
     - `Option<T>`
@@ -47,13 +47,11 @@
 ## Testing
 - **Unit Testing**: TUnit
 - **GUI Integration Testing**: Microsoft Playwright
-- **Integration Testing Resource**: Investigate using [mysticmind-postgresembed](https://github.com/mysticmind/mysticmind-postgresembed) for embedded Postgres in tests.
+- **Integration Testing Resource**: Use embedded SurrealDB for tests — `SurrealDb.Embedded.InMemory` or `SurrealDb.Embedded.SurrealKv` via AeroDB.Sable.
 - Use Alba for any asp.net core integration testing
 - Use nsubstitute, autofixture and fakeiteasy for mocking (mainly nsubstitute, fakeiteasy when beneficial)
 - Use TUnit for unit testing ()
 - Use nuget pkg bogus for fake data
-- use embedded postgres for testing: 
-    - https://github.com/mysticmind/mysticmind-postgresembed 
 
 
 ## Git Submodules 
@@ -78,61 +76,7 @@
 - if something is unclear always refer to the ../docs documentation for clarity 
 - take the socratic method and ask any architectural code decisions to me
 - Avoid using reflection; prefer source generators for code discovery and generation
-- for sample images on web pages use: static.photos/blurred/640x360/110 (the number at the end is any number form 1 to 100000)
-    - ## Sample Image Categories
-        - nature
-        - office
-        - people
-        - technology
-        - minimal
-        - abstract
-        - aerial
-        - blurred
-        - bokeh
-        - gradient
-        - monochrome
-        - vintage
-        - white
-        - black
-        - blue
-        - red
-        - green
-        - yellow
-        - cityscape
-        - workspace
-        - food
-        - travel
-        - textures
-        - industry
-        - indoor
-        - outdoor
-        - studio
-        - finance
-        - medical
-        - season
-        - holiday
-        - event
-        - sport
-        - science
-        - legal
-        - estate
-        - restaurant
-        - retail
-        - wellness
-        - agriculture
-        - construction
-        - craft
-        - cosmetic
-        - automotive
-        - gaming
-        - education
-
-    - ## Sample Image Sizes
-        - 200x200
-        - 320x240
-        - 640x360
-        - 1024x576
-        - 1200x630
+- for sample images on web pages use: Pexels client (PexelsService) in the aero.services project namespace
 
 ### Module Development Rules
 - Do not use reflection-based module discovery.
@@ -141,7 +85,7 @@
 - Keep module-specific logic inside `Aero.Cms.Modules.[FeatureName]`.
 - Do not introduce unnecessary abstractions.
 - Do not change unrelated logic.
-- Prefer MartenDB for persistence using `GenericMartenRepository` from `Aero/src/Aero.Marten`. Use EF Core (via `GenericEntityFrameworkRepository` from `Aero/src/Aero.EfCore`) only when the domain requires relational access or Identity.
+- Prefer AeroDB.Sable for persistence using `IDocumentSession`/`IDocumentStore` from `AeroDB/src/AeroDB.Sable`. Do not introduce EF Core or Marten for backend persistence.
 
 ## Important Docs
 
@@ -149,6 +93,17 @@ Agents should read relevant docs before generating code.
 
 - `docs/`
 - `./.skills/create-aero-module/SKILL.md`
+
+## Custom Agents
+
+Project-specific agents are defined in `.codex/agents/*.toml`.
+
+Before answering questions about available agents or delegating work:
+
+1. Inventory the agent TOML files.
+2. Use each file's `name`, `description`, and `developer_instructions`.
+3. Select the appropriate named agent instead of treating all sub-agents as generic.
+4. Follow the `orchestrator` workflow for meaningful implementation work.
 
 ## Skills
 

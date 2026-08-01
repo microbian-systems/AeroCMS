@@ -3,7 +3,24 @@
 
 	<PropertyGroup>
 		<OutputType>exe</OutputType>
+		<InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+		<AeroRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../..'))</AeroRepositoryRoot>
+		<AeroThemeAssetScript>$(AeroRepositoryRoot)/eng/theme-assets/build-theme-assets.ps1</AeroThemeAssetScript>
+		<AeroPowerShellExe Condition="'$(AeroPowerShellExe)' == ''">pwsh</AeroPowerShellExe>
+		<AeroBuildThemeAssets Condition="'$(AeroBuildThemeAssets)' == ''">true</AeroBuildThemeAssets>
+		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
+		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
+		<UserSecretsId>Aero.Cms.Web</UserSecretsId>
+		<SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
 	</PropertyGroup>
+
+  <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
+  <ItemGroup>
+    <Content Remove="tsconfig.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Hydro" />
@@ -12,7 +29,8 @@
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
     <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Microsoft.Orleans.Server" />
-    <PackageReference Include="WolverineFx.Marten" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="Boxed.AspNetCore" />
     <PackageReference Include="Htmx" />
     <PackageReference Include="Htmx.TagHelpers" />
@@ -25,11 +43,18 @@
     <PackageReference Include="RazorSlices" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />
+    <!--
+      SharpTS is distributed as a dotnet tool. A raw assembly reference in the
+      Pages module is not transitive into this executable's dependency context,
+      so the host must declare the runtime assembly as well.
+    -->
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS" HintPath="$(SharpTsToolDirectory)\SharpTS.dll" Private="true" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Areas\Weather\" />
     <Folder Include="logs\" />
-    <Folder Include="Areas\" />
     <Folder Include="wwwroot\img\" />
   </ItemGroup>
 
@@ -247,7 +272,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
@@ -255,10 +279,11 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Social\Aero.Social.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.AspNetIdentity\AeroDB.AspNetIdentity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Marten.Identity\Aero.Cms.Marten.Identity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.AiAssistant\Aero.Cms.Modules.AiAssistant.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
 	  <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
@@ -271,10 +296,10 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.LettuceEncrypt\Aero.Cms.Modules.LettuceEncrypt.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Localization\Aero.Cms.Modules.Localization.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MagicLink\Aero.Cms.Modules.MagicLink.csproj" />
@@ -282,6 +307,8 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Mcp\Aero.Cms.Modules.Mcp.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Members\Aero.Cms.Modules.Members.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MiniProfiler\Aero.Cms.Modules.MiniProfiler.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.OneTimePasscode\Aero.Cms.Modules.OneTimePasscode.csproj" />
@@ -302,7 +329,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Grpc\Aero.Cms.Modules.Grpc.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
@@ -323,7 +350,44 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
+
+  <Target Name="AeroCompileWebTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+    <PropertyGroup>
+      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
+      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
+    </PropertyGroup>
+    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
+  </Target>
+
+  <ItemGroup>
+    <AeroThemeAssetInput Include="$(AeroThemeAssetScript)" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/**/*.css" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/vendor/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Components/**/*;$(MSBuildProjectDirectory)/Pages/**/*;$(MSBuildProjectDirectory)/Views/**/*;$(MSBuildProjectDirectory)/ts/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Layout/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/ts/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Html/**/*.cs"
+                         Exclude="$(MSBuildProjectDirectory)/../Aero.Cms.Html/bin/**;$(MSBuildProjectDirectory)/../Aero.Cms.Html/obj/**;$(MSBuildProjectDirectory)/../Aero.Cms.Html/Generated/**" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Areas/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Views/**/*" Exclude="$(AeroRepositoryRoot)/src/**/bin/**;$(AeroRepositoryRoot)/src/**/obj/**;$(AeroRepositoryRoot)/src/**/wwwroot/**;$(AeroRepositoryRoot)/src/**/Generated/**" />
+  </ItemGroup>
+
+  <Target Name="AeroCompileThemeAssets" Inputs="@(AeroThemeAssetInput)" Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+    <Exec Command="&quot;$(AeroPowerShellExe)&quot; -NoProfile -File &quot;$(AeroThemeAssetScript)&quot; -Mode Build" />
+  </Target>
+
+  <Target Name="AeroBuildThemeAssetsWhenRequested" Condition="'$(AeroBuildThemeAssets)' == 'true'" DependsOnTargets="AeroCompileThemeAssets" />
+
+  <Target Name="AeroEnsureGeneratedThemeAssetsExist">
+    <Error Condition="!Exists('$(AeroGeneratedCss)')" Text="Compiled Tailwind CSS is missing: $(AeroGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+    <Error Condition="!Exists('$(AeroDocsGeneratedCss)')" Text="Compiled Tailwind CSS is missing: $(AeroDocsGeneratedCss). Run eng/theme-assets/build-theme-assets.ps1." />
+  </Target>
+
+  <Target Name="AeroRejectStaleGeneratedThemeAssets" Condition="'$(AeroBuildThemeAssets)' != 'true'" DependsOnTargets="AeroEnsureGeneratedThemeAssetsExist" Inputs="@(AeroThemeAssetInput)" Outputs="$(AeroGeneratedCss);$(AeroDocsGeneratedCss)">
+    <Error Text="Committed Tailwind CSS is older than an authoring or UI source. Run eng/theme-assets/build-theme-assets.ps1, or rebuild with -p:AeroBuildThemeAssets=true." />
+  </Target>
+
+  <Target Name="AeroPrepareThemeAssetsBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" DependsOnTargets="AeroBuildThemeAssetsWhenRequested;AeroEnsureGeneratedThemeAssetsExist;AeroRejectStaleGeneratedThemeAssets" />
 
 </Project>

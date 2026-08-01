@@ -1,0 +1,331 @@
+@page "/manager/sites/new"
+@page "/manager/sites/{Id:long}"
+@attribute [Authorize]
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <button type="button"
+                    class="pe-btn pe-btn-ghost pe-btn-sm mb-3"
+                    @onclick="@(() => Navigation.NavigateTo("/manager/sites"))">
+                @L["Back to sites"]
+            </button>
+            <h1 class="text-2xl font-bold pe-heading">@PageTitle</h1>
+            <p class="mt-1 text-sm pe-description">@L["Configure site identity, hostnames, and supported locales."]</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <RadzenButton Icon="save"
+                          Text="@SaveButtonText"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@SaveAsync"
+                          Disabled="@(IsSaving || IsApplyingTheme)" />
+            <RadzenButton Icon="close"
+                          Text="@L["Cancel"]"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Click="@(() => Navigation.NavigateTo("/manager/sites"))"
+                          Disabled="@(IsSaving || IsApplyingTheme)" />
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="rounded-lg border p-6"
+             style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+            <p class="text-sm pe-description">@L["Loading site..."]</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section class="space-y-6">
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Site Details"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Name and host settings used by public site resolution."]</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <label class="pe-field">
+                            <span>@L["Name *"]</span>
+                            <input @bind="Name" placeholder="@L["Marketing site"]" />
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Primary host *"]</span>
+                            <input @bind="PrimaryHost" placeholder="@L["example.com"]" />
+                        </label>
+                        <label class="pe-field md:col-span-2">
+                            <span>@L["Description"]</span>
+                            <textarea @bind="Description" rows="3" placeholder="@L["Optional internal note"]"></textarea>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Design System"]</h2>
+                        <p class="mt-1 text-sm pe-description">
+                            @L["Set reusable colors for page content. Page authors use these named roles instead of framework-specific classes."]
+                        </p>
+                    </div>
+
+                    <div class="mb-6 rounded-md border p-4"
+                         style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-3">
+                                    <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Site theme"]</h3>
+                                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">
+                                        @L["Choose an exact version from the themes installed with this deployment. Theme changes are applied separately from the rest of this form."]
+                                    </p>
+                                </div>
+
+                                <label class="pe-field">
+                                    <span>@L["Installed theme and version"]</span>
+                                    <select @bind="SelectedThemeIndex"
+                                            disabled="@(IsNew || IsLoading || IsThemeCatalogLoading || IsApplyingTheme || ThemeCatalog.Count == 0)">
+                                        @if (!IsCurrentThemeInCatalog)
+                                        {
+                                            <option value="-1" disabled>
+                                                @CurrentThemeId @CurrentThemeVersion — @L["not installed in this deployment"]
+                                            </option>
+                                        }
+                                        @for (var index = 0; index < ThemeCatalog.Count; index++)
+                                        {
+                                            var optionIndex = index;
+                                            var theme = ThemeCatalog[index];
+                                            <option value="@optionIndex">
+                                                @theme.Name — @theme.Id @theme.Version@(theme.IsSafeDefault ? $" — {L["safe default"]}" : string.Empty)
+                                            </option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <p class="mt-2 text-xs" style="color: var(--pe-text-muted);">
+                                    @L["Current selection:"] <span class="font-mono">@CurrentThemeId@("@")@CurrentThemeVersion</span>
+                                    · @L["revision"] @CurrentThemeRevision
+                                </p>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                @if (!IsNew)
+                                {
+                                    <button type="button" class="pe-btn pe-btn-secondary" disabled="@(IsLoading || IsApplyingTheme || IsSaving)" @onclick="OpenThemeStudio">
+                                        <span class="rzi rzi-palette" aria-hidden="true"></span>
+                                        @L["Customize"]
+                                    </button>
+                                }
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary"
+                                        disabled="@(!CanApplyTheme)"
+                                        @onclick="ApplyThemeAsync">
+                                    @(IsApplyingTheme ? L["Applying..."] : L["Apply Theme"])
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (IsNew)
+                        {
+                            <p class="mt-3 rounded border px-3 py-2 text-xs"
+                               style="border-color: var(--pe-border); color: var(--pe-text-muted);">
+                                @L["Create the site first, then return here to apply a theme."]
+                            </p>
+                        }
+                        else if (IsThemeCatalogLoading)
+                        {
+                            <p class="mt-3 text-xs" style="color: var(--pe-text-muted);">@L["Loading installed themes..."]</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(ThemeCatalogError))
+                        {
+                            <div class="mt-3 flex flex-col gap-2 rounded border px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between"
+                                 style="border-color: var(--pe-border); color: var(--pe-text-secondary);">
+                                <span>@L["The installed theme catalog could not be loaded."] @ThemeCatalogError</span>
+                                <button type="button"
+                                        class="pe-btn pe-btn-secondary pe-btn-sm"
+                                        disabled="@(IsThemeCatalogLoading || IsApplyingTheme)"
+                                        @onclick="LoadThemeCatalogAsync">
+                                    @L["Retry"]
+                                </button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(ThemeApplyError))
+                        {
+                            <p class="mt-3 rounded border px-3 py-2 text-xs"
+                               style="border-color: var(--pe-border); color: var(--pe-text-secondary);">
+                                @ThemeApplyError
+                            </p>
+                        }
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @foreach (var token in StyleTokens)
+                        {
+                            <div class="rounded-md border p-4"
+                                 style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <label class="text-sm font-semibold" style="color: var(--pe-text-primary);" for="@($"style-token-{token.Name}")">
+                                            @L[token.Label]
+                                        </label>
+                                        <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@L[token.Description]</p>
+                                    </div>
+                                    <input type="color"
+                                           @bind="token.HexValue"
+                                           aria-label="@L[$"{token.Label} color"]"
+                                           class="h-10 w-12 cursor-pointer rounded border bg-transparent p-1"
+                                           style="border-color: var(--pe-border);" />
+                                </div>
+                                <div class="mt-3">
+                                    <input id="@($"style-token-{token.Name}")"
+                                           @bind="token.HexValue"
+                                           @bind:event="oninput"
+                                           aria-describedby="@($"style-token-name-{token.Name}")"
+                                           placeholder="#172033"
+                                           spellcheck="false" />
+                                    <div id="@($"style-token-name-{token.Name}")"
+                                         class="mt-1 font-mono text-xs"
+                                         style="color: var(--pe-text-muted);">
+                                        @token.Name
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-end">
+                        <label class="pe-field">
+                            <span>@L["Mobile breakpoint (rem)"]</span>
+                            <input type="number"
+                                   min="20"
+                                   max="120"
+                                   step="0.25"
+                                   @bind="SmallScreenBreakpointRem" />
+                        </label>
+                        <p class="text-sm pe-description">
+                            @L["Responsive page styles switch to their small-screen values at this width. The default is 48rem."]
+                        </p>
+                    </div>
+
+                    @if (_additionalStyleTokens.Count > 0)
+                    {
+                        <p class="mt-4 rounded-md border px-3 py-2 text-xs"
+                           style="border-color: var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-muted);">
+                            @L["Advanced tokens are preserved when this form is saved. They are not shown in the simplified editor."]
+                        </p>
+                    }
+                </div>
+
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Hosts"]</h2>
+                            <p class="mt-1 text-sm pe-description">@L["Add any alternate domains that should resolve to this site."]</p>
+                        </div>
+                        <span class="rounded px-2 py-1 text-xs"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                            @Hosts.Count @L["additional"]
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                        <label class="pe-field">
+                            <span>@L["Additional host"]</span>
+                            <input @bind="HostDraft" @bind:event="oninput" placeholder="@L["www.example.com"]" />
+                        </label>
+                        <button type="button" class="pe-btn pe-btn-secondary self-end" @onclick="AddHost">@L["Add Host"]</button>
+                    </div>
+                    @if (Hosts.Count > 0)
+                    {
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @foreach (var host in Hosts)
+                            {
+                                <button type="button"
+                                        class="rounded px-3 py-1 text-sm"
+                                        style="background: var(--pe-bg-primary); color: var(--pe-text-secondary); border: 1px solid var(--pe-border);"
+                                        title="@L["Remove host"]"
+                                        @onclick="() => RemoveHost(host)">
+                                    @host ×
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Locales & Languages"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Choose supported cultures from .NET globalization data. These values are stored on the site."]</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                        <label class="pe-field">
+                            <span>@L["Add locale"]</span>
+                            <input @bind="LocaleSearch" @bind:event="oninput" placeholder="@L["Search by country, language, or code"]" />
+                        </label>
+                        <label class="pe-field">
+                            <span>@L["Default locale"]</span>
+                            <select @bind="DefaultCulture">
+                                @foreach (var culture in SupportedCultures)
+                                {
+                                    <option value="@culture">@FormatCulture(culture)</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="mt-4 grid max-h-[360px] grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3 md:grid-cols-2"
+                         style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                        @foreach (var locale in FilteredLocales.Take(80))
+                        {
+                            var selected = SupportedCultures.Contains(locale.CultureName, StringComparer.OrdinalIgnoreCase);
+                            <button type="button"
+                                    class="flex items-start justify-between gap-3 rounded px-3 py-2 text-left transition"
+                                    style="@LocaleButtonStyle(selected)"
+                                    @onclick="() => ToggleLocale(locale.CultureName)">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-semibold">@locale.EnglishName</span>
+                                    <span class="block text-xs" style="color: var(--pe-text-muted);">@locale.RegionName · @locale.CultureName@(locale.IsRightToLeft ? " · RTL" : "")</span>
+                                </span>
+                                <span class="text-xs font-semibold">@(selected ? L["Added"] : L["Add"])</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <aside class="space-y-4">
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Selected Locales"]</h2>
+                    <p class="mt-1 text-sm pe-description">@SupportedCultures.Count @L["supported"] @L["culture"]@(SupportedCultures.Count == 1 ? "" : "s").</p>
+                    <div class="mt-4 space-y-2">
+                        @foreach (var culture in SupportedCultures)
+                        {
+                            var isDefault = string.Equals(culture, DefaultCulture, StringComparison.OrdinalIgnoreCase);
+                            <div class="flex items-center justify-between gap-3 rounded px-3 py-2"
+                                 style="background: var(--pe-bg-primary); border: 1px solid var(--pe-border);">
+                                <div class="min-w-0">
+                                    <div class="truncate text-sm font-semibold" style="color: var(--pe-text-primary);">@FormatCulture(culture)</div>
+                                    <div class="text-xs" style="color: var(--pe-text-muted);">@culture@(isDefault ? $" · {L["default"]}" : "")</div>
+                                </div>
+                                @if (!isDefault)
+                                {
+                                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => RemoveLocale(culture)">@L["Remove"]</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Save Behavior"]</h2>
+                    <p class="mt-1 text-sm pe-description">@L["Locales only define what the site supports. Editors still create Page, Post, Doc, Header, and Footer translations manually."]</p>
+                </div>
+            </aside>
+        </div>
+    }
+</div>

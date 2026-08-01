@@ -1,23 +1,23 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aero.Cms.Data.Queries;
 
 
-public sealed class PostByIdQuery : EntityByIdQuery<BlogPostDocument>;
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
+public sealed class PostByIdQuery : EntityByIdQuery<PostDocument>;
 
-public sealed class PostsByIdsQuery : EntitiesByIdsQuery<BlogPostDocument>;
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
+public sealed class PostsByIdsQuery : EntitiesByIdsQuery<PostDocument>;
 
-public sealed class PostsByCreatedByQuery : EntitiesByCreatedByQuery<BlogPostDocument>;
+/// <inheritdoc cref="EntitiesByCreatedByQuery{T}"/>
+public sealed class PostsByCreatedByQuery : EntitiesByCreatedByQuery<PostDocument>;
 
-public sealed class PostsCreatedInRangeQuery : EntitiesCreatedInRangeQuery<BlogPostDocument>;
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
+public sealed class PostsCreatedInRangeQuery : EntitiesCreatedInRangeQuery<PostDocument>;
 
-public sealed class PostsModifiedInRangeQuery : EntitiesModifiedInRangeQuery<BlogPostDocument>;
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
+public sealed class PostsModifiedInRangeQuery : EntitiesModifiedInRangeQuery<PostDocument>;
 
 //public sealed class PostsByCreatedByInCreatedRangeQuery
 //    : EntitiesByCreatedByInCreatedRangeQuery<BlogPostDocument>;

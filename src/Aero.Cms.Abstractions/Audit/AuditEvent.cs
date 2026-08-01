@@ -41,11 +41,26 @@ public abstract record AuditEvent
 /// </summary>
 public static class AuditEventTypes
 {
-    public const string Created = "Created";
-    public const string Updated = "Updated";
-    public const string Published = "Published";
-    public const string Unpublished = "Unpublished";
-    public const string Deleted = "Deleted";
+        /// <summary>
+    /// Created.
+    /// </summary>
+public const string Created = "Created";
+        /// <summary>
+    /// Updated.
+    /// </summary>
+public const string Updated = "Updated";
+        /// <summary>
+    /// Published.
+    /// </summary>
+public const string Published = "Published";
+        /// <summary>
+    /// Unpublished.
+    /// </summary>
+public const string Unpublished = "Unpublished";
+        /// <summary>
+    /// Deleted.
+    /// </summary>
+public const string Deleted = "Deleted";
 }
 
 /// <summary>
@@ -53,6 +68,12 @@ public static class AuditEventTypes
 /// </summary>
 public static class AuditEntityTypes
 {
-    public const string Page = "Page";
-    public const string BlogPost = "BlogPost";
+        /// <summary>
+    /// Page.
+    /// </summary>
+public const string Page = "Page";
+        /// <summary>
+    /// BlogPost.
+    /// </summary>
+public const string BlogPost = "BlogPost";
 }

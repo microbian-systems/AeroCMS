@@ -1,0 +1,56 @@
+using Aero.Cms.Abstractions.Ai;
+using FluentValidation;
+
+namespace Aero.Cms.Modules.Ai.Validation;
+
+/// <summary>
+/// Validates document-translation requests before their fields are sent to an AI provider.
+/// </summary>
+/// <remarks>
+/// The validator checks culture and field-shape constraints. It does not validate culture names
+/// against a culture registry, sanitize field content, or verify the provider's translation.
+/// </remarks>
+public sealed class TranslateDocumentRequestValidator : AbstractValidator<TranslateDocumentRequest>
+{
+        /// <summary>
+    /// Initializes validation rules for cultures, provider selection, and translated fields.
+    /// </summary>
+    /// <remarks>
+    /// A request must contain at least one field, field keys must be unique without regard to case,
+    /// and each source field is limited to 100,000 characters.
+    /// </remarks>
+public TranslateDocumentRequestValidator()
+    {
+        RuleFor(x => x.SourceCulture)
+            .NotEmpty()
+            .MaximumLength(35);
+
+        RuleFor(x => x.TargetCulture)
+            .NotEmpty()
+            .MaximumLength(35)
+            .NotEqual(x => x.SourceCulture, StringComparer.OrdinalIgnoreCase)
+            .WithMessage("Target culture must be different from source culture.");
+
+        RuleFor(x => x.ProviderId)
+            .MaximumLength(100)
+            .When(x => x.ProviderId is not null);
+
+        RuleFor(x => x.Fields)
+            .NotNull()
+            .Must(fields => fields.Count > 0)
+            .WithMessage("At least one field is required.")
+            .Must(fields => fields.Select(field => field.Key).Distinct(StringComparer.OrdinalIgnoreCase).Count() == fields.Count)
+            .WithMessage("Field keys must be unique.");
+
+        RuleForEach(x => x.Fields).ChildRules(field =>
+        {
+            field.RuleFor(x => x.Key)
+                .NotEmpty()
+                .MaximumLength(300);
+
+            field.RuleFor(x => x.SourceText)
+                .NotNull()
+                .MaximumLength(100_000);
+        });
+    }
+}

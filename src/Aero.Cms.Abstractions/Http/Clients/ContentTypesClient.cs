@@ -1,8 +1,7 @@
 using Aero.Cms.Abstractions.Content;
-using Aero.Cms.Abstractions.Enums;
-using Aero.Core;
-using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -11,11 +10,26 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 /// </summary>
 public interface IContentTypesHttpClient
 {
-    Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByAliasAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -23,21 +37,47 @@ public interface IContentTypesHttpClient
 /// </summary>
 public class ContentTypesHttpClient(HttpClient httpClient, ILogger<ContentTypesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IContentTypesHttpClient
 {
-    public override string Path => "admin/content-types";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/content-types";
 
-    public Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<ContentTypeSummary>>(string.Empty, ct);
 
-    public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default)
+        /// <summary>
+    /// GetByAliasAsync method.
+    /// </summary>
+public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default)
         => GetAsync<ContentTypeDetail>(Uri.EscapeDataString(alias), ct);
 
-    public Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
-        => PostAsync<CreateContentTypeRequest, ContentTypeDetail>(string.Empty, request, ct);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
+        => NormalizeProblemDetails(
+            await PostAsync<CreateContentTypeRequest, ContentTypeDetail>(
+                string.Empty,
+                request,
+                ct));
 
-    public Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
-        => PutAsync<CreateContentTypeRequest, ContentTypeDetail>(Uri.EscapeDataString(alias), request, ct);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
+        => NormalizeProblemDetails(
+            await PutAsync<CreateContentTypeRequest, ContentTypeDetail>(
+                Uri.EscapeDataString(alias),
+                request,
+                ct));
 
-    public Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(Uri.EscapeDataString(alias), ct));
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -50,6 +90,49 @@ public class ContentTypesHttpClient(HttpClient httpClient, ILogger<ContentTypesH
             _ => AeroError.CreateError("Unexpected result from HTTP operation")
         };
     }
+
+    private static Result<T, AeroError> NormalizeProblemDetails<T>(
+        Result<T, AeroError> result)
+        where T : class
+    {
+        if (result is not Result<T, AeroError>.Failure
+            {
+                Error: AeroError.HttpRequest
+                {
+                    code: HttpStatusCode.BadRequest,
+                    msg: { } responseBody
+                }
+            }
+            || !TryReadProblemDetail(responseBody, out var detail))
+        {
+            return result;
+        }
+
+        return AeroError.ValidationError([detail]);
+    }
+
+    private static bool TryReadProblemDetail(
+        string responseBody,
+        out string detail)
+    {
+        detail = string.Empty;
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            if (!document.RootElement.TryGetProperty("detail", out var value)
+                || value.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            detail = value.GetString()?.Trim() ?? string.Empty;
+            return detail.Length > 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 }
 
 /// <summary>
@@ -57,13 +140,78 @@ public class ContentTypesHttpClient(HttpClient httpClient, ILogger<ContentTypesH
 /// </summary>
 public interface IContentItemsHttpClient
 {
-    Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
+    /// <summary>Gets bounded options for a searchable or cascading content reference.</summary>
+    Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
+        string alias,
+        string? culture = null,
+        string? search = null,
+        string? filterField = null,
+        string? filterValue = null,
+        int take = 100,
+        CancellationToken ct = default);
+    /// <summary>Lists registered CMS document and public content-entry sources.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetCmsReferenceSourcesAsync(CancellationToken ct = default);
+    /// <summary>Gets bounded options for one first-class CMS content source.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceOption>, AeroError>>
+        GetCmsReferenceOptionsAsync(
+            string source,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetTranslationsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default);
+    /// <summary>Gets the bounded manager hierarchy for a content type and culture.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> GetHierarchyAsync(
+        string alias,
+        string? culture = null,
+        CancellationToken ct = default);
+    /// <summary>Atomically moves an item and normalizes both affected sibling collections.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> MoveAsync(
+        string alias,
+        long id,
+        MoveContentItemRequest request,
+        CancellationToken ct = default);
+    /// <summary>Atomically replaces the order of one exact sibling collection.</summary>
+    Task<Result<ContentHierarchyTreeResult, AeroError>> ReorderAsync(
+        string alias,
+        ReorderContentSiblingsRequest request,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -71,32 +219,151 @@ public interface IContentItemsHttpClient
 /// </summary>
 public class ContentItemsHttpClient(HttpClient httpClient, ILogger<ContentItemsHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IContentItemsHttpClient
 {
-    public override string Path => "admin/content-items";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/content-items";
 
-    public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
         var url = $"?contentType={Uri.EscapeDataString(alias)}&skip={skip}&take={take}";
         if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
         return GetAsync<PagedResult<ContentItemSummary>>(url, ct);
     }
 
-    public Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default)
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
+        string alias,
+        string? culture = null,
+        string? search = null,
+        string? filterField = null,
+        string? filterValue = null,
+        int take = 100,
+        CancellationToken ct = default)
+    {
+        var parameters = new List<string> { $"take={Math.Clamp(take, 1, 100)}" };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        AddQueryParameter(parameters, "filterField", filterField);
+        AddQueryParameter(parameters, "filterValue", filterValue);
+        var url =
+            $"{Uri.EscapeDataString(alias)}/reference-options?{string.Join("&", parameters)}";
+        return GetAsync<IReadOnlyList<ContentReferenceOption>>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetCmsReferenceSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<CmsContentReferenceSource>>(
+            "reference-sources",
+            ct);
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceOption>, AeroError>>
+        GetCmsReferenceOptionsAsync(
+            string source,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default)
+    {
+        var parameters = new List<string>
+        {
+            $"take={Math.Clamp(take, 1, 100)}"
+        };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        return GetAsync<IReadOnlyList<CmsContentReferenceOption>>(
+            $"reference-sources/{Uri.EscapeDataString(source)}/options?{string.Join("&", parameters)}",
+            ct);
+    }
+
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default)
         => GetAsync<ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}", ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default)
         => PostAsync<CreateContentItemRequest, ContentItemDetail>(Uri.EscapeDataString(alias), request, ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default)
         => PutAsync<CreateContentItemRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}", request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync($"{Uri.EscapeDataString(alias)}/{id}", ct));
 
-    public Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default)
-        => PutAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/publish", new object(), ct);
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default)
+        => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/publish", new object(), ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
-        => PutAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
+        => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
+
+        /// <summary>
+    /// GetTranslationsAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<ContentItemDetail>>($"{Uri.EscapeDataString(alias)}/{id}/translations", ct);
+
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default)
+        => PostAsync<ForkContentItemCultureRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/translations", request, ct);
+
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> GetHierarchyAsync(
+        string alias,
+        string? culture = null,
+        CancellationToken ct = default)
+    {
+        var url = $"{Uri.EscapeDataString(alias)}/hierarchy";
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            url += $"?culture={Uri.EscapeDataString(culture)}";
+        }
+
+        return GetAsync<ContentHierarchyTreeResult>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> MoveAsync(
+        string alias,
+        long id,
+        MoveContentItemRequest request,
+        CancellationToken ct = default)
+        => PutAsync<MoveContentItemRequest, ContentHierarchyTreeResult>(
+            $"{Uri.EscapeDataString(alias)}/{id}/move",
+            request,
+            ct);
+
+    /// <inheritdoc />
+    public Task<Result<ContentHierarchyTreeResult, AeroError>> ReorderAsync(
+        string alias,
+        ReorderContentSiblingsRequest request,
+        CancellationToken ct = default)
+        => PutAsync<ReorderContentSiblingsRequest, ContentHierarchyTreeResult>(
+            $"{Uri.EscapeDataString(alias)}/hierarchy/reorder",
+            request,
+            ct);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
@@ -107,6 +374,18 @@ public class ContentItemsHttpClient(HttpClient httpClient, ILogger<ContentItemsH
             Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
             _ => AeroError.CreateError("Unexpected result from HTTP operation")
         };
+    }
+
+    private static void AddQueryParameter(
+        ICollection<string> parameters,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parameters.Add(
+                $"{name}={Uri.EscapeDataString(value.Trim())}");
+        }
     }
 }
 
@@ -121,10 +400,16 @@ public record ContentTypeSummary(
     string Name,
     string? Description,
     string? Category,
+    bool AllowPublicUrl,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     int FieldCount,
-    string RenderMode,
     bool HasCustomTemplate,
-    long ItemCount);
+    long ItemCount,
+    long Id = 0,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Detailed information for a content type definition.</summary>
 public record ContentTypeDetail(
@@ -133,10 +418,16 @@ public record ContentTypeDetail(
     string? Description,
     string? Category,
     string? Icon,
+    bool AllowPublicUrl,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    string RenderMode,
-    ContentTypeScheduleConfig? ScheduleConfig);
+    ContentTypeScheduleConfig? ScheduleConfig,
+    long Id = 0,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Request to create or update a content type definition.</summary>
 public record CreateContentTypeRequest(
@@ -145,10 +436,15 @@ public record CreateContentTypeRequest(
     string? Description,
     string? Category,
     string? Icon,
+    bool AllowPublicUrl,
+    bool IncludeInSearch,
+    bool IncludeInPublicAi,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    string RenderMode,
-    ContentTypeScheduleConfig? ScheduleConfig);
+    ContentTypeScheduleConfig? ScheduleConfig,
+    ContentCardinality Cardinality = ContentCardinality.Collection,
+    ContentStructure Structure = ContentStructure.Flat,
+    ContentHierarchyRules? HierarchyRules = null);
 
 /// <summary>Summary information for a content item.</summary>
 public record ContentItemSummary(
@@ -159,7 +455,19 @@ public record ContentItemSummary(
     string? FirstFieldValue,
     string PublicationState,
     DateTimeOffset? PublishedOn,
-    int VersionNumber);
+    int VersionNumber,
+    string Culture,
+    long? TranslationGroupId,
+    long? SourceItemId,
+    long? ParentId = null,
+    int SortOrder = 0);
+
+/// <summary>A bounded manager-facing option for a content reference field.</summary>
+public sealed record ContentReferenceOption(
+    long Id,
+    string Title,
+    string Slug,
+    string Culture);
 
 /// <summary>Detailed information for a content item.</summary>
 public record ContentItemDetail(
@@ -172,12 +480,59 @@ public record ContentItemDetail(
     DateTimeOffset? PublishedOn,
     int VersionNumber,
     DateTimeOffset? SchedulePublishUtc,
-    DateTimeOffset? ScheduleUnpublishUtc);
+    DateTimeOffset? ScheduleUnpublishUtc,
+    string Culture,
+    long? TranslationGroupId,
+    long? SourceItemId,
+    long? ParentId = null,
+    int SortOrder = 0);
 
 /// <summary>Request to create or update a content item.</summary>
 public record CreateContentItemRequest(
     string Title,
     string Slug,
-    IReadOnlyDictionary<string, object?> Fields,
+    IReadOnlyDictionary<string, JsonElement> Fields,
     DateTimeOffset? SchedulePublishUtc,
-    DateTimeOffset? ScheduleUnpublishUtc);
+    DateTimeOffset? ScheduleUnpublishUtc,
+    string? Culture = null,
+    long? ParentId = null,
+    int SortOrder = 0);
+
+/// <summary>
+/// Represents a record for ForkContentItemCultureRequest.
+/// </summary>
+public record ForkContentItemCultureRequest(string Culture, string Slug);
+
+/// <summary>One immutable manager-facing node in a bounded content hierarchy.</summary>
+public sealed record ContentHierarchyTreeNode(
+    long Id,
+    string Title,
+    string Slug,
+    string ContentTypeAlias,
+    string Culture,
+    string PublicationState,
+    long? ParentId,
+    int SortOrder,
+    int Depth,
+    bool IsTargetType,
+    bool CanAcceptChildren,
+    IReadOnlyList<ContentHierarchyTreeNode> Children);
+
+/// <summary>A bounded, pre-shaped manager hierarchy selected for one type and culture.</summary>
+public sealed record ContentHierarchyTreeResult(
+    string ContentTypeAlias,
+    string Culture,
+    int TotalCount,
+    IReadOnlyList<ContentHierarchyTreeNode> Roots);
+
+/// <summary>Moves one item to a parent and zero-based position in one transaction.</summary>
+public sealed record MoveContentItemRequest(
+    long? NewParentId,
+    int TargetIndex,
+    string? Culture = null);
+
+/// <summary>Replaces one exact sibling order in one transaction.</summary>
+public sealed record ReorderContentSiblingsRequest(
+    long? ParentId,
+    IReadOnlyList<long> OrderedIds,
+    string? Culture = null);

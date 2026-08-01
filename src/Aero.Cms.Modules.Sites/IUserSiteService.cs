@@ -2,55 +2,101 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Manages user-to-site assignments with per-site permissions.
+/// Reads and mutates user-to-site assignments and their permission strings.
 /// </summary>
+/// <remarks>
+/// The service does not authenticate callers or validate that users and sites exist. Callers must
+/// enforce administrative authorization and the intended tenant boundary.
+/// </remarks>
 public interface IUserSiteService
 {
-    /// <summary>Returns all site assignments for a user.</summary>
+    /// <summary>Returns a user's assignments ordered by site identifier.</summary>
+    /// <param name="userId">The user identifier used to filter assignments.</param>
+    /// <param name="ct">The token used by the query.</param>
+    /// <returns>All matching assignments.</returns>
     Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForUserAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>Returns all user assignments for a site.</summary>
+    /// <summary>Returns a site's assignments ordered by user identifier.</summary>
+    /// <param name="siteId">The site identifier used to filter assignments.</param>
+    /// <param name="ct">The token used by the query.</param>
+    /// <returns>All matching assignments.</returns>
     Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForSiteAsync(long siteId, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns the list of sites a user can access.
-    /// For admin users, returns ALL sites.
-    /// For non-admin users, returns only assigned sites.
+    /// Returns the site views accessible to a user.
     /// </summary>
+    /// <param name="userId">The user whose assignments are evaluated.</param>
+    /// <param name="roles">The caller-supplied role names for the user.</param>
+    /// <param name="ct">The token used by assignment and site queries.</param>
+    /// <returns>
+    /// Every site when <paramref name="roles"/> contains <c>Admin</c> case-insensitively; otherwise
+    /// only sites whose identifiers appear in the user's assignments.
+    /// </returns>
+    /// <remarks>The method trusts the supplied role list and does not filter disabled sites.</remarks>
     Task<IReadOnlyList<SiteViewModel>> GetAccessibleSitesAsync(long userId, IReadOnlyList<string> roles, CancellationToken ct = default);
 
-    /// <summary>Checks whether a user has a specific permission on a site.</summary>
+    /// <summary>Checks an assignment for a case-insensitive permission match.</summary>
+    /// <param name="userId">The assigned user identifier.</param>
+    /// <param name="siteId">The assigned site identifier.</param>
+    /// <param name="permission">The permission string to compare.</param>
+    /// <param name="ct">The token used by the assignment query.</param>
+    /// <returns><see langword="true"/> when a matching assignment contains the permission.</returns>
     Task<bool> HasPermissionAsync(long userId, long siteId, string permission, CancellationToken ct = default);
 
-    /// <summary>Assigns a user to a site with the given permissions.</summary>
+    /// <summary>Creates an assignment or replaces the permissions on an existing user-site assignment.</summary>
+    /// <param name="userId">The user identifier stored on a new assignment.</param>
+    /// <param name="siteId">The site identifier stored on a new assignment.</param>
+    /// <param name="permissions">Permission strings deduplicated case-insensitively while preserving first occurrences.</param>
+    /// <param name="ct">The token used through lookup and commit.</param>
+    /// <returns>The persisted assignment, or a persistence failure.</returns>
     Task<Result<UserSiteAssignment, AeroError>> AssignUserToSiteAsync(long userId, long siteId, List<string> permissions, CancellationToken ct = default);
 
-    /// <summary>Updates permissions for an existing assignment.</summary>
+    /// <summary>Replaces the permission set on an assignment loaded by identifier.</summary>
+    /// <param name="assignmentId">The assignment document identifier.</param>
+    /// <param name="permissions">Permission strings deduplicated case-insensitively.</param>
+    /// <param name="ct">The token used through lookup and commit.</param>
+    /// <returns>The updated assignment, or a not-found or persistence failure.</returns>
     Task<Result<UserSiteAssignment, AeroError>> UpdatePermissionsAsync(long assignmentId, List<string> permissions, CancellationToken ct = default);
 
-    /// <summary>Removes a user assignment by its ID.</summary>
+    /// <summary>Deletes an assignment by identifier.</summary>
+    /// <param name="assignmentId">The assignment document identifier.</param>
+    /// <param name="ct">The token used through the commit.</param>
+    /// <returns>A successful flag, including when no matching document exists, or a persistence failure.</returns>
     Task<Result<bool, AeroError>> RemoveAssignmentAsync(long assignmentId, CancellationToken ct = default);
 
-    /// <summary>Removes all assignments for a specific user+site combination.</summary>
+    /// <summary>Deletes every assignment matching a user-site pair.</summary>
+    /// <param name="userId">The user identifier used to filter assignments.</param>
+    /// <param name="siteId">The site identifier used to filter assignments.</param>
+    /// <param name="ct">The token used through lookup and commit.</param>
+    /// <returns>A successful flag, including when no assignments match, or a persistence failure.</returns>
     Task<Result<bool, AeroError>> RemoveUserFromSiteAsync(long userId, long siteId, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Implementation of user-site assignment service using Marten.
+/// Implements assignment queries and mutations with separate query and document sessions.
 /// </summary>
+/// <param name="session">The session used to store and delete assignments.</param>
+/// <param name="querySession">The session used to load and filter assignments.</param>
+/// <param name="siteLookup">The service used to expand assignments into site views.</param>
+/// <param name="log">The structured mutation logger.</param>
+/// <remarks>
+/// Read methods allow query and cancellation exceptions to propagate. Mutation methods log and
+/// convert all exceptions, including cancellation, to <see cref="AeroError"/> failures.
+/// </remarks>
 public class UserSiteService(
     IDocumentSession session,
     IQuerySession querySession,
     ISiteLookupService siteLookup,
     ILogger<UserSiteService> log) : IUserSiteService
 {
-    public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForUserAsync(long userId, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForUserAsync(long userId, CancellationToken ct = default)
     {
         return await querySession.Query<UserSiteAssignment>()
             .Where(x => x.UserId == userId)
@@ -58,7 +104,8 @@ public class UserSiteService(
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForSiteAsync(long siteId, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForSiteAsync(long siteId, CancellationToken ct = default)
     {
         return await querySession.Query<UserSiteAssignment>()
             .Where(x => x.SiteId == siteId)
@@ -66,7 +113,8 @@ public class UserSiteService(
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<SiteViewModel>> GetAccessibleSitesAsync(long userId, IReadOnlyList<string> roles, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<IReadOnlyList<SiteViewModel>> GetAccessibleSitesAsync(long userId, IReadOnlyList<string> roles, CancellationToken ct = default)
     {
         // Admin users can access all sites
         if (roles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
@@ -87,7 +135,8 @@ public class UserSiteService(
         return allSites.Where(s => assignmentSiteIds.Contains(s.Id)).ToList();
     }
 
-    public async Task<bool> HasPermissionAsync(long userId, long siteId, string permission, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<bool> HasPermissionAsync(long userId, long siteId, string permission, CancellationToken ct = default)
     {
         var assignment = await querySession.Query<UserSiteAssignment>()
             .FirstOrDefaultAsync(x => x.UserId == userId && x.SiteId == siteId, ct);
@@ -98,7 +147,8 @@ public class UserSiteService(
         return assignment.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<Result<UserSiteAssignment, AeroError>> AssignUserToSiteAsync(long userId, long siteId, List<string> permissions, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<UserSiteAssignment, AeroError>> AssignUserToSiteAsync(long userId, long siteId, List<string> permissions, CancellationToken ct = default)
     {
         try
         {
@@ -135,7 +185,8 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<UserSiteAssignment, AeroError>> UpdatePermissionsAsync(long assignmentId, List<string> permissions, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<UserSiteAssignment, AeroError>> UpdatePermissionsAsync(long assignmentId, List<string> permissions, CancellationToken ct = default)
     {
         try
         {
@@ -156,7 +207,8 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> RemoveAssignmentAsync(long assignmentId, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<bool, AeroError>> RemoveAssignmentAsync(long assignmentId, CancellationToken ct = default)
     {
         try
         {
@@ -172,7 +224,8 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> RemoveUserFromSiteAsync(long userId, long siteId, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<bool, AeroError>> RemoveUserFromSiteAsync(long userId, long siteId, CancellationToken ct = default)
     {
         try
         {

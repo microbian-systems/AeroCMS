@@ -1,3 +1,10 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). This dated
+> track is a historical record from when Marten/PostgreSQL was the active store;
+> its persistence details do not reflect the current stack.
+
 # Specification: Multi-Site Support (OSS) - Track multisite_20260331
 
 ## Overview

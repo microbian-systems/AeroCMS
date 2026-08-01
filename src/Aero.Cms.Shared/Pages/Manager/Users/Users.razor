@@ -1,0 +1,106 @@
+@page "/manager/users"
+@page "/manager/users/general"
+@namespace Aero.Cms.Shared.Pages.Manager.Users
+@attribute [Authorize]
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core.Railway
+
+<PageTitle>@L["Users"]</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["CRM users"]</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Users"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Create and manage manager-area CRM user accounts."]</p>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <RadzenTextBox Placeholder="@L["Search users..."]"
+                           Value="@_searchText"
+                           ValueChanged="@OnSearchChanged"
+                           class="w-full sm:w-64" />
+            <div class="flex gap-2">
+                <RadzenButton Icon="refresh"
+                              Size="ButtonSize.Small"
+                              ButtonStyle="ButtonStyle.Light"
+                              Click="@ReloadUsersAsync"
+                              Title="@L["Refresh list"]" />
+                <RadzenButton Icon="person_add"
+                              Text="@L["Add User"]"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Click="@(() => Navigation.NavigateTo("/manager/users/new"))" />
+            </div>
+        </div>
+    </div>
+
+    <RadzenDataGrid @ref="_grid"
+                    Data="@_users"
+                    TItem="UserSummary"
+                    Count="@_count"
+                    LoadData="@LoadData"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    PageSize="10"
+                    PageSizeOptions="@(new List<int> { 10, 20, 50 })"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@OnRowClick"
+                    class="aero-grid cursor-pointer"
+                    EmptyText="@L["No users found. Add a CRM user to begin."]">
+        <Columns>
+            <RadzenDataGridColumn TItem="UserSummary" Property="DisplayName" Title="@L["User"]" MinWidth="260px">
+                <Template Context="user">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold uppercase"
+                             style="background: color-mix(in srgb, var(--pe-info) 12%, transparent); color: var(--pe-info);">
+                            @GetInitials(user.DisplayName, user.UserName)
+                        </div>
+                        <div class="min-w-0">
+                            <div class="truncate font-medium" style="color: var(--pe-text-primary);">@GetDisplayName(user)</div>
+                            <div class="truncate text-xs" style="color: var(--pe-text-muted);">@user.UserName</div>
+                        </div>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Property="Email" Title="@L["Email"]" MinWidth="240px">
+                <Template Context="user">
+                    <span class="text-sm" style="color: var(--pe-text-secondary);">@user.Email</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Property="IsEnabled" Title="@L["Status"]" Width="130px">
+                <Template Context="user">
+                    @if (user.IsEnabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Active"]" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@L["Disabled"]" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Property="CreatedAt" Title="@L["Created"]" Width="150px">
+                <Template Context="user">
+                    <span style="color: var(--pe-text-secondary);">@user.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Title="@L["Actions"]" Width="180px" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="user">
+                    <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
+                        <RadzenButton Icon="edit"
+                                      Text="@L["Edit"]"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => Navigation.NavigateTo($"/manager/users/{user.Id}"))" />
+                        <RadzenButton Icon="delete"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Variant="Variant.Outlined"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => DeleteUserAsync(user))" />
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>

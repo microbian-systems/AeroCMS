@@ -1,28 +1,21 @@
+using System.Text.Json.Serialization;
+using Aero.Core.Data;
+using AeroDB.Sable;
+
 namespace Aero.Cms.Modules.Commerce.Basket.Models;
 
-/// <summary>
-/// Shopping cart stored as a Marten document.
-/// One basket per customer — keyed by customer identity ID.
-/// </summary>
-public sealed class BasketDocument : Entity
+/// <summary>External-member basket isolated by tenant and storefront site.</summary>
+public sealed class BasketDocument : SableDocument, IAuditable, IVersioned
 {
-    /// <summary>
-    /// The identity ID of the customer who owns this basket.
-    /// </summary>
-    public string CustomerId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Line items in the basket.
-    /// </summary>
-    public List<BasketItem> Items { get; set; } = [];
-
-    /// <summary>
-    /// Computed total price of all items.
-    /// </summary>
-    public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
-
-    /// <summary>
-    /// ISO currency code (e.g. USD, EUR).
-    /// </summary>
+    public long TenantId { get; set; }
+    public long SiteId { get; set; }
+    public long ExternalMemberId { get; set; }
     public string Currency { get; set; } = "USD";
+    public List<BasketItem> Items { get; set; } = [];
+    public long Version { get; set; }
+    [JsonIgnore] public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

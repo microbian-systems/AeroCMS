@@ -1,3 +1,11 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
+
 # AeroCMS: Next-Generation Block Rendering Architecture
 
 This document outlines the recommended architecture for AeroCMS's block rendering pipeline, resolving the current reliance on manually maintained rendering dispatch and duplicated block registration. It aligns the CMS with modern .NET performance standards, improves trim-safety, and prepares the rendering pipeline for future Native AOT support while preserving developer ergonomics and enabling dynamic runtime content creation.

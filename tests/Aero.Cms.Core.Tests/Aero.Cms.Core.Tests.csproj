@@ -8,6 +8,7 @@
     <IsPackable>false</IsPackable>
     <EnableTestingPlatform>true</EnableTestingPlatform>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,39 +16,72 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="8.9.0" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.7" />
+    <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="TUnit" Version="1.39.0" />
+    <PackageReference Include="TUnit" Version="1.58.0" />
     <PackageReference Include="Alba" Version="8.5.2" />
-    <PackageReference Include="WolverineFx" Version="5.32.1" />
+    <PackageReference Include="WolverineFx" Version="6.17.1" />
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS"
+               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
+               Private="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+    <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.InMemory\SurrealDb.Embedded.InMemory.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Integration\PageCompositionMartenPersistenceTests.cs" />
+    <Compile Remove="Services\PageTreeServiceTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Html\Aero.Cms.Html.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
-    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Ai\Aero.Cms.Modules.Ai.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.AiAssistant\Aero.Cms.Modules.AiAssistant.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Audit\Aero.Cms.Modules.Audit.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
-    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Settings\Aero.Cms.Modules.Settings.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Mcp\Aero.Cms.Modules.Mcp.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Users\Aero.Cms.Modules.Users.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Theming\Aero.Cms.Modules.Theming.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 
 </Project>

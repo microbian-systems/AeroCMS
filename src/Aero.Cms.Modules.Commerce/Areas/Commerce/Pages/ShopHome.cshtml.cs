@@ -1,41 +1,43 @@
+using System.Globalization;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
-public class ShopHomeModel : PageModel
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class ShopHomeModel(IProductService products, ISiteContext site) : PageModel
 {
-    private readonly IProductService _productService;
+    public IReadOnlyList<PublicListingResponse> FeaturedProducts { get; private set; } = [];
+    public IReadOnlyList<PublicListingResponse> RecentProducts { get; private set; } = [];
+    public bool LoadFailed { get; private set; }
 
-    public ShopHomeModel(IProductService productService)
+    public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
-        _productService = productService;
-    }
-
-    public List<ProductDocument>? FeaturedProducts { get; set; }
-    public List<string> GalleryImages { get; set; } = [];
-
-    public async Task<IActionResult> OnGetAsync()
-    {
-        var result = await _productService.SearchAsync(take: 3);
-        if (result is Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>.Ok(var ok))
+        var result = await products.SearchPublishedAsync(site.TenantId, site.SiteId, CultureInfo.CurrentUICulture.Name, take: 6, featuredOnly: true, ct: ct);
+        if (result is Result<(IReadOnlyList<ProductListingDocument> Items, long TotalCount), AeroError>.Ok(var values))
+            FeaturedProducts = values.Items.Select(PublicListingResponse.From).ToList();
+        else
         {
-            FeaturedProducts = ok.Items.ToList();
+            LoadFailed = true;
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return Page();
         }
 
-        // Gallery images use static.photos placeholders (will be replaced by Pexels in a later update)
-        GalleryImages =
-        [
-            "https://static.photos/outdoor/640x360/1",
-            "https://static.photos/outdoor/640x360/2",
-            "https://static.photos/outdoor/640x360/3",
-            "https://static.photos/outdoor/640x360/4",
-            "https://static.photos/outdoor/640x360/5",
-            "https://static.photos/outdoor/640x360/6"
-        ];
-
+        var recent = await products.GetRecentPublishedAsync(site.TenantId, site.SiteId, CultureInfo.CurrentUICulture.Name, 6, ct);
+        if (recent is Result<IReadOnlyList<ProductListingDocument>, AeroError>.Ok(var recentValues))
+        {
+            var featuredIds = FeaturedProducts.Select(x => x.Id).ToHashSet();
+            RecentProducts = recentValues.Where(x => !featuredIds.Contains(x.Id)).Select(PublicListingResponse.From).Take(6).ToList();
+        }
+        else
+        {
+            LoadFailed = true;
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        }
         return Page();
     }
 }

@@ -1,23 +1,30 @@
 @page
 @model Aero.Cms.Modules.Pages.Areas.Cms.Pages.DynamicPageModel
 @section cssPartial {
-    <style type="text/tailwindcss" 
-           src="/_content/Aero.Cms.Modules.Pages/css/pages.css"></style>
-    <style type="text/css" 
-           src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
+    <link rel="stylesheet" href="/_content/Aero.Cms.Modules.Pages/css/pages.css" />
+}
+@section headPartial {
+    <link rel="canonical" href="@Model.CanonicalUrl" />
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.RenderedCss))
+    {
+        <style data-aero-page-styles>@Html.Raw(Model.RenderedCss)</style>
+    }
 }
 @{
-    var pageDoc = Model.PageDocument;
-    ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
-    ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
-    ViewBag.HideFooter = pageDoc?.HideFooter ?? false;
-    ViewBag.ShowChatAgent = pageDoc?.ShowChatAgent ?? true;
+    ViewBag.Title = Model.SeoTitle ?? Model.Title ?? "Page";
+    ViewBag.ShowHeaderNavigation = Model.ShowHeaderNavigation;
+    ViewBag.HideFooter = Model.HideFooter;
+    ViewBag.ShowChatAgent = Model.ShowChatAgent;
 }
 
 @* <h1>Hydro Component Should show Below</h1>
 <page-counter /> *@
 
-@if (pageDoc is null)
+@if (Model.Title is null)
 {
     <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="text-center">
@@ -28,15 +35,11 @@
 }
 else
 {
-    <article class="min-h-screen bg-white">
-        @* Layout Regions *@
-        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            @if (pageDoc.LayoutRegions.Count > 0)
+    <div class="aero-page-shell">
+        <div class="aero-page-content">
+            @if (!string.IsNullOrWhiteSpace(Model.RenderedMarkup))
             {
-                foreach (var region in pageDoc.LayoutRegions.OrderBy(r => r.Order))
-                {
-                    <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.LayoutRegionRenderer)" render-mode="Static" param-Region="@region" />
-                }
+                @Html.Raw(Model.RenderedMarkup)
             }
             else
             {
@@ -46,11 +49,11 @@ else
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
                     <h3 class="mt-4 text-lg font-medium text-gray-900">No Content Yet</h3>
-                    <p class="mt-2 text-center text-gray-500">This page doesn't have any content blocks configured.</p>
+                    <p class="mt-2 text-center text-gray-500">This page doesn't have any content yet.</p>
                 </div>
             }
         </div>
-    </article>
+    </div>
 }
 
 @* Chat Agent Widget *@

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Marketing hero layout preview">
+  <rect width="320" height="180" rx="16" fill="#eff6ff"/>
+  <rect x="34" y="28" width="252" height="18" rx="9" fill="#1e3a8a"/>
+  <rect x="67" y="62" width="186" height="10" rx="5" fill="#64748b"/>
+  <rect x="85" y="80" width="150" height="10" rx="5" fill="#94a3b8"/>
+  <rect x="89" y="112" width="72" height="27" rx="13" fill="#2563eb"/>
+  <rect x="170" y="112" width="62" height="27" rx="13" fill="#dbeafe" stroke="#2563eb"/>
+</svg>

@@ -1,82 +1,47 @@
-using System.Linq.Expressions;
+using System.Globalization;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Events;
-using Aero.Cms.Modules.Commerce.Orders.Handlers;
 using Aero.Cms.Modules.Commerce.Orders.Services;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using Wolverine;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Api;
 
+/// <summary>Maps external-member order operations constrained to the member's host site.</summary>
 public static class OrderEndpoints
 {
     public static IEndpointRouteBuilder MapOrderApi(this IEndpointRouteBuilder builder)
     {
-        var group = builder
-            .MapGroup("/api/commerce/orders")
-            .RequireAuthorization();
-
-        // List orders
-        group.MapGet("/", async (
-            int skip = 0,
-            int take = 20,
-            IOrderService? service = null) =>
+        var group = builder.MapGroup("/api/commerce/orders").RequireAuthorization(ExternalMemberAuthenticationDefaults.Policy, ExternalMemberAuthenticationDefaults.SitePolicy);
+        group.MapGet("/", async (int skip, int take, IOrderService service, ICurrentPrincipal principal, ISiteContext site, CancellationToken ct) =>
+        { var result = await service.GetForMemberAsync(site.TenantId, site.SiteId, Member(principal), skip, take == 0 ? 20 : take, ct); return result is Result<(IReadOnlyList<OrderEntity> Items, long TotalCount), AeroError>.Ok(var page) ? Results.Ok(page) : Results.BadRequest(); });
+        group.MapGet("/{id:long}", async (long id, IOrderService service, ICurrentPrincipal principal, ISiteContext site, CancellationToken ct) =>
+        { var result = await service.GetForMemberAsync(site.TenantId, site.SiteId, Member(principal), id, ct); return result is Result<OrderEntity?, AeroError>.Ok(var order) && order is not null ? Results.Ok(order) : Results.NotFound(); });
+        group.MapPost("/", async (CheckoutRequest request, IOrderService service, ICurrentPrincipal principal, ISiteContext site, IMessageBus bus, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
-            var orders = await service!.GetAllAsync();
-            var items = orders.Skip(skip).Take(take).ToList();
-            return Results.Ok(new { Items = items, TotalCount = items.Count });
+            var result = await service.CheckoutAsync(site.TenantId, site.SiteId, Member(principal), request.ShippingAddress, request.BillingAddress, CultureInfo.CurrentUICulture.Name, ct);
+            if (result is not Result<OrderEntity, AeroError>.Ok(var order)) return Results.BadRequest();
+            try { await bus.PublishAsync(new OrderStarted(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId)); await bus.PublishAsync(new OrderStatusChangedToSubmitted(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId, order.TotalAmount)); }
+            catch (Exception ex) { loggerFactory.CreateLogger("Commerce.OrderEvents").LogError(ex, "Order {OrderId} committed but follow-up publication failed", order.Id); }
+            return Results.Created($"/api/commerce/orders/{order.Id}", order);
         });
-
-        // Get by ID
-        group.MapGet("/{id:long}", async (
-            long id,
-            IOrderService? service = null) =>
+        group.MapPost("/{id:long}/cancel", async (long id, IOrderService service, ICurrentPrincipal principal, ISiteContext site, IMessageBus bus, ILoggerFactory loggerFactory, CancellationToken ct) =>
         {
-            try
-            {
-                var order = await service!.FindByIdAsync(id);
-                return Results.Ok(order);
-            }
-            catch
-            {
-                return Results.NotFound();
-            }
-        });
-
-        // Create order from basket
-        group.MapPost("/", async (
-            CreateOrderRequest request,
-            IMessageBus bus) =>
-        {
-            await bus.InvokeAsync(new CreateOrder(
-                request.CustomerId,
-                request.ShippingAddress,
-                request.BillingAddress
-            ));
-
-            return Results.Accepted();
-        });
-
-        // Cancel order
-        group.MapPost("/{id:long}/cancel", async (
-            long id,
-            IMessageBus bus) =>
-        {
-            await bus.PublishAsync(new OrderStatusChangedToCancelled(id, "User requested cancellation"));
+            var result = await service.CancelAsync(site.TenantId, site.SiteId, Member(principal), id, ct);
+            if (result is not Result<OrderEntity, AeroError>.Ok(var order)) return Results.NotFound();
+            try { await bus.PublishAsync(new OrderStatusChangedToCancelled(order.Id, order.TenantId, order.SiteId, order.ExternalMemberId, "Customer requested cancellation")); }
+            catch (Exception ex) { loggerFactory.CreateLogger("Commerce.OrderEvents").LogError(ex, "Order {OrderId} cancellation committed but follow-up publication failed", order.Id); }
             return Results.NoContent();
         });
-
         return builder;
     }
+    private static long Member(ICurrentPrincipal principal) => principal.PrincipalId ?? throw new BadHttpRequestException("External member is required.");
 }
 
-/// <summary>
-/// Request DTO for creating an order.
-/// </summary>
-public sealed record CreateOrderRequest(
-    string CustomerId,
-    Address ShippingAddress,
-    Address? BillingAddress = null
-);
+/// <summary>Checkout input contains addresses only; identity, ownership, basket, and price are server-derived.</summary>
+public sealed record CheckoutRequest(Address ShippingAddress, Address? BillingAddress = null);

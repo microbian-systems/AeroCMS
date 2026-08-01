@@ -1,0 +1,43 @@
+@page "/manager/sites/{SiteId:long}/theme-studio"
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+<PageTitle>Theme Studio</PageTitle>
+
+<NavigationLock ConfirmExternalNavigation="@IsDirty" OnBeforeInternalNavigation="ConfirmInternalNavigationAsync" />
+
+<div class="theme-studio pe-page-content">
+    @if (_isLoading)
+    {
+        <section class="studio-state" aria-live="polite"><RadzenProgressBar Mode="ProgressBarMode.Indeterminate" /><h1>Opening Theme Studio</h1><p>Loading the selected site, drafts, and publication history.</p></section>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <section class="studio-state studio-state--error" role="alert"><span class="rzi rzi-error-outline" aria-hidden="true"></span><h1>Theme Studio could not open</h1><p>@_loadError</p><div><button type="button" class="pe-btn pe-btn-primary" @onclick="LoadAsync">Retry</button><button type="button" class="pe-btn pe-btn-secondary" @onclick="Back">Back to site</button></div></section>
+    }
+    else if (_site is null)
+    {
+        <section class="studio-state"><span class="rzi rzi-web-asset-off" aria-hidden="true"></span><h1>Site not found</h1><p>Choose a valid site before opening Theme Studio.</p><button type="button" class="pe-btn pe-btn-primary" @onclick="OpenSites">View sites</button></section>
+    }
+    else
+    {
+        <style>@((MarkupString)PreviewCss)</style>
+        <ThemeStudioHeader SiteName="@(_site.Name ?? "Site")" Drafts="@_drafts" SelectedDraftId="@_draftId" Name="@_name" Slug="@_slug" Description="@_description" Revision="@_revision" IsDirty="@IsDirty" IsBusy="@_isBusy" HasBlockingProblems="@HasBlockingProblems" BusyLabel="@_busyLabel" Back="BackAsync" DraftSelected="SelectDraftAsync" NameChanged="SetName" SlugChanged="SetSlug" DescriptionChanged="SetDescription" Save="SaveAsync" Preview="CreateServerPreviewAsync" Publish="PublishAndAssignAsync" Export="ExportAsync" Import="ImportAsync" />
+
+        @if (!string.IsNullOrWhiteSpace(_operationMessage))
+        {
+            <div class="operation-message @(_operationIsError ? "error" : "success")" role="status"><span class="rzi @(_operationIsError ? "rzi-error-outline" : "rzi-check-circle")" aria-hidden="true"></span><span>@_operationMessage</span><button type="button" @onclick="DismissMessage" aria-label="Dismiss message"><span class="rzi rzi-close" aria-hidden="true"></span></button></div>
+        }
+
+        <div class="studio-workspace">
+            <aside class="studio-sidebar">
+                <ThemeTokenEditor Mode="@_editingMode" DefaultMode="@_tokens.DefaultMode" Colors="@EditingColors" Shape="@_tokens.Shape" ModeChanged="SetEditingMode" DefaultModeChanged="SetDefaultMode" ColorChanged="ChangeColor" ShapeChanged="ChangeShape" />
+                <ThemeValidationSummary Results="@ContrastResults" Problems="@ValidationProblems" />
+                <ThemeHistoryPanel Versions="@_versions" Publications="@_publications" IsBusy="@_isBusy" Assign="AssignAsync" />
+            </aside>
+            <main class="studio-preview">
+                <ThemePreviewGallery DataThemeName="@PreviewDataTheme" Panel="@_previewPanel" PanelChanged="SetPreviewPanel" Viewport="@_viewport" ViewportChanged="SetViewport" />
+            </main>
+        </div>
+    }
+</div>

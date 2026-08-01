@@ -1,0 +1,18 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Html
+
+<div class="aero-length-editor">
+    <label>
+        <span>@Label</span>
+        <InputNumber TValue="decimal?" Value="Value.Value" ValueChanged="OnValueChanged" ValueExpression="() => Value.Value" step="0.125" />
+    </label>
+    <label class="aero-length-editor__unit">
+        <span>Unit</span>
+        <InputSelect TValue="CssLengthUnit" Value="Value.Unit" ValueChanged="OnUnitChanged" ValueExpression="() => Value.Unit">
+            @foreach (var unit in Enum.GetValues<CssLengthUnit>())
+            {
+                <option value="@unit">@UnitLabel(unit)</option>
+            }
+        </InputSelect>
+    </label>
+</div>

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Define search architecture for published content and admin search using vector-based and full-text search within PostgreSQL.
+Define search architecture for published content and admin search using vector-based and full-text search within SurrealDB (via AeroDB.Sable).
 
 ## Search Use Cases
 
@@ -14,7 +14,7 @@ Define search architecture for published content and admin search using vector-b
 
 ## Technology Stack
 
-- **Database**: PostgreSQL with `pg_vector` extension.
+- **Database**: SurrealDB with vector search functions (e.g., `vector::similarity::cosine`).
 - **Embeddings**: .NET SmartComponents or OpenAI/Azure OpenAI embeddings.
 - **Orchestration**: TickerQ for background embedding generation.
 
@@ -34,7 +34,7 @@ public interface ISearchQueryService
 }
 ```
 
-## Search Document (Marten/Postgres)
+## Search Document (AeroDB.Sable/SurrealDB)
 
 ```csharp
 public sealed class SearchDocument
@@ -49,30 +49,21 @@ public sealed class SearchDocument
     public bool Published { get; set; }
     public DateTime UpdatedUtc { get; set; }
     
-    // pg_vector column via Marten/Npgsql
+    // vector field via AeroDB.Sable/SurrealDB
     public float[] Embedding { get; set; } 
 }
 ```
 
-## Implementation Strategy: pg_vector
+## Implementation Strategy: Vector Search
 
-1. **Schema**: Enable `vector` extension in Postgres.
+1. **Schema**: Define the vector field in the Sable document model.
 2. **Embeddings**: When content is published, a TickerQ job is triggered.
 3. **Processing**: The job extracts plain text from all blocks, sends it to an embedding model, and stores the resulting vector in the `SearchDocument`.
-4. **Query**: Use cosine similarity (`<=>` operator) or inner product (`<#>`) for semantic search.
-
-Example SQL (conceptual):
-```sql
-SELECT title, body_text
-FROM search_documents
-WHERE tenant_id = 'site1'
-ORDER BY embedding <=> '[0.1, 0.2, ...]'
-LIMIT 10;
-```
+4. **Query**: Use SurrealDB vector functions (e.g., `vector::similarity::cosine`) for semantic search.
 
 ## Hybrid Search
 
-Combine PostgreSQL Full-Text Search (FTS) with Vector Search for maximum relevance (RRF - Reciprocal Rank Fusion).
+Combine SurrealDB full-text search with vector search for maximum relevance (RRF - Reciprocal Rank Fusion).
 
 ## Job Integration
 
@@ -88,7 +79,7 @@ Every query and index entry is strictly partitioned by `TenantId`.
 ## Deliverables
 
 1. Search document model with vector support.
-2. Indexer abstraction and Postgres implementation.
+2. Indexer abstraction and SurrealDB implementation.
 3. Embedding generation pipeline using TickerQ.
 4. Semantic and Keyword search query APIs.
 5. Tests for vector similarity accuracy.

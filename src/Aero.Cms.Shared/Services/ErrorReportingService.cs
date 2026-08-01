@@ -30,7 +30,10 @@ public sealed class ErrorReportingService : IErrorReportingService, IDisposable
 
     private const int MaxStoredErrors = 50;
 
-    public ErrorReportingService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ErrorReportingService"/> class.
+    /// </summary>
+public ErrorReportingService(
         IAdminStorage storage,
         HttpClient httpClient,
         ILogger<ErrorReportingService> logger)
@@ -40,7 +43,10 @@ public sealed class ErrorReportingService : IErrorReportingService, IDisposable
         _logger = logger;
     }
 
-    public async Task ReportErrorAsync(AeroError error, string? context = null)
+        /// <summary>
+    /// ReportErrorAsync method.
+    /// </summary>
+public async Task ReportErrorAsync(AeroError error, string? context = null)
     {
         try
         {
@@ -140,5 +146,8 @@ public sealed class ErrorReportingService : IErrorReportingService, IDisposable
         }
     }
 
-    public void Dispose() { /* No managed resources to dispose */ }
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public void Dispose() { /* No managed resources to dispose */ }
 }

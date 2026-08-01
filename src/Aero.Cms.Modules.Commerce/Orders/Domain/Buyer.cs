@@ -5,7 +5,16 @@ namespace Aero.Cms.Modules.Commerce.Orders.Domain;
 /// </summary>
 public sealed class Buyer : Entity
 {
-    public string IdentityId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Identity Id.
+    /// </summary>
+public string IdentityId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Email.
+    /// </summary>
+public string Email { get; set; } = string.Empty;
 }

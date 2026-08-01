@@ -1,0 +1,84 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Abstractions.Pages.Composition
+
+<div class="aero-registered-fragment-overlay" @onclick="CloseAsync">
+    <section class="aero-registered-fragment-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-registered-fragment-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-registered-fragment-dialog__header">
+            <div>
+                <span>Registered application fragment</span>
+                <h2 id="aero-registered-fragment-title">@Descriptor.DisplayName</h2>
+            </div>
+            <button type="button" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-registered-fragment-dialog__body">
+            @if (!string.IsNullOrWhiteSpace(Descriptor.Description))
+            {
+                <p>@Descriptor.Description</p>
+            }
+
+            @foreach (var parameter in Descriptor.Parameters)
+            {
+                <div @key="parameter.Name" class="aero-registered-fragment-dialog__field">
+                    <label for="@FieldId(parameter)">
+                        @parameter.DisplayName
+                        @if (parameter.Required)
+                        {
+                            <span aria-hidden="true">*</span>
+                        }
+                    </label>
+                    @if (!string.IsNullOrWhiteSpace(parameter.Description))
+                    {
+                        <small>@parameter.Description</small>
+                    }
+
+                    @if (parameter.Kind == PageRegisteredFragmentParameterKind.Boolean)
+                    {
+                        <input id="@FieldId(parameter)"
+                               type="checkbox"
+                               checked="@GetBoolean(parameter)"
+                               @onchange="args => SetBoolean(parameter, args)" />
+                    }
+                    else if (parameter.Kind == PageRegisteredFragmentParameterKind.Enum)
+                    {
+                        <select id="@FieldId(parameter)"
+                                value="@GetText(parameter)"
+                                @onchange="args => SetText(parameter, args)">
+                            @foreach (var choice in parameter.Choices)
+                            {
+                                <option value="@choice">@choice</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <input id="@FieldId(parameter)"
+                               type="@(parameter.Kind == PageRegisteredFragmentParameterKind.String ? "text" : "number")"
+                               value="@GetText(parameter)"
+                               maxlength="@parameter.MaximumLength"
+                               min="@parameter.Minimum"
+                               max="@parameter.Maximum"
+                               step="@(parameter.Kind == PageRegisteredFragmentParameterKind.Integer ? "1" : "any")"
+                               @oninput="args => SetText(parameter, args)" />
+                    }
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(DisplayError))
+        {
+            <div class="aero-registered-fragment-dialog__error" role="alert">@DisplayError</div>
+        }
+
+        <footer class="aero-registered-fragment-dialog__footer">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveAsync">Apply parameters</button>
+        </footer>
+    </section>
+</div>

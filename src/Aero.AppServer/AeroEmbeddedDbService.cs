@@ -1,142 +1,72 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MysticMind.PostgresEmbed;
 using Aero.AppServer.Startup;
-using Npgsql;
-using System.Data.Common;
 
 namespace Aero.AppServer;
 
+/// <summary>
+/// Publishes readiness and lifetime signals for the in-process SurrealKV database.
+/// </summary>
+/// <param name="log">The logger for lifecycle events.</param>
+/// <param name="readiness">The mutable process readiness snapshot.</param>
+/// <param name="startupSignal">The named readiness-signal registry.</param>
+/// <remarks>
+/// SurrealDB embedded (Sable) runs in-process via SurrealDbKvClient with zero startup time.
+/// This service exists to signal readiness to the <see cref="RuntimeStartupCoordinator"/>
+/// and maintain symmetry with other infrastructure services like <see cref="AeroCacheService"/>.
+/// </remarks>
 public class AeroEmbeddedDbService(
-    IOptionsMonitor<AeroDbOptions> embeddedOptions,
     ILogger<AeroEmbeddedDbService> log,
     IInfrastructureReadinessSnapshot readiness,
     IMultiStartupSignal startupSignal) : BackgroundService
 {
-    PgServer? server;
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Keeps the hosted service alive until application shutdown.
+    /// </summary>
+    /// <param name="stoppingToken">Cancels the indefinite wait.</param>
+    /// <returns>A task that completes through cancellation during normal shutdown.</returns>
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        log.LogInformation("Aero embedded PostgreSQL server is running...");
+        log.LogInformation("AeroEmbedDbService: Sable KV embedded store running in-process...");
+        await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
-    public override async Task StartAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Marks the embedded database ready before starting the background-service lifetime.
+    /// </summary>
+    /// <param name="cancellationToken">The host startup cancellation token.</param>
+    /// <returns>A task that completes when the base hosted service has started.</returns>
+public override async Task StartAsync(CancellationToken cancellationToken)
     {
-        log.LogInformation("AeroEmbedDbService: Starting Aero embedded PostgreSQL server...");
-        var current = embeddedOptions.CurrentValue;
-        var pgPort = current.Port;
-        var pgVersion = current.PgVersion;
+        log.LogInformation("AeroEmbedDbService: Signaling Sable KV readiness (in-process, zero startup)");
 
-        var serverParams = new Dictionary<string, string>();
+        // SurrealDB embedded has zero instantiation delay.
+        // Signal readiness immediately - no process to start, no polling needed.
+        readiness.AeroDbReady = true;
+        startupSignal.MarkReady(StartupServiceNames.AeroDb);
 
-        // todo - add pg_vector
-        // todo - configure embedded sql server to only allow connections from localhost
-        serverParams.Add("timezone", "UTC");
-        serverParams.Add("listen_addresses", "127.0.0.1");
-        server = new PgServer(
-            pgVersion, 
-            instanceId:Guid.Empty, 
-            pgUser: AeroAppServerConstants.EmbeddedDbUser, 
-            port: pgPort, 
-            pgServerParams: serverParams,
-            clearInstanceDirOnStop: false,
-            clearWorkingDirOnStart: false);
-        await server.StartAsync();
-        await Task.Run(async () =>
-        {
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested) // todo - do we need a while clause for the embedded pg server? 
-                {
-                    try
-                    {
-                        var masterConn = AeroAppServerConstants.EmbedConnString
-                            .Replace("Database=aero", "Database=postgres")
-                            ;
-                        
-                        await using var db = new NpgsqlConnection(masterConn);
-                        await db.OpenAsync(cancellationToken);
-
-                        // 1. Ensure 'aero' user exists
-                        var userExists = await new NpgsqlCommand(
-                            "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'aero')", db)
-                            .ExecuteScalarAsync(cancellationToken) is bool b1 && b1;
-
-                        if (!userExists)
-                        {
-                            log.LogInformation("Creating 'aero' database user...");
-                            await new NpgsqlCommand("CREATE ROLE aero WITH LOGIN SUPERUSER", db)
-                            .ExecuteNonQueryAsync(cancellationToken);
-                        }
-
-                        // 2. Ensure 'aero' database exists
-                        var dbExists = await new NpgsqlCommand(
-                            "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'aero')", db)
-                            .ExecuteScalarAsync(cancellationToken) is bool b2 && b2;
-
-                        if (!dbExists)
-                        {
-                            log.LogInformation("Creating 'aero' database...");
-                            await new NpgsqlCommand("CREATE DATABASE aero OWNER aero", db)
-                            .ExecuteNonQueryAsync(cancellationToken);
-                        }
-
-                        // 3. Log version
-                        var version = (string?)await new NpgsqlCommand("SELECT version();", db)
-                        .ExecuteScalarAsync(cancellationToken);
-                        log.LogInformation("PostgreSQL version: {Version}", version);
-
-                        readiness.PostgresReady = true;
-                        startupSignal.MarkReady(StartupServiceNames.Postgres);
-                        log.LogInformation("Embedded PostgreSQL is ready on port {Port}.", pgPort);
-                        return;
-                    }
-                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-                    {
-                        log.LogError(ex, "Embedded PostgreSQL not ready yet on port {Port}.", pgPort);
-                        await Task.Delay(500, cancellationToken);
-                    }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-            catch (Exception ex)
-            {
-                log.LogWarning(ex, "Aero embedded PostgreSQL readiness check failed.");
-            }
-        }, cancellationToken);
+        log.LogInformation("AeroEmbedDbService: Sable KV embedded store ready.");
 
         await base.StartAsync(cancellationToken);
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Requests shutdown of the embedded-database lifetime service.
+    /// </summary>
+    /// <param name="cancellationToken">The token limiting graceful shutdown.</param>
+    /// <returns>The base hosted-service shutdown task.</returns>
+public override Task StopAsync(CancellationToken cancellationToken)
     {
-        log.LogInformation("AeroEmbedDbService: Stopping Aero embedded PostgreSQL server...");
-        server?.Stop();
+        log.LogInformation("AeroEmbedDbService: Stopping Aero embedded SurrealDB service...");
         return base.StopAsync(cancellationToken);
     }
 
-    private void OnStarted(CancellationToken token)
+    /// <summary>
+    /// Releases inherited background-service resources.
+    /// </summary>
+public override void Dispose()
     {
-        log.LogInformation("AeroEmbedDbService: Application has fully started and Aero cache is listening.");
-    }
-
-    private void OnStopping()
-    {
-        log.LogInformation("AeroEmbedDbService: Application is shutting down. Preparing to stop Aero cache...");
-    }
-
-    private void OnStopped()
-    {
-        log.LogInformation("AeroEmbedDbService: Application has stopped. Aero cache resources released.");
-    }
-
-    public override void Dispose()
-    {
-        log.LogInformation("AeroEmbedDbService: Disposing Aero cache server...");
-        server?.Stop();
-        server?.Dispose();
+        log.LogInformation("AeroEmbedDbService: Disposing Aero embedded SurrealDB resources...");
         base.Dispose();
     }
 }

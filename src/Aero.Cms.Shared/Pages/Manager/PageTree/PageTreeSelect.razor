@@ -1,0 +1,21 @@
+@using Microsoft.Extensions.Localization
+
+<div class="page-tree-select">
+    <RadzenDropDown TValue="object"
+                    Data="@_options"
+                    TextProperty="Label"
+                    Value="@(_selectedOption as object)"
+                    Change="@OnSelected"
+                    AllowClear="true"
+                    Placeholder="@Placeholder"
+                    style="width: 100%;">
+        <Template Context="item">
+            @{
+                var opt = item as TreeOption;
+            }
+            <span class="@(opt?.Depth > 0 ? "text-gray-500" : "font-medium")">
+                @opt?.Label
+            </span>
+        </Template>
+    </RadzenDropDown>
+</div>

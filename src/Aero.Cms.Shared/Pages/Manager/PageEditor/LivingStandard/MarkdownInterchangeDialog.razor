@@ -1,0 +1,44 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<div class="aero-markdown-overlay" @onclick="CloseAsync">
+    <section class="aero-markdown-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-markdown-title"
+             @onclick:stopPropagation="true">
+        <header>
+            <div>
+                <span>Markdown interchange</span>
+                <h2 id="aero-markdown-title">@Title</h2>
+            </div>
+            <button type="button" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-markdown-dialog__body">
+            <p>@Description</p>
+            <label for="aero-markdown-source">Markdown</label>
+            <textarea id="aero-markdown-source"
+                      @bind="_markdown"
+                      @bind:event="oninput"
+                      readonly="@(Mode == MarkdownInterchangeMode.Export)"
+                      spellcheck="false"
+                      placeholder="@Placeholder"></textarea>
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="aero-markdown-dialog__error" role="alert">@ErrorMessage</div>
+            }
+        </div>
+
+        <footer>
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">
+                @(Mode == MarkdownInterchangeMode.Import ? "Cancel" : "Close")
+            </button>
+            @if (Mode == MarkdownInterchangeMode.Import)
+            {
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="ImportAsync">
+                    Import
+                </button>
+            }
+        </footer>
+    </section>
+</div>

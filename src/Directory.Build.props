@@ -1,4 +1,34 @@
 <Project>
+	<!--
+	  Aero.Cms.Abstractions and Aero.Cms.Shared have different server and browser
+	  compile surfaces. Keep the AeroCmsBrowserClient project instances isolated
+	  so a WASM build cannot overwrite the server assembly (or its generated files)
+	  in a parallel graph build.
+	-->
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
+		<BaseOutputPath>bin\browser\</BaseOutputPath>
+		<BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+	</PropertyGroup>
+	<PropertyGroup>
+		<!--
+		  The browser-specific Shared/Abstractions graph is a distinct MSBuild
+		  graph instance. Its ordinary dependencies may also be top-level solution
+		  projects, so give the recursive browser dependency graph separate output
+		  paths to prevent concurrent compiler writes during a clean build.
+		-->
+		<AeroCmsBrowserDependencyProperties Condition="'$(AeroCmsBrowserClient)' == 'true'">OutputPath=bin\browser-dependencies\$(Configuration)\$(TargetFramework)\;IntermediateOutputPath=obj\browser-dependencies\$(Configuration)\$(TargetFramework)\</AeroCmsBrowserDependencyProperties>
+	</PropertyGroup>
+
 	<PropertyGroup>
 		<!--
       Skip TargetFramework for MAUI projects — they self-define multi-targeted
@@ -15,13 +45,22 @@
 	</PropertyGroup>
 
 	<PropertyGroup Label="Package information">
-		<Version>0.0.5-alpha</Version>
+		<Version>0.0.9.4-alpha</Version>
 		<Authors>Aero Cms</Authors>
 		<Company>Microbian Systems</Company>
 		<Copyright>Copyright (c) 2025 Microbians</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageTags>cms mvc razorpages aspnetcore</PackageTags>
-		<PackageIcon>../Aero.png</PackageIcon>
+		<PackageIcon>aero-logo-new.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="$(MSBuildThisFileDirectory)../assets/aero-logo-new.png" Pack="true" PackagePath="\" />
+		<None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<PropertyGroup>
 		<PackageProjectUrl>https://github.com/microbian-systems/Aero.core</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/microbian-systems/Aero.core</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
@@ -32,7 +71,7 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
-	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
+	<ItemGroup Condition="'$(AeroCmsSkipWebCoreReference)' != 'true' AND '$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	</ItemGroup>
 
@@ -49,6 +88,12 @@
 	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.SourceGenerators'">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
 			OutputItemType="Analyzer"
+			GlobalPropertiesToRemove="AeroCmsBrowserClient"
+			ReferenceOutputAssembly="false" />
+		<ProjectReference Include="$(MSBuildThisFileDirectory)..\AeroDB\src\AeroDB.Analyzers\AeroDB.Analyzers.csproj"
+			OutputItemType="Analyzer"
+			GlobalPropertiesToRemove="AeroCmsBrowserClient"
 			ReferenceOutputAssembly="false" />
 	</ItemGroup>
+
 </Project>

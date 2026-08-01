@@ -1,25 +1,26 @@
 using Aero.Cms.Modules.Pages;
-using Marten;
-using Marten.Linq;
-using NSubstitute;
-using TUnit.Core;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Tests.Services;
 
 public sealed class SlugRegistryTests
 {
+    private SableTestHarness _harness = null!;
     private IDocumentSession _session = null!;
 
     [Before(Test)]
     public async Task Setup()
     {
-        _session = Substitute.For<IDocumentSession>();
+        _harness = new SableTestHarness()
+            .WithSchema<ContentSlugDocument>();
+        await _harness.InitializeAsync();
+        _session = _harness.Session;
     }
 
     [After(Test)]
     public async Task TearDown()
     {
-        // No-op cleanup
+        await _harness.DisposeAsync();
     }
 
     // -----------------------------------------------------------------------
@@ -28,21 +29,6 @@ public sealed class SlugRegistryTests
     [Test]
     public async Task ReserveAsync_StampsSiteId()
     {
-        // Arrange — mock an empty query result for session.Query<ContentSlugDocument>().
-        // ReserveAsync internally calls FirstOrDefaultAsync on the queryable, which
-        // uses Provider/Expression.  We substitute IQueryable<> so LINQ operations
-        // delegate to the in-memory list provider (simulating "no existing reservation").
-        var docs = new List<ContentSlugDocument>().AsQueryable();
-        var queryable = Substitute.For<IQueryable<ContentSlugDocument>>();
-        queryable.Provider.Returns(docs.Provider);
-        queryable.Expression.Returns(docs.Expression);
-        queryable.ElementType.Returns(docs.ElementType);
-        queryable.GetEnumerator().Returns(docs.GetEnumerator());
-
-        // session.Query<T>() returns IMartenQueryable<T>; we return IQueryable<T> which
-        // satisfies assignability for the mock.
-        _session.Query<ContentSlugDocument>().Returns(queryable);
-
         const long ownerId = 1;
         const string slug = "my-doc";
         const long siteId = 42;
@@ -57,29 +43,26 @@ public sealed class SlugRegistryTests
             previousSlug: null,
             CancellationToken.None
         );
+        await _session.SaveChangesAsync();
 
-        // Assert — the stored ContentSlugDocument should have SiteId == 42
-        _session.Received(1).Store(
-            Arg.Is<ContentSlugDocument>(d => d.SiteId == 42)
-        );
+        // Query for the stored document and assert
+        var stored = await _session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId);
+
+        await Assert.That(stored).IsNotNull();
+        await Assert.That(stored!.SiteId).IsEqualTo(42);
+        await Assert.That(stored.Culture).IsEqualTo("en-US");
     }
 
     [Test]
     public async Task ReserveAsync_AllowsSameSlugAcrossDifferentSites()
     {
-        var docs = new List<ContentSlugDocument>
-        {
-            ContentSlugDocument.Create("/", 100, ContentSlugOwnerType.Page, siteId: 1)
-        }.AsQueryable();
+        // Seed a reservation for siteId=1
+        var seeded = ContentSlugDocument.Create("/", 100, ContentSlugOwnerType.Page, siteId: 1);
+        _session.Store(seeded);
+        await _session.SaveChangesAsync();
 
-        var queryable = Substitute.For<IQueryable<ContentSlugDocument>>();
-        queryable.Provider.Returns(docs.Provider);
-        queryable.Expression.Returns(docs.Expression);
-        queryable.ElementType.Returns(docs.ElementType);
-        queryable.GetEnumerator().Returns(docs.GetEnumerator());
-
-        _session.Query<ContentSlugDocument>().Returns(queryable);
-
+        // Act — reserve the same slug for a different site
         await ContentSlugReservation.ReserveAsync(
             _session,
             ownerId: 200,
@@ -88,11 +71,46 @@ public sealed class SlugRegistryTests
             siteId: 2,
             previousSlug: null,
             CancellationToken.None);
+        await _session.SaveChangesAsync();
 
-        _session.Received(1).Store(
-            Arg.Is<ContentSlugDocument>(d =>
-                d.SiteId == 2 &&
-                d.OwnerId == 200 &&
-                d.NormalizedSlug == ContentSlugDocument.Normalize("/")));
+        // Assert — the stored document should have siteId=2 and ownerId=200
+        var stored = await _session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == 2);
+
+        await Assert.That(stored).IsNotNull();
+        await Assert.That(stored!.SiteId).IsEqualTo(2);
+        await Assert.That(stored.OwnerId).IsEqualTo(200);
+        await Assert.That(stored.NormalizedSlug).IsEqualTo(ContentSlugDocument.Normalize("/"));
+    }
+
+    [Test]
+    public async Task ReserveAsync_AllowsSameSlugAcrossDifferentCultures()
+    {
+        // Seed a reservation in "en-US"
+        var seeded = ContentSlugDocument.Create("/", 100, ContentSlugOwnerType.Page, siteId: 1, culture: "en-US");
+        _session.Store(seeded);
+        await _session.SaveChangesAsync();
+
+        // Act — reserve the same slug+site for a different culture
+        await ContentSlugReservation.ReserveAsync(
+            _session,
+            ownerId: 200,
+            ContentSlugOwnerType.Page,
+            slug: "/",
+            siteId: 1,
+            culture: "es-MX",
+            previousSlug: null,
+            CancellationToken.None);
+        await _session.SaveChangesAsync();
+
+        // Assert — the stored document should have culture "es-MX" and ownerId=200
+        var stored = await _session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x => x.Culture == "es-MX");
+
+        await Assert.That(stored).IsNotNull();
+        await Assert.That(stored!.SiteId).IsEqualTo(1);
+        await Assert.That(stored.Culture).IsEqualTo("es-MX");
+        await Assert.That(stored.OwnerId).IsEqualTo(200);
+        await Assert.That(stored.NormalizedSlug).IsEqualTo(ContentSlugDocument.Normalize("/"));
     }
 }

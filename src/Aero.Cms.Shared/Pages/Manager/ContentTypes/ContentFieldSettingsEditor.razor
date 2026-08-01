@@ -1,0 +1,291 @@
+@using Aero.Cms.Abstractions.Ai.Knowledge
+@using Aero.Cms.Abstractions.Content
+
+<div class="space-y-4">
+    <div>
+        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@FieldTypeLabel @L["settings"]</h2>
+        <p class="ct-help mt-1">@L["These settings shape the entry form editors will use."]</p>
+    </div>
+
+    <label class="pe-property-group">
+        <span class="pe-property-label">@L["Label shown to editors"]</span>
+        <RadzenTextBox Value="@Field.Label" ValueChanged="SetLabelAsync" Class="w-full" />
+    </label>
+
+    <label class="pe-property-group">
+        <span class="pe-property-label">@L["Help text"]</span>
+        <RadzenTextArea Value="@Field.Placeholder" ValueChanged="SetPlaceholderAsync" Rows="2" Class="w-full" />
+    </label>
+
+    <div class="rounded-md p-3" style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary);">
+        <label class="flex items-center gap-2 text-sm font-medium" style="color: var(--pe-text-primary);">
+            <RadzenCheckBox TValue="bool" Value="@Field.Required" ValueChanged="SetRequiredAsync" />
+            @L["Required to publish"]
+        </label>
+        <p class="ct-help mt-1 ml-7">@L["Drafts can be saved without this field. A value is required before publishing."]</p>
+    </div>
+
+    @if (Field.FieldType is ContentFieldTypes.Text or ContentFieldTypes.RichText)
+    {
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Minimum length"]</span>
+                <RadzenNumeric TValue="int?" Value="@GetIntSetting("minLength")" ValueChanged="@(v => SetSettingAsync("minLength", v))" Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Maximum length"]</span>
+                <RadzenNumeric TValue="int?" Value="@GetIntSetting("maxLength")" ValueChanged="@(v => SetSettingAsync("maxLength", v))" Class="w-full" />
+            </label>
+        </div>
+    }
+    else if (Field.FieldType == ContentFieldTypes.Number)
+    {
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Minimum"]</span>
+                <RadzenNumeric TValue="decimal?" Value="@GetDecimalSetting("min")" ValueChanged="@(v => SetSettingAsync("min", v))" Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Maximum"]</span>
+                <RadzenNumeric TValue="decimal?" Value="@GetDecimalSetting("max")" ValueChanged="@(v => SetSettingAsync("max", v))" Class="w-full" />
+            </label>
+        </div>
+    }
+    else if (Field.FieldType == ContentFieldTypes.Range)
+    {
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Start with"]</span>
+                <RadzenNumeric TValue="int?"
+                               Min="@RangeMinimum"
+                               Value="@GetIntSetting(RangeContentFieldSettings.Start)"
+                               ValueChanged="@(v => SetSettingAsync(RangeContentFieldSettings.Start, v))"
+                               Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["End with"]</span>
+                <RadzenNumeric TValue="int?"
+                               Min="@RangeMinimum"
+                               Value="@GetIntSetting(RangeContentFieldSettings.End)"
+                               ValueChanged="@(v => SetSettingAsync(RangeContentFieldSettings.End, v))"
+                               Class="w-full" />
+            </label>
+        </div>
+        <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+            <RadzenCheckBox TValue="bool"
+                            Value="@GetBoolSetting(RangeContentFieldSettings.AllowNegative)"
+                            ValueChanged="SetRangeAllowNegativeAsync" />
+            @L["Allow negative values"]
+        </label>
+        <p class="ct-help">@L["Entries store one whole number inside this inclusive range."]</p>
+    }
+    else if (Field.FieldType == ContentFieldTypes.Color)
+    {
+        <p class="ct-help">@L["Entries use the Radzen color picker and store a hexadecimal color. Transparency is stored as an optional alpha pair."]</p>
+    }
+    else if (Field.FieldType == ContentFieldTypes.Reference)
+    {
+        @if (IsCmsDocumentReference)
+        {
+            <div class="rounded-md p-3" style="border: 1px solid var(--pe-border);">
+                <strong style="color: var(--pe-text-primary);">@L["Site content"]</strong>
+                <p class="ct-help mt-1">@L["Entry authors first choose Pages, Posts, Docs, or a public content type, then search its database entries."]</p>
+            </div>
+        }
+        else
+        {
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Related content type"]</span>
+                <select class="w-full rounded-md shadow-sm sm:text-sm"
+                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                        value="@GetStringSetting(ReferenceContentFieldSettings.TargetContentType)"
+                        @onchange="OnReferenceTargetChangedAsync">
+                    <option value="">@L["Choose a content type"]</option>
+                    @foreach (var contentType in AvailableReferenceContentTypes)
+                    {
+                        <option value="@contentType.Alias">@contentType.Name</option>
+                    }
+                </select>
+            </label>
+
+            @if (IsHierarchyReference)
+            {
+                <p class="ct-help">@L["Editors see a searchable hierarchy path picker. The entry stores the selected content item ID."]</p>
+                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                    <RadzenCheckBox TValue="bool"
+                                    Value="@GetBoolSetting(ReferenceContentFieldSettings.SelectLeafOnly, true)"
+                                    ValueChanged="@(v => SetSettingAsync(ReferenceContentFieldSettings.SelectLeafOnly, v))" />
+                    @L["Allow only leaf entries"]
+                </label>
+                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                    <RadzenCheckBox TValue="bool"
+                                    Value="@GetBoolSetting(ReferenceContentFieldSettings.ShowAncestors, true)"
+                                    ValueChanged="@(v => SetSettingAsync(ReferenceContentFieldSettings.ShowAncestors, v))" />
+                    @L["Show the full ancestor path"]
+                </label>
+            }
+            else
+            {
+                <p class="ct-help">@L["Editors search the live entries of this content type and select one related record. The field stores its content item ID."]</p>
+                <label class="pe-property-group">
+                    <span class="pe-property-label">@L["Depends on another field"]</span>
+                    <select class="w-full rounded-md shadow-sm sm:text-sm"
+                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                            value="@GetStringSetting(ReferenceContentFieldSettings.DependsOnField)"
+                            @onchange="OnReferenceDependencyChangedAsync">
+                        <option value="">@L["No dependency"]</option>
+                        @foreach (var dependency in DependencyReferenceFields)
+                        {
+                            <option value="@dependency.Name">@FieldLabel(dependency)</option>
+                        }
+                    </select>
+                    <span class="text-xs ct-muted">@L["Optional. Choose an earlier content-entry field to cascade this picker."]</span>
+                </label>
+
+                @if (!string.IsNullOrWhiteSpace(GetStringSetting(ReferenceContentFieldSettings.DependsOnField)))
+                {
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">@L["Target relationship field"]</span>
+                        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                value="@GetStringSetting(ReferenceContentFieldSettings.TargetFilterField)"
+                                @onchange="@(e => SetSettingAsync(ReferenceContentFieldSettings.TargetFilterField, e.Value?.ToString()))">
+                            <option value="">@L["Choose the matching target field"]</option>
+                            @foreach (var targetField in TargetReferenceFields)
+                            {
+                                <option value="@targetField.Name">@FieldLabel(targetField)</option>
+                            }
+                        </select>
+                        <span class="text-xs ct-muted">@L["Only target entries linked to the dependent selection will be offered."]</span>
+                    </label>
+                }
+            }
+        }
+    }
+    else if (Field.FieldType == ContentFieldTypes.List)
+    {
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Item type"]</span>
+            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                    value="@GetStringSetting(CompositeContentFieldSettings.ItemType)"
+                    @onchange="@(e => SetSettingAsync(CompositeContentFieldSettings.ItemType, e.Value?.ToString()))">
+                <option value="text">@L["Short text"]</option>
+                <option value="number">@L["Number"]</option>
+            </select>
+        </label>
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Allowed values"]</span>
+            <RadzenTextArea Value="@AllowedValuesText"
+                            ValueChanged="SetAllowedValuesTextAsync"
+                            Placeholder="@L["One value per line"]"
+                            Rows="6"
+                            Class="w-full" />
+            <span class="text-xs ct-muted">@L["Editors can select only from these values."]</span>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@(Field.Required ? L["Minimum selections"] : L["Minimum selections when used"])</span>
+                <RadzenNumeric TValue="int?" Min="0" Max="50"
+                               Value="@GetIntSetting(CompositeContentFieldSettings.MinimumItems)"
+                               ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MinimumItems, v))"
+                               Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Maximum selections"]</span>
+                <RadzenNumeric TValue="int?" Min="1" Max="50"
+                               Value="@GetIntSetting(CompositeContentFieldSettings.MaximumItems)"
+                               ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MaximumItems, v))"
+                               Class="w-full" />
+            </label>
+        </div>
+        @if (Field.Required && (GetIntSetting(CompositeContentFieldSettings.MinimumItems) ?? 0) == 0)
+        {
+            <p class="ct-help">@L["Required lists need at least one selection when published."]</p>
+        }
+    }
+    else if (Field.FieldType == ContentFieldTypes.Gallery)
+    {
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Minimum images"]</span>
+                <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(CompositeContentFieldSettings.MinimumItems)" ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MinimumItems, v))" Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Maximum images"]</span>
+                <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(CompositeContentFieldSettings.MaximumItems)" ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MaximumItems, v))" Class="w-full" />
+            </label>
+        </div>
+        <p class="ct-help">@L["Editors select images from Media. Selection order is preserved."]</p>
+    }
+    else if (Field.FieldType == ContentFieldTypes.Dictionary)
+    {
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Value type"]</span>
+            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                    value="@GetStringSetting(CompositeContentFieldSettings.ValueType)"
+                    @onchange="@(e => SetSettingAsync(CompositeContentFieldSettings.ValueType, e.Value?.ToString()))">
+                <option value="text">@L["Short text"]</option>
+                <option value="number">@L["Number"]</option>
+            </select>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Minimum entries"]</span>
+                <RadzenNumeric TValue="int?" Min="0" Max="50" Value="@GetIntSetting(CompositeContentFieldSettings.MinimumEntries)" ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MinimumEntries, v))" Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Maximum entries"]</span>
+                <RadzenNumeric TValue="int?" Min="1" Max="50" Value="@GetIntSetting(CompositeContentFieldSettings.MaximumEntries)" ValueChanged="@(v => SetSettingAsync(CompositeContentFieldSettings.MaximumEntries, v))" Class="w-full" />
+            </label>
+        </div>
+        <p class="ct-help">@L["Keys are short labels such as calories or serving size."]</p>
+    }
+
+    <RadzenFieldset Text="@L["Advanced"]" AllowCollapse="true" Collapsed="true">
+        <div class="space-y-3">
+            <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Search and indexing"]</h3>
+            <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                <RadzenCheckBox TValue="bool"
+                                Value="@(Field.FieldType == ContentFieldTypes.Reference || Field.Indexed)"
+                                ValueChanged="SetIndexedAsync"
+                                Disabled="@(Field.FieldType == ContentFieldTypes.Reference)" />
+                @L["Index for filtering and sorting"]
+            </label>
+            @if (SupportsFullTextSearch)
+            {
+                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                    <RadzenCheckBox TValue="bool" Value="@Field.FullTextSearchable" ValueChanged="SetFullTextAsync" />
+                    @L["Include in full-text search"]
+                </label>
+            }
+            @if (SupportsSemanticSearch)
+            {
+                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                    <RadzenCheckBox TValue="bool" Value="@Field.SemanticSearchable" ValueChanged="SetSemanticAsync" />
+                    @L["Include in semantic search"]
+                </label>
+            }
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["AI exposure"]</span>
+                <RadzenDropDown TValue="AeroAiFieldExposure"
+                                Data="@AiExposureOptions"
+                                Value="@Field.AiExposure"
+                                ValueChanged="SetAiExposureAsync"
+                                Class="w-full" />
+            </label>
+            <label class="pe-property-group">
+                <span class="pe-property-label">@L["Internal field handle"]</span>
+                <RadzenTextBox Value="@Field.Name" ValueChanged="SetNameAsync" Class="w-full" />
+            </label>
+            @if (!IsCompositeField)
+            {
+                <label class="pe-property-group">
+                    <span class="pe-property-label">@L["Default value"]</span>
+                    <RadzenTextBox Value="@Field.DefaultValue" ValueChanged="SetDefaultValueAsync" Class="w-full" />
+                </label>
+            }
+        </div>
+    </RadzenFieldset>
+</div>

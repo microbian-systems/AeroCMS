@@ -1,28 +1,20 @@
-using System.Linq.Expressions;
+using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Services;
+using Aero.Core.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
-[Microsoft.AspNetCore.Authorization.Authorize]
-public class OrdersModel : PageModel
+[Authorize(Policy = ExternalMemberAuthenticationDefaults.Policy)]
+[Authorize(Policy = ExternalMemberAuthenticationDefaults.SitePolicy)]
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class OrdersModel(IOrderService orders, ICurrentPrincipal principal, ISiteContext site) : PageModel
 {
-    private readonly IOrderService _orderService;
-
-    public OrdersModel(IOrderService orderService)
-    {
-        _orderService = orderService;
-    }
-
     public List<OrderEntity>? Orders { get; set; }
-
     public async Task<IActionResult> OnGetAsync()
-    {
-        var customerId = User.Identity!.Name!;
-        var orders = await _orderService.FindAsync(o => o.CustomerId == customerId);
-        Orders = orders.OrderByDescending(o => o.CreatedOn).ToList();
-        return Page();
-    }
+    { var result = await orders.GetForMemberAsync(site.TenantId, site.SiteId, Member()); if (result is Result<(IReadOnlyList<OrderEntity> Items, long TotalCount), AeroError>.Ok(var page)) Orders = page.Items.ToList(); return Page(); }
+    private long Member() => principal.PrincipalId ?? throw new InvalidOperationException("External member is required.");
 }

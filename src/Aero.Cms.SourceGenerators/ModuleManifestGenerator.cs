@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,10 +9,14 @@ namespace Aero.Cms.SourceGenerators;
 /// <summary>
 /// Per-module project incremental source generator.
 /// Runs in every project that can declare modules.
-/// Reads <c>[Module]</c> on <see cref="IAeroModule"/> classes,
-/// validates targets, and emits a manifest provider
+/// Reads <c>[Module]</c> from attributed classes and emits a manifest provider
 /// plus an assembly-level <c>ModuleManifestProviderAttribute</c>.
 /// </summary>
+/// <remarks>
+/// The current validation rejects only empty module names and exact duplicate names. Although
+/// descriptors exist for invalid targets and missing <c>IAeroModule</c>, those diagnostics are not
+/// reported by this implementation.
+/// </remarks>
 [Generator]
 public sealed class ModuleManifestGenerator : IIncrementalGenerator
 {
@@ -31,9 +32,9 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
     private const string IFilterModuleName = "Aero.Modular.IFilterModule";
     private const string IContentDefinitionModuleName = "Aero.Modular.IContentDefinitionModule";
 
-    // Marten configurator interface names
-    private const string IConfigureMartenName = "Marten.IConfigureMarten";
-    private const string IAsyncConfigureMartenName = "Marten.IAsyncConfigureMarten";
+    // AeroDb configurator interface names
+    private const string IConfigureAeroDBName = "AeroDB.Sable.IConfigureAeroDB";
+    private const string IAsyncConfigureAeroDBName = "AeroDB.Sable.IAsyncConfigureAeroDB";
 
     private static readonly DiagnosticDescriptor InvalidModuleTarget = new(
         "AERO010",
@@ -67,7 +68,16 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    /// <summary>
+    /// Builds the attributed-module pipeline, reports name diagnostics, and emits one provider per project.
+    /// </summary>
+    /// <param name="context">The incremental generator registration context.</param>
+    /// <remarks>
+    /// Names are compared using ordinal case-sensitive equality. A project with no valid non-empty
+    /// candidate emits no source. Duplicate candidates remain in generated output after AERO013 is
+    /// reported, relying on the error diagnostic to prevent use of an ambiguous catalog.
+    /// </remarks>
+public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var moduleCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
             ModuleAttributeMetadataName,
@@ -121,6 +131,15 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         });
     }
 
+    /// <summary>
+    /// Projects an attributed class symbol and its marker interfaces into descriptor metadata.
+    /// </summary>
+    /// <param name="context">The attribute syntax context.</param>
+    /// <returns>The descriptor metadata, or <see langword="null"/> when no matching attribute/type is available.</returns>
+    /// <remarks>
+    /// Marker interfaces are checked through <c>INamedTypeSymbol.AllInterfaces</c> only after
+    /// the syntax provider has matched <c>[Module]</c>.
+    /// </remarks>
     private static ModuleDescriptorInfo? GetModuleCandidate(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol moduleType)
@@ -163,8 +182,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         var isAdminModule = ImplementsInterface(moduleType, IAdminModuleName);
         var isFilterModule = ImplementsInterface(moduleType, IFilterModuleName);
         var isContentDefinitionModule = ImplementsInterface(moduleType, IContentDefinitionModuleName);
-        var isMartenConfigurator = ImplementsInterface(moduleType, IConfigureMartenName);
-        var isAsyncMartenConfigurator = ImplementsInterface(moduleType, IAsyncConfigureMartenName);
+        var isAeroDbConfigurator = ImplementsInterface(moduleType, IConfigureAeroDBName);
+        var isAsyncAeroDbConfigurator = ImplementsInterface(moduleType, IAsyncConfigureAeroDBName);
 
         var fullTypeName = moduleType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -187,11 +206,17 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
             isAdminModule: isAdminModule,
             isFilterModule: isFilterModule,
             isContentDefinitionModule: isContentDefinitionModule,
-            isMartenConfigurator: isMartenConfigurator,
-            isAsyncMartenConfigurator: isAsyncMartenConfigurator,
+            isAeroDbConfigurator: isAeroDbConfigurator,
+            isAsyncAeroDbConfigurator: isAsyncAeroDbConfigurator,
             location: moduleType.Locations.FirstOrDefault());
     }
 
+    /// <summary>
+    /// Reports AERO012 and rejects a descriptor whose module name is empty or whitespace.
+    /// </summary>
+    /// <param name="context">The source-production context used to report diagnostics.</param>
+    /// <param name="candidate">The descriptor to validate.</param>
+    /// <returns><see langword="true"/> only when the module name is non-empty.</returns>
     private static bool ValidateCandidate(SourceProductionContext context, ModuleDescriptorInfo candidate)
     {
         if (string.IsNullOrWhiteSpace(candidate.ModuleName))
@@ -204,6 +229,12 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// Determines whether an attributed module implements a marker interface directly or transitively.
+    /// </summary>
+    /// <param name="type">The module type symbol.</param>
+    /// <param name="interfaceFullName">The metadata name without a <c>global::</c> prefix.</param>
+    /// <returns><see langword="true"/> when the interface appears in <c>INamedTypeSymbol.AllInterfaces</c>.</returns>
     private static bool ImplementsInterface(INamedTypeSymbol type, string interfaceFullName)
     {
         foreach (var iface in type.AllInterfaces)
@@ -214,10 +245,17 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return false;
     }
 
+    /// <summary>
+    /// Renders a manifest provider and its assembly-level aggregation attribute.
+    /// </summary>
+    /// <param name="assemblyName">The consuming compilation assembly name.</param>
+    /// <param name="descriptors">The validated descriptors in discovery order.</param>
+    /// <returns>C# source for <c>GeneratedModuleManifestProvider.g.cs</c>.</returns>
     private static string RenderProviderSource(string assemblyName, List<ModuleDescriptorInfo> descriptors)
     {
         var source = new StringBuilder();
         source.AppendLine("// <auto-generated />");
+        source.AppendLine("#pragma warning disable CS1591");
         source.AppendLine("#nullable enable");
         source.AppendLine("using System;");
         source.AppendLine("using System.Collections.Generic;");
@@ -247,10 +285,20 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
 
         source.AppendLine("    ];");
         source.AppendLine("}");
+        source.AppendLine("#pragma warning restore CS1591");
 
         return source.ToString();
     }
 
+    /// <summary>
+    /// Appends one generated <c>ModuleDescriptor</c> initializer.
+    /// </summary>
+    /// <param name="source">The generated source buffer.</param>
+    /// <param name="descriptor">The compile-time module metadata.</param>
+    /// <remarks>
+    /// Missing version and author values become <c>0.0.0</c> and <c>AeroCMS Team</c>.
+    /// Physical path is <see langword="null"/> and runtime <c>Disabled</c> is always false.
+    /// </remarks>
     private static void RenderDescriptor(StringBuilder source, ModuleDescriptorInfo descriptor)
     {
         source.AppendLine("        new ModuleDescriptor");
@@ -274,14 +322,20 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         source.AppendLine($"            IsAdminModule = {BoolLiteral(descriptor.IsAdminModule)},");
         source.AppendLine($"            IsFilterModule = {BoolLiteral(descriptor.IsFilterModule)},");
         source.AppendLine($"            IsContentDefinitionModule = {BoolLiteral(descriptor.IsContentDefinitionModule)},");
-        source.AppendLine($"            IsMartenConfigurator = {BoolLiteral(descriptor.IsMartenConfigurator)},");
-        source.AppendLine($"            IsAsyncMartenConfigurator = {BoolLiteral(descriptor.IsAsyncMartenConfigurator)},");
+        source.AppendLine($"            IsAeroDbConfigurator = {BoolLiteral(descriptor.IsAeroDbConfigurator)},");
+        source.AppendLine($"            IsAsyncAeroDbConfigurator = {BoolLiteral(descriptor.IsAsyncAeroDbConfigurator)},");
         source.AppendLine($"            DisabledInProduction = {BoolLiteral(descriptor.DisabledInProduction)},");
         source.AppendLine($"            Disabled = false,");
         source.AppendLine($"            Description = {Literal(descriptor.Description)},");
         source.AppendLine("        },");
     }
 
+    /// <summary>
+    /// Appends an empty or populated collection expression for a string-array property.
+    /// </summary>
+    /// <param name="source">The generated source buffer.</param>
+    /// <param name="propertyName">The descriptor property name.</param>
+    /// <param name="values">The optional attribute values.</param>
     private static void RenderStringArray(StringBuilder source, string propertyName, ImmutableArray<string>? values)
     {
         if (values is not { Length: > 0 } nonEmpty)
@@ -299,6 +353,10 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         source.AppendLine("            ],");
     }
 
+    /// <summary>
+    /// Replaces characters that cannot appear in a generated C# identifier.
+    /// </summary>
+    /// <returns>An alphanumeric/underscore identifier, or <c>Generated</c> when empty.</returns>
     private static string SanitizeIdentifier(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -312,6 +370,10 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return builder.Length == 0 ? "Generated" : builder.ToString();
     }
 
+    /// <summary>
+    /// Replaces characters that cannot appear in a generated dotted namespace.
+    /// </summary>
+    /// <returns>A namespace containing only letters, digits, underscores, and periods.</returns>
     private static string SanitizeNamespace(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -325,15 +387,32 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return builder.Length == 0 ? "Generated" : builder.ToString();
     }
 
+    /// <summary>
+    /// Escapes backslashes and quotation marks for generated string literal content.
+    /// </summary>
+    /// <returns>The escaped value without surrounding quotation marks.</returns>
+    /// <remarks>Control characters and newlines are not escaped by this helper.</remarks>
     private static string Escape(string value)
         => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
+    /// <summary>
+    /// Formats an optional value as a generated C# string or null literal.
+    /// </summary>
+    /// <returns><c>null</c> or a quoted escaped string.</returns>
     private static string Literal(string? value)
         => value is null ? "null" : $"\"{Escape(value)}\"";
 
+    /// <summary>
+    /// Formats a Boolean as a lowercase C# literal.
+    /// </summary>
+    /// <returns><c>true</c> or <c>false</c>.</returns>
     private static string BoolLiteral(bool value)
         => value ? "true" : "false";
 
+    /// <summary>
+    /// Reads a named string argument from a module attribute.
+    /// </summary>
+    /// <returns>The string value, or <see langword="null"/> when absent or differently typed.</returns>
     private static string? GetNamedString(AttributeData attribute, string name)
     {
         foreach (var kvp in attribute.NamedArguments)
@@ -344,6 +423,10 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return null;
     }
 
+    /// <summary>
+    /// Reads a named integral order argument as a 16-bit value.
+    /// </summary>
+    /// <returns>The short value, an unchecked cast from an integer value, or the supplied default.</returns>
     private static short GetNamedShort(AttributeData attribute, string name, short defaultValue)
     {
         foreach (var kvp in attribute.NamedArguments)
@@ -359,6 +442,10 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return defaultValue;
     }
 
+    /// <summary>
+    /// Reads a named Boolean argument from a module attribute.
+    /// </summary>
+    /// <returns>The Boolean value, or <see langword="false"/> when absent or differently typed.</returns>
     private static bool GetNamedBool(AttributeData attribute, string name)
     {
         foreach (var kvp in attribute.NamedArguments)
@@ -369,6 +456,10 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return false;
     }
 
+    /// <summary>
+    /// Reads non-null string elements from a named attribute array.
+    /// </summary>
+    /// <returns>The filtered immutable array, or an empty array when absent.</returns>
     private static ImmutableArray<string> GetNamedStringArray(AttributeData attribute, string name)
     {
         foreach (var kvp in attribute.NamedArguments)
@@ -385,6 +476,30 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         return [];
     }
 
+    /// <summary>
+    /// Carries compile-time values used to render a module descriptor.
+    /// </summary>
+    /// <param name="name">The declared module name.</param>
+    /// <param name="version">The optional declared version.</param>
+    /// <param name="author">The optional declared author.</param>
+    /// <param name="order">The module ordering value.</param>
+    /// <param name="dependencies">The declared module dependencies.</param>
+    /// <param name="category">The declared categories.</param>
+    /// <param name="tags">The declared tags.</param>
+    /// <param name="disabledInProduction">Whether the descriptor disables the module in production.</param>
+    /// <param name="description">The optional module description.</param>
+    /// <param name="fullTypeName">The fully qualified module type name.</param>
+    /// <param name="assemblyName">The module's containing assembly name.</param>
+    /// <param name="isUiModule">Whether the UI marker is implemented.</param>
+    /// <param name="isApiModule">Whether the API marker is implemented.</param>
+    /// <param name="isBackgroundModule">Whether the background marker is implemented.</param>
+    /// <param name="isThemeModule">Whether the theme marker is implemented.</param>
+    /// <param name="isAdminModule">Whether the admin marker is implemented.</param>
+    /// <param name="isFilterModule">Whether the filter marker is implemented.</param>
+    /// <param name="isContentDefinitionModule">Whether the content-definition marker is implemented.</param>
+    /// <param name="isAeroDbConfigurator">Whether synchronous AeroDB configuration is implemented.</param>
+    /// <param name="isAsyncAeroDbConfigurator">Whether asynchronous AeroDB configuration is implemented.</param>
+    /// <param name="location">The module source location used by diagnostics.</param>
     private readonly struct ModuleDescriptorInfo(
         string name,
         string? version,
@@ -404,30 +519,93 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         bool isAdminModule,
         bool isFilterModule,
         bool isContentDefinitionModule,
-        bool isMartenConfigurator,
-        bool isAsyncMartenConfigurator,
+        bool isAeroDbConfigurator,
+        bool isAsyncAeroDbConfigurator,
         Location? location)
     {
-        public string ModuleName { get; } = name;
-        public string? Version { get; } = version;
-        public string? Author { get; } = author;
-        public short Order { get; } = order;
-        public ImmutableArray<string> Dependencies { get; } = dependencies;
-        public ImmutableArray<string> Category { get; } = category;
-        public ImmutableArray<string> Tags { get; } = tags;
-        public bool DisabledInProduction { get; } = disabledInProduction;
-        public string? Description { get; } = description;
-        public string FullTypeName { get; } = fullTypeName;
-        public string AssemblyName { get; } = assemblyName;
-        public bool IsUiModule { get; } = isUiModule;
-        public bool IsApiModule { get; } = isApiModule;
-        public bool IsBackgroundModule { get; } = isBackgroundModule;
-        public bool IsThemeModule { get; } = isThemeModule;
-        public bool IsAdminModule { get; } = isAdminModule;
-        public bool IsFilterModule { get; } = isFilterModule;
-        public bool IsContentDefinitionModule { get; } = isContentDefinitionModule;
-        public bool IsMartenConfigurator { get; } = isMartenConfigurator;
-        public bool IsAsyncMartenConfigurator { get; } = isAsyncMartenConfigurator;
-        public Location? Location { get; } = location;
+        /// <summary>
+        /// Gets the declared module name.
+        /// </summary>
+public string ModuleName { get; } = name;
+        /// <summary>
+        /// Gets the optional declared version.
+        /// </summary>
+public string? Version { get; } = version;
+        /// <summary>
+        /// Gets the optional declared author.
+        /// </summary>
+public string? Author { get; } = author;
+        /// <summary>
+        /// Gets the module ordering value.
+        /// </summary>
+public short Order { get; } = order;
+        /// <summary>
+        /// Gets the declared dependency names.
+        /// </summary>
+public ImmutableArray<string> Dependencies { get; } = dependencies;
+        /// <summary>
+        /// Gets the declared category values.
+        /// </summary>
+public ImmutableArray<string> Category { get; } = category;
+        /// <summary>
+        /// Gets the declared tag values.
+        /// </summary>
+public ImmutableArray<string> Tags { get; } = tags;
+        /// <summary>
+        /// Gets whether the module is declared disabled in production.
+        /// </summary>
+public bool DisabledInProduction { get; } = disabledInProduction;
+        /// <summary>
+        /// Gets the optional module description.
+        /// </summary>
+public string? Description { get; } = description;
+        /// <summary>
+        /// Gets the fully qualified module type name.
+        /// </summary>
+public string FullTypeName { get; } = fullTypeName;
+        /// <summary>
+        /// Gets the containing assembly name.
+        /// </summary>
+public string AssemblyName { get; } = assemblyName;
+        /// <summary>
+        /// Gets whether the UI-module marker is implemented.
+        /// </summary>
+public bool IsUiModule { get; } = isUiModule;
+        /// <summary>
+        /// Gets whether the API-module marker is implemented.
+        /// </summary>
+public bool IsApiModule { get; } = isApiModule;
+        /// <summary>
+        /// Gets whether the background-module marker is implemented.
+        /// </summary>
+public bool IsBackgroundModule { get; } = isBackgroundModule;
+        /// <summary>
+        /// Gets whether the theme-module marker is implemented.
+        /// </summary>
+public bool IsThemeModule { get; } = isThemeModule;
+        /// <summary>
+        /// Gets whether the admin-module marker is implemented.
+        /// </summary>
+public bool IsAdminModule { get; } = isAdminModule;
+        /// <summary>
+        /// Gets whether the filter-module marker is implemented.
+        /// </summary>
+public bool IsFilterModule { get; } = isFilterModule;
+        /// <summary>
+        /// Gets whether the content-definition-module marker is implemented.
+        /// </summary>
+public bool IsContentDefinitionModule { get; } = isContentDefinitionModule;
+        /// <summary>
+        /// Gets whether synchronous AeroDB configuration is implemented.
+        /// </summary>
+public bool IsAeroDbConfigurator { get; } = isAeroDbConfigurator;
+        /// <summary>
+        /// Gets whether asynchronous AeroDB configuration is implemented.
+        /// </summary>
+public bool IsAsyncAeroDbConfigurator { get; } = isAsyncAeroDbConfigurator;
+        /// <summary>
+        /// Gets the source location used for generator diagnostics.
+        /// </summary>
+public Location? Location { get; } = location;
     }
 }

@@ -1,0 +1,83 @@
+.aero-page-outline {
+    display: grid;
+    gap: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.875rem 1rem;
+    color: #172033;
+}
+
+.aero-page-outline__header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.aero-page-outline__header h2 {
+    margin: 0;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.aero-page-outline__header span,
+.aero-page-outline__count {
+    color: #64748b;
+    font-size: 0.7rem;
+}
+
+.aero-page-outline__count {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 0.2rem 0.45rem;
+    background: #f1f5f9;
+    white-space: nowrap;
+}
+
+.aero-page-outline__empty {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.aero-page-outline__breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.aero-page-outline__breadcrumbs button {
+    border: 0;
+    border-radius: 0.3rem;
+    padding: 0.2rem 0.35rem;
+    color: #475569;
+    background: #f8fafc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.68rem;
+    cursor: pointer;
+}
+
+.aero-page-outline__breadcrumbs button:hover,
+.aero-page-outline__breadcrumbs button:focus-visible,
+.aero-page-outline__breadcrumbs button.is-selected {
+    color: #5b21b6;
+    background: #f3e8ff;
+    outline: none;
+}
+
+.aero-page-outline__tree,
+.aero-page-outline__tree ol {
+    display: grid;
+    gap: 0.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.aero-page-outline__tree {
+    max-height: 15rem;
+    overflow: auto;
+}

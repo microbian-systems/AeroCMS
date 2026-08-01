@@ -1,14 +1,21 @@
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Ai.Assistant;
 using Aero.Core.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Polly;
+using Microsoft.Extensions.Http.Resilience;
 
 namespace Aero.Cms.Abstractions.Http;
 
+/// <summary>
+/// Represents a class for AeroHttpClientExtensions.
+/// </summary>
 public static class AeroHttpClientExtensions
 {
-    public static IServiceCollection AddAeroHttpClients(
+        /// <summary>
+    /// AddAeroHttpClients method.
+    /// </summary>
+public static IServiceCollection AddAeroHttpClients(
         this IServiceCollection services, Uri? baseAddress = null)
     {
         services.TryAddSingleton<ISiteContext, NoopSiteContext>();
@@ -51,6 +58,7 @@ public static class AeroHttpClientExtensions
                     options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
                     // Circuit breaker sampling must be ≥ 2× attempt timeout.
                     options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+                    options.Retry.DisableForUnsafeHttpMethods();
                 });
         });
 
@@ -61,13 +69,14 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IMediaHttpClient, MediaHttpClient>();
         services.AddHttpClient<IModulesHttpClient, ModulesHttpClient>();
         services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
+        services.AddHttpClient<IFootersHttpClient, FootersHttpClient>();
         services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
         services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
         services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
+        services.AddHttpClient<ISeriesHttpClient, SeriesHttpClient>();
         services.AddHttpClient<ITagsHttpClient, TagsHttpClient>();
         services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>();
         services.AddHttpClient<IUsersHttpClient, UsersHttpClient>();
-        services.AddHttpClient<IBlocksHttpClient, BlocksHttpClient>();
         services.AddHttpClient<IPublishHttpClient, PublishHttpClient>();
         services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>();
         services.AddHttpClient<IDocsHttpClient, DocsHttpClient>();
@@ -77,6 +86,8 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<ISitesHttpClient, SitesHttpClient>();
         services.AddHttpClient<IAliasHttpClient, AliasesHttpClient>();
         services.AddHttpClient<IAiHttpClient, AiHttpClient>();
+        services.AddHttpClient<IMcpAssistantHttpClient, McpAssistantHttpClient>();
+        services.AddHttpClient<IExternalIdentityAdminClient, ExternalIdentityAdminClient>();
 
         // Register WASM-safe Contracts interface — resolves via cast to shared implementation
         services.AddScoped<Aero.Cms.Contracts.Abstractions.ISitesHttpClient>(sp =>

@@ -1,0 +1,19 @@
+// Trusted source for the deployment-installed Aero Safe theme.
+$background: #f8fafc;
+$foreground: #0f172a;
+$surface: #ffffff;
+$border: #e2e8f0;
+
+:root {
+  color-scheme: light;
+  --aero-theme-background: #{$background};
+  --aero-theme-foreground: #{$foreground};
+  --aero-theme-surface: #{$surface};
+  --aero-theme-border: #{$border};
+}
+
+html {
+  background: var(--aero-theme-background);
+  color: var(--aero-theme-foreground);
+  font-family: var(--aero-theme-font-sans);
+}

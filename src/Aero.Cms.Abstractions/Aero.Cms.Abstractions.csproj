@@ -14,14 +14,55 @@
     <PackageReference Include="Microsoft.Orleans.Sdk" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <!--
+      AeroCmsBrowserClient changes this project's compile surface only. Do not
+      propagate it into ordinary dependencies, or MSBuild creates duplicate
+      project instances that write to the same bin/obj paths during a clean
+      solution build.
+    -->
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
-    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
+    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <Compile Remove="Actors\**\*.cs" />
+    <Compile Remove="Events\**\*.cs" />
+    <Compile Remove="Content\ContentItem.cs" />
+    <Compile Remove="Content\ContentItemExtensions.cs" />
+    <Compile Remove="Content\ContentTypeDefinition.cs" />
+    <Compile Remove="Content\IAsyncContentValidator.cs" />
+    <Compile Remove="Content\IContentFieldValidator.cs" />
+    <Compile Remove="Services\AeroAliasService.cs" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <DefineConstants>$(DefineConstants);AERO_CMS_BROWSER_CLIENT</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <Folder Include="Http\Handlers\" />

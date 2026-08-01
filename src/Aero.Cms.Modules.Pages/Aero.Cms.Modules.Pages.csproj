@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,9 +13,18 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Hydro" />
     <PackageReference Include="Markdig" />
-    <PackageReference Include="Marten" />
+    <PackageReference Include="TickerQ" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS"
+               HintPath="$(SharpTsToolDirectory)\SharpTS.dll"
+               Private="true" />
+    <Content Include="$(SharpTsToolDirectory)\*.dll"
+             Exclude="$(SharpTsToolDirectory)\SharpTS.dll"
+             Link="%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,7 +32,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
@@ -31,9 +40,14 @@
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.MiniProfiler\Aero.Cms.Modules.MiniProfiler.csproj" />
     <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
   </ItemGroup>
 
 </Project>

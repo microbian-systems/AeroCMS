@@ -5,11 +5,23 @@ namespace Aero.Cms.Abstractions.Audit;
 /// </summary>
 public sealed record PageCreatedEvent : AuditEvent
 {
-    public required string Title { get; init; }
-    public required string Slug { get; init; }
-    public required PageKind Kind { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public required string Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public required string Slug { get; init; }
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public required PageKind Kind { get; init; }
 
-    public static PageCreatedEvent Create(long userId, long pageId, string title, string slug, PageKind kind) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static PageCreatedEvent Create(long userId, long pageId, string title, string slug, PageKind kind) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -23,12 +35,24 @@ public sealed record PageCreatedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for PageUpdatedEvent.
+/// </summary>
 public sealed record PageUpdatedEvent : AuditEvent
 {
-    public string? Title { get; init; }
-    public string? Slug { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string? Slug { get; init; }
 
-    public static PageUpdatedEvent Create(long userId, long pageId, string? title = null, string? slug = null) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static PageUpdatedEvent Create(long userId, long pageId, string? title = null, string? slug = null) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -41,11 +65,20 @@ public sealed record PageUpdatedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for PagePublishedEvent.
+/// </summary>
 public sealed record PagePublishedEvent : AuditEvent
 {
-    public DateTimeOffset PublishedOn { get; init; }
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset PublishedOn { get; init; }
 
-    public static PagePublishedEvent Create(long userId, long pageId, DateTimeOffset publishedOn) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static PagePublishedEvent Create(long userId, long pageId, DateTimeOffset publishedOn) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -57,9 +90,15 @@ public sealed record PagePublishedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for PageUnpublishedEvent.
+/// </summary>
 public sealed record PageUnpublishedEvent : AuditEvent
 {
-    public static PageUnpublishedEvent Create(long userId, long pageId) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static PageUnpublishedEvent Create(long userId, long pageId) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -70,11 +109,20 @@ public sealed record PageUnpublishedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for PageDeletedEvent.
+/// </summary>
 public sealed record PageDeletedEvent : AuditEvent
 {
-    public required string Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public required string Title { get; init; }
 
-    public static PageDeletedEvent Create(long userId, long pageId, string title) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static PageDeletedEvent Create(long userId, long pageId, string title) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -102,11 +150,23 @@ public enum PageKind
 /// </summary>
 public sealed record BlogPostCreatedEvent : AuditEvent
 {
-    public required string Title { get; init; }
-    public required string Slug { get; init; }
-    public long? AuthorId { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public required string Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public required string Slug { get; init; }
+        /// <summary>
+    /// Gets or sets the Author Id.
+    /// </summary>
+public long? AuthorId { get; init; }
 
-    public static BlogPostCreatedEvent Create(long userId, long blogPostId, string title, string slug, long? authorId = null) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static BlogPostCreatedEvent Create(long userId, long blogPostId, string title, string slug, long? authorId = null) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -120,12 +180,24 @@ public sealed record BlogPostCreatedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for BlogPostUpdatedEvent.
+/// </summary>
 public sealed record BlogPostUpdatedEvent : AuditEvent
 {
-    public string? Title { get; init; }
-    public string? Slug { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string? Slug { get; init; }
 
-    public static BlogPostUpdatedEvent Create(long userId, long blogPostId, string? title = null, string? slug = null) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static BlogPostUpdatedEvent Create(long userId, long blogPostId, string? title = null, string? slug = null) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -138,11 +210,20 @@ public sealed record BlogPostUpdatedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for BlogPostPublishedEvent.
+/// </summary>
 public sealed record BlogPostPublishedEvent : AuditEvent
 {
-    public DateTimeOffset PublishedOn { get; init; }
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset PublishedOn { get; init; }
 
-    public static BlogPostPublishedEvent Create(long userId, long blogPostId, DateTimeOffset publishedOn) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static BlogPostPublishedEvent Create(long userId, long blogPostId, DateTimeOffset publishedOn) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -154,9 +235,15 @@ public sealed record BlogPostPublishedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for BlogPostUnpublishedEvent.
+/// </summary>
 public sealed record BlogPostUnpublishedEvent : AuditEvent
 {
-    public static BlogPostUnpublishedEvent Create(long userId, long blogPostId) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static BlogPostUnpublishedEvent Create(long userId, long blogPostId) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,
@@ -167,11 +254,20 @@ public sealed record BlogPostUnpublishedEvent : AuditEvent
         };
 }
 
+/// <summary>
+/// Represents a record for BlogPostDeletedEvent.
+/// </summary>
 public sealed record BlogPostDeletedEvent : AuditEvent
 {
-    public required string Title { get; init; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public required string Title { get; init; }
 
-    public static BlogPostDeletedEvent Create(long userId, long blogPostId, string title) =>
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static BlogPostDeletedEvent Create(long userId, long blogPostId, string title) =>
         new()
         {
             Timestamp = DateTimeOffset.UtcNow,

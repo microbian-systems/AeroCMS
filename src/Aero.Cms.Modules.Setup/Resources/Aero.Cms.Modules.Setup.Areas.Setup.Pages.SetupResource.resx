@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    SetupResource — English reference (en-US)
+    Keys follow ASP.NET Core convention: the English string itself IS the key.
+    Translators: copy entries to culture-specific .resx files.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Banner & Header -->
+  <data name="System Setup" xml:space="preserve"><value>System Setup</value></data>
+  <data name="Welcome to" xml:space="preserve"><value>Welcome to</value></data>
+  <data name="Let's walk through a simpler setup flow and prepare your content platform one step at a time." xml:space="preserve"><value>Let's walk through a simpler setup flow and prepare your content platform one step at a time.</value></data>
+
+  <!-- Validation -->
+  <data name="Please review the following:" xml:space="preserve"><value>Please review the following:</value></data>
+
+  <!-- Step Names -->
+  <data name="CMS Info" xml:space="preserve"><value>CMS Info</value></data>
+  <data name="Database" xml:space="preserve"><value>Database</value></data>
+  <data name="Cache" xml:space="preserve"><value>Cache</value></data>
+  <data name="Secrets" xml:space="preserve"><value>Secrets</value></data>
+  <data name="Authentication" xml:space="preserve"><value>Authentication</value></data>
+  <data name="Review" xml:space="preserve"><value>Review</value></data>
+  <data name="Setup" xml:space="preserve"><value>Setup</value></data>
+
+  <!-- Step Summaries -->
+  <data name="Site name, culture, homepage, and blog metadata." xml:space="preserve"><value>Site name, culture, homepage, and blog metadata.</value></data>
+  <data name="Embedded or server database connectivity." xml:space="preserve"><value>Embedded or server database connectivity.</value></data>
+  <data name="Memory, embedded, or server cache configuration." xml:space="preserve"><value>Memory, embedded, or server cache configuration.</value></data>
+  <data name="Local Certificate or Infisical secret handling." xml:space="preserve"><value>Local Certificate or Infisical secret handling.</value></data>
+  <data name="Choose the auth mode and create the initial CMS administrator account." xml:space="preserve"><value>Choose the auth mode and create the initial CMS administrator account.</value></data>
+  <data name="Review your selections before initialization." xml:space="preserve"><value>Review your selections before initialization.</value></data>
+
+  <!-- Section Headers -->
+  <data name="CMS Main Info" xml:space="preserve"><value>CMS Main Info</value></data>
+  <data name="Database Setup" xml:space="preserve"><value>Database Setup</value></data>
+  <data name="Cache Setup" xml:space="preserve"><value>Cache Setup</value></data>
+  <data name="Secrets Setup" xml:space="preserve"><value>Secrets Setup</value></data>
+  <data name="Admin Identity" xml:space="preserve"><value>Admin Identity</value></data>
+
+  <!-- Form Labels -->
+  <data name="Site Name" xml:space="preserve"><value>Site Name</value></data>
+  <data name="Home Title" xml:space="preserve"><value>Home Title</value></data>
+  <data name="Blog Name" xml:space="preserve"><value>Blog Name</value></data>
+  <data name="Hostname" xml:space="preserve"><value>Hostname</value></data>
+  <data name="Default Culture" xml:space="preserve"><value>Default Culture</value></data>
+  <data name="Supported Cultures" xml:space="preserve"><value>Supported Cultures</value></data>
+  <data name="Database Mode" xml:space="preserve"><value>Database Mode</value></data>
+  <data name="Database connection string" xml:space="preserve"><value>Database connection string</value></data>
+  <data name="Cache Mode" xml:space="preserve"><value>Cache Mode</value></data>
+  <data name="Cache connection string" xml:space="preserve"><value>Cache connection string</value></data>
+  <data name="Secret provider" xml:space="preserve"><value>Secret provider</value></data>
+  <data name="Infisical machine id" xml:space="preserve"><value>Infisical machine id</value></data>
+  <data name="Infisical client secret" xml:space="preserve"><value>Infisical client secret</value></data>
+  <data name="Authentication Provider" xml:space="preserve"><value>Authentication Provider</value></data>
+  <data name="Username" xml:space="preserve"><value>Username</value></data>
+  <data name="Email Address" xml:space="preserve"><value>Email Address</value></data>
+  <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="Confirm Password" xml:space="preserve"><value>Confirm Password</value></data>
+
+  <!-- Help Text -->
+  <data name="Default: localhost for development" xml:space="preserve"><value>Default: localhost for development</value></data>
+  <data name="The default culture is always included. Additional cultures can be used for page translations, navigation, footer variants, SEO, and sitemaps." xml:space="preserve"><value>The default culture is always included. Additional cultures can be used for page translations, navigation, footer variants, SEO, and sitemaps.</value></data>
+  <data name="Local Certificate keeps setup simple and stores protected values on the host with shared ASP.NET Core Data Protection." xml:space="preserve"><value>Local Certificate keeps setup simple and stores protected values on the host with shared ASP.NET Core Data Protection.</value></data>
+  <data name="Local authentication is the only enabled option right now. WorkOS will be added to this setup flow later." xml:space="preserve"><value>Local authentication is the only enabled option right now. WorkOS will be added to this setup flow later.</value></data>
+  <data name="Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app." xml:space="preserve"><value>Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app.</value></data>
+
+  <!-- Review Section -->
+  <data name="Infrastructure" xml:space="preserve"><value>Infrastructure</value></data>
+  <data name="Administrator" xml:space="preserve"><value>Administrator</value></data>
+  <data name="Site:" xml:space="preserve"><value>Site:</value></data>
+  <data name="Homepage:" xml:space="preserve"><value>Homepage:</value></data>
+  <data name="Blog:" xml:space="preserve"><value>Blog:</value></data>
+  <data name="Hostname:" xml:space="preserve"><value>Hostname:</value></data>
+  <data name="Default Culture:" xml:space="preserve"><value>Default Culture:</value></data>
+  <data name="Supported Cultures:" xml:space="preserve"><value>Supported Cultures:</value></data>
+  <data name="Username:" xml:space="preserve"><value>Username:</value></data>
+  <data name="Email:" xml:space="preserve"><value>Email:</value></data>
+  <data name="Review these settings, then initialize the system. Tenant and default site provisioning will happen after the main app starts." xml:space="preserve"><value>Review these settings, then initialize the system. Tenant and default site provisioning will happen after the main app starts.</value></data>
+
+  <!-- Buttons & Actions -->
+  <data name="Initialize System" xml:space="preserve"><value>Initialize System</value></data>
+  <data name="Starting main application..." xml:space="preserve"><value>Starting main application...</value></data>
+  <data name="selected" xml:space="preserve"><value>selected</value></data>
+
+  <!-- Placeholders -->
+  <data name="Aero CMS" xml:space="preserve"><value>Aero CMS</value></data>
+  <data name="Welcome" xml:space="preserve"><value>Welcome</value></data>
+  <data name="Journal" xml:space="preserve"><value>Journal</value></data>
+
+  <!-- Footer -->
+  <data name="Identity Managers · Content Seeding · Deterministic Reset" xml:space="preserve"><value>Identity Managers · Content Seeding · Deterministic Reset</value></data>
+</root>

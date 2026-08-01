@@ -1,6 +1,5 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
-@using Aero.Core.Railway
 @inject IDocsHttpClient DocsClient
 @inject NotificationService NotificationService
 @inject IJSRuntime JSRuntime
@@ -20,25 +19,36 @@
         <NavMenuItem Href="/manager/aliases" Label="All Aliases" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
-    @* 3. Navigations *@
-    <NavMenuSection Href="/manager/navigations" Label="Navigations" Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" IsCollapsed="IsCollapsed">
+    @* 3. Header Menu *@
+    <NavMenuSection Href="/manager/navigations" Label="Header" Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/navigations/general" Label="General" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
-    @* 3. Posts *@
-    <NavMenuSection Href="/manager/posts" Label="Posts" Icon="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" IsCollapsed="IsCollapsed">
-        <NavMenuItem Href="/manager/posts/general" Label="General" IsCollapsed="IsCollapsed"/>
+    @* 3b. Footer *@
+    <NavMenuSection Href="/manager/footers" Label="Footer" Icon="M4 5h16M4 19h16M4 9h16M4 15h16" IsCollapsed="IsCollapsed">
+        <NavMenuItem Href="/manager/footers/general" Label="General" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
-    @* 4. Pages *@
+    @* 3. Pages *@
     <NavMenuSection Href="/manager/pages" Label="Pages" Icon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/pages/general" Label="General" IsCollapsed="IsCollapsed"/>
         <NavMenuItem Href="/manager/page/editor" Label="New Page" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
+    @* 4. Posts *@
+    <NavMenuSection Href="/manager/posts" Label="Posts" Icon="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" IsCollapsed="IsCollapsed">
+        <NavMenuItem Href="/manager/posts/general" Label="General" IsCollapsed="IsCollapsed"/>
+    </NavMenuSection>
+
     @* 5. Content Types *@
     <NavMenuSection Href="/manager/content-types" Label="Content" Icon="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/content-types" Label="Types" IsCollapsed="IsCollapsed"/>
+    </NavMenuSection>
+
+    @* Commerce *@
+    <NavMenuSection Href="/manager/commerce" Label="Commerce" Icon="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.63.63-.18 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-10 0a2 2 0 100 4 2 2 0 000-4z" IsCollapsed="IsCollapsed" Match="NavLinkMatch.Prefix">
+        <NavMenuItem Href="/manager/commerce/products" Label="Products" IsCollapsed="IsCollapsed"/>
+        <NavMenuItem Href="/manager/commerce/listings" Label="Listings" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
     @* 6. Docs *@
@@ -59,9 +69,10 @@
     </NavMenuSection>
 
     @* 8. Taxonomy Group *@
-    <NavMenuSection Label="Taxonomy" Icon="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" IsCollapsed="IsCollapsed">
-        <NavMenuItem Href="/manager/taxonomy/categories" Label="Categories" IsCollapsed="IsCollapsed"/>
-        <NavMenuItem Href="/manager/taxonomy/tags" Label="Tags" IsCollapsed="IsCollapsed"/>
+    <NavMenuSection Href="/manager/taxonomy" Label="Taxonomy" Icon="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" IsCollapsed="IsCollapsed" Match="NavLinkMatch.Prefix">
+        <NavMenuItem Href="/manager/taxonomy?kind=categories" Label="Categories" IsCollapsed="IsCollapsed"/>
+        <NavMenuItem Href="/manager/taxonomy?kind=tags" Label="Tags" IsCollapsed="IsCollapsed"/>
+        <NavMenuItem Href="/manager/taxonomy?kind=series" Label="Series" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
     @* 9. Media *@
@@ -72,9 +83,13 @@
     @* 10. Users *@
     <NavMenuSection Href="/manager/users" Label="Users" Icon="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/users" Label="General" IsCollapsed="IsCollapsed"/>
+        <NavMenuItem Href="/manager/authentication" Label="Authentication" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
-    @* 11. Themes *@
+    @* 11. External members *@
+    <NavMenuSection Href="/manager/external-members" Label="External Members" Icon="M12 11c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zm6 10H2v-1a6 6 0 0112 0v1h4zm0-10V8m0 0V5m0 3h3m-3 0h-3" IsCollapsed="IsCollapsed" />
+
+    @* 12. Themes *@
     <NavMenuSection Href="/manager/themes" Label="Themes" Icon="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/themes/general" Label="General" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
@@ -82,12 +97,18 @@
     @* 12. SEO *@
     <NavMenuSection Href="/manager/seo" Label="SEO" Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/seo/general" Label="General" IsCollapsed="IsCollapsed"/>
+        <NavMenuItem Href="/manager/seo/analysis" Label="Analysis" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
     @* 13. AI *@
     <NavMenuSection Href="/manager/ai" Label="AI" Icon="M12 3l1.8 5.4L19 10.2l-5.2 1.8L12 17l-1.8-5L5 10.2l5.2-1.8L12 3zM5 16l.9 2.6L8.5 19.5l-2.6.9L5 23l-.9-2.6-2.6-.9 2.6-.9L5 16z" IsCollapsed="IsCollapsed">
         <NavMenuItem Href="/manager/ai" Label="Settings" IsCollapsed="IsCollapsed"/>
         <NavMenuItem Href="/manager/ai/providers" Label="Providers" IsCollapsed="IsCollapsed"/>
+    </NavMenuSection>
+
+    @* 14. Audit *@
+    <NavMenuSection Href="/manager/audit" Label="Audit" Icon="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" IsCollapsed="IsCollapsed">
+        <NavMenuItem Href="/manager/audit" Label="Overview" IsCollapsed="IsCollapsed"/>
     </NavMenuSection>
 
     @* Spacer pushes Settings to the bottom *@

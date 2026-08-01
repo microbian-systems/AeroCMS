@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableTestingPlatform>true</EnableTestingPlatform>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RazorEngineCore" Version="2026.1.1" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="TUnit" Version="1.58.0" />
+
+    <!--
+      SharpTS is currently packaged as a dotnet tool rather than a library.
+      PackageDownload makes its assembly available to this isolated interop
+      spike without introducing it into a production project.
+    -->
+    <PackageDownload Include="SharpTS" Version="[1.0.8]" />
+    <Reference Include="SharpTS" HintPath="$(SharpTsToolDirectory)\SharpTS.dll" />
+    <Content Include="$(SharpTsToolDirectory)\*.dll"
+             Link="sharpts\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

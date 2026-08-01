@@ -6,15 +6,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// <see cref="IStartupFilter"/> that registers the URL rewrite middleware
-/// in the ASP.NET Core pipeline. Runs AFTER <see cref="Sites.SiteStartupFilter"/>
-/// so the current site is already resolved when <see cref="AliasRewriteRule"/> runs.
-///
-/// Registered via <c>services.Insert(0, ...)</c> in <see cref="AliasModule"/>.
+/// Startup filter that registers <see cref="AliasRewriteRule"/> with URL rewriting.
+/// Alias resolution requires site-resolution middleware to have populated the
+/// current-site feature first. The module registers this filter with a service
+/// descriptor ordering intended to achieve that relationship, but applications
+/// composing additional startup filters must verify their resulting pipeline.
 /// </summary>
 public sealed class AliasStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+    /// <summary>Wraps the next pipeline configuration with alias URL rewriting.</summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
         {

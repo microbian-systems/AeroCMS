@@ -1,0 +1,36 @@
+@page "/shop/subscriptions"
+@model SubscriptionsModel
+@{
+    ViewData["Title"] = "Subscriptions";
+    ViewData["HeaderTitle"] = "Your subscriptions";
+    ViewData["HeaderSubtitle"] = "Recurring purchase status for this storefront.";
+}
+
+<div class="eshop-orders">
+    @if (Model.LoadFailed)
+    {
+        <p class="eshop-orders-empty">Subscription history is temporarily unavailable. Please try again later.</p>
+    }
+    else if (Model.Subscriptions.Count == 0)
+    {
+        <p class="eshop-orders-empty">You do not have any subscriptions for this storefront.</p>
+    }
+    else
+    {
+        <ul class="eshop-orders-list" style="list-style:none;padding:0;">
+            <li class="eshop-orders-item eshop-orders-header">
+                <div>Order</div><div>Started</div><div class="total-header">Amount</div><div>Status</div>
+            </li>
+            @foreach (var subscription in Model.Subscriptions)
+            {
+                <li class="eshop-orders-item">
+                    <div class="order-number"><a href="/shop/orders/@subscription.OrderId" aria-label="View subscription receipt for order @subscription.OrderId">Order #@subscription.OrderId</a></div>
+                    <div class="order-date">@subscription.CreatedOn.ToString("MMM dd, yyyy")</div>
+                    <div class="order-total">@subscription.Amount.ToString("C") @subscription.Currency / @subscription.IntervalDays days</div>
+                    <div class="order-status"><span class="status @subscription.State.ToString().ToLowerInvariant()">@SubscriptionsModel.StateLabel(subscription.State)</span></div>
+                </li>
+            }
+        </ul>
+        <p class="eshop-account-help">Provider confirmation, not a browser return, determines whether a subscription becomes active.</p>
+    }
+</div>

@@ -1,13 +1,17 @@
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Pipelines;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
 
 /// <summary>
-/// Hook that checks if the page requires authorization and short-circuits if user is not authenticated.
+/// Short-circuits non-public pages when the current principal is unauthenticated.
 /// </summary>
+/// <param name="httpContextAccessor">Provides the current HTTP principal.</param>
+/// <param name="logger">The hook logger.</param>
+/// <remarks>
+/// A missing HTTP context or page document causes the hook to allow the pipeline to
+/// continue. This hook checks authentication only; it does not evaluate roles,
+/// policies, or resource-specific authorization.
+/// </remarks>
 public class AuthorizationHook(IHttpContextAccessor httpContextAccessor, ILogger<AuthorizationHook> logger)
     : IPageReadHook
 {
@@ -16,7 +20,13 @@ public class AuthorizationHook(IHttpContextAccessor httpContextAccessor, ILogger
     /// </summary>
     public int Order => 0;
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+    /// <summary>
+    /// Applies the authentication gate to the page currently stored in the context.
+    /// </summary>
+    /// <param name="ctx">The mutable page-read context.</param>
+    /// <param name="ct">Unused; the operation performs no asynchronous work.</param>
+    /// <returns>A completed task.</returns>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         var httpContext = httpContextAccessor.HttpContext;
         if (httpContext == null)

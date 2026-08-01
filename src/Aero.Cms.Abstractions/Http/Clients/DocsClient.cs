@@ -48,12 +48,53 @@ public interface IDocsHttpClient
     Task<Result<IReadOnlyList<DocsSummary>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default);
 
     /// <summary>
+    /// Gets all culture variants for a documentation page.
+    /// </summary>
+    Task<Result<IReadOnlyList<DocsDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a culture-specific documentation page from an existing page.
+    /// </summary>
+    Task<Result<DocsDetail, AeroError>> ForkToCultureAsync(long id, ForkDocsCultureRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Saves a documentation article.
     /// </summary>
     /// <param name="page">The documentation detail to save.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The saved documentation detail or an error.</returns>
     Task<Result<DocsDetail, AeroError>> SaveAsync(DocsDetail page, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a child section inside a docs space.
+    /// </summary>
+    Task<Result<DocsDetail, AeroError>> CreateChildAsync(long spaceId, long parentId, DocsCreateChildRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Moves a section inside a docs space.
+    /// </summary>
+    Task<Result<DocsDetail, AeroError>> MoveAsync(long spaceId, long id, DocsMoveRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reorders sibling sections inside a docs space.
+    /// </summary>
+    Task<Result<bool, AeroError>> ReorderAsync(long spaceId, DocsReorderRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Publishes a documentation article.
+    /// </summary>
+    /// <param name="id">The documentation identifier.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>The published documentation detail or an error.</returns>
+    Task<Result<DocsDetail, AeroError>> PublishAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Unpublishes a documentation article.
+    /// </summary>
+    /// <param name="id">The documentation identifier.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>The unpublished documentation detail or an error.</returns>
+    Task<Result<DocsDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes a documentation article.
@@ -94,8 +135,38 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
         => GetAsync<IReadOnlyList<DocsSummary>>($"{parentId}/children", ct);
 
     /// <inheritdoc />
+    public Task<Result<IReadOnlyList<DocsDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<DocsDetail>>($"{id}/translations", ct);
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> ForkToCultureAsync(long id, ForkDocsCultureRequest request, CancellationToken ct = default)
+        => PostAsync<ForkDocsCultureRequest, DocsDetail>($"{id}/translations", request, ct);
+
+    /// <inheritdoc />
     public Task<Result<DocsDetail, AeroError>> SaveAsync(DocsDetail page, CancellationToken ct = default)
-        => PostAsync<DocsDetail, DocsDetail>("", page, ct);
+        => page.Id == 0
+            ? PostAsync<DocsDetail, DocsDetail>("", page, ct)
+            : PutAsync<DocsDetail, DocsDetail>($"{page.Id}", page, ct);
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> CreateChildAsync(long spaceId, long parentId, DocsCreateChildRequest request, CancellationToken ct = default)
+        => PostAsync<DocsCreateChildRequest, DocsDetail>($"{spaceId}/sections/{parentId}/children", request, ct);
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> MoveAsync(long spaceId, long id, DocsMoveRequest request, CancellationToken ct = default)
+        => PostAsync<DocsMoveRequest, DocsDetail>($"{spaceId}/sections/{id}/move", request, ct);
+
+    /// <inheritdoc />
+    public Task<Result<bool, AeroError>> ReorderAsync(long spaceId, DocsReorderRequest request, CancellationToken ct = default)
+        => MapBoolResult(PostAsync<DocsReorderRequest>($"{spaceId}/sections/reorder", request, ct));
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> PublishAsync(long id, CancellationToken ct = default)
+        => PostAsync<object, DocsDetail>($"{id}/publish", new { }, ct);
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default)
+        => PostAsync<object, DocsDetail>($"{id}/unpublish", new { }, ct);
 
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
@@ -119,7 +190,46 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
 /// <summary>
 /// Summary information for documentation articles.
 /// </summary>
-public record DocsSummary(long Id, string Title, string Slug, long? ParentId, int Order);
+public record DocsSummary(
+    long Id,
+    string Title,
+    string Slug,
+    long? ParentId,
+    int Order,
+    string? Summary = null,
+    ContentPublicationState PublicationState = ContentPublicationState.Draft,
+    DateTimeOffset? PublishedOn = null,
+    DateTimeOffset? ModifiedOn = null,
+    string? SeoTitle = null,
+    string? SeoDescription = null,
+    bool ShowHeaderNavigation = true,
+    string? HeaderImageUrl = null,
+    long PublishedVersion = 0,
+    long DraftVersion = 0,
+    string Culture = "en-US",
+    long? TranslationGroupId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
+
+/// <summary>
+/// Request to create a child docs section under a parent in a space.
+/// </summary>
+public sealed record DocsCreateChildRequest(string Title, string? Summary = null);
+
+/// <summary>
+/// Request to move a docs section to a new parent.
+/// </summary>
+public sealed record DocsMoveRequest(long NewParentId, int? Order = null, bool RewriteSlug = true);
+
+/// <summary>
+/// Request to save sibling order under a parent.
+/// </summary>
+public sealed record DocsReorderRequest(long ParentId, IReadOnlyList<long> OrderedIds);
+
+/// <summary>
+/// Request to create a docs translation from an existing docs page.
+/// </summary>
+public sealed record ForkDocsCultureRequest(string Culture, string Slug);
 
 /// <summary>
 /// Detailed information for documentation articles.
@@ -132,4 +242,37 @@ public record DocsDetail(
     string? MarkdownContent, 
     long? ParentId, 
     int Order,
-    ContentPublicationState PublicationState);
+    ContentPublicationState PublicationState,
+    string? SeoTitle = null,
+    string? SeoDescription = null,
+    DateTimeOffset? PublishedOn = null,
+    bool ShowHeaderNavigation = true,
+    string? HeaderImageUrl = null,
+    DateTimeOffset CreatedOn = default,
+    DateTimeOffset? ModifiedOn = null,
+    long PublishedVersion = 0,
+    long DraftVersion = 0,
+    string Culture = "en-US",
+    long? TranslationGroupId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false)
+{
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static DocsDetail Create(
+        string title,
+        string slug,
+        long? parentId,
+        string? summary,
+        ContentPublicationState publicationState)
+        => new(
+            0,
+            title.Trim(),
+            slug.Trim().Trim('/'),
+            summary,
+            string.Empty,
+            parentId,
+            0,
+            publicationState);
+}

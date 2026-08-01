@@ -1,30 +1,114 @@
-﻿using Aero.Cms.Core.Models;
-using Aero.Core;
-using Aero.Core.Railway;
-using Marten;
+using Aero.Cms.Core.Models;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
 
 namespace Aero.Cms.Modules.Media;
 
+/// <summary>
+/// Provides result-based media queries, persistence, deletion, and development seeding.
+/// </summary>
+/// <remarks>
+/// This contract does not accept or derive a tenant/site boundary. Callers must authorize
+/// operations and constrain use to assets owned by the intended site.
+/// </remarks>
 public interface IMediaService
 {
-    Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default);
-    Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
+    /// <summary>
+    /// Loads all media assets, with folders first and newer assets before older assets.
+    /// </summary>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>A success containing all assets, or a failure created from the caught exception message.</returns>
+Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Loads a media asset by document identifier.
+    /// </summary>
+    /// <param name="id">The asset identifier.</param>
+    /// <param name="ct">Cancels the lookup.</param>
+    /// <returns>A success containing the asset, or a not-found/database failure.</returns>
+Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+    /// <summary>
+    /// Loads the direct children of a folder.
+    /// </summary>
+    /// <param name="parentId">The parent identifier, or <see langword="null"/> for root assets.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>A success containing folders first and newer children first, or a database failure.</returns>
+Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default);
+    /// <summary>
+    /// Loads the first asset whose stored URL exactly matches the supplied path.
+    /// </summary>
+    /// <param name="url">The stored URL to match.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>A success containing the asset, or a not-found/database failure.</returns>
+Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default);
+    /// <summary>
+    /// Loads a page of media assets and the provider-reported total result count.
+    /// </summary>
+    /// <param name="parentId">
+    /// The folder to filter when <paramref name="search"/> is empty; ignored for non-empty searches.
+    /// </param>
+    /// <param name="skip">The number of matching rows to skip.</param>
+    /// <param name="take">The maximum number of rows to return.</param>
+    /// <param name="search">An optional case-normalized substring search over file name and alternate text.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>A success containing the page and total count, or a query failure.</returns>
+Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
         long? parentId, int skip, int take, string? search = null, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
-    Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default);
+    /// <summary>
+    /// Assigns a new Snowflake identifier to an asset and commits it.
+    /// </summary>
+    /// <param name="asset">The asset whose identifier will be overwritten before persistence.</param>
+    /// <param name="ct">Cancels the commit.</param>
+    /// <returns>A success containing the persisted asset, or a persistence failure.</returns>
+Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default);
+    /// <summary>
+    /// Creates and commits a folder-shaped media asset.
+    /// </summary>
+    /// <param name="name">The folder file name; this service performs no validation or uniqueness check.</param>
+    /// <param name="parentId">The optional parent folder identifier.</param>
+    /// <param name="ct">Cancels the commit.</param>
+    /// <returns>A success containing the persisted folder, or a persistence failure.</returns>
+Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default);
+    /// <summary>
+    /// Stores the caller-supplied complete asset state and commits it.
+    /// </summary>
+    /// <param name="asset">The asset state to store without an existence or ownership check.</param>
+    /// <param name="ct">Cancels the commit.</param>
+    /// <returns>A success containing the supplied asset, or a persistence failure.</returns>
+Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes an asset and, for non-folders, its corresponding web-root media file when present.
+    /// </summary>
+    /// <param name="id">The asset identifier.</param>
+    /// <param name="ct">Cancels database work; file deletion is synchronous and cannot be rolled back.</param>
+    /// <returns>A successful <see langword="true"/> value, or a not-found/database/file-system failure.</returns>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+    /// <summary>
+    /// Imports supported media files from a web-root media subdirectory.
+    /// </summary>
+    /// <param name="subfolder">The subpath combined beneath the web-root <c>media</c> directory.</param>
+    /// <param name="ct">Cancels file reads, duplicate queries, or the final commit.</param>
+    /// <returns>The number of newly staged asset records, zero for a missing directory, or a failure.</returns>
+    /// <remarks>
+    /// The caller must supply a trusted, contained subpath; this contract does not validate traversal.
+    /// Existing URLs are skipped. Malformed attribution sidecars are logged and ignored, and all new
+    /// assets are committed together after enumeration.
+    /// </remarks>
+Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Implements media operations over one scoped document session and the host web root.
+/// </summary>
+/// <param name="session">The session used for all queries, staging, and commits.</param>
+/// <param name="env">Provides the web-root path for file deletion and seeding.</param>
+/// <remarks>
+/// Public methods catch all exceptions, including cancellation, and convert them to
+/// <see cref="AeroError"/> failures rather than propagating them.
+/// </remarks>
 public sealed class MediaService(IDocumentSession session, IWebHostEnvironment env) : IMediaService
 {
-    public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
         {
@@ -40,7 +124,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -55,7 +140,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default)
     {
         try
         {
@@ -85,7 +171,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default)
     {
         try
         {
@@ -102,7 +189,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
+    /// <inheritdoc />
+public async Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
         long? parentId, int skip, int take, string? search = null, CancellationToken ct = default)
     {
         try
@@ -123,14 +211,14 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 filteredQuery = filteredQuery.Where(x => x.ParentId == parentId);
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var items = await ((global::Marten.Linq.IMartenQueryable<MediaAsset>)filteredQuery)
+            var stats = new global::AeroDB.Sable.QueryStatistics();
+            var items = await ((global::AeroDB.Sable.ISableQueryable<MediaAsset>)filteredQuery)
                 .OrderByDescending(x => x.IsFolder)
                 .ThenByDescending(x => x.CreatedOn)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: ct);
+                .ToListAsync(ct);
 
             return Prelude.Ok<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>((items, stats.TotalResults));
         }
@@ -140,7 +228,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default)
     {
         try
         {
@@ -155,7 +244,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default)
     {
         try
         {
@@ -179,7 +269,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default)
     {
         try
         {
@@ -193,7 +284,15 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+    /// <inheritdoc />
+    /// <remarks>
+    /// A matching physical file is removed before the document-session commit. A later commit
+    /// failure therefore leaves the file deleted while the database record can remain.
+    /// The stored <c>FileName</c> is used directly when constructing the deletion path; callers
+    /// must ensure it is a trusted leaf filename because this method does not validate that the
+    /// resolved path remains beneath the media directory.
+    /// </remarks>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -223,7 +322,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default)
+    /// <inheritdoc />
+public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default)
     {
         try
         {
@@ -263,7 +363,7 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 // Check for existing record by URL to avoid duplicates
                 var url = $"/media/{subfolder}/{fileName}";
                 var exists = await session.Query<MediaAsset>()
-                    .AnyAsync(x => x.Url == url, ct);
+                    .Where(x => x.Url == url).AnyAsync(ct);
                 if (exists) continue;
 
                 // Read attribution sidecar if present
@@ -324,6 +424,17 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
     }
 
     // ─── Internal model for deserializing attribution sidecar JSON ───
+    /// <summary>
+    /// Represents the Pexels attribution metadata accepted from a sidecar JSON file.
+    /// </summary>
+    /// <param name="Id">The source media identifier.</param>
+    /// <param name="Photographer">The creator display name.</param>
+    /// <param name="PhotographerUrl">The creator profile URL.</param>
+    /// <param name="Url">The source media URL.</param>
+    /// <param name="Alt">Optional source alternate text; currently not copied to the asset.</param>
+    /// <param name="File">The source file name; currently not copied to the asset.</param>
+    /// <param name="Type">The source media type; currently not copied to the asset.</param>
+    /// <param name="DownloadedAt">The source download timestamp; currently not copied to the asset.</param>
     private sealed record AttributionFile(
         int Id,
         string Photographer,
@@ -334,3 +445,4 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         string Type,
         DateTimeOffset DownloadedAt);
 }
+

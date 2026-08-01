@@ -6,7 +6,8 @@ using Wolverine.Attributes;
 namespace Aero.Cms.Modules.Aliases.Handlers;
 
 /// <summary>
-/// Intercepts SlugUpdated messages from the Wolverine bus.
+/// Observes <see cref="SlugUpdated"/> messages. The current handler only logs
+/// the message and does not create aliases or update external indexes.
 /// </summary>
 [WolverineHandler]
 public class SlugUpdatedHandler(ILogger<SlugUpdatedHandler> logger) : IWolverineHandler
@@ -14,8 +15,7 @@ public class SlugUpdatedHandler(ILogger<SlugUpdatedHandler> logger) : IWolverine
     private readonly ILogger<SlugUpdatedHandler> _logger = logger;
 
     /// <summary>
-    /// Handles the SlugUpdated event.
-    /// Currently only logs the event as requested.
+    /// Logs the received message without mutating persistence or alias state.
     /// </summary>
     public void Handle(SlugUpdated message)
     {

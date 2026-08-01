@@ -1,0 +1,308 @@
+/*
+  Aero CMS Blog — public, framework-neutral article styles.
+
+  Layout utilities are emitted by the deployment-owned Aero stylesheet. These
+  rules intentionally use ordinary CSS so the article remains readable even
+  when a site's selected framework changes or a utility build is unavailable.
+*/
+
+.blog-article {
+  width: 100%;
+  max-width: 68rem;
+  color: #1f2937;
+}
+
+.blog-article-layout {
+  width: 100%;
+}
+
+.blog-article-reading {
+  width: 100%;
+  max-width: 54rem;
+  margin: 0 auto;
+}
+
+.blog-article-toc {
+  display: none;
+}
+
+.blog-article-content {
+  max-width: none;
+  color: #374151;
+  font-size: 1.1875rem;
+  line-height: 1.8;
+}
+
+.blog-article-content h1,
+.blog-article-content h2,
+.blog-article-content h3,
+.blog-article-content h4 {
+  color: #111827;
+  letter-spacing: -0.025em;
+}
+
+.blog-article-content h1 {
+  margin: 3.5rem 0 1.5rem;
+  font-size: 2.25rem;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.blog-article-content h2 {
+  margin: 3rem 0 1.25rem;
+  font-size: 1.875rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.blog-article-content h3 {
+  margin: 2.5rem 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.blog-article-content h4 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.blog-article-content p {
+  margin: 0 0 1.5rem;
+  color: #374151;
+}
+
+.blog-article-content a {
+  color: #4f46e5;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: #a5b4fc;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.blog-article-content a:hover {
+  text-decoration-color: #4f46e5;
+}
+
+.blog-article-content blockquote {
+  margin: 2.5rem 0;
+  padding-left: 1.5rem;
+  border-left: 4px solid #818cf8;
+  color: #4b5563;
+  font-size: 1.25rem;
+  font-style: italic;
+}
+
+.blog-article-content .aero-callout {
+  --aero-callout-accent: #6366f1;
+  --aero-callout-background: #eef2ff;
+  margin: 2.5rem 0;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--aero-callout-accent) 28%, white);
+  border-left: 4px solid var(--aero-callout-accent);
+  border-radius: 0.75rem;
+  background: var(--aero-callout-background);
+  color: #334155;
+  font-size: 1rem;
+  font-style: normal;
+  line-height: 1.7;
+}
+
+.blog-article-content .aero-callout-title {
+  margin: 0 0 0.5rem;
+  color: var(--aero-callout-accent);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.blog-article-content .aero-callout > :last-child {
+  margin-bottom: 0;
+}
+
+.blog-article-content .aero-callout-tip {
+  --aero-callout-accent: #059669;
+  --aero-callout-background: #ecfdf5;
+}
+
+.blog-article-content .aero-callout-important {
+  --aero-callout-accent: #7c3aed;
+  --aero-callout-background: #f5f3ff;
+}
+
+.blog-article-content .aero-callout-warning {
+  --aero-callout-accent: #d97706;
+  --aero-callout-background: #fffbeb;
+}
+
+.blog-article-content .aero-callout-caution {
+  --aero-callout-accent: #dc2626;
+  --aero-callout-background: #fef2f2;
+}
+
+.blog-article-content code {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  background: #f1f5f9;
+  color: #4338ca;
+  font-size: 0.875em;
+  font-weight: 600;
+}
+
+.blog-article-content pre {
+  margin: 2.5rem 0;
+  padding: 1.25rem;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  border-radius: 1rem;
+  background: #0f172a;
+  color: #f1f5f9;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  box-shadow: 0 10px 25px rgb(15 23 42 / 0.16);
+}
+
+.blog-article-content pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 400;
+}
+
+.blog-article-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 2.5rem auto;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgb(15 23 42 / 0.12);
+}
+
+.blog-article-content ul,
+.blog-article-content ol {
+  margin: 0 0 1.5rem;
+  padding-left: 2rem;
+}
+
+.blog-article-content li {
+  margin: 0.5rem 0;
+  color: #374151;
+}
+
+.blog-article-content ul > li {
+  list-style: disc;
+}
+
+.blog-article-content ol > li {
+  list-style: decimal;
+}
+
+.blog-article-content hr {
+  margin: 3rem 0;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.blog-article-content table {
+  width: 100%;
+  margin: 2.5rem 0;
+  border-collapse: collapse;
+}
+
+.blog-article-content th,
+.blog-article-content td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.blog-article-content th {
+  background: #f8fafc;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.blog-article-content strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+@media (min-width: 64rem) {
+  .blog-article-layout--with-toc {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .blog-article-layout--with-toc .blog-article-reading {
+    max-width: none;
+    margin: 0;
+  }
+
+  .blog-article-toc {
+    display: block;
+    position: sticky;
+    top: 6rem;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+    padding-right: 1rem;
+  }
+
+  .blog-article-toc__title {
+    margin: 0 0 0.75rem;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .blog-article-toc__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-left: 1px solid #e2e8f0;
+  }
+
+  .blog-article-toc__list a {
+    display: block;
+    padding: 0.375rem 0.75rem;
+    color: #64748b;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    text-decoration: none;
+  }
+
+  .blog-article-toc__list a:hover,
+  .blog-article-toc__list a:focus-visible {
+    color: #4f46e5;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .blog-article-toc__item--nested a {
+    padding-left: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .blog-article-content {
+    font-size: 1.0625rem;
+  }
+
+  .blog-article-content h1 {
+    font-size: 1.875rem;
+  }
+
+  .blog-article-content h2 {
+    font-size: 1.5rem;
+  }
+}

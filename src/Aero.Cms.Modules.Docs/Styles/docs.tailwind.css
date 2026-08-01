@@ -1,0 +1,98 @@
+@import "tailwindcss" source(none);
+
+@source "../Areas";
+
+/* Aero CMS Docs public styles, compiled by eng/theme-assets. */
+
+@layer base {
+  .prose {
+    @apply leading-relaxed text-slate-700 max-w-none;
+  }
+
+  .prose h2 { @apply text-2xl font-bold text-slate-900 mt-10 mb-4; }
+  .prose h3 { @apply text-xl font-semibold text-slate-900 mt-8 mb-3; }
+  .prose h4 { @apply text-lg font-semibold text-slate-900 mt-6 mb-2; }
+  .prose p { @apply mb-5 text-base leading-7 text-slate-600; }
+  .prose a { @apply text-indigo-600 font-medium underline decoration-indigo-300 underline-offset-2 hover:decoration-indigo-600; }
+  .prose code { @apply bg-slate-800 text-emerald-200 text-sm font-mono px-1.5 py-0.5 rounded-md; }
+  .prose pre { @apply bg-slate-900 text-slate-100 text-sm font-mono leading-relaxed rounded-2xl p-6 overflow-x-auto my-8 shadow-lg border border-slate-800; }
+  .prose pre code { @apply bg-transparent text-slate-100 font-normal px-0 py-0; }
+  .prose :not(pre) > code { @apply bg-indigo-50 text-indigo-700 font-semibold text-sm px-1.5 py-0.5 rounded-md; }
+  .prose img { @apply rounded-xl shadow-md my-8; }
+  .prose ul,
+  .prose ol { @apply mb-5 pl-8 space-y-1.5; }
+  .prose li { @apply text-base leading-7 text-slate-600; }
+  .prose blockquote { @apply border-l-4 border-indigo-300 pl-5 italic text-slate-500 my-8; }
+  .prose table { @apply w-full border-collapse my-8; }
+  .prose th { @apply bg-slate-50 text-left font-semibold text-slate-900 px-4 py-2.5 border-b-2 border-slate-200 text-xs uppercase tracking-wider; }
+  .prose td { @apply px-4 py-2.5 border-b border-slate-100 text-slate-600 text-sm; }
+}
+
+@layer components {
+  .docs-layout-shell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .docs-mobile-navigation { display: block; }
+  .docs-mobile-navigation:not([open]) > :not(summary) { display: none; }
+  .docs-desktop-sidebar { display: none; }
+
+  @media (min-width: 64rem) {
+    .docs-layout-shell { flex-direction: row; }
+    .docs-mobile-navigation { display: none; }
+    .docs-desktop-sidebar {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .card-hover { transition: all 200ms ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgb(0 0 0 / 8%); border-color: #6366f1; }
+  .page-fade { animation: fadeIn 200ms ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .search-overlay { backdrop-filter: blur(4px); }
+  .chat-panel { transform: translateX(100%); transition: transform 300ms ease; }
+  .chat-panel.open { transform: translateX(0); }
+  .chevron-rotate { transform: rotate(90deg); }
+  .dropdown-menu { display: none; animation: dropdownIn 150ms ease; }
+  .dropdown-menu.show { display: block; }
+  @keyframes dropdownIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .emoji-btn { transition: transform 150ms ease; }
+  .emoji-btn:hover { transform: scale(1.1); }
+  .emoji-btn.selected { transform: scale(1.15); }
+  .on-page-link.active { color: #4f46e5; }
+
+  .prose .aero-callout {
+    --aero-callout-accent: #6366f1;
+    --aero-callout-background: #eef2ff;
+    margin-block: 2rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--aero-callout-accent) 28%, white);
+    border-left: 4px solid var(--aero-callout-accent);
+    border-radius: 0.75rem;
+    background: var(--aero-callout-background);
+    color: #334155;
+    font-style: normal;
+  }
+
+  .prose .aero-callout-title {
+    margin: 0 0 0.5rem;
+    color: var(--aero-callout-accent);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .prose .aero-callout > :last-child { margin-bottom: 0; }
+  .prose .aero-callout-tip { --aero-callout-accent: #059669; --aero-callout-background: #ecfdf5; }
+  .prose .aero-callout-important { --aero-callout-accent: #7c3aed; --aero-callout-background: #f5f3ff; }
+  .prose .aero-callout-warning { --aero-callout-accent: #d97706; --aero-callout-background: #fffbeb; }
+  .prose .aero-callout-caution { --aero-callout-accent: #dc2626; --aero-callout-background: #fef2f2; }
+}

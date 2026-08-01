@@ -1,0 +1,30 @@
+<section class="history" aria-labelledby="theme-history-title">
+    <div class="history__heading"><div><span class="eyebrow">Release log</span><h2 id="theme-history-title">Versions &amp; site history</h2></div><span>@Versions.Count versions</span></div>
+    @if (Versions.Count == 0 && Publications.Count == 0)
+    {
+        <div class="empty"><span class="rzi rzi-history" aria-hidden="true"></span><p>No published versions yet. Save a valid draft, then publish and assign it.</p></div>
+    }
+    else
+    {
+        @if (Versions.Count > 0)
+        {
+            <h3>Draft versions</h3>
+            <div class="history__list">
+                @foreach (var version in Versions)
+                {
+                    <article><div><strong>@version.Version</strong><span>@version.PublishedOn.ToLocalTime().ToString("g") · @ShortHash(version.Sha256)</span></div><button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" disabled="@IsBusy" @onclick="() => AssignVersionAsync(version)">Assign</button></article>
+                }
+            </div>
+        }
+        @if (Publications.Count > 0)
+        {
+            <h3>Site assignments</h3>
+            <div class="history__list">
+                @foreach (var publication in Publications)
+                {
+                    <article><div><strong>@publication.ThemeId@("@")@publication.Version</strong><span>@publication.PublishedOn.ToLocalTime().ToString("g") · revision @publication.Revision</span></div>@if (!string.IsNullOrWhiteSpace(publication.PreviousThemeId) && !string.IsNullOrWhiteSpace(publication.PreviousVersion)) { <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" disabled="@IsBusy" @onclick="() => RestorePreviousAsync(publication)">Restore previous</button> }</article>
+                }
+            </div>
+        }
+    }
+</section>

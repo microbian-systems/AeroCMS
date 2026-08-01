@@ -1,27 +1,82 @@
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Defines the persisted lifecycle values understood by the setup gate and runtime initializer.
+/// </summary>
 public static class BootstrapStates
 {
-    public const string Setup = "Setup";
-    public const string Configured = "Configured";
-    public const string Running = "Running";
-    public const string Failed = "Failed";
+    /// <summary>
+    /// No usable bootstrap configuration has been persisted.
+    /// </summary>
+public const string Setup = "Setup";
+    /// <summary>
+    /// Bootstrap configuration is persisted and runtime seeding is pending.
+    /// </summary>
+public const string Configured = "Configured";
+    /// <summary>
+    /// Runtime setup and seeding completed successfully.
+    /// </summary>
+public const string Running = "Running";
+    /// <summary>
+    /// Runtime bootstrap did not complete successfully.
+    /// </summary>
+public const string Failed = "Failed";
 }
 
+/// <summary>
+/// Represents the effective setup lifecycle and persisted bootstrap selections.
+/// </summary>
 public sealed class BootstrapState
 {
-    public string State { get; set; } = BootstrapStates.Setup;
-    public bool SetupComplete { get; set; }
-    public bool SeedComplete { get; set; }
-    public string? DatabaseMode { get; set; }
-    public string? CacheMode { get; set; }
-    public string? SecretProvider { get; set; }
-    public string? AuthenticationMode { get; set; }
-    public bool HasBootstrapConfig { get; set; }
+    /// <summary>
+    /// Gets or sets the persisted lifecycle value.
+    /// </summary>
+public string State { get; set; } = BootstrapStates.Setup;
+    /// <summary>
+    /// Gets or sets whether the overall setup workflow completed.
+    /// </summary>
+public bool SetupComplete { get; set; }
+    /// <summary>
+    /// Gets or sets whether initial data seeding completed.
+    /// </summary>
+public bool SeedComplete { get; set; }
+    /// <summary>
+    /// Gets or sets the configured database deployment mode.
+    /// </summary>
+public string? DatabaseMode { get; set; }
+    /// <summary>
+    /// Gets or sets the configured cache deployment mode.
+    /// </summary>
+public string? CacheMode { get; set; }
+    /// <summary>
+    /// Gets or sets the selected secret provider.
+    /// </summary>
+public string? SecretProvider { get; set; }
+    /// <summary>
+    /// Gets or sets the canonical CMS manager authentication provider.
+    /// </summary>
+public string RequestedManagerAuthenticationProvider { get; set; } = "local";
+    /// <summary>
+    /// Gets or sets the canonical storefront member authentication provider.
+    /// </summary>
+public string RequestedMemberAuthenticationProvider { get; set; } = "disabled";
+    /// <summary>
+    /// Gets or sets whether bootstrap configuration is available.
+    /// </summary>
+public bool HasBootstrapConfig { get; set; }
 
-    public bool IsSetupMode => string.Equals(State, BootstrapStates.Setup, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets whether <see cref="State"/> identifies the setup state, ignoring case.
+    /// </summary>
+public bool IsSetupMode => string.Equals(State, BootstrapStates.Setup, StringComparison.OrdinalIgnoreCase);
 
-    public bool IsConfiguredMode => string.Equals(State, BootstrapStates.Configured, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets whether <see cref="State"/> identifies the configured state, ignoring case.
+    /// </summary>
+public bool IsConfiguredMode => string.Equals(State, BootstrapStates.Configured, StringComparison.OrdinalIgnoreCase);
 
-    public bool IsRunningMode => string.Equals(State, BootstrapStates.Running, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets whether <see cref="State"/> identifies the running state, ignoring case.
+    /// </summary>
+public bool IsRunningMode => string.Equals(State, BootstrapStates.Running, StringComparison.OrdinalIgnoreCase);
 }

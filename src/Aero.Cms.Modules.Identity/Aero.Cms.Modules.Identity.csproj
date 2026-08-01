@@ -6,20 +6,17 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="UserStore.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Marten" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Marten.Identity\Aero.Cms.Marten.Identity.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.AspNetIdentity\AeroDB.AspNetIdentity.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>

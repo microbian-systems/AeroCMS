@@ -1,4 +1,3 @@
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Aero.Cms.Modules.Setup.Configuration;
@@ -7,15 +6,41 @@ using Aero.Secrets.Models;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Stores the setup request that must survive the handoff from the setup host to runtime initialization.
+/// </summary>
 public interface IBootstrapPendingSetupRequestStore
 {
-    Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Protects and persists a pending setup request.
+    /// </summary>
+    /// <param name="request">The request, including any credentials needed during runtime seeding.</param>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 
-    Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Loads and decrypts the pending setup request.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels reading the settings file.</param>
+    /// <returns>The pending request, or <see langword="null"/> when no protected payload is configured.</returns>
+Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default);
 
-    Task ClearAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes the persisted pending payload after runtime setup succeeds.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
+Task ClearAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Persists the pending setup request as a locally protected secret reference in application settings.
+/// </summary>
+/// <remarks>
+/// The request is serialized before it is handed to <see cref="ISecretManager"/>; plaintext
+/// credentials are not written directly to the bootstrap section. Secret-provider and JSON
+/// failures propagate to the caller.
+/// </remarks>
 public sealed class BootstrapPendingSetupRequestStore(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager) : IBootstrapPendingSetupRequestStore
@@ -23,7 +48,8 @@ public sealed class BootstrapPendingSetupRequestStore(
     private const string PendingSeedKey = "PendingSeedPayload";
     private const string PendingSeedName = "AeroCms:Bootstrap:PendingSeed";
 
-    public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -37,7 +63,8 @@ public sealed class BootstrapPendingSetupRequestStore(
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
@@ -51,7 +78,8 @@ public sealed class BootstrapPendingSetupRequestStore(
         return JsonSerializer.Deserialize<SeedDatabaseRequest>(json);
     }
 
-    public async Task ClearAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
@@ -61,6 +89,9 @@ public sealed class BootstrapPendingSetupRequestStore(
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
+    /// <summary>
+    /// Traverses an object path, creating missing JSON objects without replacing sibling settings.
+    /// </summary>
     private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)
     {
         JsonNode current = root;
@@ -74,6 +105,9 @@ public sealed class BootstrapPendingSetupRequestStore(
         return (JsonObject)current;
     }
 
+    /// <summary>
+    /// Reads the environment settings object, returning an empty object when the file is absent or contains JSON <see langword="null"/>.
+    /// </summary>
     private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

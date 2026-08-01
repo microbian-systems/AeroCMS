@@ -1,0 +1,807 @@
+Running tests from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+failed NeoEditorCatalogItem_round_trips_without_type_references (103ms)
+  [Test Failure] NotSupportedException: The collection type 'System.Collections.Generic.IReadOnlySet`1[System.String]' is abstract, an interface, or is read only, and could not be instantiated and populated. Path: $.allowedChildCatalogIds | LineNumber: 0 | BytePositionInLine: 503.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] NotSupportedException: The collection type 'System.Collections.Generic.IReadOnlySet`1[System.String]' is abstract, an interface, or is read only, and could not be instantiated and populated. Path: $.allowedChildCatalogIds | LineNumber: 0 | BytePositionInLine: 503.
+    at System.Text.Json.ThrowHelper.ThrowNotSupportedException(ReadStack& state, Utf8JsonReader& reader, Exception innerException)
+    at System.Text.Json.Serialization.Converters.IEnumerableOfTConverter`2.CreateCollection(Utf8JsonReader& reader, ReadStack& state, JsonSerializerOptions options)
+    at System.Text.Json.Serialization.JsonCollectionConverter`2.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, TCollection& value)
+    at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+    at System.Text.Json.Serialization.Metadata.JsonPropertyInfo`1.ReadJsonAndSetMember(Object obj, ReadStack& state, Utf8JsonReader& reader)
+    at System.Text.Json.Serialization.Converters.ObjectDefaultConverter`1.OnTryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value)
+    at System.Text.Json.Serialization.JsonConverter`1.TryRead(Utf8JsonReader& reader, Type typeToConvert, JsonSerializerOptions options, ReadStack& state, T& value, Boolean& isPopulatedValue)
+    at System.Text.Json.Serialization.JsonConverter`1.ReadCore(Utf8JsonReader& reader, T& value, JsonSerializerOptions options, ReadStack& state)
+    at System.Text.Json.Serialization.Metadata.JsonTypeInfo`1.Deserialize(Utf8JsonReader& reader, ReadStack& state)
+    at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 utf8Json, JsonTypeInfo`1 jsonTypeInfo, Nullable`1 actualByteCount)
+    at System.Text.Json.JsonSerializer.ReadFromSpan[TValue](ReadOnlySpan`1 json, JsonTypeInfo`1 jsonTypeInfo)
+    at System.Text.Json.JsonSerializer.Deserialize[TValue](String json, JsonSerializerOptions options)
+    at Aero.Cms.Core.Tests.Catalog.CatalogSerializationTests.SerializeAndBack[T](T original, T& restored) in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Catalog\CatalogSerializationTests.cs:148
+    at Aero.Cms.Core.Tests.Catalog.CatalogSerializationTests.NeoEditorCatalogItem_round_trips_without_type_references() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Catalog\CatalogSerializationTests.cs:109
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  The collection type 'System.Collections.Generic.IReadOnlySet`1[System.String]' is abstract, an interface, or is read only, and could not be instantiated and populated.
+  Standard output
+         Warning:
+         The component "Fluent Assertions" is governed by the rules defined in the Xceed License Agreement and
+         the Xceed Fluent Assertions Community License. You may use Fluent Assertions free of charge for
+         non-commercial use only. An active subscription is required to use Fluent Assertions for commercial use.
+    
+         Please contact Xceed Sales mailto:sales@xceed.com to acquire a subscription at a very low cost.
+    
+         A paid commercial license supports the development and continued increasing support of
+         Fluent Assertions users under both commercial and community licenses. Help us
+         keep Fluent Assertions at the forefront of unit testing.
+    
+         For more information, visit https://xceed.com/products/unit-testing/fluent-assertions/
+    
+  Error output
+failed Infrastructure_resolver_uses_embedded_defaults_when_bootstrap_is_not_configured (97ms)
+  [Test Failure] AssertionException: Expected resolved.DatabaseConnectionString to be <null>, but found "surrealkv://App_Data/aerodb-surrealkv".
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected resolved.DatabaseConnectionString to be <null>, but found "surrealkv://App_Data/aerodb-surrealkv".
+    at FluentAssertions.Primitives.ReferenceTypeAssertions`2.BeNull(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Integration.BootstrapConfigurationTests.Infrastructure_resolver_uses_embedded_defaults_when_bootstrap_is_not_configured() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\BootstrapConfigurationTests.cs:72
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DirectPageRequest_keeps_success_status_code (107ms)
+  [Test Failure] NullReferenceException: Object reference not set to an instance of an object.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] NullReferenceException: Object reference not set to an instance of an object.
+    at Aero.Cms.Modules.Pages.Areas.Cms.Pages.DynamicPageModel.OnGetAsync(CancellationToken cancellationToken) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Pages\Areas\Cms\Pages\Page.cshtml.cs:130
+    at Aero.Cms.Core.Tests.Integration.DynamicPageModelStatusCodeTests.DirectPageRequest_keeps_success_status_code() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\DynamicPageModelStatusCodeTests.cs:48
+    at Aero.Cms.Core.Tests.Integration.DynamicPageModelStatusCodeTests.DirectPageRequest_keeps_success_status_code() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\DynamicPageModelStatusCodeTests.cs:51
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ReExecutedStatusCodePage_preserves_original_status_code (232ms)
+  [Test Failure] NullReferenceException: Object reference not set to an instance of an object.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] NullReferenceException: Object reference not set to an instance of an object.
+    at Aero.Cms.Modules.Pages.Areas.Cms.Pages.DynamicPageModel.OnGetAsync(CancellationToken cancellationToken) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Pages\Areas\Cms\Pages\Page.cshtml.cs:130
+    at Aero.Cms.Core.Tests.Integration.DynamicPageModelStatusCodeTests.ReExecutedStatusCodePage_preserves_original_status_code() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\DynamicPageModelStatusCodeTests.cs:32
+    at Aero.Cms.Core.Tests.Integration.DynamicPageModelStatusCodeTests.ReExecutedStatusCodePage_preserves_original_status_code() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\DynamicPageModelStatusCodeTests.cs:35
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DiscoverFromTypesAsync_WithRealModules_ShouldDiscoverAllModules (16ms)
+  [Test Failure] AssertionException: Expected moduleNames {"SetupModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"} to contain "TestModule".
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected moduleNames {"SetupModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"} to contain "TestModule".
+    at FluentAssertions.Collections.GenericCollectionAssertions`3.Contain(T expected, String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Integration.RealModuleDiscoveryTests.DiscoverFromTypesAsync_WithRealModules_ShouldDiscoverAllModules() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\RealModuleDiscoveryTests.cs:205
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  Standard output
+    === REAL MODULE DISCOVERY VERIFICATION ===
+    Expected Modules: 7
+    Discovered Modules: 7
+    Discovered Module Details:
+    ------------------------------------------------------------
+      - AnalyticsModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.Analytics
+          Categories: [Marketing, Tracking]
+          Tags: [analytics, tracking, metrics]
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - CacheModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.Cache
+          Categories: [Infrastructure, Performance]
+          Tags: [cache, memory, performance]
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - IdentityModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.Identity
+          Categories: [Identity, Security]
+          Tags: [auth, identity, users, roles]
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - RateLimitingModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.RateLimiting
+          Categories: [Security, Infrastructure]
+          Tags: [ratelimit, security, throttling]
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - SecurityModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.Security
+          Categories: []
+          Tags: []
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - SetupModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.Setup
+          Categories: [setup, bootstrap]
+          Tags: [setup, bootstrap]
+          Is UI Module: False
+          Order: -32768
+          DisabledInProduction: False
+    ------------------------------------------------------------
+      - SimpleSecurityModule
+          Version: 0.0.5.-alpha
+          Assembly: Aero.Cms.Modules.SimpleSecurity
+          Categories: [Security]
+          Tags: [security, simple, auth]
+          Is UI Module: False
+          Order: 0
+          DisabledInProduction: False
+    ------------------------------------------------------------
+    === VERIFICATION SUMMARY ===
+    
+  Error output
+failed DiscoverFromTypesAsync_WithRealModules_ShouldIdentifyModuleTypes (1ms)
+  [Test Failure] InvalidOperationException: Sequence contains no matching element
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Sequence contains no matching element
+    at System.Linq.ThrowHelper.ThrowNoMatchException()
+    at System.Linq.Enumerable.First[TSource](IEnumerable`1 source, Func`2 predicate)
+    at Aero.Cms.Core.Tests.Integration.RealModuleDiscoveryTests.DiscoverFromTypesAsync_WithRealModules_ShouldIdentifyModuleTypes() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\RealModuleDiscoveryTests.cs:248
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed AddAeroModulesAsync_ShouldResolveSetupModuleFirstByOrder (9ms)
+  [Test Failure] ArgumentException: Implementation type cannot be 'System.Object' because it is indistinguishable from other services registered for 'Aero.Modular.IAeroModule'. (Parameter 'descriptor')
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ArgumentException: Implementation type cannot be 'System.Object' because it is indistinguishable from other services registered for 'Aero.Modular.IAeroModule'. (Parameter 'descriptor')
+    at Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddEnumerable(IServiceCollection services, ServiceDescriptor descriptor)
+    at Aero.Cms.Modules.Modules.Services.ModuleOrchestrationExtensions.AddAeroModulesAsync(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment, IReadOnlyList`1 generatedDescriptors) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Modules\Services\ModuleOrchestrationExtensions.cs:137
+    at Aero.Cms.Modules.Modules.Services.ModuleOrchestrationExtensions.AddAeroModulesAsync(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment, IReadOnlyList`1 generatedDescriptors) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Modules\Services\ModuleOrchestrationExtensions.cs:172
+    at Aero.Cms.Core.Tests.Integration.RealModuleDiscoveryTests.AddAeroModulesAsync_ShouldResolveSetupModuleFirstByOrder() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\RealModuleDiscoveryTests.cs:142
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed AddAeroModulesAsync_ShouldRegisterDiscoveredModulesIntoServices (1ms)
+  [Test Failure] ArgumentException: Implementation type cannot be 'System.Object' because it is indistinguishable from other services registered for 'Aero.Modular.IAeroModule'. (Parameter 'descriptor')
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ArgumentException: Implementation type cannot be 'System.Object' because it is indistinguishable from other services registered for 'Aero.Modular.IAeroModule'. (Parameter 'descriptor')
+    at Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddEnumerable(IServiceCollection services, ServiceDescriptor descriptor)
+    at Aero.Cms.Modules.Modules.Services.ModuleOrchestrationExtensions.AddAeroModulesAsync(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment, IReadOnlyList`1 generatedDescriptors) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Modules\Services\ModuleOrchestrationExtensions.cs:137
+    at Aero.Cms.Modules.Modules.Services.ModuleOrchestrationExtensions.AddAeroModulesAsync(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment, IReadOnlyList`1 generatedDescriptors) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Modules\Services\ModuleOrchestrationExtensions.cs:172
+    at Aero.Cms.Core.Tests.Integration.RealModuleDiscoveryTests.AddAeroModulesAsync_ShouldRegisterDiscoveredModulesIntoServices() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\RealModuleDiscoveryTests.cs:104
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DiscoverAsync_WithApplicationDependencies_ShouldDiscoverReferencedModules (291ms)
+  [Test Failure] AssertionException: Expected result.Select(module => module.Name) {"SimpleTest", "DependentTest", "MultiDependency", "MissingDependency", "CircularA", "CircularB", "UiTest", "ApiTest", "BackgroundTest", "EarlyLoading", "LateLoading", "TestAeroDbModule", "ThemeTest", "AdminTest", "FilterTest", "ContentDefinitionTest", "PagesModule", "SetupModule", "AliasModule", "FooterModule", "NavigationModule", "ModulesModule", "PostsModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"} to contain {"TestModule", "SetupModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"}, but could not find {"TestModule"}.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.Select(module => module.Name) {"SimpleTest", "DependentTest", "MultiDependency", "MissingDependency", "CircularA", "CircularB", "UiTest", "ApiTest", "BackgroundTest", "EarlyLoading", "LateLoading", "TestAeroDbModule", "ThemeTest", "AdminTest", "FilterTest", "ContentDefinitionTest", "PagesModule", "SetupModule", "AliasModule", "FooterModule", "NavigationModule", "ModulesModule", "PostsModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"} to contain {"TestModule", "SetupModule", "IdentityModule", "CacheModule", "SecurityModule", "SimpleSecurityModule", "RateLimitingModule", "AnalyticsModule"}, but could not find {"TestModule"}.
+    at FluentAssertions.Collections.GenericCollectionAssertions`3.Contain(IEnumerable`1 expected, String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Integration.RealModuleDiscoveryTests.DiscoverAsync_WithApplicationDependencies_ShouldDiscoverReferencedModules() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\RealModuleDiscoveryTests.cs:73
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed Setup_page_renders_the_setup_wizard_surface (490ms)
+  [Test Failure] ShouldAssertException: response.StatusCode
+    should be
+HttpStatusCode.OK
+    but was
+HttpStatusCode.InternalServerError
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: response.StatusCode
+      should be
+  HttpStatusCode.OK
+      but was
+  HttpStatusCode.InternalServerError
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_page_renders_the_setup_wizard_surface() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:71
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_page_renders_the_setup_wizard_surface() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:81
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_page_renders_the_setup_wizard_surface() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:81
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  Standard output
+    info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+          User profile is available. Using 'C:\Users\bbqch\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/setup - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint '/Page'
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[103]
+          Route matched with {page = "/Page", area = "Cms"}. Executing page /Page
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[104]
+          Executed page /Page in 1.7672ms
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint '/Page'
+    fail: Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware[1]
+          An unhandled exception has occurred while executing the request.
+          System.InvalidOperationException: No service for type 'Orleans.IGrainFactory' has been registered.
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+             at Aero.Cms.Modules.Pages.PagesModule.<>c.<ConfigureServices>b__12_1(IServiceProvider sp) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Pages\PagesModule.cs:line 82
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+             at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+             at lambda_method417(Closure, IServiceProvider, Object[])
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.DefaultPageModelFactoryProvider.<>c__DisplayClass3_0.<CreateModelFactory>b__0(PageContext pageContext)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.CreateInstance()
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.InvokeInnerFilterAsync()
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.InvokeFilterPipelineAsync()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+             at Aero.Cms.Modules.Setup.SetupGateMiddleware.InvokeAsync(HttpContext context, RequestDelegate next) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Setup\SetupGateMiddleware.cs:line 20
+             at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.InterfaceMiddlewareBinder.<>c__DisplayClass2_0.<<CreateMiddleware>b__0>d.MoveNext()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/setup - 500 - text/plain;+charset=utf-8 48.8171ms
+    
+    
+  Error output
+failed Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap (301ms)
+  [Test Failure] InvalidOperationException: The given header was not found.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: The given header was not found.
+    at System.Net.Http.Headers.HttpHeaders.GetValues(HeaderDescriptor descriptor)
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:104
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:145
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:145
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  Standard output
+    info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+          User profile is available. Using 'C:\Users\bbqch\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/setup?returnUrl=%2Fadmin - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint '/Page'
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[103]
+          Route matched with {page = "/Page", area = "Cms"}. Executing page /Page
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[104]
+          Executed page /Page in 0.2465ms
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint '/Page'
+    fail: Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware[1]
+          An unhandled exception has occurred while executing the request.
+          System.InvalidOperationException: No service for type 'Orleans.IGrainFactory' has been registered.
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+             at Aero.Cms.Modules.Pages.PagesModule.<>c.<ConfigureServices>b__12_1(IServiceProvider sp) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Pages\PagesModule.cs:line 82
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+             at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+             at lambda_method640(Closure, IServiceProvider, Object[])
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.DefaultPageModelFactoryProvider.<>c__DisplayClass3_0.<CreateModelFactory>b__0(PageContext pageContext)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.CreateInstance()
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.InvokeInnerFilterAsync()
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.InvokeFilterPipelineAsync()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+             at Aero.Cms.Modules.Setup.SetupGateMiddleware.InvokeAsync(HttpContext context, RequestDelegate next) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Setup\SetupGateMiddleware.cs:line 20
+             at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.InterfaceMiddlewareBinder.<>c__DisplayClass2_0.<<CreateMiddleware>b__0>d.MoveNext()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/setup?returnUrl=%2Fadmin - 500 - text/plain;+charset=utf-8 13.0416ms
+    
+    
+  Error output
+failed Fresh_start_requests_redirect_to_setup_while_allowlisted_routes_stay_reachable (289ms)
+  [Test Failure] ShouldAssertException: setupResponse.StatusCode
+    should be
+HttpStatusCode.OK
+    but was
+HttpStatusCode.InternalServerError
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: setupResponse.StatusCode
+      should be
+  HttpStatusCode.OK
+      but was
+  HttpStatusCode.InternalServerError
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Fresh_start_requests_redirect_to_setup_while_allowlisted_routes_stay_reachable() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:45
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Fresh_start_requests_redirect_to_setup_while_allowlisted_routes_stay_reachable() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:55
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at Aero.Cms.Core.Tests.Integration.SetupGateIntegrationTests.Fresh_start_requests_redirect_to_setup_while_allowlisted_routes_stay_reachable() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupGateIntegrationTests.cs:55
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  Standard output
+    info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+          User profile is available. Using 'C:\Users\bbqch\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/setup - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint '/Page'
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[103]
+          Route matched with {page = "/Page", area = "Cms"}. Executing page /Page
+    info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[104]
+          Executed page /Page in 0.17ms
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint '/Page'
+    fail: Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware[1]
+          An unhandled exception has occurred while executing the request.
+          System.InvalidOperationException: No service for type 'Orleans.IGrainFactory' has been registered.
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+             at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+             at Aero.Cms.Modules.Pages.PagesModule.<>c.<ConfigureServices>b__12_1(IServiceProvider sp) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Pages\PagesModule.cs:line 82
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+             at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+             at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+             at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+             at lambda_method1184(Closure, IServiceProvider, Object[])
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.DefaultPageModelFactoryProvider.<>c__DisplayClass3_0.<CreateModelFactory>b__0(PageContext pageContext)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.CreateInstance()
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker.InvokeInnerFilterAsync()
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.InvokeFilterPipelineAsync()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+             at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+             at Aero.Cms.Modules.Setup.SetupGateMiddleware.InvokeAsync(HttpContext context, RequestDelegate next) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Setup\SetupGateMiddleware.cs:line 20
+             at Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.InterfaceMiddlewareBinder.<>c__DisplayClass2_0.<<CreateMiddleware>b__0>d.MoveNext()
+          --- End of stack trace from previous location ---
+             at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+             at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/setup - 500 - text/plain;+charset=utf-8 12.0495ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/ - - -
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/ - 307 - - 1.0967ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/admin - - -
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/admin - 307 - - 3.0213ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/health - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint 'Health checks'
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint 'Health checks'
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/health - 200 - text/plain 4.5739ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/alive - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint 'Health checks'
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint 'Health checks'
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/alive - 200 - text/plain 0.6641ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/_framework/test.js - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint 'HTTP: GET /_framework/test.js'
+    info: Microsoft.AspNetCore.Http.Result.ContentResult[2]
+          Write content with HTTP Response ContentType of application/javascript
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint 'HTTP: GET /_framework/test.js'
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/_framework/test.js - 200 18 application/javascript 0.8150ms
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://localhost/error - - -
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+          Executing endpoint 'HTTP: GET /error'
+    info: Microsoft.AspNetCore.Http.Result.OkObjectResult[1]
+          Setting HTTP status code 200.
+    info: Microsoft.AspNetCore.Http.Result.OkObjectResult[3]
+          Writing value of type 'String' as Json.
+    info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+          Executed endpoint 'HTTP: GET /error'
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://localhost/error - 200 - application/json;+charset=utf-8 0.4669ms
+    
+    
+  Error output
+failed Embedded_cache_mode_does_not_block_step_3_progression_on_readiness (4ms)
+  [Test Failure] InvalidOperationException: The render handle is not yet assigned.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: The render handle is not yet assigned.
+    at Microsoft.AspNetCore.Components.RenderHandle.ThrowNotInitialized()
+    at Microsoft.AspNetCore.Components.ComponentBase.InvokeAsync(Action workItem)
+    at Aero.Cms.Modules.Setup.Areas.Setup.Pages.Setup.NextStep() in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Setup\Areas\Setup\Pages\Setup.razor.cs:232
+    at Aero.Cms.Core.Tests.Integration.SetupPageModelTests.Embedded_cache_mode_does_not_block_step_3_progression_on_readiness() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SetupPageModelTests.cs:45
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed HostNormalizer_StripsPort (2ms)
+  [Test Failure] AssertionException: Expected to be equal to "example.com"
+but received "example.com:5001"
+
+at Assert.That(HostNormalizer.Normalize("example.com:5001")).IsEqualTo("example.com")
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected to be equal to "example.com"
+  but received "example.com:5001"
+  
+  at Assert.That(HostNormalizer.Normalize("example.com:5001")).IsEqualTo("example.com")
+    at Aero.Cms.Core.Tests.Integration.SitePipelineChainTests.HostNormalizer_StripsPort() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SitePipelineChainTests.cs:359
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed AliasRewriteRule_NoMatchingAlias_PassesThrough (6ms)
+  [Test Failure] InvalidOperationException: No service for type 'AeroDB.Sable.IDocumentSession' has been registered.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: No service for type 'AeroDB.Sable.IDocumentSession' has been registered.
+    at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+    at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+    at Aero.Cms.Modules.Aliases.AliasRewriteRule.ApplyRule(RewriteContext context) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Aliases\AliasRewriteRule.cs:74
+    at Microsoft.AspNetCore.Rewrite.RewriteMiddleware.RunRules(RewriteContext rewriteContext, RewriteOptions options, HttpContext httpContext, ILogger logger)
+    at Microsoft.AspNetCore.Rewrite.RewriteMiddleware.Invoke(HttpContext context)
+    at Aero.Cms.Modules.Sites.SiteResolutionMiddleware.InvokeAsync(HttpContext context, ISiteLookupService siteLookup) in D:\proj\microbians\AeroCMS\src\Aero.Cms.Modules.Sites\SiteResolutionMiddleware.cs:62
+    at Microsoft.AspNetCore.TestHost.HttpContextBuilder.<>c__DisplayClass23_0.<<SendAsync>g__RunRequestAsync|0>d.MoveNext()
+    --- End of stack trace from previous location ---
+    at Microsoft.AspNetCore.TestHost.ClientHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+    at Aero.Cms.Core.Tests.Integration.SitePipelineChainTests.AliasRewriteRule_NoMatchingAlias_PassesThrough() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Integration\SitePipelineChainTests.cs:247
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  Standard output
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+          Request starting HTTP/1.1 GET http://testsite.com/some-page - - -
+    info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+          Request finished HTTP/1.1 GET http://testsite.com/some-page - 200 - - 0.7058ms
+    
+    
+  Error output
+failed Fork_CreatesDraftCultureVariant_WithSameTranslationSet (24ms)
+  [Test Failure] AssertionException: Expected to not be equal to hero-source
+but received hero-source
+
+at Assert.That(fork.RootNodes[0].NodeId).IsNotEqualTo("hero-source")
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected to not be equal to hero-source
+  but received hero-source
+  
+  at Assert.That(fork.RootNodes[0].NodeId).IsNotEqualTo("hero-source")
+    at Aero.Cms.Core.Tests.Localization.PageCultureForkerTests.Fork_CreatesDraftCultureVariant_WithSameTranslationSet() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Localization\PageCultureForkerTests.cs:56
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed Fork_CreatesDraftCultureVariant_WithSameTranslationSet (10ms)
+  [Test Failure] AssertionException: Expected to be equal to [1, 2]
+but received [1, 2] (same contents, different reference ÔÇö use IsEquivalentTo to compare by contents)
+
+at Assert.That(fork.TagIds).IsEqualTo([1, 2])
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected to be equal to [1, 2]
+  but received [1, 2] (same contents, different reference ÔÇö use IsEquivalentTo to compare by contents)
+  
+  at Assert.That(fork.TagIds).IsEqualTo([1, 2])
+    at Aero.Cms.Core.Tests.Localization.PostCultureForkerTests.Fork_CreatesDraftCultureVariant_WithSameTranslationSet() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Localization\PostCultureForkerTests.cs:56
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed Implicit_conversion_from_value_to_ResultT_should_create_Ok (2ms)
+  [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.Implicit_conversion_from_value_to_ResultT_should_create_Ok() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:136
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ResultT_Failure_should_be_assignable_to_base_ResultT_TError (1ms)
+  [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.ResultT_Failure_should_be_assignable_to_base_ResultT_TError() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:93
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ResultT_Ok_should_be_assignable_to_base_ResultT_TError (0ms)
+  [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.ResultT_Ok_should_be_assignable_to_base_ResultT_TError() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:83
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ResultT_Failure_should_have_correct_error (1ms)
+  [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.ResultT_Failure_should_have_correct_error() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:30
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ResultT_Ok_should_have_correct_value (0ms)
+  [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsSuccess to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.ResultT_Ok_should_have_correct_value() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:17
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ResultT_Ok_ToString_should_return_value_string (3ms)
+  [Test Failure] AssertionException: **WARNING** failure message 'Expected result.ToString() to be a match with the expectation, but it differs at index 0:
+   Ôåô (actual)
+  "Ok { IsSuccess = False, IsFailure = False, Value = 42 }"
+  "42"
+   Ôåæ (expected)' could not be formatted with string.Format
+   at System.Text.ValueStringBuilder.AppendFormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at System.String.FormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at System.String.Format(IFormatProvider provider, String format, Object[] args)
+   at FluentAssertions.Execution.FailureMessageFormatter.FormatArgumentPlaceholders(String failureMessage, Object[] failureArgs)
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: **WARNING** failure message 'Expected result.ToString() to be a match with the expectation, but it differs at index 0:
+     Ôåô (actual)
+    "Ok { IsSuccess = False, IsFailure = False, Value = 42 }"
+    "42"
+     Ôåæ (expected)' could not be formatted with string.Format
+     at System.Text.ValueStringBuilder.AppendFormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+     at System.String.FormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+     at System.String.Format(IFormatProvider provider, String format, Object[] args)
+     at FluentAssertions.Execution.FailureMessageFormatter.FormatArgumentPlaceholders(String failureMessage, Object[] failureArgs)
+    at FluentAssertions.Primitives.StringAssertions`1.Be(String expected, String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.ResultT_Ok_ToString_should_return_value_string() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:189
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed Implicit_conversion_from_AeroError_to_ResultT_should_create_Failure (1ms)
+  [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected result.IsFailure to be True, but found False.
+    at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)
+    at Aero.Cms.Core.Tests.Railway.ResultAndPreludeTests.Implicit_conversion_from_AeroError_to_ResultT_should_create_Failure() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Railway\ResultAndPreludeTests.cs:156
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed CreateAsync_CommitsAliasBeforePublishingInvalidation (34ms)
+  [Test Failure] ShouldAssertException: stored
+    should not be null but was
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: stored
+      should not be null but was
+    at Aero.Cms.Core.Tests.Services.AliasServiceTests.CreateAsync_CommitsAliasBeforePublishingInvalidation() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\AliasServiceTests.cs:61
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed CreateKeyAsync_Should_Create_And_Store_Hashed_Key (41ms)
+  [Test Failure] ShouldAssertException: account
+    should not be null but was
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: account
+      should not be null but was
+    at Aero.Cms.Core.Tests.Services.ApiKeyServiceTests.CreateKeyAsync_Should_Create_And_Store_Hashed_Key() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\ApiKeyServiceTests.cs:69
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed CreateKeyAsync_With_Generated_Key_Should_Work (11ms)
+  [Test Failure] ShouldAssertException: account
+    should not be null but was
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: account
+      should not be null but was
+    at Aero.Cms.Core.Tests.Services.ApiKeyServiceTests.CreateKeyAsync_With_Generated_Key_Should_Work() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\ApiKeyServiceTests.cs:93
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DeleteAsync_OwnSite_Succeeds (25ms)
+  [Test Failure] ShouldAssertException: saveResult.IsSuccess
+    should be
+True
+    but was
+False
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: saveResult.IsSuccess
+      should be
+  True
+      but was
+  False
+    at Aero.Cms.Core.Tests.Services.BlogPostContentServiceTests.DeleteAsync_OwnSite_Succeeds() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\BlogPostContentServiceTests.cs:82
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DeleteAsync_CrossSite_Rejected (11ms)
+  [Test Failure] ShouldAssertException: saveResult.IsSuccess
+    should be
+True
+    but was
+False
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: saveResult.IsSuccess
+      should be
+  True
+      but was
+  False
+    at Aero.Cms.Core.Tests.Services.BlogPostContentServiceTests.DeleteAsync_CrossSite_Rejected() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\BlogPostContentServiceTests.cs:112
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed SaveAsync_StampsSiteId_FromContext (5ms)
+  [Test Failure] ShouldAssertException: result.IsSuccess
+    should be
+True
+    but was
+False
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: result.IsSuccess
+      should be
+  True
+      but was
+  False
+    at Aero.Cms.Core.Tests.Services.BlogPostContentServiceTests.SaveAsync_StampsSiteId_FromContext() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\BlogPostContentServiceTests.cs:58
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed SaveAsync_StampsSiteId_FromContext (14ms)
+  [Test Failure] ShouldAssertException: result.IsSuccess
+    should be
+True
+    but was
+False
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: result.IsSuccess
+      should be
+  True
+      but was
+  False
+    at Aero.Cms.Core.Tests.Services.DocsServiceTests.SaveAsync_StampsSiteId_FromContext() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\DocsServiceTests.cs:74
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at Aero.Cms.Core.Tests.Services.DocsServiceTests.SaveAsync_StampsSiteId_FromContext() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\DocsServiceTests.cs:77
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ToViewModel_MapsSiteId (11ms)
+  [Test Failure] ShouldAssertException: publishedMessage
+    should not be null but was
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] ShouldAssertException: publishedMessage
+      should not be null but was
+    at Aero.Cms.Core.Tests.Services.DocsServiceTests.ToViewModel_MapsSiteId() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\DocsServiceTests.cs:109
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+    at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+    at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+    at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed DeleteAsync_OwnSite_Succeeds (3ms)
+  [Test Failure] InvalidOperationException: Failed to save changes.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Failed to save changes.
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1295
+    at Aero.Cms.Core.Tests.Services.DocsServiceTests.DeleteAsync_OwnSite_Succeeds() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\DocsServiceTests.cs:134
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  System.InvalidOperationException: Couldn't coerce value for field `publication_state` of `docs_page:`100``: Expected `object` but found `1`
+    at AeroDB.Sable.DocumentSession.ThrowIfRawQueryFailed(SurrealDbResponse response) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1727
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:767
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1256
+failed DeleteAsync_CrossSite_Rejected (3ms)
+  [Test Failure] InvalidOperationException: Failed to save changes.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Failed to save changes.
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1295
+    at Aero.Cms.Core.Tests.Services.DocsServiceTests.DeleteAsync_CrossSite_Rejected() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\DocsServiceTests.cs:164
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  System.InvalidOperationException: Couldn't coerce value for field `publication_state` of `docs_page:`200``: Expected `object` but found `1`
+    at AeroDB.Sable.DocumentSession.ThrowIfRawQueryFailed(SurrealDbResponse response) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1727
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:767
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1256
+failed PreviewBuildsMixedCompositionLayoutWithoutMutatingPublishedLayout (81ms)
+  [Test Failure] InvalidOperationException: Failed to save changes.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Failed to save changes.
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1295
+    at Aero.Cms.Core.Tests.Services.PagePreviewServiceTests.PreviewBuildsMixedCompositionLayoutWithoutMutatingPublishedLayout() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\PagePreviewServiceTests.cs:73
+    at Aero.Cms.Core.Tests.Services.PagePreviewServiceTests.PreviewBuildsMixedCompositionLayoutWithoutMutatingPublishedLayout() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\PagePreviewServiceTests.cs:102
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  System.InvalidOperationException: Couldn't coerce value for field `kind` of `page_document:`601``: Expected `object` but found `0`
+    at AeroDB.Sable.DocumentSession.ThrowIfRawQueryFailed(SurrealDbResponse response) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1727
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:767
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1256
+failed ReserveAsync_StampsSiteId (5ms)
+  [Test Failure] AssertionException: Expected to not be null
+but received null
+
+at Assert.That(stored).IsNotNull()
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] AssertionException: Expected to not be null
+  but received null
+  
+  at Assert.That(stored).IsNotNull()
+    at Aero.Cms.Core.Tests.Services.SlugRegistryTests.ReserveAsync_StampsSiteId() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\SlugRegistryTests.cs:51
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+failed ReserveAsync_AllowsSameSlugAcrossDifferentSites (4ms)
+  [Test Failure] InvalidOperationException: Failed to save changes.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Failed to save changes.
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1295
+    at Aero.Cms.Core.Tests.Services.SlugRegistryTests.ReserveAsync_AllowsSameSlugAcrossDifferentSites() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\SlugRegistryTests.cs:62
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  System.InvalidOperationException: Couldn't coerce value for field `owner_type` of `content_slug_document:`1525563273002090496``: Expected `object` but found `0`
+    at AeroDB.Sable.DocumentSession.ThrowIfRawQueryFailed(SurrealDbResponse response) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1727
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:767
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1256
+failed ReserveAsync_AllowsSameSlugAcrossDifferentCultures (4ms)
+  [Test Failure] InvalidOperationException: Failed to save changes.
+  from D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64)
+  TUnit.Engine.Exceptions.TestFailedException: [Test Failure] InvalidOperationException: Failed to save changes.
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1295
+    at Aero.Cms.Core.Tests.Services.SlugRegistryTests.ReserveAsync_AllowsSameSlugAcrossDifferentCultures() in D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\Services\SlugRegistryTests.cs:90
+       --- TUnit internals omitted (run with --detailed-stacktrace for full trace) ---
+  --->  System.InvalidOperationException: Couldn't coerce value for field `owner_type` of `content_slug_document:`1525563273140502528``: Expected `object` but found `0`
+    at AeroDB.Sable.DocumentSession.ThrowIfRawQueryFailed(SurrealDbResponse response) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1727
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:767
+    at AeroDB.Sable.DocumentSession.SaveChangesAsync(CancellationToken token) in D:\proj\microbians\AeroCMS\AeroDB\src\AeroDB.Sable\DocumentSession.cs:1256
+D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\Aero.Cms.Core.Tests.dll (net10.0|x64) failed with 38 error(s) (6s 932ms)
+Exit code: 2
+
+  In process file artifacts produced:
+    - D:\proj\microbians\AeroCMS\tests\Aero.Cms.Core.Tests\bin\Debug\net10.0\TestResults\Aero.Cms.Core.Tests-windows-net10.0-report.html
+
+Test run summary: Failed!
+  total: 187
+  failed: 38
+  succeeded: 149
+  skipped: 0
+  duration: 7s 195ms
+Test run completed with non-success exit code: 2 (see: https://aka.ms/testingplatform/exitcodes)

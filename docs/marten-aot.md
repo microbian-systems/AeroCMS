@@ -1,5 +1,13 @@
 # Marten + AOT + Source Generators: Compatibility Guide for AeroCMS
 
+> [!IMPORTANT]
+> **SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md)
+> and the AOT/source-generator principles here apply to AeroDB.Sable
+> (`AeroDB.SourceGenerators`) instead of Marten. Keep this document only as a
+> historical record of the Marten-era approach.
+
 ## Executive Summary
 
 **Marten is fully compatible with Native AOT and source generators**, but requires intentional configuration to avoid reflection-based patterns. This document outlines the strategy for using Roslyn source generators to eliminate runtime reflection in AeroCMS's Marten integration, enabling Native AOT deployment.

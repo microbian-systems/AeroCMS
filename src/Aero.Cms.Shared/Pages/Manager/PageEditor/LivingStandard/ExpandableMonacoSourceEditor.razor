@@ -1,0 +1,49 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using BlazorMonaco.Editor
+
+<div class="aero-monaco-source-editor">
+    <div class="aero-monaco-source-editor__toolbar">
+        <div class="aero-monaco-source-editor__identity">
+            <strong>@RendererLabel</strong>
+            <span aria-hidden="true">·</span>
+            <span>@LanguageLabel</span>
+        </div>
+        <div class="aero-monaco-source-editor__actions" role="toolbar" aria-label="@($"{RendererLabel} source commands")">
+            @if (IsExpanded && AiRequested.HasDelegate)
+            {
+                <span class="aero-monaco-source-editor__tooltip" title="@AiButtonTitle">
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm aero-monaco-source-editor__ai"
+                            disabled="@(!AiEnabled)"
+                            aria-disabled="@(!AiEnabled)"
+                            aria-label="Open AI assistant"
+                            @onclick="RequestAiAsync">
+                        AI
+                    </button>
+                </span>
+            }
+            @if (IsExpanded && PreviewRequested.HasDelegate)
+            {
+                <button type="button"
+                        class="pe-btn pe-btn-ghost pe-btn-sm"
+                        @onclick="PreviewRequested">
+                    Preview
+                </button>
+            }
+            <button type="button"
+                    class="pe-btn pe-btn-ghost pe-btn-sm aero-monaco-source-editor__expand"
+                    aria-pressed="@IsExpanded"
+                    aria-label="@ExpansionLabel"
+                    title="@ExpansionLabel"
+                    @onclick="ToggleExpandedAsync">
+                @(IsExpanded ? "Restore editor" : "Expand editor")
+            </button>
+        </div>
+    </div>
+    <div class="aero-monaco-source-editor__surface">
+        <StandaloneCodeEditor @ref="_editor"
+                              Id="@EditorId"
+                              ConstructionOptions="EditorConstructionOptions"
+                              OnDidChangeModelContent="OnEditorContentChangedAsync" />
+    </div>
+</div>

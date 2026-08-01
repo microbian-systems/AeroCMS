@@ -14,7 +14,7 @@ The `AnalyticsModule` currently supports the following platforms:
 ## Configuration
 
 > [!IMPORTANT]
-> **Persistence Strategy**: All Aero.Cms settings are stored as documents within **Marten (PostgreSQL)**. Only the database connection string is stored in your `appsettings.{env}.json` files (and is typically encrypted for security).
+> **Persistence Strategy**: All Aero.Cms settings are stored as documents within **AeroDB.Sable (SurrealDB)**. Only the database connection string/endpoint is stored in your `appsettings.{env}.json` files (and is typically encrypted for security).
 
 Analytics are managed via the Admin UI, which persists the following schema to the database:
 

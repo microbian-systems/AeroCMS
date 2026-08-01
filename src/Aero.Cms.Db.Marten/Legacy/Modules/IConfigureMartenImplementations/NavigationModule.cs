@@ -1,0 +1,96 @@
+using Aero.Cms.Core;
+using Aero.Cms.Modules.Navigation.Areas.Api.v1;
+using Aero.Cms.Modules.Navigation.Domain;
+using Aero.Cms.Modules.Navigation.Projections;
+using Aero.Cms.Modules.Navigation.Rendering;
+using Aero.Cms.Modules.Navigation.Services;
+using Aero.Cms.Modules.Navigation.Validators;
+using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
+using FluentValidation;
+using JasperFx.Events.Projections;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+namespace Aero.Cms.Modules.Navigation;
+
+/// <summary>
+/// Represents a class for NavigationModule.
+/// </summary>
+[Module(nameof(NavigationModule))]
+public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarten
+{
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(NavigationModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "navigation"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "navigation", "cms"];
+
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    {
+        services.AddHttpContextAccessor();
+        services.AddScoped<INavMenuService, NavMenuService>();
+        services.AddScoped<NavMenuContext>();
+        services.AddSingleton<INavMenuHtmlRenderer, NavMenuHtmlRenderer>();
+        services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.CreateNavigationRequest>, CreateNavigationRequestValidator>();
+        services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.UpdateNavigationRequest>, UpdateNavigationRequestValidator>();
+    }
+
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        opts.Projections.Add(new NavMenuDocumentProjection(), ProjectionLifecycle.Inline);
+        opts.Projections.Add(new SiteNavigationSettingsProjection(), ProjectionLifecycle.Inline);
+
+        opts.Schema.For<NavMenuDocument>().DocumentAlias("nav_menus");
+        opts.Schema.For<NavMenuDocument>().Identity(x => x.Id);
+        opts.Schema.For<NavMenuDocument>().UseOptimisticConcurrency(true);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.SiteId);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.Culture);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.TranslationGroupId);
+        opts.Schema.For<NavMenuDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Key);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.State);
+        Configure<NavMenuDocument>(services, opts);
+
+        opts.Schema.For<SiteNavigationSettingsDocument>().DocumentAlias("site_navigation_settings");
+        opts.Schema.For<SiteNavigationSettingsDocument>().Identity(x => x.Id);
+        opts.Schema.For<SiteNavigationSettingsDocument>().UniqueIndex(x => x.SiteId);
+        opts.Schema.For<SiteNavigationSettingsDocument>().Index(x => x.DefaultNavMenuId);
+        Configure<SiteNavigationSettingsDocument>(services, opts);
+    }
+
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapNavigationAdminApi();
+        return Task.CompletedTask;
+    }
+}

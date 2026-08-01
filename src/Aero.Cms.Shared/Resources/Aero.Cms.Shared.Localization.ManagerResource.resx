@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    ManagerResource — English reference (en-US)
+    This file documents all localizable keys used in the AeroCMS Manager UI.
+    Keys follow ASP.NET Core convention: the English string itself IS the key.
+    Translators: copy the <data> entries to culture-specific .resx files and translate the values.
+    To find keys in source: search Manager .razor files for @L["key text"]
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ── Common / Shared ──────────────────────────── -->
+  <data name="Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Back" xml:space="preserve"><value>Back</value></data>
+  <data name="Next" xml:space="preserve"><value>Next</value></data>
+  <data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="Loading..." xml:space="preserve"><value>Loading...</value></data>
+  <data name="Required" xml:space="preserve"><value>Required</value></data>
+  <data name="Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Switch" xml:space="preserve"><value>Switch</value></data>
+  <data name="Light Mode" xml:space="preserve"><value>Light Mode</value></data>
+  <data name="Dark Mode" xml:space="preserve"><value>Dark Mode</value></data>
+  <data name="Sign out" xml:space="preserve"><value>Sign out</value></data>
+  <data name="Switch Site" xml:space="preserve"><value>Switch Site</value></data>
+
+  <!-- Key reference: all localized strings are in Manager .razor/.razor.cs files
+       using @L["key text"] or L["key text"] patterns.
+       For a complete key list, search: rg 'L\[".+?"\]' src/Aero.Cms.Shared/Pages/Manager/ -->
+</root>

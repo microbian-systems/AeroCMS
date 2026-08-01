@@ -1,106 +1,25 @@
 namespace Aero.Cms.Modules.Commerce.Client.Services;
 
-/// <summary>
-/// Typed HTTP client for the Commerce module's Minimal APIs.
-/// Registered in the WASM client and calls back to the server-hosted endpoints.
-/// </summary>
+/// <summary>Typed Commerce client whose customer calls never select ownership or commercial snapshots.</summary>
 public interface ICommerceClientService
 {
-    // Catalog
-    Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? search = null, string? category = null, int skip = 0, int take = 20);
-    Task<ProductDto?> GetProductByIdAsync(long id);
-    Task<ProductDto?> GetProductBySlugAsync(string slug);
-    Task<ProductDto?> CreateProductAsync(CreateProductRequest request);
-    Task<ProductDto?> UpdateProductAsync(long id, UpdateProductRequest request);
-    Task<bool> DeleteProductAsync(long id);
-
-    // Basket
-    Task<BasketDto?> GetBasketAsync(string customerId);
-    Task<BasketDto?> AddItemToBasketAsync(string customerId, AddBasketItemRequest request);
-    Task<BasketDto?> RemoveItemFromBasketAsync(string customerId, long productId);
-    Task<BasketDto?> ClearBasketAsync(string customerId);
-
-    // Orders
+    Task<IReadOnlyList<ListingDto>> GetListingsAsync(string? search = null, string? category = null, int skip = 0, int take = 20);
+    Task<ListingDto?> GetListingBySlugAsync(string slug);
+    Task<BasketDto?> GetBasketAsync();
+    Task<BasketDto?> AddItemToBasketAsync(AddBasketItemRequest request);
+    Task<BasketDto?> UpdateBasketQuantityAsync(long listingId, UpdateBasketQuantityRequest request);
+    Task<BasketDto?> RemoveItemFromBasketAsync(long listingId);
     Task<IReadOnlyList<OrderDto>> GetOrdersAsync(int skip = 0, int take = 20);
     Task<OrderDto?> GetOrderByIdAsync(long id);
+    Task<OrderDto?> CheckoutAsync(CheckoutRequest request);
 }
 
-// --- DTOs (mirror server models, no entity references) ---
-
-public sealed record ProductDto(
-    long Id,
-    string Name,
-    string Slug,
-    string? Sku,
-    string? Description,
-    string? Category,
-    decimal Price,
-    int StockQuantity,
-    bool IsPublished,
-    string? ImageUrl
-);
-
-public sealed record CreateProductRequest(
-    string Name,
-    string Slug,
-    string? Sku,
-    string? Description,
-    string? Category,
-    decimal Price,
-    int StockQuantity
-);
-
-public sealed record UpdateProductRequest(
-    string Name,
-    string Slug,
-    string? Description,
-    string? Category,
-    decimal Price,
-    int StockQuantity,
-    bool IsPublished
-);
-
-// Basket DTOs
-public sealed record BasketDto(
-    long Id,
-    string CustomerId,
-    decimal TotalAmount,
-    string Currency,
-    List<BasketItemDto> Items
-);
-
-public sealed record BasketItemDto(
-    long ProductId,
-    string ProductName,
-    string? Sku,
-    string? ImageUrl,
-    int Quantity,
-    decimal UnitPrice,
-    decimal TotalPrice
-);
-
-public sealed record AddBasketItemRequest(
-    long ProductId,
-    string ProductName,
-    string? Sku,
-    string? ImageUrl,
-    int Quantity,
-    decimal UnitPrice
-);
-
-// Order DTOs
-public sealed record OrderDto(
-    long Id,
-    string? CustomerId,
-    string Status,
-    decimal TotalAmount,
-    DateTimeOffset CreatedOn,
-    List<OrderItemDto> Items
-);
-
-public sealed record OrderItemDto(
-    long ProductId,
-    string ProductName,
-    int Quantity,
-    decimal UnitPrice
-);
+public sealed record ListingDto(long Id, string Slug, string Name, string? ShortDescription, string? Description, string? Category, string? ImageUrl, decimal Price, decimal? CompareAtPrice, string Currency, bool IsFeatured);
+public sealed record AddBasketItemRequest(long ListingId, int Quantity);
+public sealed record UpdateBasketQuantityRequest(int Quantity);
+public sealed record BasketDto(long Id, decimal TotalAmount, string Currency, List<BasketItemDto> Items);
+public sealed record BasketItemDto(long ListingId, long ProductId, string ProductName, string Sku, string? ImageUrl, int Quantity, decimal UnitPrice, string Currency, decimal TotalPrice);
+public sealed record CheckoutRequest(AddressDto ShippingAddress, AddressDto? BillingAddress = null);
+public sealed record AddressDto(string Street, string City, string? State, string PostalCode, string Country);
+public sealed record OrderDto(long Id, string Status, decimal TotalAmount, string Currency, DateTimeOffset CreatedOn, List<OrderItemDto> Items);
+public sealed record OrderItemDto(long ListingId, long ProductId, string ProductName, string Sku, int Quantity, decimal UnitPrice, string Currency);

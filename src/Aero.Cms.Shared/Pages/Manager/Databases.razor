@@ -2,16 +2,17 @@
 @page "/manager/databases/general"
 @attribute [Authorize]
 @inject DialogService DialogService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Databases</h1>
-            <p class="mt-1 text-sm pe-description">Manage your system's data-driven modules and stores.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Databases"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage your system's data-driven modules and stores."]</p>
         </div>
         <div class="flex space-x-3">
-             <RadzenButton Icon="history" Text="Migrations" ButtonStyle="ButtonStyle.Light" />
-             <RadzenButton Icon="add" Text="Connect DB" ButtonStyle="ButtonStyle.Primary" />
+             <RadzenButton Icon="history" Text="@L["Migrations"]" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="add" Text="@L["Connect DB"]" ButtonStyle="ButtonStyle.Primary" />
         </div>
     </div>
 
@@ -32,8 +33,8 @@
                     </div>
                 </div>
                 <div class="flex items-center justify-between mt-4 text-sm">
-                    <span class="text-gray-600">Status</span>
-                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Connected" />
+                    <span class="text-gray-600">@L["Status"]</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Connected"]" />
                 </div>
             </RadzenCard>
         }

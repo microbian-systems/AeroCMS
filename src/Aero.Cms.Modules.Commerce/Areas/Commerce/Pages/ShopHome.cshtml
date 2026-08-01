@@ -1,55 +1,51 @@
-@page "/shop"
 @model ShopHomeModel
 @{
     ViewData["Title"] = "Shop";
     ViewData["IsHome"] = true;
-    ViewData["HeaderTitle"] = "Welcome to Our Store";
-    ViewData["HeaderSubtitle"] = "Discover premium outdoor gear for every adventure.";
+    ViewData["HeaderTitle"] = "Welcome to the shop";
+    ViewData["HeaderSubtitle"] = "Browse products selected for this site.";
 }
 
 <div class="eshop-catalog">
-    <div style="flex:1;">
-        @* Welcome section *@
-        <div style="margin-bottom:3rem;">
-            <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:1rem;">Your Adventure Starts Here</h2>
-            <p style="font-size:1.1rem;line-height:1.7;color:#444;max-width:48rem;">
-                We carefully curate every product in our collection to ensure you get the best gear for your outdoor adventures.
-                From rugged hiking boots to lightweight camping essentials, each item is tested by our team of outdoor enthusiasts.
-            </p>
-            <p style="font-size:1.1rem;line-height:1.7;color:#444;max-width:48rem;margin-top:1rem;">
-                Whether you're planning a weekend backpacking trip or a multi-day expedition, we have the equipment you need
-                to explore with confidence. Our commitment to quality means you can focus on the journey, not your gear.
-            </p>
+    <div class="eshop-catalog-main">
+        <div class="eshop-welcome">
+            <h2>Featured products</h2>
+            <p>Explore a selection of products currently available from this store.</p>
         </div>
 
-        @* Featured products *@
-        @if (Model.FeaturedProducts?.Count > 0)
+        @if (Model.LoadFailed)
         {
-            <h3 style="font-size:1.4rem;font-weight:600;margin-bottom:1.5rem;">Featured Products</h3>
+            <div class="eshop-state eshop-state-error" role="alert">
+                The catalog is temporarily unavailable. Please try again later.
+            </div>
+        }
+        else if (Model.FeaturedProducts.Count > 0)
+        {
             <div class="eshop-catalog-items">
                 @foreach (var product in Model.FeaturedProducts)
                 {
-                    <partial name="_CatalogItemPartial" model="product" />
+                    <partial name="/Areas/Commerce/Shared/_CatalogItemPartial.cshtml" model="product" />
                 }
             </div>
         }
-
-        @* Image gallery *@
-        @if (Model.GalleryImages?.Count > 0)
+        else
         {
-            <h3 style="font-size:1.4rem;font-weight:600;margin:3rem 0 1.5rem;">Gallery</h3>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
-                @foreach (var img in Model.GalleryImages)
+            <div class="eshop-state">No featured products are available yet.</div>
+        }
+
+        @if (!Model.LoadFailed && Model.RecentProducts.Count > 0)
+        {
+            <h2 class="eshop-section-heading">Recently added</h2>
+            <div class="eshop-catalog-items">
+                @foreach (var product in Model.RecentProducts)
                 {
-                    <div style="overflow:hidden;border-radius:0.25rem;">
-                        <img src="@img" alt="Gallery" style="width:100%;height:auto;display:block;" />
-                    </div>
+                    <partial name="/Areas/Commerce/Shared/_CatalogItemPartial.cshtml" model="product" />
                 }
             </div>
         }
 
-        <div style="text-align:center;margin:3rem 0;">
-            <a href="/shop/products" class="eshop-button eshop-button-primary" style="display:inline-flex;padding:1rem 3rem;">
+        <div class="eshop-home-action">
+            <a href="/shop/products" class="eshop-button eshop-button-primary">
                 Browse All Products
             </a>
         </div>

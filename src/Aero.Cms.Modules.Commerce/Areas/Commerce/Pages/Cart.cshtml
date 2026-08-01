@@ -6,7 +6,7 @@
     ViewData["HeaderSubtitle"] = "";
 }
 
-<div class="eshop-cart">
+<div class="eshop-cart" aria-labelledby="cart-heading">
     @if (Model.Items is null)
     {
         <p class="eshop-loading">Loading...</p>
@@ -19,9 +19,9 @@
     }
     else
     {
-        <div class="eshop-cart-items">
+        <section class="eshop-cart-items">
             <div class="eshop-cart-item-header">
-                <div class="cart-item-info">Products</div>
+                <h2 id="cart-heading" class="cart-item-info">Products</h2>
                 <div class="cart-item-quantity">Quantity</div>
                 <div class="cart-item-total">Total</div>
             </div>
@@ -29,8 +29,14 @@
             {
                 <div class="eshop-cart-item">
                     <div class="cart-item-info">
-                        <img alt="@item.ProductName"
-                             src="@(item.ImageUrl ?? $"https://static.photos/blurred/640x360/{item.ProductId % 1000}")" />
+                        @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                        {
+                            <img alt="@item.ProductName" src="@item.ImageUrl" />
+                        }
+                        else
+                        {
+                            <div class="eshop-image-placeholder eshop-cart-image-placeholder" role="img" aria-label="No image available for @item.ProductName">@item.ProductName</div>
+                        }
                         <div class="cart-item-content">
                             <p class="name">@item.ProductName</p>
                             <p class="price">$@item.UnitPrice.ToString("0.00")</p>
@@ -39,8 +45,9 @@
                     <div class="cart-item-quantity">
                         <form method="post" asp-page-handler="UpdateQuantity">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="productId" value="@item.ProductId" />
-                            <input aria-label="product quantity" type="number"
+                            <input type="hidden" name="listingId" value="@item.ListingId" />
+                            <label class="visually-hidden" for="quantity-@item.ListingId">Quantity for @item.ProductName</label>
+                            <input id="quantity-@item.ListingId" aria-label="Quantity for @item.ProductName" type="number"
                                    name="quantity" value="@item.Quantity" min="0" />
                             <button type="submit" class="eshop-button eshop-button-secondary">Update</button>
                         </form>
@@ -50,20 +57,20 @@
                     </div>
                 </div>
             }
-        </div>
+        </section>
 
         <div class="eshop-cart-summary">
             <div class="eshop-cart-summary-container">
-                <div class="eshop-cart-summary-header">
+                <h2 class="eshop-cart-summary-header">
                     <img role="presentation" src="~/icons/cart.svg" alt="" />
                     Your shopping bag
                     <span class="filter-badge">@Model.TotalQuantity</span>
-                </div>
+                </h2>
                 <div class="eshop-cart-summary-total">
                     <div>Total</div>
                     <div>$@Model.TotalPrice?.ToString("0.00")</div>
                 </div>
-                <a href="/shop/checkout" class="eshop-button eshop-button-primary">Check out</a>
+                <a href="/shop/checkout" class="eshop-button eshop-button-primary">Check out securely</a>
                 <a href="/shop/products" class="eshop-cart-summary-link">
                     <img role="presentation" src="~/icons/arrow-left.svg" alt="" />
                     <p>Continue shopping</p>

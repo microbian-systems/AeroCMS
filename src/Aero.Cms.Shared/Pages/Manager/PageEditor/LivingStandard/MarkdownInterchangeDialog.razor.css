@@ -1,0 +1,14 @@
+.aero-markdown-overlay { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgb(15 23 42 / 62%); backdrop-filter: blur(4px); }
+.aero-markdown-dialog { width: min(52rem, 100%); overflow: hidden; border: 1px solid #dbe3ef; border-radius: 1rem; color: #172033; background: #fff; box-shadow: 0 28px 80px rgb(15 23 42 / 28%); }
+.aero-markdown-dialog header, .aero-markdown-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; }
+.aero-markdown-dialog header { border-bottom: 1px solid #e2e8f0; }
+.aero-markdown-dialog header span { color: #7c3aed; font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.aero-markdown-dialog h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.aero-markdown-dialog header button { border: 0; color: #64748b; background: transparent; font-size: 1.5rem; cursor: pointer; }
+.aero-markdown-dialog__body { display: grid; gap: .7rem; padding: 1.25rem; }
+.aero-markdown-dialog__body p { margin: 0; color: #475569; font-size: .85rem; line-height: 1.5; }
+.aero-markdown-dialog__body label { font-size: .85rem; font-weight: 700; }
+.aero-markdown-dialog textarea { min-height: 20rem; resize: vertical; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .85rem; color: #172033; background: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; line-height: 1.5; }
+.aero-markdown-dialog textarea[readonly] { background: #f8fafc; }
+.aero-markdown-dialog__error { border-radius: .5rem; padding: .75rem; color: #991b1b; background: #fef2f2; font-size: .8rem; }
+.aero-markdown-dialog footer { justify-content: flex-end; border-top: 1px solid #e2e8f0; }

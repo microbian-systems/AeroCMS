@@ -1,10 +1,16 @@
-@* Product card — follows eShop's CatalogListItem.razor pattern *@
-@model ProductDocument
+@model PublicListingResponse
 
 <div class="eshop-catalog-item">
     <a class="eshop-catalog-product" href="/shop/products/@Model.Slug">
         <span class="eshop-catalog-product-image">
-            <img alt="@Model.Name" src="@(Model.ImageUrl ?? $"https://static.photos/blurred/640x360/{Model.Id % 1000}")" />
+            @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+            {
+                <img alt="@Model.Name" src="@Model.ImageUrl" />
+            }
+            else
+            {
+                <span class="eshop-image-placeholder" role="img" aria-label="No image available for @Model.Name">@Model.Name</span>
+            }
         </span>
         <span class="eshop-catalog-product-content">
             <span class="name">@Model.Name</span>

@@ -1,13 +1,21 @@
-using System.Text.Json;
 using FluentValidation;
 
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Defines an interface for IContentFieldValidator.
+/// </summary>
 public interface IContentFieldValidator
 {
-    string FieldType { get; }
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+string FieldType { get; }
 
-    void ValidateElement(
+        /// <summary>
+    /// ValidateElement method.
+    /// </summary>
+void ValidateElement(
         ContentFieldDefinition field,
         JsonElement element,
         ContentValidationMode mode,

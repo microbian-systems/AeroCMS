@@ -1,5 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+using Aero.Cms.Abstractions.Theming;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
@@ -19,40 +20,21 @@ public interface IThemesHttpClient
     /// Gets detailed information for a specific theme.
     /// </summary>
     /// <param name="id">The theme identifier.</param>
+    /// <param name="version">The exact installed theme version.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The theme detail or an error.</returns>
-    Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Gets the current active theme.
-    /// </summary>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The theme detail or an error.</returns>
-    Task<Result<ThemeDetail, AeroError>> GetCurrentAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Activates a specific theme.
-    /// </summary>
-    /// <param name="id">The theme identifier to activate.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The updated theme detail or an error.</returns>
-    Task<Result<ThemeDetail, AeroError>> ActivateAsync(string id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Uploads and installs a new theme.
-    /// </summary>
-    /// <param name="request">The upload theme request.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The installed theme detail or an error.</returns>
-    Task<Result<ThemeDetail, AeroError>> UploadAsync(UploadThemeRequest request, CancellationToken ct = default);
-
-    /// <summary>
-    /// Deletes (uninstalls) a theme.
-    /// </summary>
-    /// <param name="id">The theme identifier to delete.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>True if deletion was successful or an error.</returns>
-    Task<Result<bool, AeroError>> DeleteAsync(string id, CancellationToken ct = default);
+    Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, string version, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> SaveDraftAsync(long id, SaveThemeDraftCommand command, CancellationToken ct = default);
+    Task<Result<ThemePreviewView, AeroError>> CreatePreviewAsync(long id, CancellationToken ct = default);
+    Task<Result<ThemeVersionView, AeroError>> PublishAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ThemeVersionView>, AeroError>> ListVersionsAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<SiteThemePublicationView>, AeroError>> GetPublicationHistoryAsync(CancellationToken ct = default);
+    Task<Result<SiteThemePublicationView, AeroError>> AssignAsync(AssignThemeCommand command, CancellationToken ct = default);
+    Task<Result<ThemeDefinitionView, AeroError>> ImportAsync(ThemeImportEnvelope envelope, CancellationToken ct = default);
+    Task<Result<ThemeImportEnvelope, AeroError>> ExportAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -71,45 +53,21 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
     }
 
     /// <inheritdoc />
-    public Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, CancellationToken ct = default)
+    public Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, string version, CancellationToken ct = default)
     {
-        return GetAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}", ct);
+        return GetAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}/{Uri.EscapeDataString(version)}", ct);
     }
-
-    /// <inheritdoc />
-    public Task<Result<ThemeDetail, AeroError>> GetCurrentAsync(CancellationToken ct = default)
-    {
-        return GetAsync<ThemeDetail>("current", ct);
-    }
-
-    /// <inheritdoc />
-    public Task<Result<ThemeDetail, AeroError>> ActivateAsync(string id, CancellationToken ct = default)
-    {
-        return PostAsync<object, ThemeDetail>($"{id}/activate", new object(), ct);
-    }
-
-    /// <inheritdoc />
-    public Task<Result<ThemeDetail, AeroError>> UploadAsync(UploadThemeRequest request, CancellationToken ct = default)
-    {
-        return PostAsync<UploadThemeRequest, ThemeDetail>(string.Empty, request, ct);
-    }
-
-    /// <inheritdoc />
-    public Task<Result<bool, AeroError>> DeleteAsync(string id, CancellationToken ct = default)
-    {
-        return MapBoolResult(base.DeleteAsync(id, ct));
-    }
-
-    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
-    {
-        var response = await task;
-        return response switch
-        {
-            Result<HttpResponseMessage, AeroError>.Ok => true,
-            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
-            _ => AeroError.CreateError("Unexpected result from HTTP operation")
-        };
-    }
+    public Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default) => GetAsync<IReadOnlyList<ThemeDefinitionView>>("drafts", ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default) => GetAsync<ThemeDefinitionView>($"drafts/{id}", ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default) => PostAsync<CreateThemeCommand, ThemeDefinitionView>("drafts", command, ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> SaveDraftAsync(long id, SaveThemeDraftCommand command, CancellationToken ct = default) => PutAsync<SaveThemeDraftCommand, ThemeDefinitionView>($"drafts/{id}", command, ct);
+    public Task<Result<ThemePreviewView, AeroError>> CreatePreviewAsync(long id, CancellationToken ct = default) => PostAsync<object, ThemePreviewView>($"drafts/{id}/preview", new(), ct);
+    public Task<Result<ThemeVersionView, AeroError>> PublishAsync(long id, CancellationToken ct = default) => PostAsync<object, ThemeVersionView>($"drafts/{id}/publish", new(), ct);
+    public Task<Result<IReadOnlyList<ThemeVersionView>, AeroError>> ListVersionsAsync(long id, CancellationToken ct = default) => GetAsync<IReadOnlyList<ThemeVersionView>>($"drafts/{id}/versions", ct);
+    public Task<Result<IReadOnlyList<SiteThemePublicationView>, AeroError>> GetPublicationHistoryAsync(CancellationToken ct = default) => GetAsync<IReadOnlyList<SiteThemePublicationView>>("publication-history", ct);
+    public Task<Result<SiteThemePublicationView, AeroError>> AssignAsync(AssignThemeCommand command, CancellationToken ct = default) => PostAsync<AssignThemeCommand, SiteThemePublicationView>("assign", command, ct);
+    public Task<Result<ThemeDefinitionView, AeroError>> ImportAsync(ThemeImportEnvelope envelope, CancellationToken ct = default) => PostAsync<ThemeImportEnvelope, ThemeDefinitionView>("import", envelope, ct);
+    public Task<Result<ThemeImportEnvelope, AeroError>> ExportAsync(long id, CancellationToken ct = default) => GetAsync<ThemeImportEnvelope>($"drafts/{id}/export", ct);
 }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -123,8 +81,8 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
 /// <param name="Version">The version string.</param>
 /// <param name="Author">The author name.</param>
 /// <param name="ThumbnailUrl">The optional thumbnail URL.</param>
-/// <param name="IsActive">Whether this is the active theme.</param>
-public record ThemeSummary(string Id, string Name, string Version, string Author, string? ThumbnailUrl, bool IsActive);
+/// <param name="IsSafeDefault">Whether this is the deployment's safe fallback theme.</param>
+public record ThemeSummary(string Id, string Name, string Version, string Author, string? ThumbnailUrl, bool IsSafeDefault);
 
 /// <summary>
 /// Detailed information for a theme.
@@ -135,10 +93,9 @@ public record ThemeSummary(string Id, string Name, string Version, string Author
 /// <param name="Author">The author name.</param>
 /// <param name="Description">The detailed description.</param>
 /// <param name="ThumbnailUrl">The optional thumbnail URL.</param>
-/// <param name="IsActive">Whether this is the active theme.</param>
+/// <param name="IsSafeDefault">Whether this is the deployment's safe fallback theme.</param>
 /// <param name="Assets">The list of theme assets.</param>
-/// <param name="InstalledAt">The installation time.</param>
-public record ThemeDetail(string Id, string Name, string Version, string Author, string Description, string? ThumbnailUrl, bool IsActive, IReadOnlyList<ThemeAsset> Assets, DateTime InstalledAt);
+public record ThemeDetail(string Id, string Name, string Version, string Author, string Description, string? ThumbnailUrl, bool IsSafeDefault, IReadOnlyList<ThemeAsset> Assets);
 
 /// <summary>
 /// Information about a theme asset.
@@ -146,14 +103,3 @@ public record ThemeDetail(string Id, string Name, string Version, string Author,
 /// <param name="Path">The relative path.</param>
 /// <param name="Type">The asset type.</param>
 public record ThemeAsset(string Path, string Type);
-
-/// <summary>
-/// Request to upload and install a new theme.
-/// </summary>
-/// <param name="Name">The display name.</param>
-/// <param name="Version">The version string.</param>
-/// <param name="Author">The author name.</param>
-/// <param name="Description">The detailed description.</param>
-/// <param name="FileSize">The file size in bytes.</param>
-/// <param name="Content">The base64 encoded theme package content.</param>
-public record UploadThemeRequest(string Name, string Version, string Author, string Description, long FileSize, string? Content);

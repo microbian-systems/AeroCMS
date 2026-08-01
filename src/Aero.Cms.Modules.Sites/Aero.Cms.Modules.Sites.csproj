@@ -5,10 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Actors.Abstractions\Aero.Actors.Abstractions.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
@@ -16,6 +12,10 @@
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
   </ItemGroup>
 
   <ItemGroup>

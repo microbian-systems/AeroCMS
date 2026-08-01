@@ -1,0 +1,28 @@
+@page "/manager/commerce/listings/new"
+@page "/manager/commerce/listings/{Id:long}"
+@attribute [Authorize]
+
+<PageTitle>@(IsNew ? "New listing" : "Edit listing")</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div><h1 class="text-2xl font-bold pe-heading">@(IsNew ? "New storefront listing" : "Edit storefront listing")</h1><p class="mt-1 text-sm pe-description">This listing is scoped to the selected site. Its product must belong to the same tenant.</p></div>
+    @if (IsLoading) { <p class="pe-description">Loading listing…</p> }
+    else
+    {
+        <EditForm Model="Model" OnSubmit="SaveAsync"><div class="space-y-5 max-w-3xl">
+            @if (ValidationErrors.Count > 0) { <div class="rounded border border-red-500 p-3 text-sm text-red-600"><ul class="list-disc pl-5">@foreach (var error in ValidationErrors) { <li>@error</li> }</ul></div> }
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="rounded border border-red-500 p-3 text-sm text-red-600">@ErrorMessage</div> }
+            <label class="block"><span class="text-sm font-medium">Find product</span><div class="mt-1 flex gap-2"><RadzenTextBox @bind-Value="ProductSearch" Placeholder="Search name or SKU" Style="width: 100%;" /><RadzenButton Icon="search" Text="Search" Click="SearchProductsAsync" /></div></label>
+            <label class="block"><span class="text-sm font-medium">Product</span><InputSelect class="mt-1 w-full rounded border p-2" @bind-Value="Model.ProductId"><option value="0">Select a product</option>@foreach (var product in Products) { <option value="@product.Id">@product.Name (@product.Sku) — @ProductFulfillmentLabel(product)</option> }</InputSelect><span class="text-xs pe-description">Search again to select any product in the tenant; the current selection is preserved.</span></label>
+            <div class="grid gap-4 md:grid-cols-2"><label class="block"><span class="text-sm font-medium">Culture</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Culture" /></label><label class="block"><span class="text-sm font-medium">Slug</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Slug" /></label></div>
+            <label class="block"><span class="text-sm font-medium">Display name</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Name" /></label>
+            <label class="block"><span class="text-sm font-medium">Short description</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.ShortDescription" /></label>
+            <label class="block"><span class="text-sm font-medium">Description</span><InputTextArea class="mt-1 w-full rounded border p-2" rows="5" @bind-Value="Model.Description" /></label>
+            <div class="grid gap-4 md:grid-cols-2"><label class="block"><span class="text-sm font-medium">Category</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.Category" /></label><label class="block"><span class="text-sm font-medium">Image URL</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="Model.ImageUrl" /></label></div>
+            <div class="grid gap-4 md:grid-cols-2"><label class="block"><span class="text-sm font-medium">USD price</span><InputNumber class="mt-1 w-full rounded border p-2" @bind-Value="Model.Price" /></label><label class="block"><span class="text-sm font-medium">Compare-at price</span><InputNumber class="mt-1 w-full rounded border p-2" @bind-Value="Model.CompareAtPrice" /></label></div>
+            <fieldset class="rounded border p-4" style="border-color: var(--pe-border);"><legend class="px-1 text-sm font-medium">Recurring provider offer</legend><label class="flex items-center gap-2"><InputCheckbox @bind-Value="HasSubscriptionOffer" /><span>Configure a recurring offer</span></label>@if (HasSubscriptionOffer) { <div class="mt-4 grid gap-4 md:grid-cols-3"><label class="block"><span class="text-sm font-medium">Interval days</span><InputNumber class="mt-1 w-full rounded border p-2" @bind-Value="SubscriptionIntervalDays" /></label><label class="block"><span class="text-sm font-medium">Stripe Price ID</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="StripePriceId" /></label><label class="block"><span class="text-sm font-medium">PayPal Plan ID</span><InputText class="mt-1 w-full rounded border p-2" @bind-Value="PayPalPlanId" /></label></div><p class="mt-2 text-xs pe-description">Draft offers may omit provider bindings. A published recurring listing needs at least one provider binding.</p> }</fieldset>
+            <div class="flex flex-wrap gap-5"><label class="flex items-center gap-2"><InputCheckbox @bind-Value="Model.IsPublished" /><span>Published</span></label><label class="flex items-center gap-2"><InputCheckbox @bind-Value="Model.IsFeatured" /><span>Featured</span></label></div>
+            <div class="flex gap-3"><RadzenButton ButtonType="ButtonType.Submit" Icon="save" Text="Save listing" Disabled="IsSaving" /><RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="Cancel" /></div>
+        </div></EditForm>
+    }
+</div>

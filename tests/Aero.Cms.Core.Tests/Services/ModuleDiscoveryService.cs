@@ -1,9 +1,7 @@
 using System.Reflection;
 using Aero.Cms.Core.Tests.TestModules;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Core.Tests.Services;
 

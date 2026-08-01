@@ -1,0 +1,56 @@
+@using Aero.Cms.Abstractions.Pages.Rendering
+
+<div class="aero-page-type-dialog">
+    <p class="aero-page-type-dialog__intro">
+        Choose how you want to build this page. You can't change the page type after the page is created.
+    </p>
+
+    <label for="new-page-renderer">Page type</label>
+    <select id="new-page-renderer"
+            class="aero-page-type-dialog__select"
+            @bind="_selectedRendererId"
+            autofocus>
+        @foreach (var renderer in Renderers)
+        {
+            <option value="@renderer.Id">@GetDisplayName(renderer)</option>
+        }
+    </select>
+
+    @if (SelectedRenderer is { } selected)
+    {
+        <section class="aero-page-type-dialog__details" aria-live="polite">
+            <div class="aero-page-type-dialog__heading">
+                <strong>@GetDisplayName(selected)</strong>
+                @if (selected.IsExperimental)
+                {
+                    <span class="aero-page-type-dialog__badge">Experimental</span>
+                }
+            </div>
+            <p>@GetDescription(selected)</p>
+            <dl>
+                <div>
+                    <dt>Editor</dt>
+                    <dd>@GetEditorName(selected)</dd>
+                </div>
+                @if (selected.SupportsFragments)
+                {
+                    <div>
+                        <dt>Fragments</dt>
+                        <dd>Supports Aero fragments</dd>
+                    </div>
+                }
+            </dl>
+        </section>
+    }
+
+    <div class="aero-page-type-dialog__actions">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="Cancel" />
+        <RadzenButton Text="Create page"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Disabled="@(SelectedRenderer is null)"
+                      Click="Confirm" />
+    </div>
+</div>

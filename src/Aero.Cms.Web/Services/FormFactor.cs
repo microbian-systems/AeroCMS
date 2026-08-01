@@ -2,14 +2,19 @@ using Aero.Cms.Shared.Services;
 
 namespace Aero.Cms.Web.Services;
 
+/// <summary>
+/// Describes the server-rendered web host's form factor and operating-system platform.
+/// </summary>
 public class FormFactor : IFormFactor
 {
-    public string GetFormFactor()
+    /// <inheritdoc />
+public string GetFormFactor()
     {
         return "Web";
     }
 
-    public string GetPlatform()
+    /// <inheritdoc />
+public string GetPlatform()
     {
         return Environment.OSVersion.ToString();
     }

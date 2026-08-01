@@ -1,0 +1,40 @@
+<div class="p-6 rounded-2xl" style="background: var(--pe-bg-secondary);">
+    <div class="mb-6">
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">@L["Create Header Menu"]</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Name the menu first, then edit links on the next screen."]</p>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex flex-col gap-1.5">
+            <label for="createNavMenuName" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Name"]</label>
+            <RadzenTextBox id="createNavMenuName"
+                           @bind-Value="_name"
+                           Placeholder="@L["Header Menu"]"
+                           class="w-full border-none rounded-xl text-sm px-4 py-2"
+                           style="background: var(--pe-bg-tertiary);" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+            <label for="createNavMenuDescription" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Description"]</label>
+            <RadzenTextArea id="createNavMenuDescription"
+                            @bind-Value="_description"
+                            Placeholder="@L["Primary site navigation"]"
+                            Rows="3"
+                            class="w-full border-none rounded-xl text-sm px-4 py-2"
+                            style="background: var(--pe-bg-tertiary);" />
+        </div>
+    </div>
+
+    <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
+        <RadzenButton Text="@L["Cancel"]"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="@Cancel" />
+        <RadzenButton Text="@L["Create Menu"]"
+                      Icon="add"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Filled"
+                      Disabled="@string.IsNullOrWhiteSpace(_name)"
+                      class="rounded-xl px-6 shadow-lg shadow-indigo-500/20"
+                      Click="@Submit" />
+    </div>
+</div>

@@ -37,7 +37,7 @@
 29. [Personalisation](#29-personalisation)
 30. [Analytics Hooks](#30-analytics-hooks)
 31. [Notifications](#31-notifications)
-32. [Marten Storage Conventions](#32-marten-storage-conventions)
+32. [Sable (SurrealDB) Storage Conventions](#32-sable-surrealdb-storage-conventions)
 33. [Project Structure](#33-project-structure)
 34. [Agent Swarm Implementation Notes](#34-agent-swarm-implementation-notes)
 
@@ -52,7 +52,7 @@ A block-based CMS built on ASP.NET Core where:
 - **Frontend Rendering (CMS/Blog)**: Uses Razor views for flexible, block-based rendering.
 - **API Strategy**: Core CMS features (Pages, Blog) use **Minimal APIs** for public Headless API delivery to ensure maximum performance.
 - **Other Areas (Admin/Apps)**: Continue to use MVC/Razor/HTMX or Blazor (Server/WASM) as appropriate.
-- **Storage**: PostgreSQL via Marten (document model) + `pg_vector` for semantic search.
+- **Storage**: SurrealDB via AeroDB.Sable (document model) + embeddings for semantic search.
 - **The rendering pipeline**: Chain of Responsibility pattern.
 
 ### High-Level Flow (CMS/Blog)
@@ -73,7 +73,7 @@ HTTP Request /en/about
                           └── PageReadPipeline (Chain of Responsibility)
                                     ├── [Order -10] AuthorizationHook
                                     ├── [Order -5]  CacheReadHook
-                                    ├── [Order  0]  CorePageReadHook  ← Marten fetch
+                                    ├── [Order  0]  CorePageReadHook  ← Sable fetch
                                     ├── [Order  5]  SeoEnrichmentHook
                                     └── [Order  10] AnalyticsHook
                                           │
@@ -95,10 +95,10 @@ HTTP Request /en/about
 | API Layer | **Minimal APIs** (for public Headless API) |
 | Admin UI | Razor / cshtml + HTMX + Alpine.js |
 | Styling | Tailwind CSS |
-| Database | PostgreSQL via Marten (document) + **pg_vector** (semantic) |
-| Identity/Auth | ASP.NET Core Identity (EF Core) |
+| Database | SurrealDB via AeroDB.Sable (document) + embeddings (semantic) |
+| Identity/Auth | ASP.NET Core Identity (AeroDB.AspNetIdentity) |
 | Caching | Public routes: ASP.NET Core Response Cache + Output Cache + FusionCache; Manager/admin routes: FusionCache only |
-| Search | PostgreSQL Full-Text Search + Vector Similarity |
+| Search | SurrealDB full-text search + vector similarity |
 | Background jobs | TickerQ |
 
 ---
@@ -138,7 +138,7 @@ API responses serialize blocks polymorphically using source-generated JSON metad
 1.  **DTO Efficiency:** Use `[JsonSerializable]` for all Headless API DTOs within a `JsonSerializerContext` to support high-performance serialization.
 2.  **Minimal APIs:** Use Route Groups for Headless APIs to apply shared metadata, authorization, and filters.
 3.  **Custom Endpoint Filters:** Implement `IEndpointFilter` for global error handling and request logging on Headless API routes.
-4.  **Direct DI:** Inject `IFusionCache` and `IDocumentSession` (Marten) directly into delegate handlers and manager/admin data services.
+4.  **Direct DI:** Inject `IFusionCache` and `IDocumentSession` (AeroDB.Sable) directly into delegate handlers and manager/admin data services.
 5.  **Cache Profiles:** Use Response + Output + FusionCache for public-facing CMS routes. Use FusionCache only for Manager/admin data and invalidate it through Wolverine messages.
 6.  **Admin Purge:** Implement `POST /admin/clear-cache` to allow manual cache invalidation.
 

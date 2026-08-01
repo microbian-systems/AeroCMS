@@ -5,14 +5,30 @@ using Microsoft.Extensions.Options;
 namespace Aero.Cms.Modules.Analytics;
 
 
-// todo - use view components here. StringBuilder is absolute wrong way to do this
+/// <summary>
+/// Adds configured analytics bootstrap markup to page-read metadata.
+/// </summary>
+/// <param name="settings">Analytics settings captured when the scoped hook is created.</param>
+/// <remarks>
+/// The hook does not make outbound calls or persist events. It writes the <c>AnalyticsScripts</c>
+/// metadata value only when at least one configured provider contributes markup.
+/// </remarks>
 public class AnalyticsInjectionHook(IOptions<AnalyticsSettings> settings) : IPageReadHook
 {
     private readonly AnalyticsSettings _settings = settings.Value;
 
-    public int Order => 100; // Run late to inject scripts
+    /// <summary>
+    /// Gets the late pipeline order used to inject scripts after earlier page-read hooks.
+    /// </summary>
+public int Order => 100; // Run late to inject scripts
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+    /// <summary>
+    /// Builds provider snippets for non-empty settings and assigns them to page metadata.
+    /// </summary>
+    /// <param name="ctx">The page-read context whose metadata may receive <c>AnalyticsScripts</c>.</param>
+    /// <param name="ct">Unused cancellation token.</param>
+    /// <returns>A task that is already complete after metadata assignment.</returns>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         var sb = new StringBuilder();
 

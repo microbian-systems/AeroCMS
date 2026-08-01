@@ -12,7 +12,10 @@ public sealed class AuditService : IAuditService
 {
     private readonly ILogger<AuditService> _logger;
 
-    public AuditService(ILogger<AuditService> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AuditService"/> class.
+    /// </summary>
+public AuditService(ILogger<AuditService> logger)
     {
         _logger = logger;
     }

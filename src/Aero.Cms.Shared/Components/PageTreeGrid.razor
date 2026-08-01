@@ -1,0 +1,605 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
+@inject IPagesHttpClient PagesApi
+@inject NavigationManager Navigation
+@inject Radzen.DialogService DialogService
+@inject Radzen.ContextMenuService ContextMenuService
+@inject Radzen.NotificationService NotificationService
+@inject ICurrentSiteAccessor CurrentSiteAccessor
+
+<RadzenDataGrid TItem="PageTranslationGroupTreeItem"
+                Data="@_rootNodes"
+                AllowRowSelectOnRowClick="true"
+                RowClick="@OnRowClick"
+                AllowColumnResize="true"
+                RowRender="@RowRender"
+                LoadChildData="@LoadChildData"
+                CellContextMenu="@OnCellContextMenu"
+                style="max-height: 70vh; overflow-y: auto;">
+    <Columns>
+        @* Checkbox column — multi-select *@
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="" Width="48px" Filterable="false" Sortable="false">
+            <HeaderTemplate>
+                <input type="checkbox"
+                       @onchange="ToggleSelectAll"
+                       checked="@AreAllVisibleSelected()"
+                       @onclick:stopPropagation="true"
+                       class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            </HeaderTemplate>
+            <Template Context="node">
+                <input type="checkbox"
+                       checked="@_selectedIds.Contains(node.TranslationGroupId)"
+                       @onchange="() => ToggleSelection(node.TranslationGroupId)"
+                       @onclick:stopPropagation="true"
+                       class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            </Template>
+        </RadzenDataGridColumn>
+
+        @* Icon / preview column *@
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="" Width="50px" Sortable="false">
+            <Template Context="node">
+                <button @onclick="() => PreviewAsync(node)" @onclick:stopPropagation="true"
+                        class="hover:opacity-70 cursor-pointer border-0 bg-transparent p-0"
+                        title="Preview page">
+                    @if (node.HasChildren)
+                    { <RadzenIcon Icon="folder_open" class="text-yellow-500" /> }
+                    else
+                    { <RadzenIcon Icon="description" class="text-gray-400" /> }
+                </button>
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Title)" Title="Title" Width="250px" Sortable="true">
+            <Template Context="node">
+                <div class="flex flex-col gap-1">
+                    <span class="font-medium">@node.Title</span>
+                    @if (node.MissingDefaultCulture || node.MissingSelectedCulture)
+                    {
+                        <span class="inline-flex w-fit items-center rounded bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">
+                            @(node.MissingSelectedCulture ? $"Missing {_selectedCulture}" : $"Missing {node.DefaultCulture}")
+                        </span>
+                    }
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Slug)" Title="Slug" Width="180px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Path" Width="300px" Sortable="true">
+            <Template Context="node">
+                <span class="text-gray-500 text-sm font-mono">@node.Path</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Cultures" Width="190px" Sortable="false">
+            <Template Context="node">
+                <div class="flex flex-wrap items-center gap-1">
+                    @foreach (var variant in node.Variants)
+                    {
+                        <button class="rounded border px-2 py-0.5 text-xs font-semibold"
+                                style="border-color: var(--pe-border); color: var(--pe-text-secondary);"
+                                title="@($"{variant.Culture}: {variant.Title}")"
+                                @onclick="() => ViewTranslationsAsync(node)"
+                                @onclick:stopPropagation="true">
+                            @variant.Culture
+                        </button>
+                    }
+                    @if (GetMissingCultures(node).Any())
+                    {
+                        <button class="rounded bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800"
+                                title="View missing translations"
+                                @onclick="() => ViewTranslationsAsync(node)"
+                                @onclick:stopPropagation="true">
+                            @node.Variants.Count / @SupportedCultures.Count
+                        </button>
+                    }
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.PublicationState)" Title="Status" Width="110px" Sortable="true">
+            <Template Context="node">
+                <RadzenBadge Text="@node.PublicationState" BadgeStyle="@GetBadgeStyle(node.PublicationState)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Depth)" Title="Depth" Width="70px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Hidden" Width="70px" Sortable="true">
+            <Template Context="node">
+                @if (node.IsHidden)
+                { <RadzenIcon Icon="visibility_off" class="text-gray-400" /> }
+                else
+                { <RadzenIcon Icon="visibility" class="text-green-500" /> }
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Actions" Width="210px" Sortable="false">
+            <Template Context="node">
+                <div class="flex gap-1">
+                    <RadzenButton Icon="control_point" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => AddChildAsync(node))" Title="Add child page" />
+                    <RadzenButton Icon="translate" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => ViewTranslationsAsync(node))" Title="View translations" />
+                    <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => EditAsync(node))" />
+                    <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => ConfirmDeleteAsync(node))" />
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+    <Template Context="node">
+        <div class="px-8 py-4" style="background: var(--pe-bg-secondary);">
+            <div class="mb-3 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">Localized versions</h3>
+                    <p class="text-xs" style="color: var(--pe-text-muted);">@node.Variants.Count of @SupportedCultures.Count site cultures created.</p>
+                </div>
+                @if (GetMissingCultures(node).Any())
+                {
+                    <RadzenButton Icon="add"
+                                  Text="Add translation"
+                                  Size="ButtonSize.Small"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Click="@(() => AddTranslationAsync(node))" />
+                }
+            </div>
+
+            <div class="overflow-hidden rounded border" style="border-color: var(--pe-border);">
+                <table class="w-full text-sm">
+                    <thead style="background: var(--pe-bg-tertiary); color: var(--pe-text-muted);">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-semibold">Culture</th>
+                            <th class="px-3 py-2 text-left font-semibold">Title</th>
+                            <th class="px-3 py-2 text-left font-semibold">Path</th>
+                            <th class="px-3 py-2 text-left font-semibold">Status</th>
+                            <th class="px-3 py-2 text-left font-semibold">Hidden</th>
+                            <th class="px-3 py-2 text-left font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var variant in node.Variants)
+                        {
+                            <tr class="border-t" style="border-color: var(--pe-border); color: var(--pe-text-primary);">
+                                <td class="px-3 py-2">
+                                    <span class="font-semibold">@variant.Culture</span>
+                                    @if (variant.IsDefaultCulture)
+                                    {
+                                        <span class="ml-2 rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">default</span>
+                                    }
+                                </td>
+                                <td class="px-3 py-2">@variant.Title</td>
+                                <td class="px-3 py-2 font-mono text-xs" style="color: var(--pe-text-muted);">@variant.Path</td>
+                                <td class="px-3 py-2"><RadzenBadge Text="@variant.PublicationState" BadgeStyle="@GetBadgeStyle(variant.PublicationState)" /></td>
+                                <td class="px-3 py-2">
+                                    @if (variant.IsHidden)
+                                    { <RadzenIcon Icon="visibility_off" class="text-gray-400" /> }
+                                    else
+                                    { <RadzenIcon Icon="visibility" class="text-green-500" /> }
+                                </td>
+                                <td class="px-3 py-2">
+                                    <div class="flex gap-1">
+                                        <RadzenButton Icon="open_in_new" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                      Click="@(() => OpenPublicVariantAsync(variant))" Title="Open public page" />
+                                        <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                      Click="@(() => EditVariantAsync(variant))" Title="Edit translation" />
+                                        @if (string.Equals(variant.PublicationState, "Published", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <RadzenButton Icon="visibility_off" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                          Click="@(() => UnpublishVariantAsync(variant))" Title="Unpublish translation" />
+                                        }
+                                        else
+                                        {
+                                            <RadzenButton Icon="publish" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                          Click="@(() => PublishVariantAsync(variant))" Title="Publish translation" />
+                                        }
+                                        <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                      Click="@(() => ConfirmDeleteVariantAsync(node, variant))" Title="Delete translation" />
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (GetMissingCultures(node).Any())
+            {
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @foreach (var culture in GetMissingCultures(node))
+                    {
+                        <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Missing @culture</span>
+                    }
+                </div>
+            }
+        </div>
+    </Template>
+</RadzenDataGrid>
+
+@* Bulk delete bar *@
+@if (_selectedIds.Count > 0)
+{
+    <div class="flex items-center gap-3 justify-end mt-3">
+        <span style="color: var(--pe-text-muted);">@_selectedIds.Count selected</span>
+        <RadzenButton Icon="delete" Text="Delete Selected"
+                      ButtonStyle="ButtonStyle.Danger"
+                      Variant="Variant.Outlined"
+                      class="rounded-xl px-6 font-bold text-xs"
+                      Click="@DeleteSelectedAsync" />
+    </div>
+}
+
+@code {
+    private List<PageTranslationGroupTreeItem> _rootNodes = [];
+    private string? _error;
+    private HashSet<long> _selectedIds = [];
+    private SiteViewModel? _currentSite;
+    private string _selectedCulture = "";
+    private string? _search;
+
+    private IReadOnlyList<string> SupportedCultures =>
+        _currentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [_currentSite?.DefaultCulture ?? "en-US"];
+
+    /// <summary>
+    /// Optional callback: when the icon column is clicked, fires so
+    /// the parent page can show a preview overlay instead of navigating.
+    /// </summary>
+    [Parameter] public EventCallback<PageTranslationGroupTreeItem> OnPreview { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        _selectedCulture = _currentSite?.DefaultCulture ?? "en-US";
+        await LoadRootsAsync();
+    }
+
+    private async Task LoadRootsAsync()
+    {
+        _error = null;
+        _selectedIds.Clear();
+        try
+        {
+            var result = await PagesApi.GetTranslationGroupChildrenAsync(null, _selectedCulture, _search);
+            _rootNodes = result is Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>.Ok ok
+                ? ok.Value.ToList()
+                : [];
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task LoadChildData(DataGridLoadChildDataEventArgs<PageTranslationGroupTreeItem> args)
+    {
+        try
+        {
+            var result = await PagesApi.GetTranslationGroupChildrenAsync(args.Item!.TranslationGroupId, _selectedCulture, _search);
+            args.Data = result is Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>.Ok ok
+                ? ok.Value.ToList()
+                : [];
+        }
+        catch { /* children silently fail */ }
+    }
+
+    private static void RowRender(RowRenderEventArgs<PageTranslationGroupTreeItem> args)
+    {
+        args.Expandable = args.Data.HasChildren;
+    }
+
+    private static Radzen.BadgeStyle GetBadgeStyle(string state) => state switch
+    {
+        "Published" => Radzen.BadgeStyle.Success,
+        "Draft" => Radzen.BadgeStyle.Secondary,
+        "Archived" => Radzen.BadgeStyle.Dark,
+        "InReview" => Radzen.BadgeStyle.Warning,
+        "Scheduled" => Radzen.BadgeStyle.Info,
+        _ => Radzen.BadgeStyle.Light
+    };
+
+    // ── Selection ──────────────────────────────────────────────────
+
+    private bool AreAllVisibleSelected()
+    {
+        return _rootNodes.Count > 0 && _rootNodes.All(n => _selectedIds.Contains(n.TranslationGroupId));
+    }
+
+    private void ToggleSelection(long id)
+    {
+        if (_selectedIds.Contains(id))
+            _selectedIds.Remove(id);
+        else
+            _selectedIds.Add(id);
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs args)
+    {
+        if (args.Value is bool isChecked && isChecked)
+        {
+            foreach (var node in _rootNodes)
+                _selectedIds.Add(node.TranslationGroupId);
+        }
+        else
+        {
+            _selectedIds.Clear();
+        }
+    }
+
+    // ── Inline row actions ────────────────────────────────────────
+
+    private async Task PreviewAsync(PageTranslationGroupTreeItem node)
+    {
+        if (OnPreview.HasDelegate)
+            await OnPreview.InvokeAsync(node);
+        else
+            Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
+    }
+
+    private void EditAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
+    }
+
+    private void AddChildAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor?parentId={node.DisplayPageId}");
+    }
+
+    private void OnRowClick(DataGridRowMouseEventArgs<PageTranslationGroupTreeItem> args)
+    {
+        if (args.Data is not null)
+            Navigation.NavigateTo($"/manager/page/editor/{args.Data.DisplayPageId}");
+    }
+
+    private void ViewTranslationsAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}?tab=translations");
+    }
+
+    private void AddTranslationAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}?tab=translations");
+    }
+
+    private void OpenPublicVariantAsync(PageTranslationVariantItem variant)
+    {
+        Navigation.NavigateTo(variant.Path, forceLoad: true);
+    }
+
+    private void EditVariantAsync(PageTranslationVariantItem variant)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{variant.Id}");
+    }
+
+    private async Task PublishVariantAsync(PageTranslationVariantItem variant)
+    {
+        var result = await PagesApi.PublishAsync(variant.Id);
+        NotifyPublicationResult(result, variant, "publish", "published");
+        await LoadRootsAsync();
+    }
+
+    private async Task UnpublishVariantAsync(PageTranslationVariantItem variant)
+    {
+        var result = await PagesApi.UnpublishAsync(variant.Id);
+        NotifyPublicationResult(result, variant, "unpublish", "unpublished");
+        await LoadRootsAsync();
+    }
+
+    private async Task ConfirmDeleteVariantAsync(
+        PageTranslationGroupTreeItem node,
+        PageTranslationVariantItem variant)
+    {
+        var deletesGroup = variant.IsDefaultCulture;
+        var message = deletesGroup
+            ? $"Delete the default '{variant.Culture}' version and all {node.Variants.Count} localized version(s)?"
+            : $"Delete the '{variant.Culture}' translation of '{node.Title}'?";
+        var confirmed = await DialogService.Confirm(
+            message,
+            "Delete translation",
+            new ConfirmOptions
+            {
+                OkButtonText = deletesGroup ? "Delete All Locales" : "Delete",
+                CancelButtonText = "Cancel"
+            });
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        bool deleted;
+        if (deletesGroup)
+        {
+            var result = await PagesApi.DeleteTranslationGroupAsync(node.TranslationGroupId);
+            deleted = result is Result<int, AeroError>.Ok { Value: > 0 };
+        }
+        else
+        {
+            deleted = await DeleteVariantAsync(variant.Id);
+        }
+
+        if (deleted)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Success,
+                "Deleted",
+                deletesGroup
+                    ? $"All localized versions of '{node.Title}' were removed."
+                    : $"The '{variant.Culture}' translation was removed.");
+            await LoadRootsAsync();
+        }
+        else
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Error",
+                "Failed to delete the translation.");
+        }
+    }
+
+    private async Task<bool> DeleteVariantAsync(long pageId)
+    {
+        var result = await PagesApi.DeleteAsync(pageId);
+        return result is Result<bool, AeroError>.Ok { Value: true };
+    }
+
+    private void NotifyPublicationResult(
+        Result<PageDetail, AeroError> result,
+        PageTranslationVariantItem variant,
+        string action,
+        string completedAction)
+    {
+        if (result is Result<PageDetail, AeroError>.Ok)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Success,
+                "Updated",
+                $"The '{variant.Culture}' translation was {completedAction}.");
+            return;
+        }
+
+        NotificationService.Notify(
+            NotificationSeverity.Error,
+            "Error",
+            $"Failed to {action} the '{variant.Culture}' translation.");
+    }
+
+    // ── Delete (with cascade support) ─────────────────────────────
+
+    private async Task ConfirmDeleteAsync(PageTranslationGroupTreeItem node)
+    {
+        if (node.HasChildren)
+        {
+            var choice = await DialogService.OpenAsync<CascadeDeleteDialog>(
+                "Delete page",
+                new Dictionary<string, object>
+                {
+                    ["Title"] = node.Title
+                },
+                new DialogOptions { Width = "520px", CloseDialogOnOverlayClick = false });
+
+            if (choice is null or false) return;
+
+            var action = choice?.ToString();
+            if (action == "delete")
+            {
+                var result = await PagesApi.DeleteCascadeAsync(node.DisplayPageId);
+                if (result is Result<bool, AeroError>.Ok)
+                    NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"Page '{node.Title}' and its descendants removed.");
+                else
+                    NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to delete page.");
+            }
+            else if (action == "unpublish")
+            {
+                var result = await PagesApi.UnpublishAsync(node.DisplayPageId);
+                if (result is Result<PageDetail, AeroError>.Ok)
+                    NotificationService.Notify(NotificationSeverity.Success, "Draft", $"Page '{node.Title}' converted to draft. Children preserved.");
+                else
+                    NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to update page.");
+            }
+            await LoadRootsAsync();
+        }
+        else
+        {
+            var defaultVariant = GetDefaultVariant(node);
+            var deletesGroup = defaultVariant is null || defaultVariant.Id == node.DisplayPageId;
+            var message = deletesGroup
+                ? $"Delete '{node.Title}' and all {node.Variants.Count} localized version(s)? This cannot be undone."
+                : $"Delete page '{node.Title}'?";
+            var okText = deletesGroup ? "Delete All Locales" : "Delete";
+            var confirmed = await DialogService.Confirm(
+                message, "Confirm Delete",
+                new ConfirmOptions { OkButtonText = okText, CancelButtonText = "Cancel" });
+            if (confirmed == true)
+            {
+                if (deletesGroup)
+                {
+                    await PagesApi.DeleteTranslationGroupAsync(node.TranslationGroupId);
+                }
+                else
+                {
+                    await PagesApi.DeleteAsync(node.DisplayPageId);
+                }
+
+                await LoadRootsAsync();
+            }
+        }
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        if (_selectedIds.Count == 0) return;
+
+        var confirm = await DialogService.Confirm(
+            $"Are you sure you want to delete {_selectedIds.Count} page(s)? This action cannot be undone.",
+            "Delete Pages",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirm != true) return;
+
+        var deleted = 0;
+        foreach (var translationGroupId in _selectedIds.ToList())
+        {
+            var result = await PagesApi.DeleteTranslationGroupAsync(translationGroupId);
+            if (result is Result<int, AeroError>.Ok ok)
+            {
+                deleted += ok.Value;
+            }
+        }
+
+        if (deleted > 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{deleted} localized page(s) removed.");
+            _selectedIds.Clear();
+            await LoadRootsAsync();
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Delete", "No pages were removed.");
+        }
+    }
+
+    // ── Right-click context menu ──────────────────────────────────
+
+    private void OnCellContextMenu(DataGridCellMouseEventArgs<PageTranslationGroupTreeItem> args)
+    {
+        if (args.Data is null) return;
+
+        ContextMenuService.Open(args,
+        [
+            new() { Text = "Edit", Value = "edit", Icon = "edit" },
+            new() { Text = "View translations", Value = "translations", Icon = "translate" },
+            new() { Text = "Add child page", Value = "add-child", Icon = "control_point" },
+            new() { Text = "Delete", Value = "delete", Icon = "delete" },
+        ],
+        (item) =>
+        {
+            var node = args.Data;
+            switch (item.Value as string)
+            {
+                case "edit":
+                    Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
+                    break;
+                case "translations":
+                    ViewTranslationsAsync(node);
+                    break;
+                case "add-child":
+                    Navigation.NavigateTo($"/manager/page/editor?parentId={node.DisplayPageId}");
+                    break;
+                case "delete":
+                    _ = ConfirmDeleteAsync(node);
+                    break;
+            }
+        });
+    }
+
+    private IReadOnlyList<string> GetMissingCultures(PageTranslationGroupTreeItem node)
+    {
+        var existing = node.Variants
+            .Select(variant => variant.Culture)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return SupportedCultures
+            .Where(culture => !existing.Contains(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(culture => culture, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static PageTranslationVariantItem? GetDefaultVariant(PageTranslationGroupTreeItem node)
+        => node.Variants.FirstOrDefault(variant => variant.IsDefaultCulture);
+}

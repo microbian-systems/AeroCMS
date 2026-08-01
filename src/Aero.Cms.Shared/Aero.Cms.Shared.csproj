@@ -4,25 +4,71 @@
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Blazor.Radzen.Theming" />
     <PackageReference Include="BlazorMonaco" />
-    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
+    <PackageReference Include="Microsoft.Extensions.Localization" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <PackageReference Include="Microsoft.TypeScript.MSBuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NeoUI.Blazor" />
+    <PackageReference Include="NeoUI.Blazor.Primitives" />
+    <PackageReference Include="NeoUI.Icons.Lucide" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ts\" />
+    <Folder Include="Pages\Manager\Users\" />
     <Folder Include="Security\" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
-    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Content Remove="tsconfig.json;ts\**\*" />
+    <None Remove="tsconfig.json;ts\**\*" />
+    <TypeScriptCompile Remove="ts\**\*" />
+    <None Include="tsconfig.json;ts\**\*" Pack="false" Visible="false" />
   </ItemGroup>
+
+  <PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <DefineConstants>$(DefineConstants);AERO_CMS_BROWSER_CLIENT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=true" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj"
+                      AdditionalProperties="$(AeroCmsBrowserDependencyProperties)"
+                      GlobalPropertiesToRemove="AeroCmsBrowserClient" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj"
+                      PrivateAssets="all" />
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
+  </ItemGroup>
+
+  <Target Name="AeroCompileSharedTypeScriptBeforeStaticWebAssets"
+          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
+          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+    <PropertyGroup>
+      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
+      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
+    </PropertyGroup>
+    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
+  </Target>
 
 </Project>

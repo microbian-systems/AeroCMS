@@ -3,9 +3,13 @@ using Aero.AppServer.Startup;
 
 namespace Aero.Cms.Modules.Setup.Configuration;
 
+/// <summary>
+/// Adapts the host's data-protection bootstrap settings into the setup module contract.
+/// </summary>
 public sealed class ConfigurationDataProtectionCertificateSettingsProvider(IConfiguration configuration) : IDataProtectionCertificateSettingsProvider
 {
-    public DataProtectionCertificateSettings GetSettings()
+    /// <inheritdoc />
+public DataProtectionCertificateSettings GetSettings()
     {
         var settings = DataProtectionCertificateBootstrapper.ResolveSettings(configuration);
 

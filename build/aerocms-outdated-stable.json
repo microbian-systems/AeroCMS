@@ -1,0 +1,1235 @@
+{
+  "version": 1,
+  "parameters": "--outdated",
+  "sources": [
+    "https://api.nuget.org/v3/index.json",
+    "C:/Program Files (x86)/Microsoft SDKs/NuGetPackages/"
+  ],
+  "projects": [
+    {
+      "path": "D:/proj/microbians/AeroCMS/tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "TUnit",
+              "requestedVersion": "1.45.8",
+              "resolvedVersion": "1.45.8",
+              "latestVersion": "1.58.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.AppServer/Aero.AppServer.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.Extensions.Caching.Abstractions",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Extensions.Configuration.Abstractions",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Extensions.Hosting.Abstractions",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Garnet",
+              "requestedVersion": "1.1.8",
+              "resolvedVersion": "1.1.8",
+              "latestVersion": "1.1.10"
+            },
+            {
+              "id": "Microsoft.Orleans.Clustering.Redis",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.GrainDirectory.Redis",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Persistence.Memory",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Persistence.Redis",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Reminders",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Reminders.Redis",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Server",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Streaming",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "Microsoft.Orleans.Transactions",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "System.Numerics.Tensors",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Weasel.Postgresql",
+              "requestedVersion": "9.16.2",
+              "resolvedVersion": "9.16.2",
+              "latestVersion": "9.16.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Abstractions/Aero.Cms.Abstractions.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.AppHost/Aero.Cms.AppHost.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Contracts/Aero.Cms.Contracts.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Core.Entities/Aero.Cms.Core.Entities.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Core/Aero.Cms.Core.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Routing.Abstractions",
+              "requestedVersion": "2.3.10",
+              "resolvedVersion": "2.3.10",
+              "latestVersion": "2.3.11"
+            },
+            {
+              "id": "Microsoft.Extensions.DependencyModel",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Scriban",
+              "requestedVersion": "7.2.0",
+              "resolvedVersion": "7.2.0",
+              "latestVersion": "7.2.5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Data/Aero.Cms.Data.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Marten/Aero.Cms.Db.Marten.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Marten.AspNetCore",
+              "requestedVersion": "8.37.1",
+              "resolvedVersion": "8.37.1",
+              "latestVersion": "9.14.0"
+            },
+            {
+              "id": "Weasel.Postgresql",
+              "requestedVersion": "9.16.2",
+              "resolvedVersion": "9.16.2",
+              "latestVersion": "9.16.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Polecat/Aero.Cms.Db.Polecat.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Sable/Aero.Cms.Db.Sable.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Generated.Json/Aero.Cms.Generated.Json.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.Extensions.ServiceDiscovery",
+              "requestedVersion": "10.6.0",
+              "resolvedVersion": "10.6.0",
+              "latestVersion": "10.7.0"
+            },
+            {
+              "id": "OpenTelemetry.Exporter.OpenTelemetryProtocol",
+              "requestedVersion": "1.15.3",
+              "resolvedVersion": "1.15.3",
+              "latestVersion": "1.16.0"
+            },
+            {
+              "id": "OpenTelemetry.Extensions.Hosting",
+              "requestedVersion": "1.15.3",
+              "resolvedVersion": "1.15.3",
+              "latestVersion": "1.16.0"
+            },
+            {
+              "id": "OpenTelemetry.Instrumentation.AspNetCore",
+              "requestedVersion": "1.15.2",
+              "resolvedVersion": "1.15.2",
+              "latestVersion": "1.16.0"
+            },
+            {
+              "id": "OpenTelemetry.Instrumentation.Http",
+              "requestedVersion": "1.15.1",
+              "resolvedVersion": "1.15.1",
+              "latestVersion": "1.16.0"
+            },
+            {
+              "id": "OpenTelemetry.Instrumentation.Runtime",
+              "requestedVersion": "1.15.1",
+              "resolvedVersion": "1.15.1",
+              "latestVersion": "1.16.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Services/Aero.Cms.Services.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Shared/Aero.Cms.Shared.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Blazor.Radzen.Theming",
+              "requestedVersion": "10.2.3",
+              "resolvedVersion": "10.2.3",
+              "latestVersion": "10.4.7"
+            },
+            {
+              "id": "BlazorMonaco",
+              "requestedVersion": "3.4.0",
+              "resolvedVersion": "3.4.0",
+              "latestVersion": "3.5.0"
+            },
+            {
+              "id": "Markdig",
+              "requestedVersion": "1.2.0",
+              "resolvedVersion": "1.2.0",
+              "latestVersion": "1.3.2"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Components.Authorization",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Components.Web",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Extensions.Localization",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "NeoUI.Blazor",
+              "requestedVersion": "4.1.5",
+              "resolvedVersion": "4.1.5",
+              "latestVersion": "4.1.20"
+            },
+            {
+              "id": "NeoUI.Blazor.Primitives",
+              "requestedVersion": "4.0.5",
+              "resolvedVersion": "4.0.5",
+              "latestVersion": "4.0.8"
+            },
+            {
+              "id": "Radzen.Blazor",
+              "requestedVersion": "10.4.3",
+              "resolvedVersion": "10.4.3",
+              "latestVersion": "11.1.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.SourceGenerators/Aero.Cms.SourceGenerators.csproj",
+      "frameworks": [
+        {
+          "framework": "netstandard2.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.CodeAnalysis.CSharp",
+              "requestedVersion": "5.3.0",
+              "resolvedVersion": "5.3.0",
+              "latestVersion": "5.6.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Ui.Hyper/Aero.Cms.Ui.Hyper.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.Web",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Ui.Neo/Aero.Cms.Ui.Neo.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.Web",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "NeoUI.Blazor",
+              "requestedVersion": "4.1.5",
+              "resolvedVersion": "4.1.5",
+              "latestVersion": "4.1.20"
+            },
+            {
+              "id": "NeoUI.Blazor.Primitives",
+              "requestedVersion": "4.0.5",
+              "resolvedVersion": "4.0.5",
+              "latestVersion": "4.0.8"
+            },
+            {
+              "id": "Radzen.Blazor",
+              "requestedVersion": "10.4.3",
+              "resolvedVersion": "10.4.3",
+              "latestVersion": "11.1.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Bootstrap/Aero.Cms.Web.Bootstrap.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebAssembly.Server",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.OpenApi",
+              "requestedVersion": "10.0.0",
+              "resolvedVersion": "10.0.0",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Radzen.Blazor",
+              "requestedVersion": "10.4.3",
+              "resolvedVersion": "10.4.3",
+              "latestVersion": "11.1.3"
+            },
+            {
+              "id": "Scalar.AspNetCore",
+              "requestedVersion": "2.14.14",
+              "resolvedVersion": "2.14.14",
+              "latestVersion": "2.16.11"
+            },
+            {
+              "id": "Scalar.AspNetCore.Microsoft",
+              "requestedVersion": "2.14.14",
+              "resolvedVersion": "2.14.14",
+              "latestVersion": "2.16.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.Authorization",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Components.WebAssembly",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Extensions.Localization",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.Extensions.Configuration.Abstractions",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web/Aero.Cms.Web.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebAssembly.Server",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.EntityFrameworkCore.Relational",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.Orleans.Server",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            },
+            {
+              "id": "RazorSlices",
+              "requestedVersion": "0.10.1",
+              "resolvedVersion": "0.10.1",
+              "latestVersion": "0.11.1"
+            },
+            {
+              "id": "Scalar.AspNetCore",
+              "requestedVersion": "2.14.14",
+              "resolvedVersion": "2.14.14",
+              "latestVersion": "2.16.11"
+            },
+            {
+              "id": "Scalar.AspNetCore.Microsoft",
+              "requestedVersion": "2.14.14",
+              "resolvedVersion": "2.14.14",
+              "latestVersion": "2.16.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms/Aero.Cms.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebView.Maui",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            },
+            {
+              "id": "Microsoft.Maui.Controls",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            }
+          ]
+        },
+        {
+          "framework": "net10.0-android36.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebView.Maui",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            },
+            {
+              "id": "Microsoft.Maui.Controls",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            }
+          ]
+        },
+        {
+          "framework": "net10.0-ios26.5",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebView.Maui",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            },
+            {
+              "id": "Microsoft.Maui.Controls",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            }
+          ]
+        },
+        {
+          "framework": "net10.0-maccatalyst26.5",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebView.Maui",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            },
+            {
+              "id": "Microsoft.Maui.Controls",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            }
+          ]
+        },
+        {
+          "framework": "net10.0-windows10.0.19041",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.WebView.Maui",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            },
+            {
+              "id": "Microsoft.Maui.Controls",
+              "requestedVersion": "10.0.60",
+              "resolvedVersion": "10.0.60",
+              "latestVersion": "10.0.80"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Actors.Abstractions/Aero.Actors.Abstractions.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Actors/Aero.Actors.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Auth/Aero.Auth.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Caching/Aero.Caching.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Cloudflare/Aero.Cloudflare.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Http",
+              "requestedVersion": "2.3.10",
+              "resolvedVersion": "2.3.10",
+              "latestVersion": "2.3.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Core.Ai/Aero.Core.Ai.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Core/Aero.Core.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.EfCore/Aero.EfCore.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Events/Aero.Events.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Marten/Aero.Marten.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Models/Aero.Models.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Modular/Aero.Modular.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Secrets/Aero.Secrets.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Services/Aero.Services.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "PasswordGenerator",
+              "requestedVersion": "2.1.0",
+              "resolvedVersion": "2.1.0",
+              "latestVersion": "3.0.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.SignalR/Aero.SignalR.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.SignalR",
+              "requestedVersion": "1.2.10",
+              "resolvedVersion": "1.2.10",
+              "latestVersion": "1.2.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Social/Aero.Social.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Validators/Aero.Validators.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Web/Aero.Web.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Foundatio",
+              "requestedVersion": "13.0.1",
+              "resolvedVersion": "13.0.1",
+              "latestVersion": "13.0.2"
+            },
+            {
+              "id": "Mapster",
+              "requestedVersion": "10.0.7",
+              "resolvedVersion": "10.0.7",
+              "latestVersion": "10.0.10"
+            },
+            {
+              "id": "Mapster.DependencyInjection",
+              "requestedVersion": "10.0.7",
+              "resolvedVersion": "10.0.7",
+              "latestVersion": "10.0.10"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Authentication.Facebook",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Authentication.Google",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Authentication.JwtBearer",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Authentication.MicrosoftAccount",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.AspNetCore.Authentication.Twitter",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Scalar.AspNetCore",
+              "requestedVersion": "2.14.14",
+              "resolvedVersion": "2.14.14",
+              "latestVersion": "2.16.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.AspNetIdentity/AeroDB.AspNetIdentity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.ML/AeroDB.ML.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.Reactive/AeroDB.Reactive.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.Sable/AeroDB.Sable.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "JasperFx.Events",
+              "requestedVersion": "2.22.0",
+              "resolvedVersion": "2.22.0",
+              "latestVersion": "2.25.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.SourceGenerators/AeroDB.SourceGenerators.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.WolverineFx/AeroDB.WolverineFx.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "WolverineFx",
+              "requestedVersion": "6.16.0",
+              "resolvedVersion": "6.16.0",
+              "latestVersion": "6.17.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Aliases/Aero.Cms.Modules.Aliases.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Rewrite",
+              "requestedVersion": "2.3.10",
+              "resolvedVersion": "2.3.10",
+              "latestVersion": "2.3.11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Audit/Aero.Cms.Modules.Audit.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Banner/Aero.Cms.Modules.Banner.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Blog.Importer/Aero.Cms.Modules.Blog.Importer.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "AngleSharp",
+              "requestedVersion": "1.4.0",
+              "resolvedVersion": "1.4.0",
+              "latestVersion": "1.5.2"
+            },
+            {
+              "id": "Markdig",
+              "requestedVersion": "1.2.0",
+              "resolvedVersion": "1.2.0",
+              "latestVersion": "1.3.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Chat/Aero.Cms.Modules.Chat.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Commerce.Client/Aero.Cms.Modules.Commerce.Client.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Components.Web",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Commerce/Aero.Cms.Modules.Commerce.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.EntityFrameworkCore.Design",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Content/Aero.Cms.Modules.Content.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Markdig",
+              "requestedVersion": "1.2.0",
+              "resolvedVersion": "1.2.0",
+              "latestVersion": "1.3.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Grpc/Aero.Cms.Modules.Grpc.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "MagicOnion.Server",
+              "requestedVersion": "7.10.0",
+              "resolvedVersion": "7.10.0",
+              "latestVersion": "7.10.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Health/Aero.Cms.Modules.Health.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Identity/Aero.Cms.Modules.Identity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Jobs/Aero.Cms.Modules.Jobs.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Jwt/Aero.Cms.Modules.Jwt.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.Authentication.JwtBearer",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.LettuceEncrypt/Aero.Cms.Modules.LettuceEncrypt.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Localization/Aero.Cms.Modules.Localization.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Logging/Aero.Cms.Modules.Logging.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.MagicLink/Aero.Cms.Modules.MagicLink.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mail/Aero.Cms.Modules.Mail.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "MailKit",
+              "requestedVersion": "4.16.0",
+              "resolvedVersion": "4.16.0",
+              "latestVersion": "4.17.0"
+            },
+            {
+              "id": "MimeKit",
+              "requestedVersion": "4.16.0",
+              "resolvedVersion": "4.16.0",
+              "latestVersion": "4.17.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mailer/Aero.Cms.Modules.Mailer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Manager/Aero.Cms.Modules.Manager.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mcp/Aero.Cms.Modules.Mcp.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "ModelContextProtocol",
+              "requestedVersion": "1.3.0",
+              "resolvedVersion": "1.3.0",
+              "latestVersion": "1.4.1"
+            },
+            {
+              "id": "ModelContextProtocol.AspNetCore",
+              "requestedVersion": "1.3.0",
+              "resolvedVersion": "1.3.0",
+              "latestVersion": "1.4.1"
+            },
+            {
+              "id": "ModelContextProtocol.Core",
+              "requestedVersion": "1.3.0",
+              "resolvedVersion": "1.3.0",
+              "latestVersion": "1.4.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Media/Aero.Cms.Modules.Media.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.Orleans.Server",
+              "requestedVersion": "10.1.0",
+              "resolvedVersion": "10.1.0",
+              "latestVersion": "10.2.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Members/Aero.Cms.Modules.Members.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.MiniProfiler/Aero.Cms.Modules.MiniProfiler.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Modules/Aero.Cms.Modules.Modules.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Navigation/Aero.Cms.Modules.Navigation.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OneTimePasscode/Aero.Cms.Modules.OneTimePasscode.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Pages/Aero.Cms.Modules.Pages.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Markdig",
+              "requestedVersion": "1.2.0",
+              "resolvedVersion": "1.2.0",
+              "latestVersion": "1.3.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Posts/Aero.Cms.Modules.Posts.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Markdig",
+              "requestedVersion": "1.2.0",
+              "resolvedVersion": "1.2.0",
+              "latestVersion": "1.3.2"
+            },
+            {
+              "id": "Radzen.Blazor",
+              "requestedVersion": "10.4.3",
+              "resolvedVersion": "10.4.3",
+              "latestVersion": "11.1.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Scalar/Aero.Cms.Modules.Scalar.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Search/Aero.Cms.Modules.Search.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Secrets/Aero.Cms.Modules.Secrets.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Security/Aero.Cms.Modules.Security.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Settings/Aero.Cms.Modules.Settings.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "NeoUI.Blazor",
+              "requestedVersion": "4.1.5",
+              "resolvedVersion": "4.1.5",
+              "latestVersion": "4.1.20"
+            },
+            {
+              "id": "NeoUI.Blazor.Primitives",
+              "requestedVersion": "4.0.5",
+              "resolvedVersion": "4.0.5",
+              "latestVersion": "4.0.8"
+            },
+            {
+              "id": "Radzen.Blazor",
+              "requestedVersion": "10.4.3",
+              "resolvedVersion": "10.4.3",
+              "latestVersion": "11.1.3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.SiteMap/Aero.Cms.Modules.SiteMap.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Sites/Aero.Cms.Modules.Sites.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Static/Aero.Cms.Modules.Static.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Tcp/Aero.Cms.Modules.Tcp.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Tenant/Aero.Cms.Modules.Tenant.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Theming/Aero.Cms.Modules.Theming.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Users/Aero.Cms.Modules.Users.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.WebOptimizer/Aero.Cms.Modules.WebOptimizer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.WorkOS/Aero.Cms.Modules.WorkOS.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "WorkOS.net",
+              "requestedVersion": "4.0.1",
+              "resolvedVersion": "4.0.1",
+              "latestVersion": "5.5.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Microsoft.AspNetCore.TestHost",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.EntityFrameworkCore.InMemory",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "Microsoft.EntityFrameworkCore.Relational",
+              "requestedVersion": "10.0.8",
+              "resolvedVersion": "10.0.8",
+              "latestVersion": "10.0.9"
+            },
+            {
+              "id": "TUnit",
+              "requestedVersion": "1.45.8",
+              "resolvedVersion": "1.45.8",
+              "latestVersion": "1.58.0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

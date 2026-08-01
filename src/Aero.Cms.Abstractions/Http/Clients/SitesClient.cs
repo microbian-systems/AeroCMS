@@ -1,45 +1,135 @@
-using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Abstractions.Http.Clients;
-using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Models;
-using Aero.Core;
-using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+/// <summary>
+/// Defines an interface for ISitesHttpClient.
+/// </summary>
 public interface ISitesHttpClient
 {
-    Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetDefaultAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// Updates a site's framework-neutral style profile.
+    /// </summary>
+Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsync(
+    long id,
+    UpdateSiteStyleProfileRequest request,
+    CancellationToken ct = default);
+        /// <summary>Updates a site's exact deployment-installed theme selection.</summary>
+Task<Result<SiteThemeSelectionViewModel, AeroError>> UpdateThemeAsync(
+    long id,
+    UpdateSiteThemeRequest request,
+    CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for SitesHttpClient.
+/// </summary>
 public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), ISitesHttpClient, Aero.Cms.Contracts.Abstractions.ISitesHttpClient
 {
-    public override string Path => "admin/sites";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/sites";
 
-    public Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<SiteViewModel>>("", ct);
 
-    public Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<SiteViewModel>(id.ToString(), ct);
 
-    public Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetDefaultAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default)
         => GetAsync<SiteViewModel>("default", ct);
 
-    public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default)
         => PostAsync<CreateSiteRequest, SiteViewModel>(string.Empty, request, ct);
 
-    public Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default)
         => PutAsync<UpdateSiteRequest, SiteViewModel>(id.ToString(), request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// Updates a site's framework-neutral style profile.
+    /// </summary>
+public Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsync(
+    long id,
+    UpdateSiteStyleProfileRequest request,
+    CancellationToken ct = default)
+        => PutAsync<UpdateSiteStyleProfileRequest, SiteStyleProfileViewModel>(
+            $"{id}/style-profile",
+            request,
+            ct);
+
+        /// <inheritdoc />
+public async Task<Result<SiteThemeSelectionViewModel, AeroError>> UpdateThemeAsync(
+    long id,
+    UpdateSiteThemeRequest request,
+    CancellationToken ct = default)
+{
+    var result = await PutAsync<UpdateSiteThemeRequest, SiteThemeSelectionViewModel>(
+            $"{id}/theme",
+            request,
+            ct);
+
+    return result switch
+    {
+        Result<SiteThemeSelectionViewModel, AeroError>.Failure
+        {
+            Error: AeroError.HttpRequest httpError
+        } when httpError.code == System.Net.HttpStatusCode.Conflict
+            => new Result<SiteThemeSelectionViewModel, AeroError>.Failure(
+                AeroError.ConflictError(
+                    string.IsNullOrWhiteSpace(httpError.msg)
+                        ? "The site theme changed concurrently."
+                        : httpError.msg)),
+        _ => result
+    };
+}
+
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(id.ToString(), ct));
 
     // ── Contracts.ISitesHttpClient implementation (SiteInfo, no Orleans deps) ──
@@ -79,7 +169,7 @@ public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> log
     }
 
     private static SiteInfo MapToSiteInfo(SiteViewModel vm) => new(
-        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId);
+        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId, vm.SupportedCultures);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {

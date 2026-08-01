@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Aero.Cms.AppServer</PackageId>
+  </PropertyGroup>
+
   <ItemGroup>
   <!-- todo move the blazor server stuff to Aero.AppServer.Web to separate concerns. this is to enable blazor server functionality just for the setup process -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="JoeShook.ZiggyCreatures.FusionCache.Metrics.Core" />
-    <PackageReference Include="Marten" />
-    <PackageReference Include="Marten.AspNetCore" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
@@ -25,7 +27,6 @@
     <PackageReference Include="Microsoft.Orleans.Server" />
     <PackageReference Include="Microsoft.Orleans.Streaming" />
     <PackageReference Include="Microsoft.Orleans.Transactions" />
-    <PackageReference Include="MysticMind.PostgresEmbed" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="System.Numerics.Tensors" />
@@ -37,7 +38,7 @@
     <PackageReference Include="TickerQ.SDK" />
     <PackageReference Include="TickerQ.Utilities" />
     <PackageReference Include="Weasel.Postgresql" />
-    <PackageReference Include="WolverineFx.Marten" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.Memory" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
@@ -51,5 +52,8 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
+    <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.SurrealKv\SurrealDb.Embedded.SurrealKv.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
   </ItemGroup>
 </Project>

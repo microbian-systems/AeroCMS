@@ -1,5 +1,4 @@
 @page "/shop/orders/{id:long}"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @model OrderDetailModel
 @{
     ViewData["Title"] = $"Order #{Model.Order?.Id}";
@@ -15,10 +14,72 @@
 }
 else
 {
-    <div class="eshop-orders" style="padding:0 10rem;">
-        <p><strong>Placed:</strong> @Model.Order.CreatedOn.ToString("MMMM dd, yyyy h:mm tt")</p>
-        <p><strong>Status:</strong> <span class="status @Model.Order.Status.ToString().ToLowerInvariant()">@Model.Order.Status</span></p>
-        <p><strong>Total:</strong> $@Model.Order.TotalAmount.ToString("0.00")</p>
+    <div class="eshop-orders eshop-order-receipt">
+        <section class="eshop-receipt-intro" aria-labelledby="receipt-heading">
+            <h2 id="receipt-heading">Order receipt</h2>
+            <p>Your order has been received. Its payment status is shown below and updates after the payment provider confirms it.</p>
+            @if (TempData["OrderNotice"] is string notice)
+            {
+                <p class="eshop-notice" role="status">@notice</p>
+            }
+        </section>
+
+        <dl class="eshop-receipt-facts">
+            <div><dt>Placed</dt><dd>@Model.Order.CreatedOn.ToString("MMMM dd, yyyy h:mm tt")</dd></div>
+            <div><dt>Order status</dt><dd><span class="status @Model.Order.Status.ToString().ToLowerInvariant()">@Model.Order.Status</span></dd></div>
+            <div><dt>Payment status</dt><dd><span class="status @Model.Order.PaymentStatus.ToString().ToLowerInvariant()">@Model.Order.PaymentStatus</span></dd></div>
+            @if (Model.SubscriptionReceipt is not null)
+            {
+                <div><dt>Subscription status</dt><dd><span class="status @Model.SubscriptionReceipt.Subscription.State.ToString().ToLowerInvariant()">@SubscriptionsModel.StateLabel(Model.SubscriptionReceipt.Subscription.State)</span></dd></div>
+            }
+            <div><dt>Total</dt><dd>$@Model.Order.TotalAmount.ToString("0.00")</dd></div>
+        </dl>
+
+        @if (Model.PaymentAttempt is { Status: Aero.Cms.Modules.Commerce.Payments.PaymentAttemptStatus.RequiresCustomerAction or Aero.Cms.Modules.Commerce.Payments.PaymentAttemptStatus.Initiating })
+        {
+            <form method="post" asp-page-handler="ResumePayment" class="eshop-receipt-action">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Order.Id" />
+                <button type="submit" class="eshop-button eshop-button-secondary">Resume payment securely</button>
+            </form>
+        }
+        @if (Model.SubscriptionReceipt is { Subscription.State: Aero.Cms.Modules.Commerce.Subscriptions.SubscriptionState.PendingProviderConfirmation })
+        {
+            <form method="post" asp-page-handler="ResumeSubscription" class="eshop-receipt-action">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Order.Id" />
+                <button type="submit" class="eshop-button eshop-button-secondary">Resume subscription approval securely</button>
+            </form>
+        }
+
+        @if (Model.SubscriptionReceipt is { } subscriptionReceipt)
+        {
+            <section class="eshop-subscription-history" aria-labelledby="subscription-history-heading">
+                <h3 id="subscription-history-heading">Subscription history</h3>
+                @if (subscriptionReceipt.Subscription.State == Aero.Cms.Modules.Commerce.Subscriptions.SubscriptionState.PendingProviderConfirmation)
+                {
+                    <p class="eshop-notice">The subscription is waiting for provider confirmation. Returning from a provider page does not activate it.</p>
+                }
+                else if (subscriptionReceipt.Subscription.State == Aero.Cms.Modules.Commerce.Subscriptions.SubscriptionState.ManualReview || subscriptionReceipt.Subscription.RequiresManualReview)
+                {
+                    <p class="eshop-notice">This subscription needs manual review. We will update its status after review.</p>
+                }
+                <p>Recurring every @subscriptionReceipt.Subscription.IntervalDays days. Current state: @SubscriptionsModel.StateLabel(subscriptionReceipt.Subscription.State).</p>
+                @if (subscriptionReceipt.Cycles.Count == 0)
+                {
+                    <p class="eshop-account-help">No confirmed billing cycles are available yet.</p>
+                }
+                else
+                {
+                    <table class="eshop-order-items"><thead><tr><th scope="col">Cycle</th><th scope="col">Period</th><th scope="col">Amount</th><th scope="col">Status</th></tr></thead><tbody>
+                    @foreach (var cycle in subscriptionReceipt.Cycles)
+                    {
+                        <tr><td>@cycle.CycleNumber</td><td>@cycle.PeriodStartsOn.ToString("MMM dd, yyyy") – @cycle.PeriodEndsOn.ToString("MMM dd, yyyy")</td><td>@cycle.Amount.ToString("C") @cycle.Currency</td><td>@(cycle.RequiresManualReview ? "Manual review needed" : cycle.State.ToString())</td></tr>
+                    }
+                    </tbody></table>
+                }
+            </section>
+        }
 
         @if (Model.Order.ShippingAddress is not null)
         {
@@ -27,34 +88,34 @@ else
         }
 
         <h3>Items</h3>
-        <table style="width:100%;border-collapse:collapse;">
+        <table class="eshop-order-items">
             <thead>
-                <tr style="border-bottom:1px solid #D2D2D2;text-align:left;">
-                    <th style="padding:0.5rem 0;">Product</th>
-                    <th style="padding:0.5rem 0;">Qty</th>
-                    <th style="padding:0.5rem 0;text-align:right;">Price</th>
-                    <th style="padding:0.5rem 0;text-align:right;">Total</th>
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Qty</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Total</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var item in Model.Order.Items)
                 {
-                    <tr style="border-bottom:1px solid #D2D2D2;">
-                        <td style="padding:0.75rem 0;">@item.ProductName</td>
-                        <td style="padding:0.75rem 0;">@item.Quantity</td>
-                        <td style="padding:0.75rem 0;text-align:right;">$@item.UnitPrice.ToString("0.00")</td>
-                        <td style="padding:0.75rem 0;text-align:right;">$@item.TotalPrice.ToString("0.00")</td>
+                    <tr>
+                        <td>@item.ProductName</td>
+                        <td>@item.Quantity</td>
+                        <td>$@item.UnitPrice.ToString("0.00")</td>
+                        <td>$@item.TotalPrice.ToString("0.00")</td>
                     </tr>
                 }
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3" style="padding:0.75rem 0;text-align:right;font-weight:600;">Total</td>
-                    <td style="padding:0.75rem 0;text-align:right;font-weight:600;">$@Model.Order.TotalAmount.ToString("0.00")</td>
+                    <th colspan="3" scope="row">Total</th>
+                    <td>$@Model.Order.TotalAmount.ToString("0.00")</td>
                 </tr>
             </tfoot>
         </table>
 
-        <p style="margin-top:2rem;"><a href="/shop/orders">&larr; Back to orders</a></p>
+        <p class="eshop-receipt-back"><a href="/shop/orders">&larr; Back to orders</a></p>
     </div>
 }

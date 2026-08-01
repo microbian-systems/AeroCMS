@@ -1,0 +1,43 @@
+@using Aero.Cms.Abstractions.Http.Clients
+
+<fieldset class="aero-parent-type-picker">
+    <legend>Allowed parent content types</legend>
+    <p>Choose which content types may contain this entry type.</p>
+
+    <label class="aero-parent-type-picker__search">
+        <span class="sr-only">Find a content type</span>
+        <input type="search"
+               placeholder="Find a content type"
+               @bind="_search"
+               @bind:event="oninput" />
+    </label>
+
+    @if (VisibleTypes.Count == 0)
+    {
+        <div class="aero-parent-type-picker__empty">No content types match this search.</div>
+    }
+    else
+    {
+        <div class="aero-parent-type-picker__options">
+            @foreach (var contentType in VisibleTypes)
+            {
+                <label @key="contentType.Id" class="aero-parent-type-picker__option">
+                    <input type="checkbox"
+                           checked="@IsSelected(contentType.Id)"
+                           @onchange="eventArgs => SetSelectedAsync(contentType.Id, eventArgs.Value is true)" />
+                    <span>
+                        <strong>@contentType.Name</strong>
+                        <small>@contentType.Alias</small>
+                    </span>
+                </label>
+            }
+        </div>
+    }
+
+    @if (SelectedIds.Count == 0)
+    {
+        <p class="aero-parent-type-picker__warning" role="status">
+            No parent content types are selected. Entries can only be created at the root.
+        </p>
+    }
+</fieldset>

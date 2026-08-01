@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Abstractions.Validators;
 
+/// <summary>
+/// Represents a class for CreatePostRequestValidators.
+/// </summary>
 public class CreatePostRequestValidators : AbstractValidator<CreatePostRequest>
 {
-    public CreatePostRequestValidators()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreatePostRequestValidators"/> class.
+    /// </summary>
+public CreatePostRequestValidators()
     {
         RuleFor(x => x.Title).NotNull().NotEmpty().MaximumLength(200);
         RuleFor(x => x.Slug).NotNull().NotEmpty().MaximumLength(200).Matches(@"^[a-z0-9]+(?:-[a-z0-9]+)*$");
@@ -15,9 +21,15 @@ public class CreatePostRequestValidators : AbstractValidator<CreatePostRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for UpdatePostRequestValidator.
+/// </summary>
 public class UpdatePostRequestValidator : AbstractValidator<UpdatePostRequest>
 {
-    public UpdatePostRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdatePostRequestValidator"/> class.
+    /// </summary>
+public UpdatePostRequestValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Title).NotNull().NotEmpty().MaximumLength(200);
@@ -28,9 +40,15 @@ public class UpdatePostRequestValidator : AbstractValidator<UpdatePostRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for DeletePostRequestValidator.
+/// </summary>
 public class DeletePostRequestValidator : AbstractValidator<DeletePostRequest>
 {
-    public DeletePostRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DeletePostRequestValidator"/> class.
+    /// </summary>
+public DeletePostRequestValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
     }

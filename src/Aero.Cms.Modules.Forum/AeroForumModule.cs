@@ -1,22 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Aero.Cms.Core;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 
 namespace Aero.Cms.Modules.Forum;
 
 /// <summary>
-/// reddit style forum module for async discussions
+/// Identifies the forum module for asynchronous, threaded discussions.
 /// </summary>
 [Module(nameof(AeroForumModule))]
 public class AeroForumModule : AeroModuleBase
 {
-    public override string Name { get; } = nameof(AeroForumModule);
-    public override string Version { get; } = AeroConstants.Version;
-    public override string Author { get; } = AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies { get; } = [];
-    public override IReadOnlyList<string> Category { get; } = [];
-    public override IReadOnlyList<string> Tags { get; } = [];
+    /// <inheritdoc />
+public override string Name { get; } = nameof(AeroForumModule);
+    /// <inheritdoc />
+public override string Version { get; } = AeroConstants.Version;
+    /// <inheritdoc />
+public override string Author { get; } = AeroConstants.Author;
+    /// <inheritdoc />
+public override IReadOnlyList<string> Dependencies { get; } = [];
+    /// <inheritdoc />
+public override IReadOnlyList<string> Category { get; } = [];
+    /// <inheritdoc />
+public override IReadOnlyList<string> Tags { get; } = [];
 }

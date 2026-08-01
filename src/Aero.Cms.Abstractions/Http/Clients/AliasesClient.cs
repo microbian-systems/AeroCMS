@@ -1,7 +1,4 @@
-using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Core;
-using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
@@ -12,9 +9,18 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 /// </summary>
 public interface IAliasHttpClient
 {
-    Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllBySiteAsync(long siteId, CancellationToken ct = default);
-    Task<Result<AliasViewModel, AeroError>> CreateAsync(CreateAliasRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// Gets aliases for the site selected by the current request context.
+    /// </summary>
+Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<AliasViewModel, AeroError>> CreateAsync(CreateAliasRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -23,15 +29,27 @@ public interface IAliasHttpClient
 public class AliasesHttpClient(HttpClient httpClient, ILogger<AliasesHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), IAliasHttpClient
 {
-    public override string Path => "admin/aliases";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/aliases";
 
-    public Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
-        => GetAsync<IReadOnlyList<AliasViewModel>>($"?siteId={siteId}", ct);
+        /// <summary>
+    /// Gets aliases for the site selected by the current request context.
+    /// </summary>
+public Task<Result<IReadOnlyList<AliasViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<AliasViewModel>>(string.Empty, ct);
 
-    public Task<Result<AliasViewModel, AeroError>> CreateAsync(CreateAliasRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<AliasViewModel, AeroError>> CreateAsync(CreateAliasRequest request, CancellationToken ct = default)
         => PostAsync<CreateAliasRequest, AliasViewModel>(string.Empty, request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(id.ToString(), ct));
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)

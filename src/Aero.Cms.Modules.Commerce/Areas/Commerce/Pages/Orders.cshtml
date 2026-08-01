@@ -1,5 +1,4 @@
 @page "/shop/orders"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @model OrdersModel
 @{
     ViewData["Title"] = "Orders";
@@ -28,7 +27,7 @@
             @foreach (var order in Model.Orders)
             {
                 <li class="eshop-orders-item">
-                    <div class="order-number">@order.Id</div>
+                    <div class="order-number"><a href="/shop/orders/@order.Id" aria-label="View receipt for order @order.Id">Order #@order.Id</a></div>
                     <div class="order-date">@order.CreatedOn.ToString("MMM dd, yyyy")</div>
                     <div class="order-total">$@order.TotalAmount.ToString("0.00")</div>
                     <div class="order-status">

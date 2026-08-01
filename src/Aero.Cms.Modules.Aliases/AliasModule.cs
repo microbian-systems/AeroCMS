@@ -1,10 +1,17 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Services;
+using Aero.Cms.Abstractions.Validators;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
+using Aero.Cms.Modules.Aliases.Areas.Api.v1;
+using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
-using Marten;
+using FluentValidation;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -14,37 +21,64 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Site alias management module for handling URL aliases and redirects.
-///
-/// Architecture:
-///   AliasDocument → Marten persistence (owner)
-///   IAliasRuleCache → ImmutableDictionary hot lookup (zero DB per request)
-///   AliasRewriteRule → sync IRule, reads cache only, site-scoped via IAeroSiteSlice
-///   AliasStartupFilter → IStartupFilter, registers UseRewriter
-///   AliasRuleCacheWarmupService → BackgroundService, loads cache on startup
-///
-/// Pipeline order: SitesModule (-9999) → AliasModule (-9998) → rest of pipeline
+/// Registers alias persistence, the alias cache, page-route alias staging, and
+/// the administrative endpoint mappings. Its order is intended to follow the
+/// sites module so that requests have site context before alias rewriting;
+/// final middleware ordering remains the host's responsibility.
 /// </summary>
 [Module(nameof(AliasModule))]
-public class AliasModule : AeroWebModule
+public class AliasModule : AeroWebModule, IConfigureAeroDB
 {
-    /// <summary>Load after SitesModule (-9999) so site is resolved before alias lookup.</summary>
+    /// <summary>Gets the module order intended to follow site resolution.</summary>
     public override short Order => -9998;
 
-    public override string Name => nameof(AliasModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => [];
-    public override IReadOnlyList<string> Tags => [];
+    /// <summary>Gets the module's stable registration name.</summary>
+public override string Name => nameof(AliasModule);
+        /// <summary>
+    /// Gets the CMS version associated with this module.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets the CMS author metadata associated with this module.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets the explicitly declared module dependencies; this module declares none.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets the module categories; this module declares none.
+    /// </summary>
+public override IReadOnlyList<string> Category => [];
+        /// <summary>
+    /// Gets the module tags; this module declares none.
+    /// </summary>
+public override IReadOnlyList<string> Tags => [];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// Registers alias services, validation, cache infrastructure, and the
+    /// rewrite startup filter when it is enabled for the current environment.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 
         // Core alias services
         services.AddScoped<IAliasRepository, AliasRepository>();
         services.AddScoped<IAliasService, AliasService>();
+        services.AddScoped<IPageRouteAliasWriter, PageRouteAliasWriter>();
+
+        // Grain-backed alias service (Orleans actor) — service wrapper
+        services.AddScoped<IAeroAliasService, AeroAliasService>();
+
+        // Grain interface — direct injection for thin API controllers
+        services.AddSingleton<IAeroAliasActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroAliasActor>(0, "aero"));
+
+        // FluentValidation validators — input validation in the API layer
+        services.AddScoped<IValidator<CreateAliasRequest>, CreateAliasRequestValidator>();
+        services.AddScoped<IValidator<DeleteAliasRequest>, DeleteAliasRequestValidator>();
+
         services.AddScoped<IPageSaveHook, SlugRewriteHook>();
 
         // In-memory alias cache — zero DB I/O per request
@@ -54,7 +88,7 @@ public class AliasModule : AeroWebModule
         // Rewrite rule (IRule) — consumes cache only, no DB access on hot path
         services.AddSingleton<AliasRewriteRule>();
 
-        // Background warmup — loads cache from Marten on startup
+        // Background warmup — loads cache from AeroDB on startup
         services.AddHostedService<AliasRuleCacheWarmupService>();
 
         // Pipeline middleware — runs UseRewriter AFTER SiteResolutionMiddleware.
@@ -65,19 +99,41 @@ public class AliasModule : AeroWebModule
         }
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// Maps the module's administrative alias endpoints.
+    /// </summary>
+public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
-            
+        builder.MapAliasesApi();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configures the persisted alias document schema, including uniqueness of
+    /// the site, culture, and normalized old-path scope.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<AliasDocument>().DocumentAlias(Schemas.Tables.Aliases);
-        opts.Schema.For<AliasDocument>().Identity(x => x.Id);
-        opts.Schema.For<AliasDocument>().Index(x => x.SiteId);
-        opts.Schema.For<AliasDocument>().UniqueIndex(x => x.SiteId, x => x.OldPath); // site-scoped composite unique
-        opts.Schema.For<AliasDocument>().Index(x => x.NewPath);
-        opts.Schema.For<AliasDocument>().Index(x => x.CreatedOn);
-        opts.Schema.For<AliasDocument>().Index(x => x.ModifiedOn);
+        var aliases = opts.Schema.For<AliasDocument>()
+            .TableName(Schemas.Tables.Aliases);
+        aliases.Identity(x => x.Id);
+        aliases.Index(x => x.SiteId);
+        aliases.Index(x => x.Culture);
+        aliases.Index(x => x.OwnerId);
+        aliases.UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedOldPath });
+        aliases.Index(x => x.NewPath);
+        aliases.Index(x => x.CreatedOn);
+        aliases.Index(x => x.ModifiedOn);
+    }
+
+        /// <summary>
+    /// Applies this module's document-schema configuration using the supplied
+    /// service provider only to satisfy the configuration contract.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 }
+
+
+

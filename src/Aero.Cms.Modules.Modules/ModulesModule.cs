@@ -1,7 +1,7 @@
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
-using Marten;
+using AeroDB.Sable;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -13,16 +13,28 @@ namespace Aero.Cms.Modules.Modules;
 /// Aero CMS Modules management module.
 /// </summary>
 [Module(nameof(ModulesModule))]
-public sealed class ModulesModule : AeroModuleBase, IConfigureMarten
+public sealed class ModulesModule : AeroModuleBase, IConfigureAeroDB
 {
-    public override string Name => nameof(ModulesModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Settings", "Management"];
-    public override IReadOnlyList<string> Tags => ["modules", "settings", "configuration", "management"];
+        /// <inheritdoc />
+public override string Name => nameof(ModulesModule);
+        /// <inheritdoc />
+public override string Version => AeroConstants.Version;
+        /// <inheritdoc />
+public override string Author => AeroConstants.Author;
+        /// <inheritdoc />
+public override IReadOnlyList<string> Dependencies => [];
+        /// <inheritdoc />
+public override IReadOnlyList<string> Category => ["Infrastructure", "Settings", "Management"];
+        /// <inheritdoc />
+public override IReadOnlyList<string> Tags => ["modules", "settings", "configuration", "management"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// Registers the module initialization service and persistent state store when absent.
+    /// </summary>
+    /// <param name="services">The service collection to augment with scoped services.</param>
+    /// <param name="config">Module configuration; not used.</param>
+    /// <param name="env">The host environment; not used.</param>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Register the initialization service
         services.TryAddScoped<IModuleInitializationService, ModuleInitializationService>();
@@ -31,18 +43,30 @@ public sealed class ModulesModule : AeroModuleBase, IConfigureMarten
         services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    /// <summary>
+    /// Configures the ModuleDocument schema — implements <see cref="IConfigureAeroDB.Configure(StoreOptions)"/>.
+    /// </summary>
+    /// <param name="opts">The store options whose module schema is configured.</param>
+    public void Configure(StoreOptions opts)
     {
-        // Configure the ModuleDocument schema
-        opts.Schema.For<ModuleDocument>().DatabaseSchemaName(Schemas.Database);
-        opts.Schema.For<ModuleDocument>().DocumentAlias(Schemas.Tables.Modules);
-        opts.Schema.For<ModuleDocument>().Identity(x => x.Id);
-        opts.Schema.For<ModuleDocument>().UniqueIndex(x => x.Name);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Category);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Disabled);
-        opts.Schema.For<ModuleDocument>().Index(x => x.DisabledInProduction);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Order);
-        //opts.Schema.For<ModuleDocument>().Index(x => x.Tags);
-        Configure<ModuleDocument>(services, opts);
+        var modules = opts.Schema.For<ModuleDocument>()
+            .TableName(Schemas.Tables.Modules);
+        modules.Identity(x => x.Id);
+        modules.UniqueIndex(x => x.Name);
+        modules.Index(x => x.Category);
+        modules.Index(x => x.Disabled);
+        modules.Index(x => x.DisabledInProduction);
+        modules.Index(x => x.Order);
+    }
+
+        /// <summary>
+    /// Applies the module-document schema through the service-aware configuration contract.
+    /// </summary>
+    /// <param name="services">The service provider; not used.</param>
+    /// <param name="opts">The store options to configure.</param>
+public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
+        // Configure<ModuleDocument>(services, opts); — generic Configure<T> removed from AeroModuleBase, use Schema directly
     }
 }

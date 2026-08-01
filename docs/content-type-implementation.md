@@ -1,6 +1,57 @@
 # Content Type Implementation
 
+> [!IMPORTANT]
+> Current rendering contract (June 2026):
+>
+> - `DynamicBlock` is the supported runtime mode and renders through Scriban.
+> - The `DynamicBlockDefinition` template and `DataSchema` are synchronized when
+>   the content type is saved. Rendering is read-only and performs no database writes.
+> - Definitions are linked by `ContentTypeId` and `SiteId`; aliases are display and
+>   routing identifiers, not the persistence relationship.
+> - Legacy `ct:{alias}` definitions remain readable until the content type is next
+>   saved, at which point they are upgraded to the stable linkage.
+> - `ISecureScribanRenderer` validates both template syntax/security and content data
+>   against the generated schema before rendering.
+> - Embedded content and standalone content URLs share `IContentItemRenderer`.
+> - `BlockLayout` is not implemented and returns an explicit rendering failure.
+> - Trusted, developer-authored compiled `.cshtml` views are the final rendering mode
+>   planned after the Scriban and BlockLayout paths are complete. Database-authored
+>   Razor templates will not be supported.
+
 ## Runtime-defined content types without reflection for Aero CMS
+
+---
+
+## Status and Current Decision
+
+The manager UI and admin APIs now use an **embedded-first** content model:
+
+- Content types are reusable structured schemas.
+- Content items are embedded in pages, blocks, listings, and module experiences by default.
+- Public standalone URLs are opt-in per content type via `AllowPublicUrl`.
+- The editor labels that option as "Give each entry its own page".
+- The UI/model/API toggle exists now; public route handling for content items is a future slice.
+
+This supersedes older drafts that implied all content items are routable by
+default. Public URLs are common in CMS systems, but Aero should expose them as a
+clear content-type capability rather than making every structured entry a page.
+
+Implemented manager UI files:
+
+```text
+src/Aero.Cms.Shared/Pages/Manager/ContentTypes/
+├── ContentTypeList.razor
+├── ContentTypeList.razor.cs
+├── ContentTypeEditor.razor
+├── ContentTypeEditor.razor.cs
+├── ContentItemsList.razor
+├── ContentItemsList.razor.cs
+├── ContentItemEditor.razor
+└── ContentItemEditor.razor.cs
+```
+
+Implemented admin APIs are under `/api/v1/admin/content-types` and
+`/api/v1/admin/content-items`.
 
 ---
 
@@ -106,6 +157,17 @@ public sealed class ContentTypeDefinition : Entity
     public string? Icon { get; set; }
 
     /// <summary>
+    /// When true, entries of this type can be addressed by their own public URL.
+    /// Content types are embedded-first by default to avoid accidental public pages.
+    /// </summary>
+    public bool AllowPublicUrl { get; set; }
+
+    /// <summary>
+    /// When true, entries of this type are not contributed to the site-wide search index.
+    /// </summary>
+    public bool HideFromSearch { get; set; }
+
+    /// <summary>
     /// The fields that this content type defines.
     /// Used for admin UI rendering, validation, indexing, and Scriban template generation.
     /// </summary>
@@ -144,7 +206,7 @@ public sealed class ContentFieldDefinition
     /// <summary>Field name used as the key in ContentItem.Fields</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Field type alias: "text", "richtext", "image", "url", "number", "date", "boolean", "media"</summary>
+    /// <summary>Field type alias: "text", "richtext", "image", "url", "number", "date", "boolean", "reference"</summary>
     public string FieldType { get; set; } = "text";
 
     /// <summary>Display label for the admin UI</summary>
@@ -204,6 +266,11 @@ public sealed class ContentItem : Entity
 }
 ```
 
+`Slug` is only user-facing when the associated content type has
+`AllowPublicUrl = true`. Embedded content items can still store a slug for
+future compatibility, but the manager UI does not force non-technical users to
+manage one when the type is embedded-only.
+
 **Why `JsonElement` over `object?`:**
 
 | Concern | `Dictionary<string, object?>` | `Dictionary<string, JsonElement>` |
@@ -211,7 +278,7 @@ public sealed class ContentItem : Entity
 | STJ round-trip fidelity | ❌ Numbers become `JsonElement`, strings lose type | ✅ `JsonElement` preserves the source token type |
 | AOT-safe deserialization | ❌ Requires runtime polymorphic resolution | ✅ `element.Deserialize<T>(ctx.Options)` with source-generated context |
 | Scriban integration | ❌ Extra conversion step needed | ✅ `JsonToScribanMapper` already converts `JsonElement` → `ScriptObject` |
-| Linq/query in Marten | ⚠️ Fragile | ⚠️ Same — both require computed index workarounds |
+| Linq/query in AeroDB.Sable | ⚠️ Fragile | ⚠️ Same — both require computed index workarounds |
 
 **Field access helper:**
 
@@ -580,12 +647,13 @@ registered as singletons; content type services are scoped per request.
 
 ### 4.1 DynamicBlock mode (default)
 
-The full page is rendered as a single `DynamicTemplateBlock`.
+When a content item is embedded in a page, the entry can be bridged into a single
+`DynamicTemplateBlock`.
 
 ```
-Request "/{slug}"
+PageDocument render
     ↓
-ContentItem loaded by slug
+ContentEmbedBlock / listing block references ContentItem
     ↓
 ContentTypeDefinition loaded by alias
     ↓
@@ -606,20 +674,22 @@ DynamicTemplateBlockRenderer (existing Blazor component)
 ContentItems are **typically embedded inside PageDocument blocks** — the existing
 `DynamicPageModel` + `Page.cshtml` pipeline never needs to change.
 
-If you also want ContentItems to have their own public URLs (e.g. a standalone
-team member profile at `/team/alice`), register a second route that acts as a
-**fallback** when no PageDocument matches the slug:
+If a content type has `AllowPublicUrl = true`, a later public-routing slice can
+give its published items standalone URLs (for example `/team/alice`). Register
+that route deliberately, with lower precedence than existing page routes, and
+scope route/slug lookup by `SiteId`.
 
 ```csharp
-// Option: separate routes with ASP.NET route precedence
+// Future option: separate routes with ASP.NET route precedence
 app.MapGet("/{slug}", GetPageBySlug);           // existing — PageDocument, higher priority
 app.MapGet("/{**slug}", GetContentBySlug);      // new — ContentItem catch-all, lower priority
 ```
 
 ```csharp
 // Standalone ContentItem URL handler — only registered if ContentItems
-// need their own public URLs. Otherwise, ContentItems are embedded in
-// PageDocument blocks and the existing DynamicPageModel handles everything.
+// need their own public URLs and the ContentTypeDefinition has AllowPublicUrl.
+// Otherwise, ContentItems are embedded in PageDocument blocks and the existing
+// DynamicPageModel handles everything.
 app.MapGet("/{**slug}", async (
     string? slug,
     IContentService contentService,
@@ -640,6 +710,9 @@ app.MapGet("/{**slug}", async (
         return Results.Problem($"Content type '{content.ContentTypeAlias}' not found.");
 
     var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
+    if (!type.AllowPublicUrl)
+        return Results.NotFound();
+
     var blockResult = await bridge.ToDynamicBlockAsync(type, content, ct);
     if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure fail)
         return Results.Problem(fail.Error.Message);
@@ -920,7 +993,10 @@ public sealed class DynamicContentValidator : AbstractValidator<ContentItem>
         IEnumerable<IContentFieldValidator> fieldValidators)
     {
         RuleFor(x => x.ContentTypeAlias).Equal(type.Alias);
-        RuleFor(x => x.Slug).NotEmpty();
+        When(_ => type.AllowPublicUrl, () =>
+        {
+            RuleFor(x => x.Slug).NotEmpty();
+        });
 
         var lookup = fieldValidators
             .ToDictionary(v => v.FieldType, StringComparer.OrdinalIgnoreCase);
@@ -1285,12 +1361,11 @@ public interface IContentService
 }
 ```
 
-### 8.2 Marten document models
+### 8.2 AeroDB.Sable document models
 
 ```csharp
-public sealed class ContentTypeDocument
+public sealed class ContentTypeDocument : SableDocument, IAuditable
 {
-    public string Id { get; set; } = string.Empty;   // "{siteId}:{alias}"
     public long SiteId { get; set; }
     public string Alias { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -1302,19 +1377,20 @@ public sealed class ContentTypeDocument
     public ContentTypeRenderMode RenderMode { get; set; }
 }
 
-// ContentItem itself is an Entity, stored directly via Marten
+// ContentItem itself is an Entity, stored directly via AeroDB.Sable
 ```
 
-Marten configuration:
+AeroDB.Sable configuration:
 
 ```csharp
 opts.Schema.For<ContentTypeDocument>()
     .Identity(x => x.Id)
-    .DocumentAlias("content_type_definitions")
-    .Index(x => x.SiteId);
+    .TableName("content_type_definitions")
+    .Index(x => x.SiteId)
+    .UniqueIndex(x => x.SiteId, x => x.Alias);
 
 opts.Schema.For<ContentItem>()
-    .DocumentAlias("content_items")
+    .TableName("content_items")
     .Index(x => x.SiteId)
     .Index(x => x.Slug)
     .Index(x => x.ContentTypeAlias);
@@ -1488,10 +1564,10 @@ public interface IContentQueryService
 }
 ```
 
-Marten implementation uses the document identity and computed indexes:
+Sable implementation uses the document identity and computed indexes:
 
 ```csharp
-public sealed class MartenContentQueryService(IDocumentSession session) : IContentQueryService
+public sealed class AeroContentQueryService(IDocumentSession session) : IContentQueryService
 {
     public async Task<Result<(IReadOnlyList<ContentItem>, long), AeroError>> GetByTypeAsync(
         long siteId, string alias, int skip, int take, CancellationToken ct)
@@ -1682,7 +1758,7 @@ public override void Configure(IAeroModuleBuilder builder)
 | `IContentDefinitionModule` | Marker interface for content-type modules — already exists |
 | `ContentSlugDocument` | Slug uniqueness enforcement |
 | `FluentValidation` | Validation of schemas and content — `AbstractValidator<>`, `Custom` method |
-| `Marten` `IDocumentSession` | Querying content types, content items, dynamic block definitions |
+| `AeroDB.Sable` `IDocumentSession` | Querying content types, content items, dynamic block definitions |
 | `Result<T, AeroError>` | Railway return types in all service signatures |
 
 ---
@@ -1692,7 +1768,7 @@ public override void Configure(IAeroModuleBuilder builder)
 | Project | Owns |
 |---------|------|
 | `Aero.Cms.Abstractions` | `ContentTypeDefinition`, `ContentFieldDefinition`, `ContentItem`, `FieldBlockInstance`, `IFieldTemplateSnippet`, `IContentFieldEditor`, `IContentFieldValidator`, `IAsyncContentValidator`, `ContentValidationMode` |
-| `Aero.Cms.Core` | `ContentTypeDynamicBlockBridge`, `ContentTypeTemplateGenerator`, `ContentTypeSchemaGenerator`, `MartenContentTypeService`, `MartenContentService`, `DynamicContentValidator`, `ContentValidationService`, `ContentCommandService`, `TextFieldValidator`, `NumberFieldValidator`, `ReferenceFieldValidator`, `ReferenceExistenceValidator`, `UniqueSlugValidator` |
+| `Aero.Cms.Core` | `ContentTypeDynamicBlockBridge`, `ContentTypeTemplateGenerator`, `ContentTypeSchemaGenerator`, `AeroContentTypeService`, `AeroContentService`, `DynamicContentValidator`, `ContentValidationService`, `ContentCommandService`, `TextFieldValidator`, `NumberFieldValidator`, `ReferenceFieldValidator`, `ReferenceExistenceValidator`, `UniqueSlugValidator` |
 | `Aero.Cms.SourceGenerators` | `ContentTypeGenerator` (new) — discovers `[ContentType]` + `[ContentField]`, produces `GeneratedContentTypes` |
 | `Aero.Cms.Shared` | `ContentTypeFieldEditor.razor` (admin UI), bridge Razor components |
 | `Aero.Cms.Modules.*` | Register content types, field editors, field validators, async validators, field template snippets, block renderers |
@@ -1977,7 +2053,7 @@ Site Layout
   └─────────────────────┘
 ```
 
-This can be modeled as a `SiteSettingsDocument : Entity` stored in Marten:
+This can be modeled as a `SiteSettingsDocument : Entity` stored in AeroDB.Sable:
 
 ```csharp
 public sealed class SiteSettingsDocument : Entity
@@ -2022,19 +2098,23 @@ This design is ~95% additive. The existing codebase does not need to be restruct
 | `AeroModuleBase.Configure(IAeroModuleBuilder)` | `Aero/src/Aero.Modular/AeroModuleBase.cs:53` | Virtual — override in modules |
 | `PageRouteHandler.MapPageRoutes()` | `Pages/PageRouteHandler.cs:15` | Existing `GET /{slug}` for `PageDocument` |
 | `IPageContentService.FindBySlugAsync()` | `Pages/PageContentService.cs:21` | Existing page resolution |
-| `ContentSlugDocument` | `Pages/SlugRegistry.cs:13` | Slug uniqueness — add `ContentItem = 3` to `ContentSlugOwnerType` |
+| `ContentSlugDocument` | `Pages/SlugRegistry.cs:13` | Existing site-scoped slug registry; extend only when public content item routes are implemented |
 | `BlockBase` hierarchy | `Abstractions/Blocks/BlockBase.cs` | Unchanged — `ContentItem` is parallel, not replacement |
 | `DynamicTemplateBlock` | `Abstractions/Blocks/Common/DynamicTemplateBlock.cs` | Unchanged — receives bridged data |
 | `DynamicBlockDefinition` | `Core/Blocks/Dynamic/DynamicBlockDefinition.cs` | Unchanged — auto-generated templates stored here |
 | `ISecureScribanRenderer` | `Core/Blocks/Dynamic/ISecureScribanRenderer.cs` | Unchanged — renders bridged templates |
 | `BlockRendererGenerator` | `SourceGenerators/BlockRendererGenerator.cs` | Pattern to follow for `ContentTypeGenerator` |
 
-### 12.2 Integration points that need a small change
+### 12.2 Integration points for optional public URLs
 
-Only **one enum value** and **two route registrations** touch existing code:
+The embedded-first manager experience does not require changing page routing.
+The following changes are only needed when implementing standalone public URLs
+for content items:
 
 ```csharp
-// 1. ContentSlugDocument.cs — add one value
+// 1. ContentSlugDocument.cs — add one value, or introduce a route registry
+// abstraction that can reserve site-scoped paths across pages, posts, and
+// content items.
 public enum ContentSlugOwnerType
 {
     Page = 0,
@@ -2046,17 +2126,17 @@ public enum ContentSlugOwnerType
 
 ```csharp
 // 2. PageRouteHandler.cs — add ContentItem fallback in the handler,
-//    OR register a separate catch-all route that ASP.NET routing
-//    automatically prioritizes below the existing /{slug} route.
-//    See §4.1 for both options.
+//    OR register a separate catch-all route with lower precedence.
+//    Only route published ContentItems whose type has AllowPublicUrl = true.
 ```
 
 ```csharp
-// 3. Marten StoreOptions — add schema configs (additive, not breaking)
+// 3. AeroDB.Sable StoreOptions — add schema configs (additive, not breaking)
 opts.Schema.For<ContentTypeDocument>()
     .Identity(x => x.Id)
-    .DocumentAlias("content_type_definitions")
-    .Index(x => x.SiteId);
+    .TableName("content_type_definitions")
+    .Index(x => x.SiteId)
+    .UniqueIndex(x => x.SiteId, x => x.Alias);
 
 opts.Schema.For<ContentItem>()
     .DocumentAlias("content_items")
@@ -2119,9 +2199,12 @@ DynamicPageModel.OnGetAsync(?Slug=about-us)
 
 A standalone `GET /{**slug}` route for ContentItem is optional — only needed
 if you want structured content to have its own public URL (e.g.
-`/team/alice` renders a "team-member" ContentItem directly). In that case,
-register it as a catch-all with lower precedence than the existing
-`/{slug}` route.
+`/team/alice` renders a "team-member" ContentItem directly). In that case:
+
+- Require `ContentTypeDefinition.AllowPublicUrl`.
+- Require `ContentPublicationState.Published`.
+- Use `SiteId`-scoped route/slug lookup.
+- Register it with lower precedence than the existing page route.
 
 ### 12.6 Summary of integration surface
 
@@ -2130,7 +2213,7 @@ Integration point              Change type
 ─────────────────────────────────────────────────
 ContentTypeDefinition          New (additive)
 ContentItem : Entity           New (additive)
-ContentTypeDocument (Marten)   New (additive)
+ContentTypeDocument (Sable)    Snowflake id + site-scoped alias uniqueness
 IContentFieldValidator         New (additive)
 IAsyncContentValidator         New (additive)
 IContentFieldEditor            New (fills existing IFieldEditor marker)
@@ -2141,16 +2224,16 @@ ContentTypeGenerator (src gen) New (additive)
 IModuleBuilder usage           Existing — already has the hooks
 IAeroModule usage              Existing — Configure(builder) already virtual
 IContentDefinitionModule       Existing — just implement it
-PageRouteHandler               Small change: add fallback OR separate route
-ContentSlugOwnerType           Add 1 enum value
-Marten StoreOptions            Add 3 schema configs
+PageRouteHandler               Future optional change for public item routes
+ContentSlugOwnerType           Future optional value for public item routes
+AeroDB.Sable StoreOptions      Add 3 schema configs
 PageDocument                   Zero changes
 BlockBase hierarchy            Zero changes
 DynamicTemplateBlock           Zero changes
 ISecureScribanRenderer         Zero changes
 ```
 
-> **95% additive. 5% extension (routes, slug enum, Marten config). Zero breaking changes.**
+> **Embedded-first is additive. Public item routes are the only cross-cutting extension.**
 
 ---
 
@@ -2237,6 +2320,7 @@ public sealed class ContentSearchDocument
     public string ContentTypeAlias { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
+    public bool HideFromSearch { get; set; }
 
     /// <summary>Concatenated tokens from all indexed fields.</summary>
     public string FullText { get; set; } = string.Empty;
@@ -2263,8 +2347,6 @@ public sealed class ContentIndexService(
             return new ContentSearchDocument { Id = $"content:{item.SiteId}:{item.Id}" };
 
         var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
-        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
-
         var doc = new ContentSearchDocument
         {
             Id = $"content:{item.SiteId}:{item.Id}",
@@ -2272,8 +2354,14 @@ public sealed class ContentIndexService(
             ContentItemId = item.Id,
             ContentTypeAlias = item.ContentTypeAlias,
             Slug = item.Slug,
-            Title = item.Title ?? ""
+            Title = item.Title ?? "",
+            HideFromSearch = type.HideFromSearch
         };
+
+        if (type.HideFromSearch)
+            return doc;
+
+        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
 
         foreach (var field in type.Fields)
         {

@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    =========================================================================
+    Marten / Postgres Dependencies — preserved for reference.
+    Legacy/ contains the original Marten source code archived as non-buildable.
+    To re-activate Marten: (1) uncomment the package refs, (2) set Compile
+    on Legacy/ to include, (3) remove the AeroDB provider registration.
+    =========================================================================
+  -->
+  <ItemGroup>
+    <PackageReference Include="Marten" />
+    <PackageReference Include="Marten.AspNetCore" />
+    <PackageReference Include="WolverineFx.Marten" />
+    <PackageReference Include="Weasel.Postgresql" />
+    <PackageReference Include="MysticMind.PostgresEmbed" VersionOverride="4.0.0" />
+  </ItemGroup>
+
+  <!--
+    Aero.Marten shim library (submodule) — provides GenericMartenRepository,
+    IAeroDb, AeroDb, IDynamicMartenRepository, etc.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+  </ItemGroup>
+
+  <!--
+    AeroCMS project references needed by legacy code signatures.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
+  </ItemGroup>
+
+  <!--
+    Legacy/ — Original Marten-specific source code archived for reference.
+    Files are excluded from compilation to keep the project buildable.
+    Remove the Compile Remove + None swap to re-activate Marten.
+  -->
+  <ItemGroup>
+    <Compile Remove="Legacy/**/*.cs" />
+    <None Include="Legacy/**/*.cs" />
+    <None Include="Legacy/**/*.csproj" />
+    <None Include="Legacy/**/*.props" />
+  </ItemGroup>
+
+</Project>

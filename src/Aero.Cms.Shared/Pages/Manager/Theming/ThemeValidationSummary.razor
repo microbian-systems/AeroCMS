@@ -1,0 +1,25 @@
+<section class="validation" aria-labelledby="theme-validation-title">
+    <div class="validation__heading">
+        <div>
+            <span class="eyebrow">Accessibility</span>
+            <h2 id="theme-validation-title">Contrast summary</h2>
+        </div>
+        <span class="validation__count @(Problems.Count == 0 ? "pass" : "fail")">@(Problems.Count == 0 ? "Ready" : $"{Problems.Count} issues")</span>
+    </div>
+    @if (Problems.Count > 0)
+    {
+        <div class="validation__warning" role="alert">
+            <span class="rzi rzi-warning" aria-hidden="true"></span>
+            <div><strong>Publishing is blocked</strong><p>@Problems[0]</p></div>
+        </div>
+    }
+    <div class="validation__matrix">
+        @foreach (var result in Results)
+        {
+            <div class="contrast-row">
+                <span>@result.Mode · @result.Label</span>
+                <span class="@(result.Passes ? "pass" : "fail")">@result.Ratio.ToString("F2") : 1</span>
+            </div>
+        }
+    </div>
+</section>

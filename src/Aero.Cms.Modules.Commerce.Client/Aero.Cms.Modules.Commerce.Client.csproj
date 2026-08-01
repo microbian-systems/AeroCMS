@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>Aero.Cms.Modules.Commerce.Client</RootNamespace>
+    <AeroCmsSkipWebCoreReference>true</AeroCmsSkipWebCoreReference>
   </PropertyGroup>
 
   <ItemGroup>
@@ -9,10 +10,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=true" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' != 'true'">
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 

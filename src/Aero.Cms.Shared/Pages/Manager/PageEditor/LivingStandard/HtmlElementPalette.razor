@@ -1,0 +1,236 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="aero-element-palette" aria-label="Page elements">
+    @if (ShowsImport)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Import</h3>
+            <div class="aero-element-palette__grid">
+                <button type="button"
+                        class="aero-element-palette__item aero-element-palette__item--component"
+                        title="Import a validated static HTML fragment into this page"
+                        @onclick="RequestImportAsync">
+                    <span class="aero-element-palette__component-icon" aria-hidden="true">&lt;/&gt;</span>
+                    <span>Import HTML</span>
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="aero-element-palette__search">
+        <label for="aero-element-search">Add content</label>
+        <input id="aero-element-search"
+               type="search"
+               placeholder="Find content"
+               @bind="SearchText"
+               @bind:event="oninput" />
+        <p class="aero-element-palette__guidance" role="status">
+            @if (HasSearch)
+            {
+                <span>Showing @VisibleItemCount matching options.</span>
+            }
+            else
+            {
+                <span>Start with a template, then select any part on the canvas to make it your own.</span>
+            }
+        </p>
+    </div>
+
+    <div class="aero-element-palette__filters" aria-label="Element catalog filters">
+        @foreach (var filter in new[] { HtmlPaletteFilter.All, HtmlPaletteFilter.Basics, HtmlPaletteFilter.Daisy, HtmlPaletteFilter.Patterns, HtmlPaletteFilter.Html })
+        {
+            <button type="button"
+                    class="aero-element-palette__filter"
+                    aria-pressed="@(EffectiveFilter == filter)"
+                    @onclick="() => SetFilter(filter)">@FilterLabel(filter)</button>
+        }
+    </div>
+
+    @if (FilteredRenderedFragmentOptions.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Rendered content</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var option in FilteredRenderedFragmentOptions)
+                {
+                    <div @key="option.Kind" class="aero-element-palette__source-item">
+                        <button type="button"
+                                class="aero-element-palette__item aero-element-palette__item--component"
+                                title="@($"{option.Description}. Click to add or drag onto the page.")"
+                                data-aero-palette-kind="renderedfragment"
+                                data-aero-palette-value="@option.Kind"
+                                data-aero-palette-label="@option.Label"
+                                @onclick="() => RequestRenderedFragmentAsync(option.Kind)">
+                            <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
+                            <span>@option.Label</span>
+                        </button>
+                        @if (AiRequested.HasDelegate && IsAiEligible(option.Kind))
+                        {
+                            <span class="aero-element-palette__ai-tooltip"
+                                  title="@(AiEnabled ? "Open AI assistant" : AiUnavailableMessage)">
+                                <button type="button"
+                                        class="aero-element-palette__ai"
+                                        disabled="@(!AiEnabled)"
+                                        aria-disabled="@(!AiEnabled)"
+                                        aria-label="Open AI assistant"
+                                        @onclick="() => RequestAiAsync(option.Kind)">
+                                    AI
+                                </button>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (FilteredRegisteredFragments.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Registered application fragments</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var descriptor in FilteredRegisteredFragments)
+                {
+                    <button @key="descriptor.Key"
+                            type="button"
+                            class="aero-element-palette__item aero-element-palette__item--component"
+                            title="@($"{descriptor.Description ?? descriptor.DisplayName}. Click to add or drag onto the page.")"
+                            data-aero-palette-kind="registeredfragment"
+                            data-aero-palette-value="@descriptor.Key"
+                            data-aero-palette-label="@descriptor.DisplayName"
+                            @onclick="() => RequestRegisteredFragmentAsync(descriptor.Key)">
+                        <span class="aero-element-palette__component-icon" aria-hidden="true">◈</span>
+                        <span>@descriptor.DisplayName</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (FilteredComponents.Count > 0)
+    {
+        @foreach (var group in FilteredComponents.GroupBy(descriptor => descriptor.Group))
+        {
+            <div @key="ComponentGroupKey(group.Key)" class="aero-element-palette__section">
+                <h3>@group.Key</h3>
+                <div class="aero-element-palette__grid">
+                    @foreach (var descriptor in group)
+                    {
+                        <button @key="descriptor.Key"
+                                type="button"
+                                class="aero-element-palette__item aero-element-palette__item--component @(descriptor.Preview is null ? string.Empty : "aero-element-palette__item--pattern")"
+                                title="@($"{descriptor.Description}. Click to add or drag onto the page.")"
+                                data-aero-palette-kind="component"
+                                data-aero-palette-value="@descriptor.Key"
+                                data-aero-palette-label="@descriptor.DisplayName"
+                                data-aero-palette-category="@descriptor.Group"
+                                data-aero-preview-aspect="@(descriptor.Preview?.AspectRatio)"
+                                @onclick="() => RequestComponentAsync(descriptor.Key)">
+                            @if (descriptor.Preview is { } preview)
+                            {
+                                <span class="aero-element-palette__pattern-thumbnail" aria-hidden="true">
+                                    <img src="@preview.ThumbnailUrl"
+                                         alt=""
+                                         data-aero-pattern-preview-for="@descriptor.Key" />
+                                </span>
+                                <span class="aero-element-palette__pattern-content">
+                                    <span>@descriptor.DisplayName</span>
+                                    <small>@descriptor.Description</small>
+                                    <span class="aero-element-palette__pattern-meta">Pattern · @preview.Category</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="aero-element-palette__component-icon" aria-hidden="true">@descriptor.Icon</span>
+                                <span>@descriptor.DisplayName</span>
+                                <small>@descriptor.Description</small>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        @if (CanToggleBasicComponents)
+        {
+            <button type="button"
+                    class="aero-element-palette__show-more"
+                    aria-expanded="@_showAllBasicComponents"
+                    @onclick="ToggleBasicComponents">
+                @(_showAllBasicComponents ? "Show fewer Basics" : $"Show all {ComponentCatalog.Basics.Count} Basics")
+            </button>
+        }
+    }
+    else if (ShowsPatterns)
+    {
+        <div class="aero-element-palette__empty">Patterns are coming next. This phase includes reusable Basics and Daisy components.</div>
+    }
+
+    @if (FilteredLayoutOptions.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Layouts</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var option in FilteredLayoutOptions)
+                {
+                    <button @key="option.Kind"
+                            type="button"
+                            class="aero-element-palette__item aero-element-palette__item--layout"
+                            title="@($"{option.Description}. Click to add or drag onto the page.")"
+                            data-aero-palette-kind="layout"
+                            data-aero-palette-value="@option.Kind"
+                            data-aero-palette-label="@option.Label"
+                            @onclick="() => RequestLayoutAsync(option.Kind)">
+                        <span class="aero-element-palette__layout-icon" aria-hidden="true">@option.Icon</span>
+                        <span>@option.Label</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (ShowsHtml)
+    {
+    <div class="aero-element-palette__element-heading">
+        <div>
+            <h3>@(ShowingAllElements ? "All HTML elements" : "Basic elements")</h3>
+            <span>@(ShowingAllElements ? "Choose individual semantic elements." : "The most useful building primitives.")</span>
+        </div>
+        <button type="button"
+                class="aero-element-palette__advanced-toggle"
+                aria-pressed="@_showAdvanced"
+                @onclick="ToggleAdvanced">
+            @(_showAdvanced ? "Show basic" : "Show all")
+        </button>
+    </div>
+
+    @if (HasNoMatches)
+    {
+        <div class="aero-element-palette__empty">No content matches “@SearchText”.</div>
+    }
+    else if (FilteredGroups.Count > 0)
+    {
+        @foreach (var group in FilteredGroups)
+        {
+            <div @key="ElementGroupKey(group.Category)" class="aero-element-palette__section">
+                <h3>@group.Category</h3>
+                <div class="aero-element-palette__grid">
+                    @foreach (var element in group.Elements)
+                    {
+                        <button @key="element.Tag"
+                                type="button"
+                                class="aero-element-palette__item"
+                                title="Add or drag @element.DisplayName"
+                                data-aero-palette-kind="element"
+                                data-aero-palette-value="@element.Tag"
+                                data-aero-palette-label="@element.DisplayName"
+                                @onclick="() => RequestElementAsync(element.Tag)">
+                            <span class="aero-element-palette__tag" aria-hidden="true">&lt;@element.Tag&gt;</span>
+                            <span>@element.DisplayName</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    }
+    }
+</section>

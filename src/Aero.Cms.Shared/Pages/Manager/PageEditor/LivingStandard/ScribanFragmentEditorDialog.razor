@@ -1,0 +1,60 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<div class="aero-scriban-fragment-overlay" @onclick="CloseAsync">
+    <section class="@DialogCssClass"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="@TitleId"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-scriban-fragment-dialog__header">
+            <div>
+                <span>Rendered content</span>
+                <h2 id="@TitleId">Edit @DisplayName</h2>
+            </div>
+            <div class="aero-scriban-fragment-dialog__header-actions">
+                <span title="@AiButtonTitle">
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm aero-scriban-fragment-dialog__ai"
+                            disabled="@(!AiEnabled)"
+                            aria-disabled="@(!AiEnabled)"
+                            @onclick="RequestAiAsync">
+                        AI
+                    </button>
+                </span>
+                <button type="button" class="aero-scriban-fragment-dialog__close" @onclick="CloseAsync" aria-label="Close">×</button>
+            </div>
+        </header>
+
+        <div class="aero-scriban-fragment-dialog__context">@((MarkupString)ContextHelp)</div>
+
+        <div class="aero-scriban-fragment-dialog__body">
+            <ExpandableMonacoSourceEditor @ref="_editor"
+                                          EditorId="@EditorId"
+                                          Language="@Language"
+                                          AccessibleLabel="@($"{DisplayName} editor")"
+                                          RendererLabel="@DisplayName"
+                                          InitialSource="@InitialSource"
+                                          IsExpanded="@_isExpanded"
+                                          IsExpandedChanged="SetExpandedAsync" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="aero-scriban-fragment-dialog__error" role="alert">@ErrorMessage</div>
+        }
+
+        <footer class="aero-scriban-fragment-dialog__footer">
+            <span>@RuntimeHelp</span>
+            <div>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm"
+                        disabled="@_isSaving" @onclick="SaveAsync">
+                    @(_isSaving ? "Validating…" : $"Apply {DisplayName}")
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>

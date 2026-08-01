@@ -1,8 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Enums;
-using Aero.Core.Entities;
+using System.Net.Http.Json;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
@@ -22,12 +20,32 @@ public interface IBlogHttpClient
     Task<Result<PagedResult<BlogSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Gets blog posts grouped by translation group for manager localization UX.
+    /// </summary>
+    Task<Result<PagedResult<BlogTranslationGroupSummary>, AeroError>> GetTranslationGroupsAsync(int skip = 0, int take = 10, string? search = null, string? culture = null, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets a blog post by its identifier.
     /// </summary>
     /// <param name="id">The blog post identifier.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The blog post detail or an error.</returns>
     Task<Result<BlogDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default);
+
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Creates a new blog post.
@@ -53,6 +71,21 @@ public interface IBlogHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>True if deletion was successful or an error.</returns>
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes every localized variant in a post translation group.
+    /// </summary>
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+        /// <summary>
+    /// PublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+        /// <summary>
+    /// UnpublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a blog post.
@@ -96,9 +129,36 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     }
 
     /// <inheritdoc />
+    public Task<Result<PagedResult<BlogTranslationGroupSummary>, AeroError>> GetTranslationGroupsAsync(int skip = 0, int take = 10, string? search = null, string? culture = null, CancellationToken ct = default)
+    {
+        var url = $"translation-groups?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        if (!string.IsNullOrEmpty(culture)) url += $"&culture={Uri.EscapeDataString(culture)}";
+        return GetAsync<PagedResult<BlogTranslationGroupSummary>>(url, ct);
+    }
+
+    /// <inheritdoc />
     public Task<Result<BlogDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<BlogDetail>($"{id}", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<BlogDetail>>($"{id}/translations", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<ForkBlogCultureRequest, BlogDetail>($"{id}/translations", request, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<AiTranslateBlogRequest, AiTranslateBlogResult>($"{id}/ai-translate", request, ct);
     }
 
     /// <inheritdoc />
@@ -123,6 +183,43 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
             Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
             _ => AeroError.CreateError("Unexpected result from DeleteAsync")
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        var response = await base.DeleteAsync($"translation-groups/{translationGroupId}", ct);
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok ok => await ReadDeleteTranslationGroupResultAsync(ok.Value, ct),
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from DeleteTranslationGroupAsync")
+        };
+    }
+
+    private static async Task<Result<int, AeroError>> ReadDeleteTranslationGroupResultAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<DeleteBlogTranslationGroupResult>(cancellationToken: ct);
+            return body?.Deleted ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PostAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/publish", new object(), ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PostAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/unpublish", new object(), ct);
     }
 
     /// <inheritdoc />
@@ -160,6 +257,57 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
 public record BlogSummary(long Id, string Title, string Slug, DateTime CreatedAt, DateTime? PublishedAt, string? Excerpt, string? FeaturedImageUrl);
 
 /// <summary>
+/// Translation-group summary for the posts manager.
+/// </summary>
+public sealed record BlogTranslationGroupSummary(
+    long TranslationGroupId,
+    long DisplayPostId,
+    string DisplayCulture,
+    string DefaultCulture,
+    string Title,
+    string Slug,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    string? Excerpt,
+    string? FeaturedImageUrl,
+    bool MissingDefaultCulture,
+    bool MissingSelectedCulture,
+    IReadOnlyList<BlogTranslationVariantSummary> Variants);
+
+/// <summary>
+/// Culture-specific post variant summary.
+/// </summary>
+public sealed record BlogTranslationVariantSummary(
+    long Id,
+    string Culture,
+    string Title,
+    string Slug,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    bool IsDefaultCulture);
+
+/// <summary>
+/// Represents a record for DeleteBlogTranslationGroupResult.
+/// </summary>
+public sealed record DeleteBlogTranslationGroupResult(int Deleted);
+
+/// <summary>
+/// Represents a record for PublicationBulkResult.
+/// </summary>
+public sealed record PublicationBulkResult(
+    int Updated,
+    IReadOnlyList<PublicationBulkItem> Items);
+
+/// <summary>
+/// Represents a record for PublicationBulkItem.
+/// </summary>
+public sealed record PublicationBulkItem(
+    long Id,
+    string Culture,
+    string Title,
+    bool Published);
+
+/// <summary>
 /// Detailed information for a blog post.
 /// </summary>
 public record BlogDetail(
@@ -171,31 +319,113 @@ public record BlogDetail(
     string? SeoDescription,
     DateTimeOffset? PublishedOn,
     int PublicationState,
-    List<BlockBase>? Content,
+    string MarkdownContent,
     List<long> TagIds,
     List<long> CategoryIds,
     long? AuthorId,
     string? ImageUrl,
     int Likes,
     DateTimeOffset CreatedOn,
-    DateTimeOffset? ModifiedOn);
+    DateTimeOffset? ModifiedOn,
+    string Culture = "en-US",
+    long? TranslationGroupId = null,
+    long? SeriesId = null,
+    bool IncludeInSearch = true,
+    bool IncludeInPublicAi = false);
+
+/// <summary>
+/// Represents a record for ForkBlogCultureRequest.
+/// </summary>
+public sealed record ForkBlogCultureRequest(string Culture, string Slug);
+
+/// <summary>
+/// Represents a record for AiTranslateBlogRequest.
+/// </summary>
+public sealed record AiTranslateBlogRequest(
+    IReadOnlyList<AiTranslateBlogCultureRequest> Targets,
+    string? ProviderId = null,
+    bool OverwriteExisting = false);
+
+/// <summary>
+/// Represents a record for AiTranslateBlogCultureRequest.
+/// </summary>
+public sealed record AiTranslateBlogCultureRequest(
+    string Culture,
+    string? Slug = null);
+
+/// <summary>
+/// Represents a record for AiTranslateBlogResult.
+/// </summary>
+public sealed record AiTranslateBlogResult(
+    IReadOnlyList<AiTranslateBlogCultureResult> Results);
+
+/// <summary>
+/// Represents a record for AiTranslateBlogCultureResult.
+/// </summary>
+public sealed record AiTranslateBlogCultureResult(
+    string Culture,
+    bool Succeeded,
+    BlogDetail? Post,
+    IReadOnlyList<string> Warnings,
+    string? Error);
 
 /// <summary>
 /// Request to create a new blog post.
 /// </summary>
 public class CreateBlogRequest
 {
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public string? MarkdownContent { get; set; }
-    public List<string>? Tags { get; set; }
-    public string? Category { get; set; }
-    public string? Author { get; set; }
-    public string? ImageUrl { get; set; }
-    public int PublicationState { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string? MarkdownContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string>? Tags { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long? SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public string? Author { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public int PublicationState { get; set; }
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+public bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+public bool IncludeInPublicAi { get; set; }
 }
 
 /// <summary>
@@ -203,18 +433,62 @@ public class CreateBlogRequest
 /// </summary>
 public class UpdateBlogRequest
 {
-    public long Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public string? MarkdownContent { get; set; }
-    public List<string>? Tags { get; set; }
-    public string? Category { get; set; }
-    public string? Author { get; set; }
-    public string? ImageUrl { get; set; }
-    public int PublicationState { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string? MarkdownContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string>? Tags { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long? SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public string? Author { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public int PublicationState { get; set; }
+    /// <summary>Gets or sets whether the published post is eligible for site search.</summary>
+public bool IncludeInSearch { get; set; } = true;
+    /// <summary>Gets or sets whether the published post may ground public AI answers.</summary>
+public bool IncludeInPublicAi { get; set; }
 }
 
 // ─── Import Feature DTOs ─────────────────────────────────────
@@ -224,9 +498,18 @@ public class UpdateBlogRequest
 /// </summary>
 public static class DuplicateSlugBehavior
 {
-    public const string Skip = "skip";
-    public const string Suffix = "suffix";
-    public const string Overwrite = "overwrite";
+        /// <summary>
+    /// Skip.
+    /// </summary>
+public const string Skip = "skip";
+        /// <summary>
+    /// Suffix.
+    /// </summary>
+public const string Suffix = "suffix";
+        /// <summary>
+    /// Overwrite.
+    /// </summary>
+public const string Overwrite = "overwrite";
 }
 
 /// <summary>

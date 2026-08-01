@@ -1,35 +1,57 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StackExchange.Profiling.Storage;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aero.Cms.Modules.MiniProfiler;
 
+/// <summary>
+/// Conditionally registers and inserts MiniProfiler request diagnostics into an Aero CMS web application.
+/// </summary>
+/// <remarks>
+/// Registration is controlled solely by <c>AeroCms:Modules:MiniProfiler:Enable</c>, which defaults to
+/// <see langword="false"/> when configuration is absent. This module does not apply environment gating,
+/// authorization callbacks, request sampling, or a user-ID provider. Enabling it therefore does not by itself
+/// establish production-safe access control for profiler results or UI resources.
+/// </remarks>
 [Module(nameof(MiniProfilerModule))]
 public class MiniProfilerModule : AeroWebModule, IStartupFilter
 {
+    /// <summary>Gets the fixed name used to discover this module.</summary>
     public override string Name => nameof(MiniProfilerModule);
 
+    /// <summary>Gets the Aero CMS version reported by this module.</summary>
     public override string Version => AeroConstants.Version;
 
+    /// <summary>Gets the Aero CMS author metadata reported by this module.</summary>
     public override string Author => AeroConstants.Author;
 
+    /// <summary>Gets an empty module dependency list.</summary>
     public override IReadOnlyList<string> Dependencies => [];
 
+    /// <summary>Gets the profiler and performance discovery categories.</summary>
     public override IReadOnlyList<string> Category => ["profiler", "performance"];
 
+    /// <summary>Gets the profiler and performance discovery tags.</summary>
     public override IReadOnlyList<string> Tags => ["profiler", "performance"];
 
+    /// <summary>
+    /// Registers MiniProfiler and this startup filter when the module enable flag is true.
+    /// </summary>
+    /// <param name="services">The application service collection to modify.</param>
+    /// <param name="config">Configuration used to read the module enable flag.</param>
+    /// <param name="env">The host environment forwarded to the base module; it is not used to gate profiling.</param>
+    /// <remarks>
+    /// Enabled registration uses the <c>/profiler</c> route base, in-memory result storage with a 60-minute cache
+    /// duration, connection open/close tracking, MVC filter and view profiling, dark popup rendering at bottom-left,
+    /// one decimal timing precision, and the inline SQL formatter. No authorization or sampling delegate is
+    /// configured. Registration failures propagate to the caller.
+    /// </remarks>
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var enabled = config?.GetValue<bool>("AeroCms:Modules:MiniProfiler:Enable") ?? false;
@@ -122,6 +144,18 @@ public class MiniProfilerModule : AeroWebModule, IStartupFilter
         base.ConfigureServices(services, config, env);
     }
 
+    /// <summary>
+    /// Creates the startup-filter delegate that conditionally adds MiniProfiler middleware before the next stage.
+    /// </summary>
+    /// <param name="next">The remaining application-startup configuration delegate.</param>
+    /// <returns>
+    /// A delegate that re-reads the enable flag, calls <c>UseMiniProfiler</c> when true, and then invokes
+    /// <paramref name="next"/>.
+    /// </returns>
+    /// <remarks>
+    /// Middleware setup is synchronous and exposes no cancellation token. Configuration, middleware-registration,
+    /// and downstream-startup exceptions are not caught by this module.
+    /// </remarks>
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>

@@ -1,5 +1,4 @@
 @page "/shop/checkout"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @model CheckoutModel
 @{
     ViewData["Title"] = "Checkout";
@@ -7,60 +6,77 @@
     ViewData["HeaderSubtitle"] = "";
 }
 
-<div class="eshop-checkout">
+<div class="eshop-checkout" aria-labelledby="checkout-heading">
     <form method="post" asp-page-handler="PlaceOrder">
         @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="eshop-validation" role="alert"></div>
         <div class="form">
             <div class="form-section">
-                <h2>Shipping address</h2>
+                <h2 id="checkout-heading">Shipping address</h2>
                 <label>
                     Address
-                    <input type="text" name="Street" value="@Model.Street" />
+                    <input asp-for="Street" autocomplete="street-address" maxlength="256" required />
+                    <span asp-validation-for="Street"></span>
                 </label>
                 <div class="form-group">
                     <div class="form-group-item">
                         <label>
                             City
-                            <input type="text" name="City" value="@Model.City" />
+                            <input asp-for="City" autocomplete="address-level2" maxlength="128" required />
+                            <span asp-validation-for="City"></span>
                         </label>
                     </div>
                     <div class="form-group-item">
                         <label>
                             State
-                            <input type="text" name="State" value="@Model.State" />
+                            <input asp-for="State" autocomplete="address-level1" maxlength="128" />
                         </label>
                     </div>
                     <div class="form-group-item">
                         <label>
                             Zip code
-                            <input type="text" name="ZipCode" value="@Model.ZipCode" />
+                            <input asp-for="ZipCode" autocomplete="postal-code" maxlength="32" required />
+                            <span asp-validation-for="ZipCode"></span>
                         </label>
                     </div>
                 </div>
                 <div>
                     <label>
                         Country
-                        <input type="text" name="Country" value="@Model.Country" />
+                        <input asp-for="Country" autocomplete="country-name" maxlength="128" required />
+                        <span asp-validation-for="Country"></span>
                     </label>
                 </div>
+            </div>
+            <div class="form-section">
+                <h2>Payment method</h2>
+                @if (Model.AvailablePaymentProviders.Count == 0)
+                {
+                    <p class="eshop-state eshop-state-error" role="alert">Checkout is unavailable because this store has no configured payment method.</p>
+                }
+                else
+                {
+                    <fieldset class="eshop-payment-methods">
+                        <legend>Choose how to pay</legend>
+                        @foreach (var provider in Model.AvailablePaymentProviders)
+                        {
+                            <label class="eshop-payment-method">
+                                <input asp-for="PaymentProvider" type="radio" value="@provider" required />
+                                <span>@(provider == "stripe" ? "Card or supported wallet" : "PayPal")</span>
+                            </label>
+                        }
+                    </fieldset>
+                    <span asp-validation-for="PaymentProvider"></span>
+                }
             </div>
             <div class="form-section">
                 <div class="form-buttons">
                     <a href="/shop/cart" class="eshop-button eshop-button-secondary">
                         <img role="presentation" src="~/icons/arrow-left.svg" alt="" /> Back to the shopping bag
                     </a>
-                    <button class="eshop-button eshop-button-primary" type="submit">Place order</button>
+                    <button class="eshop-button eshop-button-primary" type="submit" disabled="@(Model.AvailablePaymentProviders.Count == 0)">Place order and continue to payment</button>
                 </div>
             </div>
         </div>
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="validation-summary-errors">
-                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    <p>@error.ErrorMessage</p>
-                }
-            </div>
-        }
     </form>
 </div>

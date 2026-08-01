@@ -4,16 +4,40 @@ using Aero.Cms.Modules.Setup.Configuration;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Persists lifecycle transitions for the bootstrap process.
+/// </summary>
 public interface IBootstrapCompletionWriter
 {
-    Task MarkCompleteAsync(CancellationToken cancellationToken = default);
-    Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
-    Task MarkFailedAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Marks bootstrap and seeding as complete and changes the persisted state to running.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
+Task MarkCompleteAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Records that configuration is available but runtime seeding has not completed.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
+Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Records a failed bootstrap attempt while retaining the fact that bootstrap configuration exists.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels file reads or the atomic settings write.</param>
+Task MarkFailedAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Updates the bootstrap section of the environment-specific web application settings file.
+/// </summary>
+/// <remarks>
+/// Existing settings outside <c>AeroCms:Bootstrap</c> are preserved. Missing files and
+/// missing object sections are created. Malformed JSON and file-system failures propagate
+/// to the caller.
+/// </remarks>
 public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appSettingsWriter) : IBootstrapCompletionWriter
 {
-    public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
@@ -43,7 +67,8 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
@@ -74,7 +99,8 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

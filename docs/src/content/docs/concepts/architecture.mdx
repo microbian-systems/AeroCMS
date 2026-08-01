@@ -1,0 +1,74 @@
+---
+title: Architecture
+description: Current AeroCMS host, module, application, persistence, rendering, and cache boundaries.
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+
+AeroCMS is a modular ASP.NET Core application. Source-generated catalogs register modules, Wolverine handlers, and Orleans grains without reflection-based discovery. Feature modules register services, endpoints, persistence configuration, and ordered middleware through host contracts.
+
+<Mermaid
+  label="AeroCMS request and persistence architecture"
+  chart={`
+flowchart LR
+  Client[Browser or API client] --> Host[ASP.NET Core host]
+  Host --> Resolve[Site and culture resolution]
+  Resolve --> Auth[Authentication and authorization]
+  Auth --> Endpoint[Minimal API, Razor, or Blazor boundary]
+  Endpoint --> App[Application service or Orleans grain]
+  App --> Sable[Sable document sessions]
+  Sable --> Surreal[(SurrealDB)]
+  App --> Render[Page, post, docs, or content renderer]
+  Render --> Cache[Output cache and FusionCache]
+  Cache --> Client
+`}
+/>
+
+## Startup
+
+`AeroStartupPipeline` handles early setup/configured/running states. In running mode, `AeroCmsExtensions.AddAeroCmsAsync` configures persistence, data protection, identity, module orchestration, Razor/Blazor, localization, and supporting infrastructure. `RunAeroCmsAsync` composes the request pipeline and module endpoints.
+
+The Aspire AppHost starts the manager resource (`Aero.Cms`) and public web resource (`Aero.Cms.Web`) independently. The AppHost currently declares no database or cache resource itself; bootstrap configuration determines local or server modes.
+
+## Module system
+
+`GeneratedAeroModuleCatalog`, `GeneratedWolverineHandlerCatalog`, and `GeneratedAeroGrainCatalog` are compile-time products. The module graph validates dependencies and establishes deterministic load/pipeline order. An extension module derives from the relevant Aero module base class and is discovered through source-generation inputs, not assembly scanning.
+
+This documentation describes AeroCMS modules, but it does not document the repository's Git submodules or their APIs.
+
+## Application and persistence
+
+Current content, pages, posts, docs, sites, identities, media metadata, and other implemented domains use AeroDB Sable document/query sessions over SurrealDB. Durable records commonly use Snowflake `long` identifiers. Strings are used where JavaScript, JSON, Scriban, or MCP must preserve 64-bit values without numeric precision loss.
+
+The hierarchical content model currently persists `ParentId` and normalized sibling order in documents. Traversal is executed through bounded Sable queries and materialized into immutable trees. Do not describe this as a native SurrealDB graph-edge implementation: explicit graph relationships are a future-capable direction, not the verified storage shape at this baseline.
+
+## Rendering
+
+Published requests resolve a site and culture, load an exact published snapshot, select one of four page renderers, materialize declared content queries, render, validate HTML, compile style metadata, and return output. Preview uses an authenticated draft/version route and no-store responses.
+
+<Mermaid
+  label="Page rendering flow"
+  chart={`
+sequenceDiagram
+  participant B as Browser
+  participant R as Razor page route
+  participant S as Page service
+  participant Q as Content query resolver
+  participant P as Renderer registry
+  participant H as HTML validator/compiler
+  B->>R: GET site path
+  R->>S: Resolve published page by site, culture, path
+  S-->>R: Exact published snapshot
+  R->>Q: Execute declared bounded queries
+  Q-->>R: Immutable content projections
+  R->>P: Resolve renderer ID
+  P->>H: Render and import markup
+  H-->>B: Validated HTML response
+`}
+/>
+
+## Cache boundaries
+
+ASP.NET Core output caching stores rendered responses in a Redis-compatible store under `aero:output:`. Named policies cover pages, posts, docs, and public content with five- or ten-minute expirations. The custom policy varies by origin, path, UI culture, theme identity/version, and relevant query keys.
+
+FusionCache is a separate application-data cache with a five-minute default and Redis-compatible L2. Server cache mode adds a backplane; local mode targets the in-process Garnet endpoint. Invalidations are feature-specific and are not a transactional coherence guarantee across every cache layer.

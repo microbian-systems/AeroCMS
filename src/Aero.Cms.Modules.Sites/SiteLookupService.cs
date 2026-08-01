@@ -1,13 +1,23 @@
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
-using Marten;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Sites;
 
+/// <summary>
+/// Reads site and host documents and projects them into manager-facing site views.
+/// </summary>
+/// <param name="session">The query session used for site and host reads.</param>
 public sealed class SiteLookupService(IQuerySession session) : ISiteLookupService
 {
-    public async Task<SiteViewModel?> ResolveByHostAsync(
+    /// <inheritdoc />
+    /// <remarks>
+    /// The host lookup uses the globally unique normalized host record, then independently loads
+    /// the parent site and its complete host collection. No tenant boundary is applied beyond that
+    /// relationship.
+    /// </remarks>
+public async Task<SiteViewModel?> ResolveByHostAsync(
         string host,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +43,12 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         return MapToViewModel(site, allHosts);
     }
 
-    public async Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    /// <remarks>
+    /// Hosts are batch-loaded after the site query to avoid one host query per site. Disabled sites
+    /// are intentionally retained for manager administration.
+    /// </remarks>
+public async Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var sites = await session.Query<SitesModel>()
             .OrderBy(x => x.Name)
@@ -45,7 +60,7 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         // Batch-load all SiteHost records for the returned sites
         var siteIds = sites.Select(s => s.Id).ToList();
         var allHosts = await session.Query<SiteHost>()
-            .Where(x => x.SiteId.In(siteIds))
+            .Where(x => siteIds.Contains(x.SiteId))
             .ToListAsync(cancellationToken);
 
         var hostsBySite = allHosts
@@ -57,6 +72,12 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
             .ToList();
     }
 
+    /// <summary>
+    /// Projects a site document and its host records without retaining references to the host collection.
+    /// </summary>
+    /// <param name="model">The persisted site document.</param>
+    /// <param name="hosts">All hosts assigned to the site.</param>
+    /// <returns>A manager view whose primary host prefers the explicitly primary record.</returns>
     private static SiteViewModel MapToViewModel(SitesModel model, IReadOnlyList<SiteHost> hosts)
     {
         return new SiteViewModel
@@ -68,6 +89,11 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
             Hosts = hosts.Select(h => h.Host).ToList(),
             IsEnabled = model.IsEnabled,
             DefaultCulture = model.DefaultCulture,
+            SupportedCultures = model.SupportedCultures,
+            StyleProfile = SiteStyleProfileMapper.ToViewModel(model.StyleProfile),
+            ThemeId = model.ThemeId,
+            ThemeVersion = model.ThemeVersion,
+            ThemeRevision = model.ThemeRevision,
             CreatedOn = model.CreatedOn,
             ModifiedOn = model.ModifiedOn,
             CreatedBy = model.CreatedBy,

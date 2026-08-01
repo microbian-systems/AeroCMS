@@ -1,0 +1,130 @@
+.aero-content-query {
+    display: grid;
+    gap: 0.85rem;
+    margin: 1rem;
+    border: 1px solid #ddd6fe;
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+    color: #172033;
+    background: #faf8ff;
+}
+
+.aero-content-query__heading,
+.aero-content-query__filters-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.aero-content-query h3,
+.aero-content-query h4,
+.aero-content-query p {
+    margin: 0;
+}
+
+.aero-content-query h3,
+.aero-content-query h4,
+.aero-content-query label > span {
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.aero-content-query__heading p,
+.aero-content-query__filters-heading span,
+.aero-content-query__notice {
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.aero-content-query__heading code {
+    color: #7c3aed;
+    font-size: 0.7rem;
+}
+
+.aero-content-query form,
+.aero-content-query label {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.aero-content-query form {
+    gap: 0.75rem;
+}
+
+.aero-content-query__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+
+.aero-content-query input,
+.aero-content-query select {
+    min-width: 0;
+    width: 100%;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.6rem;
+    color: #172033;
+    background: #fff;
+    font-size: 0.75rem;
+}
+
+.aero-content-query input:focus,
+.aero-content-query select:focus {
+    border-color: #7c3aed;
+    outline: 3px solid rgb(124 58 237 / 12%);
+}
+
+.aero-content-query__filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.625rem;
+    padding: 0.6rem;
+    background: #fff;
+}
+
+.aero-content-query__filter input,
+.aero-content-query__filter .aero-content-query__remove {
+    grid-column: 1 / -1;
+}
+
+.aero-content-query button {
+    border: 1px solid #c4b5fd;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    color: #6d28d9;
+    background: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aero-content-query button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.aero-content-query__remove {
+    border-color: #fecaca !important;
+    color: #b91c1c !important;
+}
+
+.aero-content-query__save {
+    justify-self: start;
+    color: #fff !important;
+    background: #6d28d9 !important;
+}
+
+.aero-content-query__error {
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    padding: 0.55rem;
+    color: #991b1b;
+    background: #fef2f2;
+    font-size: 0.72rem;
+}

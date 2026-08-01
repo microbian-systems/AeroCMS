@@ -1,0 +1,20 @@
+.preview-shell { background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); min-width: 0; overflow: hidden; }
+.preview-toolbar { align-items: center; border-bottom: 1px solid var(--pe-border); display: flex; gap: 1rem; justify-content: space-between; padding: .8rem 1rem; }
+.eyebrow { color: var(--pe-primary); display: block; font-size: .67rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+h2 { color: var(--pe-text-primary); font-size: 1rem; font-weight: 750; margin: .1rem 0 0; }
+.preview-controls { align-items: center; display: flex; gap: .65rem; }
+.segment, .viewport { background: var(--pe-bg-primary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-sm); display: flex; padding: .2rem; }
+.segment button, .viewport button { border: 0; border-radius: calc(var(--pe-radius-sm) - 2px); color: var(--pe-text-muted); font-size: .72rem; font-weight: 700; min-height: 2rem; padding: .25rem .55rem; }
+.viewport button { min-width: 2rem; padding: .25rem; }
+.segment button.active, .viewport button.active { background: var(--pe-bg-secondary); color: var(--pe-primary); box-shadow: 0 1px 2px rgb(0 0 0 / .1); }
+.preview-stage { background-color: var(--pe-bg-primary); background-image: radial-gradient(color-mix(in srgb, var(--pe-border) 70%, transparent) .7px, transparent .7px); background-size: 12px 12px; overflow: auto; padding: 1.2rem; }
+.preview-frame { box-shadow: 0 10px 30px rgb(15 23 42 / .12); margin-inline: auto; min-height: 720px; overflow: hidden; transition: width .18s ease; width: 100%; }
+.preview-frame--phone { width: min(100%, 390px); }
+.preview-frame--tablet { width: min(100%, 768px); }
+.preview-frame--desktop { width: 100%; }
+.component-gallery, .pattern-gallery { display: grid; gap: 1rem; padding: 1rem; }
+.preview-hero { min-height: 20rem; }
+.preview-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.alerts { display: grid; gap: .65rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pattern-gallery img { aspect-ratio: 4 / 3; min-width: 240px; object-fit: cover; }
+@media (max-width: 767px) { .preview-toolbar { align-items: stretch; flex-direction: column; } .preview-controls { align-items: stretch; flex-direction: column; } .segment button { flex: 1; } .viewport { align-self: flex-start; } .preview-grid, .alerts { grid-template-columns: 1fr; } }

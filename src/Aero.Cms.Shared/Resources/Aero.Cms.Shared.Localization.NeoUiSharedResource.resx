@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Alert -->
+  <data name="Alert.Dismiss" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <!-- Breadcrumb -->
+  <data name="Breadcrumb.Breadcrumb" xml:space="preserve">
+    <value>breadcrumb</value>
+  </data>
+  <data name="Breadcrumb.More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <!-- Calendar -->
+  <data name="Calendar.GoToPreviousMonth" xml:space="preserve">
+    <value>Go to previous month</value>
+  </data>
+  <data name="Calendar.GoToNextMonth" xml:space="preserve">
+    <value>Go to next month</value>
+  </data>
+  <data name="Calendar.AriaLabel" xml:space="preserve">
+    <value>Calendar</value>
+  </data>
+  <data name="Calendar.SelectMonth" xml:space="preserve">
+    <value>Select month</value>
+  </data>
+  <data name="Calendar.SelectYear" xml:space="preserve">
+    <value>Select year</value>
+  </data>
+  <!-- Carousel -->
+  <data name="Carousel.NextSlide" xml:space="preserve">
+    <value>Next slide</value>
+  </data>
+  <data name="Carousel.PreviousSlide" xml:space="preserve">
+    <value>Previous slide</value>
+  </data>
+  <data name="Carousel.GoToSlide" xml:space="preserve">
+    <value>Go to slide {0}</value>
+  </data>
+  <!-- Combobox -->
+  <data name="Combobox.Placeholder" xml:space="preserve">
+    <value>Select an option...</value>
+  </data>
+  <data name="Combobox.SearchPlaceholder" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="Combobox.EmptyMessage" xml:space="preserve">
+    <value>No results found.</value>
+  </data>
+  <data name="Combobox.Selected" xml:space="preserve">
+    <value>Selected</value>
+  </data>
+  <!-- Command -->
+  <data name="Command.ListAriaLabel" xml:space="preserve">
+    <value>Command list</value>
+  </data>
+  <data name="Command.MenuAriaLabel" xml:space="preserve">
+    <value>Command menu</value>
+  </data>
+  <!-- DataGrid -->
+  <data name="DataGrid.Loading" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="DataGrid.NoResultsFound" xml:space="preserve">
+    <value>No results found</value>
+  </data>
+  <data name="DataGrid.InitializingGrid" xml:space="preserve">
+    <value>Initializing grid...</value>
+  </data>
+  <!-- DataTable -->
+  <data name="DataTable.Loading" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="DataTable.NoResultsFound" xml:space="preserve">
+    <value>No results found</value>
+  </data>
+  <data name="DataTable.Search" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="DataTable.Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="DataTable.ToggleColumns" xml:space="preserve">
+    <value>Toggle columns</value>
+  </data>
+  <data name="DataTable.Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="DataTable.FilterColumns" xml:space="preserve">
+    <value>Filter columns</value>
+  </data>
+  <data name="DataTable.SelectRowsAriaLabel" xml:space="preserve">
+    <value>Select rows - click to see options</value>
+  </data>
+  <data name="DataTable.SelectAllOnPage" xml:space="preserve">
+    <value>Select all on this page ({0} items)</value>
+  </data>
+  <data name="DataTable.SelectAllItems" xml:space="preserve">
+    <value>Select all {0} items</value>
+  </data>
+  <data name="DataTable.ClearSelection" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="DataTable.SelectAllRows" xml:space="preserve">
+    <value>Select all rows</value>
+  </data>
+  <data name="DataTable.SelectThisRow" xml:space="preserve">
+    <value>Select this row</value>
+  </data>
+  <!-- DataView -->
+  <data name="DataView.SearchPlaceholder" xml:space="preserve">
+    <value>Search…</value>
+  </data>
+  <data name="DataView.NoResultsFound" xml:space="preserve">
+    <value>No items to display.</value>
+  </data>
+  <data name="DataView.Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="DataView.LoadingMore" xml:space="preserve">
+    <value>Loading more…</value>
+  </data>
+  <data name="DataView.LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="DataView.ListView" xml:space="preserve">
+    <value>List view</value>
+  </data>
+  <data name="DataView.GridView" xml:space="preserve">
+    <value>Grid view</value>
+  </data>
+  <data name="DataView.Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <!-- DatePicker -->
+  <data name="DatePicker.Placeholder" xml:space="preserve">
+    <value>Pick a date</value>
+  </data>
+  <!-- DateRangePicker -->
+  <data name="DateRangePicker.Placeholder" xml:space="preserve">
+    <value>Pick a date range</value>
+  </data>
+  <data name="DateRangePicker.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="DateRangePicker.Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="DateRangePicker.Today" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="DateRangePicker.Yesterday" xml:space="preserve">
+    <value>Yesterday</value>
+  </data>
+  <data name="DateRangePicker.Last7Days" xml:space="preserve">
+    <value>Last 7 days</value>
+  </data>
+  <data name="DateRangePicker.Last30Days" xml:space="preserve">
+    <value>Last 30 days</value>
+  </data>
+  <data name="DateRangePicker.ThisMonth" xml:space="preserve">
+    <value>This month</value>
+  </data>
+  <data name="DateRangePicker.LastMonth" xml:space="preserve">
+    <value>Last month</value>
+  </data>
+  <data name="DateRangePicker.ThisYear" xml:space="preserve">
+    <value>This year</value>
+  </data>
+  <data name="DateRangePicker.Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="DateRangePicker.DaysSelected" xml:space="preserve">
+    <value>{0} day(s) selected</value>
+  </data>
+  <data name="DateRangePicker.SelectEndDate" xml:space="preserve">
+    <value>Select end date</value>
+  </data>
+  <data name="DateRangePicker.QuickSelect" xml:space="preserve">
+    <value>Quick Select</value>
+  </data>
+  <!-- Dialog -->
+  <data name="Dialog.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <!-- Toast -->
+  <data name="Toast.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <!-- FileUpload -->
+  <data name="FileUpload.Accepted" xml:space="preserve">
+    <value>Accepted: {0}</value>
+  </data>
+  <data name="FileUpload.MaxSize" xml:space="preserve">
+    <value>Max size: {0}</value>
+  </data>
+  <data name="FileUpload.MaxFiles" xml:space="preserve">
+    <value>Max files: {0}</value>
+  </data>
+  <data name="FileUpload.FilesCount" xml:space="preserve">
+    <value>Files ({0})</value>
+  </data>
+  <data name="FileUpload.RemoveFile" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <!-- Filter -->
+  <data name="Filter.RemoveFilter" xml:space="preserve">
+    <value>Remove filter</value>
+  </data>
+  <data name="Filter.Operator.Equals" xml:space="preserve">
+    <value>is</value>
+  </data>
+  <data name="Filter.Operator.NotEquals" xml:space="preserve">
+    <value>is not</value>
+  </data>
+  <data name="Filter.Operator.Contains" xml:space="preserve">
+    <value>contains</value>
+  </data>
+  <data name="Filter.Operator.NotContains" xml:space="preserve">
+    <value>does not contain</value>
+  </data>
+  <data name="Filter.Operator.StartsWith" xml:space="preserve">
+    <value>starts with</value>
+  </data>
+  <data name="Filter.Operator.EndsWith" xml:space="preserve">
+    <value>ends with</value>
+  </data>
+  <data name="Filter.Operator.IsEmpty" xml:space="preserve">
+    <value>is empty</value>
+  </data>
+  <data name="Filter.Operator.IsNotEmpty" xml:space="preserve">
+    <value>is not empty</value>
+  </data>
+  <data name="Filter.Operator.GreaterThan" xml:space="preserve">
+    <value>is greater than</value>
+  </data>
+  <data name="Filter.Operator.LessThan" xml:space="preserve">
+    <value>is less than</value>
+  </data>
+  <data name="Filter.Operator.GreaterThanOrEqual" xml:space="preserve">
+    <value>is ≥</value>
+  </data>
+  <data name="Filter.Operator.LessThanOrEqual" xml:space="preserve">
+    <value>is ≤</value>
+  </data>
+  <data name="Filter.Operator.Between" xml:space="preserve">
+    <value>is between</value>
+  </data>
+  <data name="Filter.Operator.NotBetween" xml:space="preserve">
+    <value>is not between</value>
+  </data>
+  <data name="Filter.Operator.IsAnyOf" xml:space="preserve">
+    <value>is any of</value>
+  </data>
+  <data name="Filter.Operator.IsNoneOf" xml:space="preserve">
+    <value>is none of</value>
+  </data>
+  <data name="Filter.Operator.IsAllOf" xml:space="preserve">
+    <value>is all of</value>
+  </data>
+  <data name="Filter.Operator.IsTrue" xml:space="preserve">
+    <value>is true</value>
+  </data>
+  <data name="Filter.Operator.IsFalse" xml:space="preserve">
+    <value>is false</value>
+  </data>
+  <!-- MultiSelect -->
+  <data name="MultiSelect.Placeholder" xml:space="preserve">
+    <value>Select items...</value>
+  </data>
+  <data name="MultiSelect.SearchPlaceholder" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="MultiSelect.EmptyMessage" xml:space="preserve">
+    <value>No results found.</value>
+  </data>
+  <data name="MultiSelect.SelectAll" xml:space="preserve">
+    <value>Select All</value>
+  </data>
+  <data name="MultiSelect.Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="MultiSelect.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="MultiSelect.ClearAllAriaLabel" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <!-- NumericInput -->
+  <data name="NumericInput.IncreaseValue" xml:space="preserve">
+    <value>Increase value</value>
+  </data>
+  <data name="NumericInput.DecreaseValue" xml:space="preserve">
+    <value>Decrease value</value>
+  </data>
+  <!-- Pagination -->
+  <data name="Pagination.Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Pagination.Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Pagination.RowsPerPage" xml:space="preserve">
+    <value>Rows per page</value>
+  </data>
+  <data name="Pagination.ShowingFormat" xml:space="preserve">
+    <value>Showing {0}–{1} of {2}</value>
+  </data>
+  <data name="Pagination.PageFormat" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="Pagination.NoItems" xml:space="preserve">
+    <value>No items</value>
+  </data>
+  <data name="Pagination.GoToFirstPage" xml:space="preserve">
+    <value>Go to first page</value>
+  </data>
+  <data name="Pagination.GoToLastPage" xml:space="preserve">
+    <value>Go to last page</value>
+  </data>
+  <!-- RichTextEditor -->
+  <data name="RichTextEditor.Normal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="RichTextEditor.Heading1" xml:space="preserve">
+    <value>Heading 1</value>
+  </data>
+  <data name="RichTextEditor.Heading2" xml:space="preserve">
+    <value>Heading 2</value>
+  </data>
+  <data name="RichTextEditor.Heading3" xml:space="preserve">
+    <value>Heading 3</value>
+  </data>
+  <data name="RichTextEditor.BoldTooltip" xml:space="preserve">
+    <value>Bold (Ctrl+B)</value>
+  </data>
+  <data name="RichTextEditor.ItalicTooltip" xml:space="preserve">
+    <value>Italic (Ctrl+I)</value>
+  </data>
+  <data name="RichTextEditor.UnderlineTooltip" xml:space="preserve">
+    <value>Underline (Ctrl+U)</value>
+  </data>
+  <data name="RichTextEditor.StrikethroughTooltip" xml:space="preserve">
+    <value>Strikethrough</value>
+  </data>
+  <data name="RichTextEditor.BulletListTooltip" xml:space="preserve">
+    <value>Bullet List</value>
+  </data>
+  <data name="RichTextEditor.NumberedListTooltip" xml:space="preserve">
+    <value>Numbered List</value>
+  </data>
+  <data name="RichTextEditor.InsertLinkTooltip" xml:space="preserve">
+    <value>Insert Link</value>
+  </data>
+  <data name="RichTextEditor.BlockquoteTooltip" xml:space="preserve">
+    <value>Blockquote</value>
+  </data>
+  <data name="RichTextEditor.CodeBlockTooltip" xml:space="preserve">
+    <value>Code Block</value>
+  </data>
+  <data name="RichTextEditor.EditLinkTitle" xml:space="preserve">
+    <value>Edit Link</value>
+  </data>
+  <data name="RichTextEditor.InsertLinkTitle" xml:space="preserve">
+    <value>Insert Link</value>
+  </data>
+  <data name="RichTextEditor.UpdateLinkDescription" xml:space="preserve">
+    <value>Update the URL or remove the link.</value>
+  </data>
+  <data name="RichTextEditor.InsertLinkDescription" xml:space="preserve">
+    <value>Enter the URL for the selected text.</value>
+  </data>
+  <data name="RichTextEditor.UrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="RichTextEditor.UrlPlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="RichTextEditor.RemoveLink" xml:space="preserve">
+    <value>Remove Link</value>
+  </data>
+  <data name="RichTextEditor.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RichTextEditor.Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="RichTextEditor.Insert" xml:space="preserve">
+    <value>Insert</value>
+  </data>
+  <!-- Rating -->
+  <data name="Rating.Rating" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <!-- ResponsiveNav -->
+  <data name="ResponsiveNav.ToggleMenu" xml:space="preserve">
+    <value>Toggle Menu</value>
+  </data>
+  <!-- Sidebar -->
+  <data name="Sidebar.ToggleSidebar" xml:space="preserve">
+    <value>Toggle Sidebar</value>
+  </data>
+  <data name="Sidebar.Pill.AriaLabel" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="Sidebar.Pill.ExpandButton" xml:space="preserve">
+    <value>Open navigation</value>
+  </data>
+  <!-- Sortable -->
+  <data name="Sortable.DragHandle" xml:space="preserve">
+    <value>Drag handle</value>
+  </data>
+  <!-- ThemeSwitcher -->
+  <data name="ThemeSwitcher.ChangeTheme" xml:space="preserve">
+    <value>Change theme</value>
+  </data>
+  <data name="ThemeSwitcher.Settings" xml:space="preserve">
+    <value>Theme Settings</value>
+  </data>
+  <data name="ThemeSwitcher.BaseColor" xml:space="preserve">
+    <value>Base Color</value>
+  </data>
+  <data name="ThemeSwitcher.ThemeColor" xml:space="preserve">
+    <value>Theme Color</value>
+  </data>
+  <data name="ThemeSwitcher.Style" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="ThemeSwitcher.BorderRadius" xml:space="preserve">
+    <value>Border Radius</value>
+  </data>
+  <data name="ThemeSwitcher.Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="ThemeSwitcher.BaseColor.Mist" xml:space="preserve">
+    <value>Mist</value>
+  </data>
+  <data name="ThemeSwitcher.BaseColor.Mauve" xml:space="preserve">
+    <value>Mauve</value>
+  </data>
+  <data name="ThemeSwitcher.BaseColor.Taupe" xml:space="preserve">
+    <value>Taupe</value>
+  </data>
+  <data name="ThemeSwitcher.BaseColor.Olive" xml:space="preserve">
+    <value>Olive</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Vega" xml:space="preserve">
+    <value>Vega</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Nova" xml:space="preserve">
+    <value>Nova</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Maia" xml:space="preserve">
+    <value>Maia</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Lyra" xml:space="preserve">
+    <value>Lyra</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Mira" xml:space="preserve">
+    <value>Mira</value>
+  </data>
+  <data name="ThemeSwitcher.Style.Luma" xml:space="preserve">
+    <value>Luma</value>
+  </data>
+  <data name="ThemeSwitcher.Radius.Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="ThemeSwitcher.Radius.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="ThemeSwitcher.Radius.Small" xml:space="preserve">
+    <value>Small</value>
+  </data>
+  <data name="ThemeSwitcher.Radius.Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="ThemeSwitcher.Radius.Large" xml:space="preserve">
+    <value>Large</value>
+  </data>
+  <data name="ThemeSwitcher.Font.System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="ThemeSwitcher.Font.Inter" xml:space="preserve">
+    <value>Inter</value>
+  </data>
+  <data name="ThemeSwitcher.Font.Geist" xml:space="preserve">
+    <value>Geist</value>
+  </data>
+  <data name="ThemeSwitcher.Font.CalSans" xml:space="preserve">
+    <value>Cal Sans</value>
+  </data>
+  <data name="ThemeSwitcher.Font.DmSans" xml:space="preserve">
+    <value>DM Sans</value>
+  </data>
+  <data name="ThemeSwitcher.Font.PlusJakarta" xml:space="preserve">
+    <value>Plus Jakarta</value>
+  </data>
+  <data name="ThemeSwitcher.MenuAccent" xml:space="preserve">
+    <value>Menu Accent</value>
+  </data>
+  <data name="ThemeSwitcher.MenuAccent.Subtle" xml:space="preserve">
+    <value>Subtle</value>
+  </data>
+  <data name="ThemeSwitcher.MenuAccent.Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="ThemeSwitcher.MenuColor" xml:space="preserve">
+    <value>Menu Color</value>
+  </data>
+  <data name="ThemeSwitcher.MenuColor.Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="ThemeSwitcher.MenuColor.Inverted" xml:space="preserve">
+    <value>Inverted</value>
+  </data>
+  <data name="ThemeSwitcher.MenuColor.DefaultTranslucent" xml:space="preserve">
+    <value>Translucent</value>
+  </data>
+  <data name="ThemeSwitcher.MenuColor.InvertedTranslucent" xml:space="preserve">
+    <value>Dark Glass</value>
+  </data>
+  <data name="ThemeSwitcher.Tab.Colors" xml:space="preserve">
+    <value>Colors</value>
+  </data>
+  <data name="ThemeSwitcher.Tab.Styles" xml:space="preserve">
+    <value>Styles &amp; Layout</value>
+  </data>
+  <!-- Timeline -->
+  <data name="Timeline.AriaLabel" xml:space="preserve">
+    <value>Timeline</value>
+  </data>
+  <data name="Timeline.NoItems" xml:space="preserve">
+    <value>No timeline items.</value>
+  </data>
+  <!-- TagInput -->
+  <data name="TagInput.Placeholder" xml:space="preserve">
+    <value>Add tag…</value>
+  </data>
+  <data name="TagInput.RemoveTag" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="TagInput.ClearAllTags" xml:space="preserve">
+    <value>Clear all tags</value>
+  </data>
+  <data name="TagInput.TagSuggestions" xml:space="preserve">
+    <value>Tag suggestions</value>
+  </data>
+</root>

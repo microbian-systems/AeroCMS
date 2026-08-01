@@ -1,24 +1,36 @@
-using Aero.Core;
-using Aero.Core.Railway;
-
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+/// <summary>
+/// Represents a record for LoginRequest.
+/// </summary>
 public sealed record LoginRequest(
     string UserName,
     string Password,
     bool RememberMe = false);
 
+/// <summary>
+/// Represents a record for ApiKeyAuthRequest.
+/// </summary>
 public sealed record ApiKeyAuthRequest(
     string ApiKey);
 
+/// <summary>
+/// Represents a record for RefreshTokenRequest.
+/// </summary>
 public sealed record RefreshTokenRequest(
     string RefreshToken);
 
+/// <summary>
+/// Represents a record for JwtTokenResponse.
+/// </summary>
 public sealed record JwtTokenResponse(
     string AccessToken,
-    string RefreshToken,
+    string? RefreshToken,
     DateTimeOffset ExpiresAt);
 
+/// <summary>
+/// Represents a record for AuthLoginResponse.
+/// </summary>
 public sealed record AuthLoginResponse(
     long UserId,
     string UserName,
@@ -27,17 +39,29 @@ public sealed record AuthLoginResponse(
     IReadOnlyList<string> Roles,
     string ApiKey);
 
+/// <summary>
+/// Defines an interface for IAuthClient.
+/// </summary>
 public interface IAuthClient
 {
-    Task<Result<JwtTokenResponse, AeroError>> LoginAsync(
+        /// <summary>
+    /// LoginAsync method.
+    /// </summary>
+Task<Result<JwtTokenResponse, AeroError>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
+        /// <summary>
+    /// AuthWithApiKeyAsync method.
+    /// </summary>
+Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
         ApiKeyAuthRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
+        /// <summary>
+    /// RefreshJwtTokenAsync method.
+    /// </summary>
+Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
         RefreshTokenRequest request,
         CancellationToken cancellationToken = default);
 

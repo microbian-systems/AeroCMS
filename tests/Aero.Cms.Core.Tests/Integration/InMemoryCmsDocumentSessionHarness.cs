@@ -1,15 +1,16 @@
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
-using Marten;
+using AeroDB.Sable;
 using NSubstitute;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
 internal sealed class InMemoryCmsDocumentSessionHarness
 {
     private readonly Dictionary<string, PageDocument> _pageDocuments = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, BlogPostDocument> _blogPostDocuments = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PostDocument> _blogPostDocuments = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ContentSlugDocument> _slugDocuments = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SetupStateDocument> _setupStateDocuments = new(StringComparer.Ordinal);
 
@@ -24,7 +25,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 return page is null ? null : Clone(page);
             });
 
-        Session.LoadAsync<BlogPostDocument>(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        Session.LoadAsync<PostDocument>(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 _blogPostDocuments.TryGetValue(callInfo.ArgAt<string>(0), out var post);
@@ -55,10 +56,10 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 }
             });
 
-        Session.When(call => call.Store(Arg.Any<BlogPostDocument[]>()))
+        Session.When(call => call.Store(Arg.Any<PostDocument[]>()))
             .Do(callInfo =>
             {
-                foreach (var post in callInfo.Arg<BlogPostDocument[]>())
+                foreach (var post in callInfo.Arg<PostDocument[]>())
                 {
                     OnStore?.Invoke(post);
                     _blogPostDocuments[post.Id.ToString()] = Clone(post);
@@ -92,33 +93,30 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 _slugDocuments.Remove(slugDocument.Id.ToString());
             });
 
-        Session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        Session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(1));
     }
 
     public IDocumentSession Session { get; }
     public Action<object>? OnStore { get; set; }
     public IReadOnlyDictionary<string, PageDocument> Pages => _pageDocuments;
-    public IReadOnlyDictionary<string, BlogPostDocument> BlogPosts => _blogPostDocuments;
+    public IReadOnlyDictionary<string, PostDocument> BlogPosts => _blogPostDocuments;
     public IReadOnlyDictionary<string, SetupStateDocument> SetupStates => _setupStateDocuments;
 
-    private static PageDocument Clone(PageDocument page)
-        => new()
-        {
-            Id = page.Id,
-            Kind = page.Kind,
-            Slug = page.Slug,
-            Title = page.Title,
-            Summary = page.Summary,
-            SeoTitle = page.SeoTitle,
-            SeoDescription = page.SeoDescription,
-            //Body = page.Body,
-            PublicationState = page.PublicationState,
-            CreatedOn = page.CreatedOn,
-            ModifiedOn = page.ModifiedOn,
-            PublishedOn = page.PublishedOn
-        };
+    public void StorePage(PageDocument page)
+    {
+        Session.Store(page);
+    }
 
-    private static BlogPostDocument Clone(BlogPostDocument post)
+    public Task<PageDocument?> LoadPageAsync(
+        long pageId,
+        CancellationToken cancellationToken = default) =>
+        Session.LoadAsync<PageDocument>(pageId.ToString(), cancellationToken);
+
+    private static PageDocument Clone(PageDocument page)
+        => JsonSerializer.Deserialize<PageDocument>(
+            JsonSerializer.Serialize(page))!;
+
+    private static PostDocument Clone(PostDocument post)
         => new()
         {
             Id = post.Id,

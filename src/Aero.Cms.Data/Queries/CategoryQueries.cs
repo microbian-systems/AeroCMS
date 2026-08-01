@@ -1,25 +1,26 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Marten.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using AeroDB.Sable;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aero.Cms.Data.Queries;
 
 
+/// <inheritdoc cref="EntityByIdQuery{T}"/>
 public sealed class CategoryByIdQuery : EntityByIdQuery<CategoryModel>;
 
+/// <inheritdoc cref="EntitiesByIdsQuery{T}"/>
 public sealed class CategoriesByIdsQuery : EntitiesByIdsQuery<CategoryModel>;
 
+/// <summary>Selects categories whose stored name exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class CategoriesByNameQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-    public required string Name { get; set; }
+    /// <summary>The name value used by the equality predicate.</summary>
+public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -28,11 +29,15 @@ public sealed class CategoriesByNameQuery : ICompiledQuery<CategoryModel, IList<
     }
 }
 
+/// <summary>Selects categories whose non-null stored name contains a supplied substring.</summary>
+/// <remarks>The expression performs no normalization and orders matches by stored name.</remarks>
 public sealed class CategoriesByNameContainsQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-    public required string Name { get; set; }
+    /// <summary>The substring passed to <see cref="string.Contains(string)"/>.</summary>
+public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name != null && x.Name.Contains(Name))
@@ -41,22 +46,30 @@ public sealed class CategoriesByNameContainsQuery : ICompiledQuery<CategoryModel
     }
 }
 
+/// <summary>Selects the first category whose stored slug exactly matches a supplied value.</summary>
+/// <remarks>The expression performs no slug normalization and returns <see langword="null"/> when no category matches.</remarks>
 public sealed class CategoryBySlugQuery : ICompiledQuery<CategoryModel, CategoryModel?>
 {
-    public required string Slug { get; set; }
+    /// <summary>The slug value used by the equality predicate.</summary>
+public required string Slug { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, CategoryModel?>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<CategoryModel>, CategoryModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Slug == Slug);
     }
 }
 
+/// <summary>Selects direct child categories for a parent identifier.</summary>
+/// <remarks>Matches are ordered by stored category name.</remarks>
 public sealed class CategoriesByParentIdQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-    public required long ParentCategoryId { get; set; }
+    /// <summary>The parent identifier that must match <see cref="CategoryModel.ParentCategoryId"/>.</summary>
+public required long ParentCategoryId { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.ParentCategoryId == ParentCategoryId)
@@ -65,9 +78,11 @@ public sealed class CategoriesByParentIdQuery : ICompiledQuery<CategoryModel, IL
     }
 }
 
+/// <summary>Selects categories without a parent, ordered by stored name.</summary>
 public sealed class RootCategoriesQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    /// <inheritdoc />
+public Expression<Func<ISableQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.ParentCategoryId == null)
@@ -76,6 +91,8 @@ public sealed class RootCategoriesQuery : ICompiledQuery<CategoryModel, IList<Ca
     }
 }
 
+/// <inheritdoc cref="EntitiesCreatedInRangeQuery{T}"/>
 public sealed class CategoriesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<CategoryModel>;
 
+/// <inheritdoc cref="EntitiesModifiedInRangeQuery{T}"/>
 public sealed class CategoriesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<CategoryModel>;

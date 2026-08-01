@@ -4,4 +4,4 @@ namespace Aero.Cms.Modules.Commerce.Orders.Events;
 /// Published when the grace period for an order has expired.
 /// Moves the order from Submitted → AwaitingValidation.
 /// </summary>
-public sealed record GracePeriodConfirmed(long OrderId);
+public sealed record GracePeriodConfirmed(long OrderId, long TenantId, long SiteId, long ExternalMemberId);

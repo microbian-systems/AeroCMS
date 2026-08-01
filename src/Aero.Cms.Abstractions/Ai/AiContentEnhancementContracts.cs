@@ -1,28 +1,6 @@
 namespace Aero.Cms.Abstractions.Ai;
 
 /// <summary>
-/// Supported AI provider modes for AeroCMS manager features.
-/// </summary>
-public enum AiProviderKind
-{
-    OpenAi = 0,
-    Anthropic = 1,
-    Google = 2,
-    Groq = 3,
-    DeepSeek = 4,
-    MiniMax = 5,
-    Mistral = 6,
-    XAi = 7,
-    Zai = 8,
-    Perplexity = 9,
-    Alibaba = 10,
-    OpenRouter = 11,
-    LmStudio = 50,
-    OpenCode = 80,
-    Future = 99
-}
-
-/// <summary>
 /// Typed AI configuration loaded from manager settings and app configuration.
 /// </summary>
 public sealed record AiSettings(
@@ -129,6 +107,41 @@ public sealed record EnhanceContentResponse(
     string Provider,
     string Model,
     AiUsage? Usage);
+
+/// <summary>
+/// Identifies one event in a streamed content-enhancement response.
+/// </summary>
+public enum EnhanceContentEventKind
+{
+    /// <summary>The stream has started and provider metadata is available.</summary>
+    Metadata = 0,
+
+    /// <summary>A validated fragment of the proposed field text is available for preview.</summary>
+    Delta = 1,
+
+    /// <summary>The provider output has been fully parsed and is ready for review.</summary>
+    Complete = 2,
+
+    /// <summary>The stream failed after its HTTP response had already started.</summary>
+    Error = 3
+}
+
+/// <summary>
+/// Typed POST-SSE event emitted while an AI content suggestion is generated.
+/// </summary>
+/// <param name="Kind">The event kind.</param>
+/// <param name="Text">A text delta or a safe error message.</param>
+/// <param name="Response">The fully parsed response, present only for a successful completion.</param>
+/// <param name="CorrelationId">The server correlation identifier for diagnostics.</param>
+/// <param name="Provider">The selected provider display name.</param>
+/// <param name="Model">The selected provider model.</param>
+public sealed record EnhanceContentEvent(
+    EnhanceContentEventKind Kind,
+    string? Text = null,
+    EnhanceContentResponse? Response = null,
+    string? CorrelationId = null,
+    string? Provider = null,
+    string? Model = null);
 
 /// <summary>
 /// Optional provider token usage metadata.

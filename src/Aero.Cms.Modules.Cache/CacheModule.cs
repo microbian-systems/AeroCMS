@@ -10,55 +10,79 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ZiggyCreatures.Caching.Fusion;
-using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 
 namespace Aero.Cms.Modules.Cache;
 
 // todo - rename the csproj (+ folder) to CacheBuster to invalidate cache on page updates, and add a separate CacheModule that just provides the caching services and hooks without the invalidation logic. This way users can choose to use the caching without the invalidation if they want, or implement their own invalidation logic.
 
 /// <summary>
-/// Infrastructure module for high-performance output caching using FusionCache.
-/// Owns FusionCache registration, distributed cache setup, and page caching hooks.
+/// Registers FusionCache, Redis-backed distributed cache services, cache invalidation services, and response-caching middleware.
 /// </summary>
+/// <remarks>
+/// FusionCache is configured with a five-minute default entry duration, the registered distributed cache, and a
+/// Redis backplane only in Server cache mode. Local cache mode retains the Redis-compatible distributed-cache layer
+/// backed by the in-process Garnet server, but does not attach a FusionCache backplane. These registrations alone do
+/// not prove cross-node coherence or transactional invalidation. The page hook types are registered only as concrete
+/// scoped services; this module's <see cref="Configure"/> contains no global hook-pipeline wiring, so page
+/// read/store/save hooks are inactive.
+/// </remarks>
 [Module(nameof(CacheModule))]
 public class CacheModule : AeroModuleBase, IAeroPipelineModule
 {
-    public override string Name => nameof(CacheModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
-    public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
-    public int PipelineOrder => 100;
+    /// <summary>Gets the module's fixed discovery name.</summary>
+public override string Name => nameof(CacheModule);
+    /// <summary>Gets the Aero CMS version reported by this module.</summary>
+public override string Version => AeroConstants.Version;
+    /// <summary>Gets the Aero CMS author metadata reported by this module.</summary>
+public override string Author => AeroConstants.Author;
+    /// <summary>Gets the required Output Cache module dependency.</summary>
+public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
+    /// <summary>Gets module-discovery categories.</summary>
+public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
+    /// <summary>Gets module-discovery tags.</summary>
+public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
+    /// <summary>Gets the module middleware-pipeline ordering value.</summary>
+public int PipelineOrder => 100;
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// Registers cache services and the concrete (but inactive) page-hook types.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddResponseCaching();
 
-        // ---- Distributed cache (L2) ----
-        // MemoryDistributedCache is an in-memory IDistributedCache fallback.
-        // When an external cache (Redis/Garnet) is configured, replace this with
-        // AddStackExchangeRedisCache() in the host's bootstrap config.
-        services.AddDistributedMemoryCache();
-
         // ---- Cache connection string ----
-        // Read from bootstrap config. Falls back to Memory mode (no external cache).
-        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Memory";
-
-        string? cacheString = cacheMode switch
+        // The bootstrap layer resolves secrets and publishes the effective cache
+        // endpoint as ConnectionStrings:cache before modules are configured.
+        var cacheMode = config?.GetValue<string>("AeroCms:Infrastructure:CacheMode") ?? "Local";
+        var cacheString = config?.GetConnectionString("cache");
+        if (string.IsNullOrWhiteSpace(cacheString)
+            && cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase))
         {
-            "Embedded" => $"localhost:{config?.GetValue("Aero:Cache:Port", 33333)}",
-            _ => null
-        };
-
-        // Register Redis backplane in DI if we have a connection string
-        if (!string.IsNullOrWhiteSpace(cacheString))
-        {
-            services.AddFusionCacheStackExchangeRedisBackplane(opts =>
-            {
-                opts.Configuration = cacheString;
-            });
+            cacheString = "localhost:33333";
         }
+
+        if (!cacheMode.Equals("Local", StringComparison.OrdinalIgnoreCase)
+            && !cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported cache mode '{cacheMode}'. Expected 'Local' or 'Server'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(cacheString))
+        {
+            throw new InvalidOperationException(
+                $"Cache mode '{cacheMode}' requires a Redis-compatible connection string.");
+        }
+
+        // ---- Distributed cache (FusionCache L2) ----
+        // Local mode points at the in-process Garnet server; Server mode points
+        // at the configured remote Redis-compatible endpoint.
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = cacheString;
+            options.InstanceName = "aero:domain:";
+        });
 
         // ---- FusionCache ----
         var cacheBuilder = services.AddFusionCache()
@@ -69,12 +93,13 @@ public class CacheModule : AeroModuleBase, IAeroPipelineModule
             .WithSystemTextJsonSerializer()
             .WithRegisteredDistributedCache(ignoreMemoryDistributedCache: false);
 
-        if (!string.IsNullOrWhiteSpace(cacheString))
+        if (cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
-            cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
+            services.AddFusionCacheStackExchangeRedisBackplane(options =>
             {
-                Configuration = cacheString
-            }));
+                options.Configuration = cacheString;
+            });
+            cacheBuilder.WithRegisteredBackplane();
         }
 
         // ---- Page caching hooks ----
@@ -85,7 +110,10 @@ public class CacheModule : AeroModuleBase, IAeroPipelineModule
         services.AddScoped<PageCacheInvalidatorHook>();
     }
 
-    public void ConfigurePipeline(IApplicationBuilder app)
+        /// <summary>
+    /// Adds response-caching middleware and prevents cache headers on manager and admin paths.
+    /// </summary>
+public void ConfigurePipeline(IApplicationBuilder app)
     {
         app.Use(async (context, next) =>
         {
@@ -106,7 +134,10 @@ public class CacheModule : AeroModuleBase, IAeroPipelineModule
         app.UseResponseCaching();
     }
 
-    public override void Configure(IAeroModuleBuilder builder)
+        /// <summary>
+    /// Performs no page-hook registration in the global hook pipeline.
+    /// </summary>
+public override void Configure(IAeroModuleBuilder builder)
     {
         // todo - Registration with the global hook system will happen here
 

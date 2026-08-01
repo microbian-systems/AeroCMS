@@ -1,10 +1,10 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
-@using Aero.Core.Railway
 @inject IMediaHttpClient MediaClient
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 @inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="media-detail-dialog overflow-hidden" style="background: var(--pe-bg-secondary);">
     @if (media == null)
@@ -37,7 +37,7 @@
                 <div class="p-6 backdrop-blur-sm border-t" style="background: color-mix(in srgb, var(--pe-bg-secondary) 50%, transparent); border-color: var(--pe-border);">
                      <div class="flex items-center justify-between mb-4">
                         <div class="flex flex-col">
-                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">File Info</span>
+                             <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["File Info"]</span>
                             <span class="text-xs font-bold mt-1" style="color: var(--pe-text-primary);">@media.FileName</span>
                         </div>
                         <div class="px-3 py-1 rounded-full border" style="background: color-mix(in srgb, var(--pe-primary) 15%, transparent); border-color: color-mix(in srgb, var(--pe-primary) 25%, transparent);">
@@ -52,7 +52,7 @@
                 <div class="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-thin">
                     <div class="space-y-6">
                         <div class="space-y-2">
-                             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Public Access URL</label>
+                             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["Public Access URL"]</label>
                              <div class="flex items-center gap-2">
                                  <RadzenTextBox Value="@media.Url" ReadOnly="true" class="flex-1 border-none rounded-xl text-xs font-mono" style="background: var(--pe-bg-tertiary);" />
                                  <RadzenButton Icon="@("link")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" class="rounded-xl" Click="@(() => OpenUrl(media.Url))" />
@@ -62,29 +62,29 @@
 
                         <div class="space-y-4">
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Display Name</label>
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["Display Name"]</label>
                                 <RadzenTextBox @bind-Value="@fileName" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
                             </div>
 
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Alt Text (SEO)</label>
-                                <RadzenTextBox @bind-Value="@altText" Placeholder="@("Describe this asset for accessibility...")" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["Alt Text (SEO)"]</label>
+                                <RadzenTextBox @bind-Value="@altText" Placeholder="@L["Describe this asset for accessibility..."]" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
                             </div>
 
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</label>
-                                <RadzenTextArea @bind-Value="@description" Rows="4" Placeholder="@("Internal notes or context...")" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["Description"]</label>
+                                <RadzenTextArea @bind-Value="@description" Rows="4" Placeholder="@L["Internal notes or context..."]" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="p-8 border-t flex items-center justify-between" style="border-color: var(--pe-border);">
-                    <RadzenButton Text="@("Delete Asset")" Icon="@("delete")" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Click="@OnDelete" class="text-xs font-bold" />
+                    <RadzenButton Text="@L["Delete Asset"]" Icon="@("delete")" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Click="@OnDelete" class="text-xs font-bold" />
                     
                     <div class="flex items-center gap-3">
-                        <RadzenButton Text="@("Discard")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close())" class="text-xs font-bold px-4" />
-                        <RadzenButton Text="@("Apply Changes")" Icon="@("save")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
+                        <RadzenButton Text="@L["Discard"]" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close())" class="text-xs font-bold px-4" />
+                        <RadzenButton Text="@L["Apply Changes"]" Icon="@("save")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
                                      Click="@OnUpdate" class="rounded-xl px-6 shadow-xl shadow-indigo-500/20 text-xs font-bold py-2.5" />
                     </div>
                 </div>
@@ -121,7 +121,7 @@
         }
         else
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Error", "Could not load media details");
+            NotificationService.Notify(NotificationSeverity.Error, L["Error"], L["Could not load media details"]);
             DialogService.Close();
         }
     }
@@ -135,26 +135,26 @@
 
         if (res is Result<MediaDetail, AeroError>.Ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Updated", "Media metadata saved successfully");
+            NotificationService.Notify(NotificationSeverity.Success, L["Updated"], L["Media metadata saved successfully"]);
             DialogService.Close(true);
         }
         else
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Fail", "Failed to update media record");
+            NotificationService.Notify(NotificationSeverity.Error, L["Fail"], L["Failed to update media record"]);
         }
     }
 
     async Task OnDelete()
     {
-        var confirm = await DialogService.Confirm("Permanently delete this asset? This cannot be undone.", "Delete Media", 
-            new ConfirmOptions { OkButtonText = "Delete Forever", CancelButtonText = "Keep Asset" });
+        var confirm = await DialogService.Confirm(L["Permanently delete this asset? This cannot be undone."], L["Delete Media"], 
+            new ConfirmOptions { OkButtonText = L["Delete Forever"], CancelButtonText = L["Keep Asset"] });
 
         if (confirm == true)
         {
             var res = await MediaClient.DeleteAsync(MediaId);
             if (res is Result<bool, AeroError>.Ok)
             {
-                NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Asset removed from library");
+                NotificationService.Notify(NotificationSeverity.Success, L["Deleted"], L["Asset removed from library"]);
                 DialogService.Close(true);
             }
         }
@@ -163,7 +163,7 @@
     async Task CopyToClipboard(string text)
     {
         await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
-        NotificationService.Notify(NotificationSeverity.Info, "Copied", "URL copied to clipboard");
+        NotificationService.Notify(NotificationSeverity.Info, L["Copied"], L["URL copied to clipboard"]);
     }
 
     async Task OpenUrl(string url)

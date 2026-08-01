@@ -4,9 +4,9 @@
 @using Aero.Cms.Abstractions.Models
 @using Aero.Cms.Contracts.Services
 @using Aero.Core
-@using Aero.Core.Railway
+@using Microsoft.Extensions.Localization
 @using Microsoft.Extensions.Logging
-@using Microsoft.JSInterop
+@using System.Globalization
 @implements IAsyncDisposable
 @inject ManagerThemeService Theme
 @inject HttpClient Http
@@ -15,22 +15,27 @@
 @inject AdminStateContainer AdminState
 @inject ISitesHttpClient SitesClient
 @inject AppState AppState
+@inject ManagerAssistantState AssistantState
 @inject IJSRuntime JS
 @inject ILogger<ManagerHeader> Logger
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <header class="pe-header" id="aero-header">
     <div class="pe-header-left">
         <a href="/manager" class="pe-logo">
-            <div class="pe-logo-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
-            </div>
+            <img class="pe-logo-image"
+                 src="_content/Aero.Cms.Shared/images/brand/aero-mark-48.png"
+                 srcset="_content/Aero.Cms.Shared/images/brand/aero-mark-48.png 1x, _content/Aero.Cms.Shared/images/brand/aero-mark-96.png 2x"
+                 width="28"
+                 height="28"
+                 alt="Aero CMS" />
             <span class="pe-logo-text">AERO</span>
         </a>
 
         @* Switch Site button *@
         @if (currentSite is not null)
         {
-            <button class="pe-btn pe-btn-ghost pe-btn-sm" title="Switch Site (Ctrl+Shift+S)" @onclick="OpenSitePickerAsync">
+                <button class="pe-btn pe-btn-ghost pe-btn-sm" title="@L["Switch Site"] (Ctrl+Shift+S)" @onclick="OpenSitePickerAsync">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path></svg>
                 <span>@currentSite.Name</span>
             </button>
@@ -41,7 +46,9 @@
         <nav class="pe-nav">
             <div class="relative" @onclick:stopPropagation>
                 <button class="flex items-center gap-2 pe-btn pe-btn-ghost pe-btn-sm font-semibold"
-                        @onclick="ToggleNavDropdown">
+                        @onclick="HandleHeaderSiteControlAsync"
+                        aria-label="@(currentSite is null ? L["Select Site"] : L["Open manager navigation"])"
+                        aria-expanded="@(currentSite is null ? _showSitePicker : _showNavDropdown)">
                     @if (currentSite is not null)
                     {
                         <span>@currentSite.Name</span>
@@ -49,10 +56,10 @@
                     }
                     else
                     {
-                        <span class="text-gray-400">No site selected</span>
+                        <span class="text-gray-400">@L["No site selected"]</span>
                     }
                     <svg class="w-4 h-4 transition-transform duration-150" 
-                         style="transform: @(_showNavDropdown ? "rotate(180deg)" : "rotate(0deg)")"
+                         style="transform: @((currentSite is null ? _showSitePicker : _showNavDropdown) ? "rotate(180deg)" : "rotate(0deg)")"
                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
@@ -63,17 +70,17 @@
                     <div class="absolute left-0 top-full mt-1 w-56 rounded-2xl shadow-2xl py-2 z-50"
                          style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border);"
                          @onclick="DismissNavDropdown">
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager" Match="NavLinkMatch.All">Dashboard</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/pages">Pages</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/posts">Posts</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/media">Media</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/navigations">Navigations</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/aliases">Aliases</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/docs">Docs</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/modules">Modules</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/taxonomy/categories">Taxonomy</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/users">Users</NavLink>
-                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/seo">SEO</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager" Match="NavLinkMatch.All">@L["Dashboard"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/pages">@L["Pages"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/posts">@L["Posts"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/media">@L["Media"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/navigations">@L["Navigations"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/aliases">@L["Aliases"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/docs">@L["Docs"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/modules">@L["Modules"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/taxonomy/categories">@L["Taxonomy"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/users">@L["Users"]</NavLink>
+                        <NavLink class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium hover:bg-[var(--pe-bg-tertiary)] transition-colors" style="color: var(--pe-text-secondary);" href="/manager/seo">@L["SEO"]</NavLink>
                     </div>
                 }
             </div>
@@ -81,6 +88,17 @@
     </div>
 
     <div class="pe-header-right">
+        <button type="button"
+                class="pe-btn pe-btn-ghost pe-btn-sm flex items-center gap-2"
+                @onclick="AssistantState.Toggle"
+                aria-label="Open Aero assistant"
+                aria-expanded="@AssistantState.IsOpen">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+                <path d="M8 9h8M8 13h5"></path>
+            </svg>
+            <span class="hidden md:inline">Assistant</span>
+        </button>
         <div class="relative" @onclick:stopPropagation>
             <button class="pe-btn pe-btn-ghost pe-btn-sm flex items-center gap-2"
                     @onclick="ToggleUserDropdown">
@@ -125,13 +143,32 @@
                                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                             </svg>
-                            <span>Light Mode</span>
+                            <span>@L["Light Mode"]</span>
                         }
                         else
                         {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                            <span>Dark Mode</span>
+                            <span>@L["Dark Mode"]</span>
                         }
+                    </button>
+
+                    @* Separator *@
+                    <div class="my-1 border-t" style="border-top-color: var(--pe-border);"></div>
+
+                    @* Culture switcher *@
+                    <button class="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--pe-bg-tertiary)]"
+                            style="color: var(--pe-text-secondary);"
+                            @onclick='() => Navigation.NavigateTo($"/culture/set?culture=en-US&returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true)'
+                            title="@L["Switch to English"]">
+                        <span class="w-4 h-4 flex items-center justify-center text-xs font-bold">EN</span>
+                        <span>English (en-US)</span>
+                    </button>
+                    <button class="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--pe-bg-tertiary)]"
+                            style="color: var(--pe-text-secondary);"
+                            @onclick='() => Navigation.NavigateTo($"/culture/set?culture=es-MX&returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true)'
+                            title="@L["Switch to Spanish"]">
+                        <span class="w-4 h-4 flex items-center justify-center text-xs font-bold">ES</span>
+                        <span>Español (es-MX)</span>
                     </button>
 
                     @* Separator *@
@@ -142,7 +179,7 @@
                             style="color: var(--pe-text-secondary);"
                             @onclick="LogoutAsync">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        <span>Sign out</span>
+                        <span>@L["Sign out"]</span>
                     </button>
                 </div>
             }
@@ -159,7 +196,7 @@
                  style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border);"
                  @onclick:stopPropagation>
                 <div class="px-6 py-5 flex items-center justify-between" style="border-bottom: 1px solid var(--pe-border);">
-                    <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Switch Site</h3>
+                    <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">@L["Switch Site"]</h3>
                 <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="DismissSitePicker">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -167,11 +204,11 @@
             <div class="px-6 py-4 max-h-80 overflow-y-auto space-y-2">
                 @if (_loadingSites)
                 {
-                    <p class="text-sm text-center py-8" style="color: var(--pe-text-muted);">Loading sites...</p>
+                    <p class="text-sm text-center py-8" style="color: var(--pe-text-muted);">@L["Loading sites..."]</p>
                 }
                 else if (_availableSites is null || _availableSites.Count == 0)
                 {
-                    <p class="text-sm text-center py-8" style="color: var(--pe-text-muted);">No sites available.</p>
+                    <p class="text-sm text-center py-8" style="color: var(--pe-text-muted);">@L["No sites available."]</p>
                 }
                 else
                 {
@@ -189,11 +226,11 @@
                             </div>
                             @if (isActive)
                             {
-                                <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--pe-primary);">Active</span>
+                                <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--pe-primary);">@L["Active"]</span>
                             }
                             else
                             {
-                                <span class="text-xs font-medium" style="color: var(--pe-text-muted);">Switch</span>
+                                <span class="text-xs font-medium" style="color: var(--pe-text-muted);">@L["Switch"]</span>
                             }
                         </button>
                     }
@@ -294,6 +331,17 @@
     private void ToggleNavDropdown()
     {
         _showNavDropdown = !_showNavDropdown;
+    }
+
+    private async Task HandleHeaderSiteControlAsync()
+    {
+        if (currentSite is null)
+        {
+            await ShowSitePickerAsync();
+            return;
+        }
+
+        ToggleNavDropdown();
     }
 
     private void DismissNavDropdown()

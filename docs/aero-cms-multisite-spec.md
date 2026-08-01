@@ -2,7 +2,7 @@
 
 ## Document Purpose
 
-This specification defines the implementation plan for adding **multi-site support** to the open-source Aero CMS product using **MartenDB** and **host/domain-based site resolution**.
+This specification defines the implementation plan for adding **multi-site support** to the open-source Aero CMS product using **AeroDB.Sable (SurrealDB)** and **host/domain-based site resolution**.
 
 This is **not** the SaaS multi-tenant architecture.  
 This is the OSS, single-database, multi-site architecture.
@@ -41,7 +41,7 @@ Implement:
 - site-aware queries and writes
 - site-aware validation
 - site-aware events
-- Marten indexes / uniqueness rules for site-scoped data
+- AeroDB.Sable indexes / uniqueness rules for site-scoped data
 - migration/backfill path for existing single-site data
 
 ### Out of scope
@@ -52,7 +52,7 @@ Do **not** implement:
 - database-per-tenant routing
 - YARP integration
 - premium/dedicated hosting logic
-- Marten built-in document tenancy for this feature
+- AeroDB.Sable built-in document tenancy for this feature
 
 ---
 
@@ -74,11 +74,11 @@ This is the best fit for the OSS Aero CMS product because:
 
 ### Rejected approach
 
-Do **not** use Marten built-in multi-tenanted documents for this feature.
+Do **not** use AeroDB.Sable built-in multi-tenanted documents for this feature.
 
 Reason:
 
-- Marten multi-tenancy is aimed at tenant isolation concerns
+- AeroDB.Sable multi-tenancy is aimed at tenant isolation concerns
 - Aero OSS multi-site is a domain scoping concern inside one database
 - using explicit `SiteId` keeps the open-source CMS clean and avoids coupling OSS design to future SaaS tenancy
 
@@ -422,24 +422,24 @@ Start simple. Add caching later only if needed.
 
 ---
 
-## Persistence and Marten Strategy
+## Persistence and AeroDB.Sable Strategy
 
-## Marten usage
+## AeroDB.Sable usage
 
-Keep Marten in regular single-database mode for the OSS product.
+Keep AeroDB.Sable in regular single-database mode for the OSS product.
 
-Do **not** use Marten document tenancy for this feature.
+Do **not** use AeroDB.Sable document tenancy for this feature.
 
 ## SiteId indexing
 
-For each site-owned document/entity, configure Marten-managed indexing for `SiteId`.
+For each site-owned document/entity, configure AeroDB.Sable-managed indexing for `SiteId`.
 
 Rationale:
 
 - nearly every query will filter by `SiteId`
 - performance will degrade if `SiteId` is not indexed
 
-Use Marten-managed indexes, not unmanaged manual drift where avoidable.
+Use AeroDB.Sable-managed indexes, not unmanaged manual drift where avoidable.
 
 ## Composite uniqueness rules
 
@@ -749,7 +749,7 @@ Add tests for:
 
 ## Integration tests
 
-Add Marten-backed integration tests for:
+Add AeroDB.Sable-backed integration tests for:
 
 - request to site A returns only site A content
 - request to site B returns only site B content
@@ -790,9 +790,9 @@ Verify:
 9. update events to include `SiteId`
 10. update validators for site scope
 
-## Phase 3 - Marten mapping and migration
+## Phase 3 - AeroDB.Sable mapping and migration
 
-11. add Marten indexes for `SiteId`
+11. add AeroDB.Sable indexes for `SiteId`
 12. add composite uniqueness rules
 13. create default site seed/migration
 14. add legacy data backfill logic
@@ -864,7 +864,7 @@ The feature is complete when all of the following are true:
 ## Suggested Agent Prompt
 
 ```text
-Implement multi-site support for Aero CMS OSS using explicit SiteId scoping with MartenDB.
+Implement multi-site support for Aero CMS OSS using explicit SiteId scoping with AeroDB.Sable (SurrealDB).
 
 Requirements:
 - Single deployment, single database, multiple hosted sites
@@ -872,7 +872,7 @@ Requirements:
 - Site.Id type is long
 - Add long SiteId to all site-owned modules: pages, posts/blogs, media, categories, tags, aliases, docs
 - Do NOT add SiteId to Site itself
-- Do NOT use Marten built-in multi-tenanted documents for this feature
+- Do NOT use AeroDB.Sable built-in multi-tenanted documents for this feature
 - All reads/writes/validators/events for site-owned modules must be site-aware
 - All create/update/delete events in Aero.Cms.Abstractions must include SiteId
 - Do not trust client-supplied SiteId; derive it from the resolved current site
@@ -892,7 +892,7 @@ Implementation expectations:
 4. Refactor handlers/services/repositories/queries so all site-owned access is filtered by SiteId
 5. Update validators to enforce uniqueness within site scope
 6. Update events to include SiteId and ensure handlers publish it correctly
-7. Add Marten-managed indexes/unique constraints for SiteId-scoped queries
+7. Add AeroDB.Sable-managed indexes/unique constraints for SiteId-scoped queries
 8. Create migration/backfill for existing data into a default site
 9. Add unit and integration tests for cross-site isolation and same-slug-different-site scenarios
 

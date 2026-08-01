@@ -1,0 +1,19 @@
+/* Browser-ready framework layer for the deployment-installed Aero Safe theme. */
+:root {
+  --aero-theme-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --aero-theme-focus: #2563eb;
+}
+
+:focus-visible {
+  outline: 2px solid var(--aero-theme-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

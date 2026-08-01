@@ -1,11 +1,18 @@
 using Aero.Cms.Modules.Commerce.Orders.Domain;
+using Aero.Cms.Modules.Commerce.Payments;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Validation;
 
+/// <summary>
+/// Represents a class for OrderItemValidator.
+/// </summary>
 public sealed class OrderItemValidator : AbstractValidator<OrderItem>
 {
-    public OrderItemValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="OrderItemValidator"/> class.
+    /// </summary>
+public OrderItemValidator()
     {
         RuleFor(x => x.ProductId)
             .GreaterThan(0)
@@ -19,8 +26,12 @@ public sealed class OrderItemValidator : AbstractValidator<OrderItem>
             .GreaterThan(0)
             .WithMessage("Quantity must be greater than 0");
 
-        RuleFor(x => x.UnitPrice)
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("Unit price must be greater than or equal to 0");
+        RuleFor(x => x.UnitPrice).Must(PaymentAmountLimits.IsValidUsd)
+            .WithMessage("Unit price must be a positive USD amount with no more than two decimal places");
+        RuleFor(x => x.BillingIntervalDays).InclusiveBetween(1, 365).When(x => x.BillingKind == OrderBillingKind.Recurring);
+        RuleFor(x => x.FulfillmentMode).IsInEnum();
+        RuleFor(x => x).Must(x => x.BillingKind != OrderBillingKind.Recurring ||
+            x.FulfillmentMode == Catalog.Models.ProductFulfillmentMode.NonInventoryRecurring)
+            .WithMessage("Recurring order lines require non-inventory recurring fulfillment.");
     }
 }

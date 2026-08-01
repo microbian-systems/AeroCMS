@@ -1,7 +1,7 @@
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Aero.AppServer;
+using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
@@ -9,45 +9,76 @@ using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Persists database bootstrap configuration while routing credentials through the selected secret provider.
+/// </summary>
+/// <remarks>
+/// Embedded mode removes the bootstrap connection-string, username, and password reference
+/// keys because the runtime derives its data path during dependency registration. It does not
+/// remove an existing <c>ConnectionStrings:aero</c> value. Server-mode secrets are stored
+/// through either the local secret manager or Infisical. Infisical references are retained in
+/// bootstrap configuration without copying the remote value into <c>ConnectionStrings</c>.
+/// </remarks>
 public sealed class DatabaseBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
     IOptionsMonitor<AeroDbOptions> embeddedOptions,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : IDatabaseBootstrapService
 {
-    public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
 
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
+        var infrastructure = GetOrCreateObject(root, "AeroCms", "Infrastructure");
 
         bootstrap["State"] = BootstrapStates.Configured;
-        bootstrap["DatabaseMode"] = model.DatabaseMode;
-        bootstrap["SecretProvider"] = model.SecretProvider;
-        bootstrap["AuthenticationMode"] = model.AuthenticationMode;
+        bootstrap["RequestedManagerAuthenticationProvider"] = model.RequestedManagerAuthenticationProvider;
+        bootstrap["RequestedMemberAuthenticationProvider"] = model.RequestedMemberAuthenticationProvider;
+        bootstrap.Remove("AuthenticationMode");
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;
+        infrastructure[AeroCmsInfrastructureConfiguration.DatabaseMode] = model.DatabaseMode;
+        infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider] = model.SecretProvider;
+        infrastructure["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
 
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
-            PersistInfisicalAuth(bootstrap, model);
+            PersistInfisicalAuth(infrastructure, model);
         }
 
         if (model.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
-            bootstrap.Remove("DatabaseConnectionStringReference");
-            SetConnectionString(root, "aero", embeddedOptions.CurrentValue.ConnectionString);
+            infrastructure.Remove("DatabaseConnectionStringReference");
+            infrastructure.Remove("DatabaseUsernameReference");
+            infrastructure.Remove("DatabasePasswordReference");
+            // Sable embedded (SurrealDB KV) requires no connection string.
+            // The data path is derived from env.ContentRootPath at DI registration time.
         }
         else if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
-            var stored = StoreConnectionString(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
-            bootstrap["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
+            var stored = StoreDatabaseSecret(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
+            infrastructure["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
             if (ShouldStoreEncryptedValue(model.SecretProvider))
             {
                 SetConnectionString(root, "aero", stored);
+            }
+
+            if (model.DatabaseUnauthenticated)
+            {
+                infrastructure.Remove("DatabaseUsernameReference");
+                infrastructure.Remove("DatabasePasswordReference");
+            }
+            else
+            {
+                var username = StoreDatabaseSecret(model.DatabaseUsername ?? string.Empty, "AeroCms:Database:Username", model);
+                var password = StoreDatabaseSecret(model.DatabasePassword ?? string.Empty, "AeroCms:Database:Password", model);
+                infrastructure["DatabaseUsernameReference"] = username.Metadata ?? username.Value;
+                infrastructure["DatabasePasswordReference"] = password.Metadata ?? password.Value;
             }
         }
 
@@ -56,7 +87,10 @@ public sealed class DatabaseBootstrapService(
             cancellationToken);
     }
 
-    private StoredSecretReference StoreConnectionString(string connectionString, string name, DatabaseBootstrapModel model)
+    /// <summary>
+    /// Stores a database secret with the provider selected by the setup request.
+    /// </summary>
+    private StoredSecretReference StoreDatabaseSecret(string value, string name, DatabaseBootstrapModel model)
     {
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
@@ -67,13 +101,16 @@ public sealed class DatabaseBootstrapService(
                 ClientSecret = string.IsNullOrWhiteSpace(model.InfisicalClientSecret) ? infisicalSettings.ClientSecret : model.InfisicalClientSecret
             };
             var manager = new InfisicalSecretManager(infisical);
-            return manager.Store(connectionString, name, SecretProviderType.Infisical);
+            return manager.Store(value, name, SecretProviderType.Infisical);
         }
 
-        return secretManager.Store(connectionString, name, SecretProviderType.Local);
+        return secretManager.Store(value, name, SecretProviderType.Local);
     }
 
-    private void PersistInfisicalAuth(JsonObject bootstrap, DatabaseBootstrapModel model)
+    /// <summary>
+    /// Protects Infisical bootstrap credentials locally so the external provider can be contacted after restart.
+    /// </summary>
+    private void PersistInfisicalAuth(JsonObject infrastructure, DatabaseBootstrapModel model)
     {
         var infisicalSettings = infisicalSettingsProvider.GetSettings();
         var machineId = string.IsNullOrWhiteSpace(model.InfisicalMachineId) ? infisicalSettings.MachineId : model.InfisicalMachineId;
@@ -81,22 +118,28 @@ public sealed class DatabaseBootstrapService(
 
         if (!string.IsNullOrWhiteSpace(machineId))
         {
-            var storedMachineId = secretManager.Store(machineId, "AeroCms:Bootstrap:Infisical:MachineId");
-            bootstrap["InfisicalMachineId"] = storedMachineId.Value;
-            bootstrap["InfisicalMachineIdReference"] = storedMachineId.Metadata ?? storedMachineId.Value;
+            var storedMachineId = secretManager.Store(machineId, "AeroCms:Infrastructure:Infisical:MachineId");
+            infrastructure["InfisicalMachineId"] = storedMachineId.Value;
+            infrastructure["InfisicalMachineIdReference"] = storedMachineId.Metadata ?? storedMachineId.Value;
         }
 
         if (!string.IsNullOrWhiteSpace(clientSecret))
         {
-            var storedClientSecret = secretManager.Store(clientSecret, "AeroCms:Bootstrap:Infisical:ClientSecret");
-            bootstrap["InfisicalClientSecret"] = storedClientSecret.Value;
-            bootstrap["InfisicalClientSecretReference"] = storedClientSecret.Metadata ?? storedClientSecret.Value;
+            var storedClientSecret = secretManager.Store(clientSecret, "AeroCms:Infrastructure:Infisical:ClientSecret");
+            infrastructure["InfisicalClientSecret"] = storedClientSecret.Value;
+            infrastructure["InfisicalClientSecretReference"] = storedClientSecret.Metadata ?? storedClientSecret.Value;
         }
     }
 
+    /// <summary>
+    /// Determines whether a locally protected value must also be placed in the conventional connection-string section.
+    /// </summary>
     private static bool ShouldStoreEncryptedValue(string secretProvider)
         => !secretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Traverses an object path, creating missing JSON objects without replacing sibling settings.
+    /// </summary>
     private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)
     {
         JsonNode current = root;
@@ -110,12 +153,21 @@ public sealed class DatabaseBootstrapService(
         return (JsonObject)current;
     }
 
+    /// <summary>
+    /// Copies the locally protected representation of a stored secret into the connection-string section.
+    /// </summary>
     private static void SetConnectionString(JsonNode root, string key, StoredSecretReference reference)
         => SetConnectionString(root, key, reference.Value ?? string.Empty);
 
+    /// <summary>
+    /// Sets a named value in the connection-string section while preserving unrelated settings.
+    /// </summary>
     private static void SetConnectionString(JsonNode root, string key, string value)
         => GetOrCreateObject(root, "ConnectionStrings")[key] = value;
 
+    /// <summary>
+    /// Reads the environment settings object or creates an empty root when the file is absent.
+    /// </summary>
     private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

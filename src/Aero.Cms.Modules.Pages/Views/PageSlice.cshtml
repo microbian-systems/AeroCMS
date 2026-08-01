@@ -1,8 +1,0 @@
-@using Aero.Cms.Core.Entities
-
-@model PageDocument
-
-@foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
-{
-    <component type="typeof(LayoutRegionRenderer)" render-mode="Static" param-Region="region" />
-}

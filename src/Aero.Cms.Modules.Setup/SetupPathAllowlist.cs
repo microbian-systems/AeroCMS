@@ -2,9 +2,15 @@ using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Recognizes setup, framework, static-asset, and health paths that remain reachable before setup completes.
+/// </summary>
 public sealed class SetupPathAllowlist
 {
-    public const string SetupPath = "/setup";
+    /// <summary>
+    /// Identifies the setup wizard route and redirect target.
+    /// </summary>
+public const string SetupPath = "/setup";
 
     private static readonly string[] ExactPaths =
     [
@@ -30,12 +36,21 @@ private static readonly string[] PrefixPaths =
         "/_blazor",  // Blazor Server SignalR
         "/css",
         "/js",
+        "/lib",
+        "/assets",
+        "/media",
         "/images",
         "/img",
         "/hydro"
     ];
 
-    public bool IsAllowed(PathString path)
+    /// <summary>
+    /// Determines whether a request path may bypass the setup gate.
+    /// </summary>
+    /// <param name="path">The request path to inspect.</param>
+    /// <returns><see langword="true"/> for an exact or prefix match, ignoring case; otherwise <see langword="false"/>.</returns>
+    /// <remarks>An empty path is rejected. Query strings are not part of <see cref="PathString"/> matching.</remarks>
+public bool IsAllowed(PathString path)
     {
         if (!path.HasValue)
         {

@@ -1,0 +1,51 @@
+@using Aero.Cms.Abstractions.Enums
+@using Aero.Cms.Abstractions.Http.Clients
+
+<div class="aero-route-change-dialog">
+    <p class="aero-route-change-dialog__intro">
+        Saving will change the page URL in the database.
+    </p>
+
+    <dl class="aero-route-change-dialog__paths">
+        <div>
+            <dt>Current URL</dt>
+            <dd><code>@Impact.OldPath</code></dd>
+        </div>
+        <div>
+            <dt>New URL</dt>
+            <dd><code>@Impact.NewPath</code></dd>
+        </div>
+    </dl>
+
+    <label class="aero-route-change-dialog__option">
+        <RadzenCheckBox TValue="bool"
+                        @bind-Value="_redirectFromOldUrl"
+                        Name="redirect-from-old-url" />
+        <span>Redirect from old URL to new URL?</span>
+    </label>
+
+    @if (!_redirectFromOldUrl)
+    {
+        <p class="aero-route-change-dialog__warning" role="status">
+            Existing links to the old URL will stop working.
+        </p>
+    }
+
+    @if (Impact.PreviouslyPublishedRoutes.Count > 1)
+    {
+        <p class="aero-route-change-dialog__note">
+            This route change also updates @Impact.PreviouslyPublishedRoutes.Count previously
+            published URLs in the page hierarchy.
+        </p>
+    }
+
+    <div class="aero-route-change-dialog__actions">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="Cancel" />
+        <RadzenButton Text="Save URL change"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Click="Confirm" />
+    </div>
+</div>

@@ -1,4 +1,4 @@
-using Aero.Cms.Abstractions.Models;
+using System.Globalization;
 using Aero.Cms.Contracts.Abstractions;
 
 namespace Aero.Cms.Shared.Services;
@@ -16,7 +16,10 @@ public sealed class AdminStateContainer
     private const string StorageKey = "aero-admin-state";
     private readonly IAdminStorage _storage;
 
-    public AdminStateContainer(IAdminStorage storage)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AdminStateContainer"/> class.
+    /// </summary>
+public AdminStateContainer(IAdminStorage storage)
     {
         _storage = storage;
     }
@@ -27,12 +30,21 @@ public sealed class AdminStateContainer
     /// </summary>
     public event Action? StateChanged;
 
-    public long? CurrentSiteId { get; private set; }
-    public string? CurrentSiteName { get; private set; }
-    public string? CurrentView { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Site Id.
+    /// </summary>
+public long? CurrentSiteId { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current Site Name.
+    /// </summary>
+public string? CurrentSiteName { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current View.
+    /// </summary>
+public string? CurrentView { get; set; }
 
     /// <summary>
-    /// True after <see cref="LoadFromStorageAsync(ILocalStorageService)"/> has completed.
+    /// True after <see cref="LoadFromStorage"/> has completed.
     /// </summary>
     public bool IsInitialized { get; private set; }
 
@@ -51,18 +63,44 @@ public sealed class AdminStateContainer
     }
 
     /// <summary>
+    /// Clears the selected site from memory and browser storage.
+    /// </summary>
+    public void ClearSite()
+    {
+        CurrentSiteId = null;
+        CurrentSiteName = null;
+
+        try
+        {
+            _storage.RemoveItem($"{StorageKey}.siteId");
+            _storage.RemoveItem($"{StorageKey}.siteName");
+        }
+        catch
+        {
+            // localStorage unavailable — in-memory state is still cleared
+        }
+
+        NotifyStateChanged();
+    }
+
+    /// <summary>
     /// Hydrates state from localStorage. Call once on app startup.
     /// </summary>
     public void LoadFromStorage()
     {
         try
         {
-            var siteId = _storage.GetItem<long?>($"{StorageKey}.siteId");
+            var siteIdValue = _storage.GetItem<string>($"{StorageKey}.siteId");
             var siteName = _storage.GetItem<string>($"{StorageKey}.siteName");
 
-            if (siteId.HasValue && siteId.Value > 0)
+            if (long.TryParse(
+                    siteIdValue,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var siteId)
+                && siteId > 0)
             {
-                CurrentSiteId = siteId.Value;
+                CurrentSiteId = siteId;
                 CurrentSiteName = siteName;
             }
         }
@@ -80,7 +118,9 @@ public sealed class AdminStateContainer
     {
         try
         {
-            _storage.SetItem($"{StorageKey}.siteId", CurrentSiteId);
+            _storage.SetItem(
+                $"{StorageKey}.siteId",
+                CurrentSiteId?.ToString(CultureInfo.InvariantCulture));
             _storage.SetItem($"{StorageKey}.siteName", CurrentSiteName);
         }
         catch

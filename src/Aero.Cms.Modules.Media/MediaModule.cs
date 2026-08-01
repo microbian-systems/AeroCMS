@@ -1,5 +1,7 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Models;
+using Aero.Cms.Modules.Media.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -8,26 +10,36 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Marten;
 
 namespace Aero.Cms.Modules.Media;
 
+/// <summary>
+/// Registers media persistence, services, actor access, and administrative endpoints.
+/// </summary>
 [Module(nameof(MediaModule))]
-public class MediaModule : AeroWebModule, IConfigureMarten
+public class MediaModule : AeroWebModule, IConfigureAeroDB
 {
-    public override string Name => nameof(MediaModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["content", "media"];
-    public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
+    /// <inheritdoc />
+public override string Name => nameof(MediaModule);
+    /// <inheritdoc />
+public override string Version => AeroConstants.Version;
+    /// <inheritdoc />
+public override string Author => AeroConstants.Author;
+    /// <inheritdoc />
+public override IReadOnlyList<string> Dependencies => [];
+    /// <inheritdoc />
+public override IReadOnlyList<string> Category => ["content", "media"];
+    /// <inheritdoc />
+public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
 
-    public override void Configure(IServiceProvider services, StoreOptions options)
+    /// <summary>
+    /// Configures the <see cref="MediaAsset"/> document identity and query indexes.
+    /// </summary>
+    /// <param name="options">The AeroDB store options being assembled.</param>
+public void Configure(StoreOptions options)
     {
-        base.Configure(services, options);
-
         options.Schema.For<MediaAsset>()
-            .DocumentAlias(Schemas.Tables.Media)
+            .TableName(Schemas.Tables.MediaAssets)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .Index(x => x.FileName)
@@ -35,19 +47,51 @@ public class MediaModule : AeroWebModule, IConfigureMarten
             .Index(x => x.ParentId)
             .Index(x => x.IsFolder)
             .Index(x => x.MimeType);
-        
-        base.Configure<MediaAsset>(services, options);
+
+        options.Schema.For<CmsFile>()
+            .TableName(Schemas.Tables.Files)
+            .Identity(x => x.Id);
     }
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    /// <summary>
+    /// Configures media persistence using the service-provider-aware AeroDB hook.
+    /// </summary>
+    /// <param name="services">The built service provider; not used by this module.</param>
+    /// <param name="options">The AeroDB store options being assembled.</param>
+public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        Configure(options);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Repository, service, and Pexels registrations are added only when no earlier registration
+    /// exists. The media actor is resolved as singleton grain key <c>0</c> with key extension
+    /// <c>aero</c>; individual operations carry their own media and site identifiers.
+    /// </remarks>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 
         services.TryAddScoped<IMediaRepository, MediaRepository>();
         services.TryAddScoped<IMediaService, MediaService>();
-
-        // Pexels image service — for downloading and storing media assets.
-        // Registered here because Media owns the media storage domain.
         services.TryAddScoped<IPexelsService, PexelsService>();
+
+        // Grain-backed actor — direct injection for thin API controllers
+        services.AddSingleton<IAeroMediaActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroMediaActor>(0, "aero"));
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Maps both media and general-file admin groups. Those mapping methods do not add an
+    /// authorization policy themselves, so the host must protect the admin route boundary.
+    /// </remarks>
+public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapMediaApi();
+        builder.MapFilesApi();
+
+        return Task.CompletedTask;
     }
 }

@@ -7,11 +7,24 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
+/// <summary>
+/// Maps headless page-document endpoints for homepage and catch-all slug lookups.
+/// </summary>
+/// <remarks>
+/// These routes return page documents. Public HTML rendering is provided separately
+/// by the Pages Razor Page.
+/// </remarks>
 public static class PageRouteHandler
 {
     /// <summary>
-    /// Maps the public page routes for the CMS pages.
+    /// Maps <c>/</c> and <c>/{*slug}</c> GET endpoints.
     /// </summary>
+    /// <param name="app">The endpoint route builder to extend.</param>
+    /// <remarks>
+    /// Culture-prefix resolution is handled by the request pipeline. The catch-all
+    /// handler performs an exact, site-scoped slug lookup. Service failures and missing
+    /// pages are both returned as HTTP 404 responses by these handlers.
+    /// </remarks>
     public static void MapPageRoutes(this IEndpointRouteBuilder app)
     {
         // Homepage route at /
@@ -19,8 +32,10 @@ public static class PageRouteHandler
             .WithName("GetHomepage")
             .WithTags("Pages");
 
-        // Dynamic page route at /{slug}
-        app.MapGet("/{slug}", GetPageBySlug)
+        // Dynamic page route at /{*slug} — catch-all for hierarchical paths
+        // NOTE: Public HTML rendering is handled by the Razor Page at Areas/Cms/Pages/Page.cshtml
+        // which also uses a catch-all (/{**slug}). This Minimal API is for headless/programmatic access.
+        app.MapGet("/{*slug}", GetPageBySlug)
             .WithName("GetPageBySlug")
             .WithTags("Pages");
     }
@@ -49,8 +64,9 @@ public static class PageRouteHandler
         IPageContentService pageService,
         CancellationToken cancellationToken)
     {
-        // Normalize slug - remove leading slash if present for consistency
-        var normalizedSlug = slug.TrimStart('/');
+        // Culture-prefix resolution belongs to the request pipeline. Treat the
+        // catch-all value as an exact page path at this data-service boundary.
+        var normalizedSlug = slug.Trim().Trim('/');
 
         var result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
 

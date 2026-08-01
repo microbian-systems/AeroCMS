@@ -1,0 +1,28 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<li class="aero-page-outline-item"
+    role="treeitem"
+    aria-level="@Depth"
+    aria-selected="@(Node.NodeId == SelectedNodeId ? "true" : "false")">
+    <button type="button"
+            class="@(Node.NodeId == SelectedNodeId ? "is-selected" : null)"
+            aria-label="@AccessibleLabel"
+            @onclick="SelectAsync">
+        <span class="aero-page-outline-item__tag">&lt;@Node.TagName&gt;</span>
+        <span class="aero-page-outline-item__summary">@ElementLabel</span>
+    </button>
+
+    @if (ElementChildren.Count > 0)
+    {
+        <ol role="group">
+            @foreach (var child in ElementChildren)
+            {
+                <HtmlPageEditorOutlineItem @key="child.NodeId"
+                                           Node="child"
+                                           SelectedNodeId="SelectedNodeId"
+                                           Depth="@(Depth + 1)"
+                                           NodeSelected="NodeSelected" />
+            }
+        </ol>
+    }
+</li>

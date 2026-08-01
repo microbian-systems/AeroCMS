@@ -1,3 +1,6 @@
 namespace Aero.Cms.Modules.Commerce.Orders.Events;
 
-public sealed record OrderStatusChangedToShipped(long OrderId);
+/// <summary>
+/// Represents a record for OrderStatusChangedToShipped.
+/// </summary>
+public sealed record OrderStatusChangedToShipped(long OrderId, long TenantId, long SiteId, long ExternalMemberId);

@@ -1,0 +1,13 @@
+<div class="space-y-5">
+    <ContentFieldSettingsEditor Field="@Field"
+                                OwnerFields="@OwnerFields"
+                                ContentTypes="@ContentTypes"
+                                CurrentContentTypeAlias="@CurrentContentTypeAlias"
+                                FieldTypeLabel="@FieldTypeLabel" />
+
+    <div class="flex items-center justify-end gap-3 pt-4"
+         style="position: sticky; bottom: 0; background: var(--pe-bg-primary); border-top: 1px solid var(--pe-border);">
+        <RadzenButton Text="@L["Cancel"]" ButtonStyle="ButtonStyle.Light" Click="@Cancel" />
+        <RadzenButton Text="@L["Apply settings"]" Icon="check" ButtonStyle="ButtonStyle.Primary" Click="@Apply" />
+    </div>
+</div>

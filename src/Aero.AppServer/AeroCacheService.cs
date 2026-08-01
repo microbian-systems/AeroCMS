@@ -1,6 +1,5 @@
 using Garnet;
 using Aero.AppServer.Startup;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net.Sockets;
@@ -9,15 +8,29 @@ using System.Net;
 
 namespace Aero.AppServer;
 
+/// <summary>
+/// Hosts the process-local Garnet cache and publishes its readiness state.
+/// </summary>
+/// <param name="log">The logger for lifecycle and readiness-probe events.</param>
+/// <param name="readiness">The mutable process readiness snapshot.</param>
+/// <param name="startupSignal">The named readiness-signal registry.</param>
+/// <remarks>
+/// The server listens only on loopback. Startup returns after launching an asynchronous TCP
+/// readiness probe; consumers that require the cache must wait on <see cref="IMultiStartupSignal"/>.
+/// </remarks>
 internal sealed class AeroCacheService(
-        IConfiguration config,
         ILogger<AeroCacheService> log,
         IInfrastructureReadinessSnapshot readiness,
         IMultiStartupSignal startupSignal) : BackgroundService
 {
     private GarnetServer? server;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Records that the background service execution loop has started.
+    /// </summary>
+    /// <param name="stoppingToken">The host shutdown token.</param>
+    /// <returns>A completed task; Garnet is managed by <see cref="StartAsync"/>.</returns>
+protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         log.LogInformation("Aero Caching Server is running...");
 
@@ -26,9 +39,18 @@ internal sealed class AeroCacheService(
         return Task.CompletedTask;
     }
 
-    public override Task StartAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Starts Garnet and launches a loopback readiness probe.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the readiness probe and base-service startup.</param>
+    /// <returns>The base hosted-service startup task.</returns>
+    /// <remarks>
+    /// The probe retries every 500 milliseconds. A successful connection updates both readiness
+    /// abstractions; probe failures are logged and do not fail the returned startup task.
+    /// </remarks>
+public override Task StartAsync(CancellationToken cancellationToken)
     {
-        var port = config.GetValue("Aero:Cache:Port", AeroAppServerConstants.CachePort);
+        const int port = AeroAppServerConstants.CachePort;
 
         // 1. Define your limits in bytes/counts
         var indexSize = 128 * 1024 * 1024;       // 128 MB (Main Index)
@@ -73,12 +95,12 @@ internal sealed class AeroCacheService(
                         await client.ConnectAsync(AeroAppServerConstants.CacheHost, port, cancellationToken);
                         readiness.GarnetReady = true;
                         startupSignal.MarkReady(StartupServiceNames.Garnet);
-                        log.LogInformation("Embedded Garnet cache is ready on port {Port}.", port);
+                        log.LogInformation("Local Garnet cache is ready on port {Port}.", port);
                         return;
                     }
                     catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                     {
-                        log.LogDebug(ex, "Embedded Garnet cache not ready yet on port {Port}.", port);
+                        log.LogDebug(ex, "Local Garnet cache not ready yet on port {Port}.", port);
                         await Task.Delay(500, cancellationToken);
                     }
                 }
@@ -92,28 +114,45 @@ internal sealed class AeroCacheService(
         return base.StartAsync(cancellationToken);
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Requests background-service shutdown.
+    /// </summary>
+    /// <param name="cancellationToken">The token limiting graceful shutdown.</param>
+    /// <returns>The base hosted-service shutdown task.</returns>
+public override Task StopAsync(CancellationToken cancellationToken)
     {
         log.LogInformation("Stopping Aero cache server...");
         return base.StopAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Logs the application-started lifecycle transition.
+    /// </summary>
     private void OnStarted()
     {
         log.LogInformation("AeroCacheService: Application has fully started and Aero cache is listening.");
     }
 
+    /// <summary>
+    /// Logs the application-stopping lifecycle transition.
+    /// </summary>
     private void OnStopping()
     {
         log.LogInformation("AeroCacheService: Application is shutting down. Preparing to stop Aero cache...");
     }
 
+    /// <summary>
+    /// Logs the application-stopped lifecycle transition.
+    /// </summary>
     private void OnStopped()
     {
         log.LogInformation("AeroCacheService: Application has stopped. Aero cache resources released.");
     }
 
-    public override void Dispose()
+    /// <summary>
+    /// Disposes the Garnet server before releasing hosted-service resources.
+    /// </summary>
+public override void Dispose()
     {
         log.LogInformation("AeroCacheService: Disposing Aero cache server...");
         server?.Dispose();

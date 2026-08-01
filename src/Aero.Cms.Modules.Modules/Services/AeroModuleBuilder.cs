@@ -6,8 +6,12 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Modules.Services;
 
 /// <summary>
-/// Default implementation of IModuleBuilder that stores metadata contributions.
+/// Collects module metadata contributions while adding their concrete services to dependency injection.
 /// </summary>
+/// <remarks>
+/// Permission and content-type names are unique case-insensitively. Contributor types are unique
+/// by exact <see cref="Type"/> identity. Duplicate registrations fail immediately.
+/// </remarks>
 public class AeroModuleBuilder : IAeroModuleBuilder
 {
     private readonly HashSet<string> _permissions = new(StringComparer.OrdinalIgnoreCase);
@@ -18,7 +22,7 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     private readonly List<Type> _contentParts = new();
     private readonly List<Type> _fieldEditors = new();
     private readonly List<Type> _searchIndexers = new();
-    private readonly List<Type> _martenConfigurations = new();
+    private readonly List<Type> _dbConfigurations = new();
 
     /// <summary>
     /// The service collection for DI registrations.
@@ -36,8 +40,11 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     public IHostEnvironment Environment { get; }
 
     /// <summary>
-    /// Creates a new ModuleBuilder instance.
+    /// Creates a module builder over the host composition objects.
     /// </summary>
+    /// <param name="services">The mutable service collection used for contributor registrations.</param>
+    /// <param name="configuration">The application configuration exposed to modules.</param>
+    /// <param name="environment">The host environment exposed to modules.</param>
     public AeroModuleBuilder(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         Services = services;
@@ -70,7 +77,7 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     public IReadOnlyList<Type> SearchIndexers => _searchIndexers.AsReadOnly();
 
     /// <inheritdoc/>
-    public IReadOnlyList<Type> MartenConfigurations => _martenConfigurations.AsReadOnly();
+    public IReadOnlyList<Type> DbConfigurations => _dbConfigurations.AsReadOnly();
 
     /// <inheritdoc/>
     public void AddPermission(string permission)
@@ -173,15 +180,15 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     }
 
     /// <inheritdoc/>
-    public void AddMartenConfiguration<T>() where T : class, global::Marten.IConfigureMarten
+    public void AddDbConfiguration<T>() where T : class
     {
         var type = typeof(T);
-        if (_martenConfigurations.Contains(type))
+        if (_dbConfigurations.Contains(type))
         {
-            throw new InvalidOperationException($"Marten configuration contributor '{type.FullName}' has already been registered.");
+            throw new InvalidOperationException($"AeroDB configuration contributor '{type.FullName}' has already been registered.");
         }
 
-        _martenConfigurations.Add(type);
-        Services.AddSingleton<global::Marten.IConfigureMarten, T>();
+        _dbConfigurations.Add(type);
+        Services.AddSingleton(typeof(global::AeroDB.Sable.IConfigureAeroDB), typeof(T));
     }
 }

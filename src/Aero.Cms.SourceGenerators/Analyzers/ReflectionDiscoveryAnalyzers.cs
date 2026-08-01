@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -55,10 +54,17 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
     // See the existing AERO001-AERO006 block-renderer diagnostics for the recommended
     // pattern (marker attributes + ForAttributeWithMetadataName).
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+    /// <summary>
+    /// Gets the AERO010, AERO011, and AERO012 descriptors produced by this analyzer.
+    /// </summary>
+public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [Aero010, Aero011, Aero012];
 
-    public override void Initialize(AnalysisContext context)
+    /// <summary>
+    /// Enables concurrent invocation analysis while excluding generated code.
+    /// </summary>
+    /// <param name="context">The analyzer registration context.</param>
+public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
@@ -66,6 +72,15 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
         context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
     }
 
+    /// <summary>
+    /// Classifies reflection invocations and reports the corresponding discovery diagnostic.
+    /// </summary>
+    /// <param name="context">The invocation-expression analysis context.</param>
+    /// <remarks>
+    /// Calls inside an incremental generator or inside a syntax ancestor annotated with the embedded
+    /// legacy marker are exempt. <c>GetMethods</c> is reported only when an argument's source text
+    /// contains <c>BindingFlags</c>.
+    /// </remarks>
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
@@ -121,6 +136,11 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
             targetName));
     }
 
+    /// <summary>
+    /// Detects a binding-flags argument using source-text matching.
+    /// </summary>
+    /// <param name="invocation">The <c>GetMethods</c> invocation to inspect.</param>
+    /// <returns><see langword="true"/> when any argument text contains <c>BindingFlags</c>.</returns>
     private static bool HasBindingFlagsArgument(InvocationExpressionSyntax invocation)
     {
         foreach (var arg in invocation.ArgumentList.Arguments)
@@ -131,6 +151,14 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
         return false;
     }
 
+    /// <summary>
+    /// Searches containing declarations for the generated legacy-reflection exemption attribute.
+    /// </summary>
+    /// <returns><see langword="true"/> when an inspected method, constructor, or type is annotated.</returns>
+    /// <remarks>
+    /// Although the embedded attribute can target assemblies, this syntax walk does not inspect the
+    /// assembly symbol, so assembly-level exemptions are not honored by the current implementation.
+    /// </remarks>
     private static bool IsAllowedByAnnotation(SyntaxNodeAnalysisContext context, SyntaxNode node)
     {
         // Walk up the syntax tree to find containing method, class, or assembly
@@ -165,6 +193,10 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
         return false;
     }
 
+    /// <summary>
+    /// Determines whether a symbol has the fully qualified legacy-reflection marker.
+    /// </summary>
+    /// <returns><see langword="true"/> when the marker attribute is present.</returns>
     private static bool HasLegacyReflectionDiscoveryAttribute(ISymbol symbol)
     {
         foreach (var attr in symbol.GetAttributes())
@@ -176,6 +208,10 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
         return false;
     }
 
+    /// <summary>
+    /// Determines whether an invocation is nested in a class implementing <see cref="IIncrementalGenerator"/>.
+    /// </summary>
+    /// <returns><see langword="true"/> when any containing class implements the generator interface.</returns>
     private static bool IsInsideSourceGenerator(SyntaxNodeAnalysisContext context, SyntaxNode node)
     {
         // Walk up to find containing class and check if it implements IIncrementalGenerator

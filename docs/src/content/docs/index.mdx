@@ -1,0 +1,49 @@
+---
+title: Overview
+description: Evidence-based AeroCMS documentation for developers, authors, integrators, and operators.
+template: splash
+hero:
+  tagline: A modular, server-rendered, multi-site CMS for .NET 10. This documentation describes the current alpha implementation, not the roadmap.
+  actions:
+    - text: Start the tutorial
+      link: /getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Check feature status
+      link: /reference/feature-status/
+      icon: open-book
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<span class="doc-status">Alpha · not production ready</span>
+
+AeroCMS combines ASP.NET Core, Razor and Blazor manager UI, source-generated module registration, Orleans application boundaries, Sable/SurrealDB-backed persistence, and several constrained page-rendering strategies. It is useful when a .NET team wants runtime-managed content without adopting a client-side SPA as the application shell.
+
+<CardGrid>
+  <Card title="Build a site" icon="rocket">
+    Follow one journey from clone and first-run setup through pages, posts, structured content, fragments, preview, and publishing.
+  </Card>
+  <Card title="Model content" icon="seti">
+    Define flat or hierarchical content, validate parent constraints, select fields, and expose bounded published projections.
+  </Card>
+  <Card title="Render deliberately" icon="puzzle">
+    Choose Aero composition, pure Scriban, pure HTMX, or alpha SharpTS with explicit capability and security boundaries.
+  </Card>
+  <Card title="Operate safely" icon="shield">
+    Apply site isolation, authentication, data-protection, cache, telemetry, deployment, and backup checks before production use.
+  </Card>
+</CardGrid>
+
+## Documentation trust model
+
+These pages were verified against commit `47c299402cee06975dfdf32e071ba133179c15f2` plus the current Commerce working-tree verification. Behavior claims come from current source, configuration, and tests. Design history under `.docs/` is not automatically treated as implemented behavior.
+
+This public corpus intentionally excludes:
+
+- documentation for the `Aero`, `AeroDB`, `AeroVault`, `NeoUI`, `craft.js`, `hyperui`, `tiptap-dotnet`, and `ui` Git submodules;
+- generated files, `bin/`, `obj/`, and legacy Marten reference code;
+- credentials, connection strings, customer data, PII, and security-sensitive runbooks;
+- proposals that cannot be verified in current code.
+
+Use the [feature inventory](/concepts/feature-inventory/) to see the evidence chain and the [coverage report](/reference/coverage/) to see what remains incomplete.

@@ -305,12 +305,6 @@
     }
   }
 }
-@layer base {
-  article.min-h-screen {
-    border: 5px solid red !important;
-    color: red;
-  }
-}
 @layer components;
 @property --tw-border-style {
   syntax: "*";
