@@ -33,8 +33,8 @@ flowchart TB
         end
 
         subgraph Data["Persistence"]
-            MDB[("MartenDB\nDocument DB / Postgres")]
-            EFC[("EF Core\nIdentity / Relational")]
+            MDB[("AeroDB.Sable\nSurrealDB Document Store")]
+            IDS[("AeroDB.AspNetIdentity\nIdentity / Roles")]
         end
 
         subgraph Identity["ASP.NET Core Identity"]
@@ -53,7 +53,7 @@ flowchart TB
     PUBLIC --> MDB
 ```
 
-**Patterns:** *C4 System Context* — shows the Manager UI (hosting the page editor) as one component within a larger distributed system (Orleans grains, MartenDB document store, SSR public rendering).
+**Patterns:** *C4 System Context* — shows the Manager UI (hosting the page editor) as one component within a larger distributed system (Orleans grains, AeroDB.Sable document store, SSR public rendering).
 
 ---
 
@@ -406,18 +406,18 @@ flowchart TB
 
 ## 9. Public Rendering Pipeline
 
-From Manager UI save to visitor's browser. The composition tree flows through Orleans grains, MartenDB projections, and the SSR pipeline.
+From Manager UI save to visitor's browser. The composition tree flows through Orleans grains, AeroDB.Sable projections, and the SSR pipeline.
 
 ```mermaid
 flowchart LR
     MANAGER["Manager UI\nPage Editor\nSave / Publish"] --> API["Pages API\nPUT /api/pages/{id}"]
 
     API --> PG["Orleans Page Grain\nUpdateState()"]
-    PG --> MDB1[("MartenDB\nDraft Document")]
+    PG --> MDB1[("AeroDB.Sable\nDraft Document")]
     PG --> PUB["Publish Command"]
 
     PUB --> PROJ["Inline Event Projection\n→ Layout Manifest"]
-    PROJ --> MDB2[("MartenDB\nPublished Version")]
+    PROJ --> MDB2[("AeroDB.Sable\nPublished Version")]
     PUB --> CACHE["Invalidate\nRequest Block Cache"]
 
     VISITOR["Visitor\nHTTP Request"] --> ROUTER["Page Router\nMatch URL + Culture"]
@@ -451,7 +451,7 @@ flowchart LR
 | **Adapter** | `LegacyPageEditorDefinitionAdapter` — bridges old `IPageEditorBlockDefinition` |
 | **Bridge** | Interface hierarchy (catalog) separate from implementation hierarchy (services) |
 | **Observer** | Publish event triggers inline projection + cache invalidation |
-| **Chain of Responsibility** | Public request: cache → MartenDB → resolve → render → emit |
+| **Chain of Responsibility** | Public request: cache → AeroDB.Sable → resolve → render → emit |
 | **Single Responsibility** | Each service owns one concern: registry stores, policy validates, provider builds |
 
 ---

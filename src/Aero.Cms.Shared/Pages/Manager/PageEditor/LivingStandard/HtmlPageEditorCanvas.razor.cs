@@ -40,6 +40,10 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     [Parameter, EditorRequired]
     public HtmlElementCatalog Catalog { get; set; } = null!;
 
+    /// <summary>Gets the descriptor catalog used for component drag validation.</summary>
+    [Parameter, EditorRequired]
+    public HtmlComponentCatalog ComponentCatalog { get; set; } = null!;
+
     /// <summary>
     /// Gets or sets the policy used to preview whether the root can contain the active drag item.
     /// </summary>
@@ -237,8 +241,8 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
             HtmlPaletteItemKind.Element when Catalog.TryGet(itemValue, out _) => Catalog.CreateElement(itemValue),
             HtmlPaletteItemKind.Layout when Enum.TryParse<HtmlLayoutStarterKind>(itemValue, true, out _)
                 => Catalog.CreateElement("section"),
-            HtmlPaletteItemKind.Component when Enum.TryParse<HtmlComponentTemplateKind>(itemValue, true, out _)
-                => Catalog.CreateElement("section"),
+            HtmlPaletteItemKind.Component when ComponentCatalog.TryGet(itemValue, out var component)
+                => Catalog.CreateElement(component!.RootTagName),
             HtmlPaletteItemKind.ContentList or HtmlPaletteItemKind.ContentItem
                 when HtmlContentPaletteRequest.TryParse(parsedKind, itemValue, out _)
                 => Catalog.CreateElement("section"),

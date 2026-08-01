@@ -9,7 +9,7 @@ type system.
 Current implementation uses:
 
 - `ContentTypeDefinition` in `Aero.Cms.Abstractions`
-- `ContentTypeDocument` in `Aero.Cms.Core` for Marten persistence, with a Snowflake `long` id
+- `ContentTypeDocument` in `Aero.Cms.Core` for AeroDB.Sable (SurrealDB) persistence, with a Snowflake `long` id
 - `ContentItem` in `Aero.Cms.Abstractions.Content`
 - Manager UI pages in `Aero.Cms.Shared/Pages/Manager/ContentTypes`
 - Admin APIs in `Aero.Cms.Modules.Content/Areas/Api/v1`

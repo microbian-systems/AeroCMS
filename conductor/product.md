@@ -11,11 +11,11 @@ AeroCMS is a high-performance, modular content management system built on the cu
 ## Core Pillars
 1. **Modular Architecture:** A plug-and-play system where features (AI, Blog, CRM, etc.) are isolated, testable, and composable.
 2. **Developer Experience (DX):** Leveraging the latest .NET features, TDD, and strong typing to ensure high-quality code and rapid iteration.
-3. **Performance & Scalability:** Built for high-throughput scenarios using Marten, Wolverine, and advanced caching strategies (FusionCache, Garnet).
+3. **Performance & Scalability:** Built for high-throughput scenarios using SurrealDB (AeroDB.Sable), Wolverine, and advanced caching strategies (FusionCache, Garnet).
 4. **AI-First:** Deeply integrated AI capabilities for content generation, assistance, and automation.
 
 ## Key Features (MVP & Beyond)
-- **Advanced Content Modeling:** Flexible schema-less storage with Marten.
+- **Advanced Content Modeling:** Flexible schema-less storage with SurrealDB (AeroDB.Sable).
 - **Robust Identity Management:** Integrated authentication and authorization (JWT, OpenID).
 - **Extensive Module Library:** Out-of-the-box modules for SEO, Blog, Forms, Chat, and more.
 - **Distributed Ready:** Orchestration via .NET Aspire and messaging via Wolverine.

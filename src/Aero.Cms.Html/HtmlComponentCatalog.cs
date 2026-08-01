@@ -6,52 +6,97 @@ namespace Aero.Cms.Html;
 /// <summary>
 /// Creates curated components as ordinary, independently editable HTML nodes.
 /// </summary>
-/// <param name="catalog">The authoritative catalog used to create every emitted element.</param>
-public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
-    : IHtmlComponentTemplateFactory
+public sealed class HtmlComponentCatalog
 {
+    private readonly HtmlElementCatalog catalog;
+    private readonly IReadOnlyList<HtmlComponentDescriptor> _all;
+    private readonly IReadOnlyDictionary<string, HtmlComponentDescriptor> _byKey;
+    private readonly IReadOnlyList<HtmlComponentDescriptor> _basics;
+    private readonly IReadOnlyList<HtmlComponentDescriptor> _daisy;
+    private static readonly IReadOnlyList<HtmlComponentDescriptor> NoPatterns =
+        Array.AsReadOnly(Array.Empty<HtmlComponentDescriptor>());
     private const string PlaceholderBasePath = "/_content/Aero.Cms.Shared/images/page-builder";
 
-    /// <inheritdoc />
-    public Result<HtmlNode> Create(HtmlComponentTemplateKind kind)
+    public HtmlComponentCatalog(HtmlElementCatalog catalog)
     {
-        var component = kind switch
-        {
-            HtmlComponentTemplateKind.Hero => CreateHero(),
-            HtmlComponentTemplateKind.SplitHero => CreateSplitHero(),
-            HtmlComponentTemplateKind.FeatureGrid => CreateFeatureGrid(),
-            HtmlComponentTemplateKind.FeatureList => CreateFeatureList(),
-            HtmlComponentTemplateKind.CallToAction => CreateCallToAction(),
-            HtmlComponentTemplateKind.CenteredCallToAction => CreateCenteredCallToAction(),
-            HtmlComponentTemplateKind.FrequentlyAskedQuestions => CreateFrequentlyAskedQuestions(),
-            HtmlComponentTemplateKind.AccordionFaq => CreateAccordionFaq(),
-            HtmlComponentTemplateKind.Testimonial => CreateTestimonial(),
-            HtmlComponentTemplateKind.Statistics => CreateStatistics(),
-            HtmlComponentTemplateKind.ImageAndText => CreateImageAndText(),
-            HtmlComponentTemplateKind.ContactForm => CreateContactForm(),
-            HtmlComponentTemplateKind.Gallery => CreateGallery(),
-            HtmlComponentTemplateKind.NavigationHeader => CreateNavigationHeader(),
-            HtmlComponentTemplateKind.LogoCloud => CreateLogoCloud(),
-            HtmlComponentTemplateKind.PricingGrid => CreatePricingGrid(),
-            HtmlComponentTemplateKind.TeamGrid => CreateTeamGrid(),
-            HtmlComponentTemplateKind.SiteFooter => CreateSiteFooter(),
-            HtmlComponentTemplateKind.NewsletterSignup => CreateNewsletterSignup(),
-            HtmlComponentTemplateKind.AnnouncementBanner => CreateAnnouncementBanner(),
-            HtmlComponentTemplateKind.LatestArticles => CreateLatestArticles(),
-            HtmlComponentTemplateKind.ProcessSteps => CreateProcessSteps(),
-            HtmlComponentTemplateKind.ShowcaseCollection => CreateShowcaseCollection(),
-            HtmlComponentTemplateKind.MilestoneTimeline => CreateMilestoneTimeline(),
-            HtmlComponentTemplateKind.FeatureComparisonTable => CreateFeatureComparisonTable(),
-            HtmlComponentTemplateKind.DetailsList => CreateDetailsList(),
-            HtmlComponentTemplateKind.ConfirmationDialog => CreateConfirmationDialog(),
-            _ => null
-        };
-
-        return component is null
-            ? new Result<HtmlNode>.Failure(
-                AeroError.ValidationError(["The requested component template is not supported."]))
-            : new Result<HtmlNode>.Ok(component);
+        this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _all =
+        [
+        Descriptor("basic.hero", "Hero", "A centered introduction with primary actions.", HtmlComponentCatalogGroup.Basics, "◆", "section", ["introduction", "actions"], CreateHero),
+        Descriptor("basic.split-hero", "Hero + image", "A responsive split hero with editable image and actions.", HtmlComponentCatalogGroup.Basics, "◩", "section", ["introduction", "media"], CreateSplitHero),
+        Descriptor("basic.feature-grid", "Features", "A responsive three-card feature section.", HtmlComponentCatalogGroup.Basics, "▦", "section", ["cards", "benefits"], CreateFeatureGrid),
+        Descriptor("basic.feature-list", "Feature list", "A responsive numbered benefit list.", HtmlComponentCatalogGroup.Basics, "☷", "section", ["benefits", "numbered"], CreateFeatureList),
+        Descriptor("basic.call-to-action", "Call to action", "A focused prompt with one primary action.", HtmlComponentCatalogGroup.Basics, "→", "section", ["conversion", "cta"], CreateCallToAction),
+        Descriptor("basic.centered-call-to-action", "CTA + image", "A centered call to action over an editable background image.", HtmlComponentCatalogGroup.Basics, "◎", "section", ["conversion", "cta", "media"], CreateCenteredCallToAction),
+        Descriptor("basic.faq", "FAQ", "A responsive question-and-answer section.", HtmlComponentCatalogGroup.Basics, "?", "section", ["questions", "answers"], CreateFrequentlyAskedQuestions),
+        Descriptor("basic.accordion-faq", "FAQ accordion", "Expandable semantic questions and answers.", HtmlComponentCatalogGroup.Basics, "⌄", "section", ["questions", "details"], CreateAccordionFaq),
+        Descriptor("basic.testimonial", "Testimonial", "A highlighted customer quotation.", HtmlComponentCatalogGroup.Basics, "“”", "section", ["quote", "trust"], CreateTestimonial),
+        Descriptor("basic.statistics", "Statistics", "Three responsive headline metrics.", HtmlComponentCatalogGroup.Basics, "%", "section", ["metrics", "trust"], CreateStatistics),
+        Descriptor("basic.image-and-text", "Image + text", "A responsive visual and copy split.", HtmlComponentCatalogGroup.Basics, "◫", "section", ["media", "copy"], CreateImageAndText),
+        Descriptor("basic.contact-form", "Contact form", "A static, accessible contact section.", HtmlComponentCatalogGroup.Basics, "✉", "section", ["form", "contact"], CreateContactForm),
+        Descriptor("basic.gallery", "Gallery", "A responsive three-image gallery.", HtmlComponentCatalogGroup.Basics, "▧", "section", ["images", "media"], CreateGallery),
+        Descriptor("basic.navigation", "Navigation", "A responsive site header with editable links.", HtmlComponentCatalogGroup.Basics, "☰", "header", ["links", "header"], CreateNavigationHeader),
+        Descriptor("basic.logo-cloud", "Partner logos", "An accessible grid of editable partner names.", HtmlComponentCatalogGroup.Basics, "✦", "section", ["logos", "partners"], CreateLogoCloud),
+        Descriptor("basic.pricing-grid", "Pricing", "Three responsive plans with benefits and actions.", HtmlComponentCatalogGroup.Basics, "¤", "section", ["plans", "conversion"], CreatePricingGrid),
+        Descriptor("basic.team-grid", "Team", "A responsive team section with editable portraits.", HtmlComponentCatalogGroup.Basics, "♙", "section", ["people", "portraits"], CreateTeamGrid),
+        Descriptor("basic.footer", "Footer links", "A responsive page section of editable link groups.", HtmlComponentCatalogGroup.Basics, "▤", "section", ["links", "navigation"], CreateSiteFooter),
+        Descriptor("basic.newsletter", "Newsletter", "A static email signup section.", HtmlComponentCatalogGroup.Basics, "✉", "section", ["email", "form"], CreateNewsletterSignup),
+        Descriptor("basic.announcement", "Announcement", "A responsive update banner with one ordinary link.", HtmlComponentCatalogGroup.Basics, "!", "aside", ["banner", "notice"], CreateAnnouncementBanner),
+        Descriptor("basic.latest-articles", "Latest articles", "Three responsive static article cards.", HtmlComponentCatalogGroup.Basics, "▥", "section", ["articles", "cards"], CreateLatestArticles),
+        Descriptor("basic.process-steps", "Process steps", "Three numbered steps with editable explanations.", HtmlComponentCatalogGroup.Basics, "①", "section", ["steps", "process"], CreateProcessSteps),
+        Descriptor("basic.collection", "Collection", "A responsive three-item static collection.", HtmlComponentCatalogGroup.Basics, "▦", "section", ["cards", "collection"], CreateShowcaseCollection),
+        Descriptor("basic.milestone-timeline", "Timeline", "Three dated milestones in a semantic ordered timeline.", HtmlComponentCatalogGroup.Basics, "◷", "section", ["dates", "milestones"], CreateMilestoneTimeline),
+        Descriptor("basic.feature-comparison", "Comparison table", "A compact editable feature comparison.", HtmlComponentCatalogGroup.Basics, "▤", "section", ["table", "comparison"], CreateFeatureComparisonTable),
+        Descriptor("basic.details-list", "Details list", "Responsive editable terms and descriptions.", HtmlComponentCatalogGroup.Basics, "☷", "section", ["terms", "definitions"], CreateDetailsList),
+        Descriptor("basic.confirmation-dialog", "Confirmation dialog", "An editable open dialog with two static actions.", HtmlComponentCatalogGroup.Basics, "▣", "section", ["dialog", "confirmation"], CreateConfirmationDialog),
+        Descriptor("daisy.button", "Button", "A prominent action button.", HtmlComponentCatalogGroup.Daisy, "●", "button", ["action", "primary"], CreateDaisyButton),
+        Descriptor("daisy.badge", "Badge", "A compact status label.", HtmlComponentCatalogGroup.Daisy, "●", "span", ["label", "status"], CreateDaisyBadge),
+        Descriptor("daisy.alert", "Alert", "An accessible status message.", HtmlComponentCatalogGroup.Daisy, "!", "div", ["notice", "message"], CreateDaisyAlert),
+        Descriptor("daisy.card", "Card", "A content card with a clear action.", HtmlComponentCatalogGroup.Daisy, "▣", "article", ["content", "panel"], CreateDaisyCard),
+        Descriptor("daisy.hero", "Hero", "A full-width Daisy introduction.", HtmlComponentCatalogGroup.Daisy, "◆", "section", ["introduction", "banner"], CreateDaisyHero),
+        Descriptor("daisy.stat", "Stat", "A concise headline metric.", HtmlComponentCatalogGroup.Daisy, "%", "section", ["metric", "statistic"], CreateDaisyStat),
+        Descriptor("daisy.progress", "Progress", "A native progress indicator.", HtmlComponentCatalogGroup.Daisy, "━", "progress", ["loading", "completion"], CreateDaisyProgress),
+        Descriptor("daisy.skeleton", "Skeleton", "A content placeholder.", HtmlComponentCatalogGroup.Daisy, "░", "div", ["loading", "placeholder"], CreateDaisySkeleton),
+        Descriptor("daisy.divider", "Divider", "A semantic visual separator.", HtmlComponentCatalogGroup.Daisy, "—", "div", ["separator", "section"], CreateDaisyDivider),
+        Descriptor("daisy.breadcrumbs", "Breadcrumbs", "A navigational trail.", HtmlComponentCatalogGroup.Daisy, "›", "nav", ["navigation", "links"], CreateDaisyBreadcrumbs),
+        Descriptor("daisy.steps", "Steps", "A three-step process.", HtmlComponentCatalogGroup.Daisy, "①", "ul", ["process", "ordered"], CreateDaisySteps),
+        Descriptor("daisy.timeline", "Timeline", "A semantic milestone timeline.", HtmlComponentCatalogGroup.Daisy, "◷", "ul", ["milestones", "dates"], CreateDaisyTimeline),
+        Descriptor("daisy.table", "Table", "A structured comparison table.", HtmlComponentCatalogGroup.Daisy, "▤", "table", ["data", "comparison"], CreateDaisyTable),
+        Descriptor("daisy.pagination", "Pagination", "A page navigation control.", HtmlComponentCatalogGroup.Daisy, "»", "nav", ["navigation", "pages"], CreateDaisyPagination),
+        Descriptor("daisy.accordion", "Accordion", "A script-free native details disclosure.", HtmlComponentCatalogGroup.Daisy, "⌄", "details", ["questions", "disclosure"], CreateDaisyAccordion),
+        ];
+        _all = Array.AsReadOnly(_all.ToArray());
+        _byKey = _all.ToDictionary(descriptor => descriptor.Key, StringComparer.Ordinal);
+        _basics = Array.AsReadOnly(_all.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Basics).ToArray());
+        _daisy = Array.AsReadOnly(_all.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Daisy).ToArray());
     }
+
+    /// <summary>Gets every descriptor in deterministic registration order.</summary>
+    public IReadOnlyList<HtmlComponentDescriptor> All => _all;
+
+    public IReadOnlyList<HtmlComponentDescriptor> Basics => _basics;
+    public IReadOnlyList<HtmlComponentDescriptor> Daisy => _daisy;
+    public IReadOnlyList<HtmlComponentDescriptor> Patterns => NoPatterns;
+
+    public bool TryGet(string? key, out HtmlComponentDescriptor? descriptor)
+    {
+        if (!string.IsNullOrWhiteSpace(key) && _byKey.TryGetValue(key, out var found))
+        {
+            descriptor = found;
+            return true;
+        }
+
+        descriptor = null;
+        return false;
+    }
+
+    public Result<HtmlNode> Create(string? key) => TryGet(key, out var descriptor)
+        ? descriptor!.Create()
+        : AeroError.ValidationError(["The requested component key is not supported."]);
+
+    private static HtmlComponentDescriptor Descriptor(string key, string displayName, string description, HtmlComponentCatalogGroup group, string icon, string rootTagName, IReadOnlyList<string> keywords, Func<HtmlNode> create) =>
+        new(key, displayName, description, group, icon, rootTagName, Array.AsReadOnly(keywords.ToArray()), () => new Result<HtmlNode>.Ok(create()));
+
 
     /// <summary>Builds a centered introductory section with editable copy, action, and media nodes.</summary>
     private HtmlNode CreateHero()
@@ -62,7 +107,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             AlignItems = CssAlignment.Center,
             JustifyContent = CssJustification.Center,
             MinimumHeight = CssLength.ViewportHeight(65),
-            Padding = All(CssLength.Rem(2)),
+            Padding = AllSpacing(CssLength.Rem(2)),
             Surface = Surface("#111827")
         });
         var content = Element("div", style: new HtmlStyle
@@ -97,7 +142,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#ffffff")
         });
         section.Children.Add(Element("h2", "Everything you need", Typography(
@@ -130,7 +175,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             StackOnSmallScreens = true,
             AlignItems = CssAlignment.Center,
             Gap = CssLength.Rem(3),
-            Padding = All(CssLength.Rem(2)),
+            Padding = AllSpacing(CssLength.Rem(2)),
             Surface = Surface("#eff6ff", CssLength.Rem(1))
         });
 
@@ -183,7 +228,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             AlignItems = CssAlignment.Center,
             JustifyContent = CssJustification.SpaceBetween,
             Gap = CssLength.Rem(2),
-            Padding = All(CssLength.Rem(2.5m)),
+            Padding = AllSpacing(CssLength.Rem(2.5m)),
             Surface = Surface("#5b21b6", CssLength.Rem(1))
         });
         var copy = Element("div");
@@ -206,7 +251,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             StackOnSmallScreens = true,
             AlignItems = CssAlignment.Center,
             Gap = CssLength.Rem(3),
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
 
         var introduction = Element("div", style: new HtmlStyle
@@ -247,7 +292,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             JustifyContent = CssJustification.Center,
             Gap = CssLength.Rem(1.25m),
             MinimumHeight = CssLength.Rem(24),
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = new CssSurfaceStyle
             {
                 BackgroundImageUrl = $"{PlaceholderBasePath}/call-to-action.svg",
@@ -272,7 +317,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         section.Children.Add(Element("h2", "Frequently asked questions", Typography(
             color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
@@ -298,7 +343,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         section.Children.Add(Element("h2", "What our customers say", Typography(
@@ -307,7 +352,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         var quote = Element("blockquote", style: new HtmlStyle
         {
             Margin = Vertical(CssLength.Rem(2)),
-            Padding = All(CssLength.Rem(2)),
+            Padding = AllSpacing(CssLength.Rem(2)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m)),
             Typography = new CssTypographyStyle
             {
@@ -335,7 +380,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             GridColumns = 2,
             StackOnSmallScreens = true,
             Gap = CssLength.Rem(2.5m),
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
 
@@ -365,7 +410,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#111827")
         });
         section.Children.Add(Element("h2", "Results at a glance", Typography(
@@ -396,7 +441,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             StackOnSmallScreens = true,
             AlignItems = CssAlignment.Center,
             Gap = CssLength.Rem(2.5m),
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         var figure = Element("figure");
         figure.Children.Add(Image($"{PlaceholderBasePath}/hero.svg", "Describe the featured image"));
@@ -426,7 +471,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             GridColumns = 2,
             StackOnSmallScreens = true,
             Gap = CssLength.Rem(2.5m),
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         var introduction = Element("div");
@@ -439,7 +484,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Grid,
             GridColumns = 1,
             Gap = CssLength.Rem(1),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         AddFormField(form, "Name", "text", "name", "Your name");
@@ -460,7 +505,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
 
         var submit = Element("button", "Send message", new HtmlStyle
         {
-            Padding = All(CssLength.Rem(0.75m)),
+            Padding = AllSpacing(CssLength.Rem(0.75m)),
             Surface = Surface("#7c3aed", CssLength.Rem(0.5m)),
             Typography = new CssTypographyStyle
             {
@@ -481,7 +526,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         section.Children.Add(Element("h2", "Gallery", Typography(
             color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
@@ -505,7 +550,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var header = Element("header", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         var navigation = Element("nav", style: new HtmlStyle
@@ -540,7 +585,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         section.Children.Add(Element("h2", "Trusted by teams like yours", Typography(
@@ -571,7 +616,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         section.Children.Add(Element("h2", "Plans for every stage", Typography(
             color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
@@ -598,7 +643,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         section.Children.Add(Element("h2", "Meet the team", Typography(
@@ -626,7 +671,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#111827", CssLength.Rem(1))
         });
         section.Children.Add(Element("h2", "Explore", Typography(
@@ -652,7 +697,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(2.5m)),
+            Padding = AllSpacing(CssLength.Rem(2.5m)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         section.Children.Add(Element("h2", "Stay in the loop", Typography(
@@ -713,7 +758,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             AlignItems = CssAlignment.Center,
             JustifyContent = CssJustification.SpaceBetween,
             Gap = CssLength.Rem(1),
-            Padding = All(CssLength.Rem(1.25m))
+            Padding = AllSpacing(CssLength.Rem(1.25m))
         });
         var copy = Element("div");
         copy.Children.Add(Element("h2", "New resources are available", Typography(
@@ -730,7 +775,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         section.Children.Add(Element("h2", "Latest articles", Typography(
             color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
@@ -757,7 +802,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         var header = Element("header");
@@ -780,7 +825,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3))
+            Padding = AllSpacing(CssLength.Rem(3))
         });
         var header = Element("header");
         header.Children.Add(Element("h2", "Explore the collection", Typography(
@@ -809,7 +854,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         var header = Element("header");
@@ -830,7 +875,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     /// <summary>Builds an accessible comparison table with scoped column and row headers.</summary>
     private HtmlNode CreateFeatureComparisonTable()
     {
-        var section = Element("section", style: new HtmlStyle { Padding = All(CssLength.Rem(3)) });
+        var section = Element("section", style: new HtmlStyle { Padding = AllSpacing(CssLength.Rem(3)) });
         var header = Element("header");
         header.Children.Add(Element("h2", "Compare what matters", Typography(
             color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
@@ -869,7 +914,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         var header = Element("header");
@@ -900,7 +945,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var section = Element("section", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(3)),
+            Padding = AllSpacing(CssLength.Rem(3)),
             Surface = Surface("#f8fafc", CssLength.Rem(1))
         });
         var introduction = Element("header");
@@ -915,7 +960,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(1),
             Margin = Vertical(CssLength.Rem(2)),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         dialog.Attributes["open"] = string.Empty;
@@ -979,7 +1024,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(0.75m),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         card.Children.Add(Element("span", number, Typography(
@@ -1000,7 +1045,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(0.5m),
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         var time = Element("time", visibleDate, Typography(color: "#7c3aed", weight: 700));
@@ -1017,7 +1062,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var cell = Element("th", text, new HtmlStyle
         {
-            Padding = All(CssLength.Rem(0.4m)),
+            Padding = AllSpacing(CssLength.Rem(0.4m)),
             Typography = new CssTypographyStyle { Color = CssColor.Hex("#111827"), FontWeight = 700 }
         });
         cell.Attributes["scope"] = scope;
@@ -1029,8 +1074,8 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var row = Element("tr");
         row.Children.Add(TableHeader(feature, "row"));
-        row.Children.Add(Element("td", standard, new HtmlStyle { Padding = All(CssLength.Rem(0.4m)) }));
-        row.Children.Add(Element("td", premium, new HtmlStyle { Padding = All(CssLength.Rem(0.4m)) }));
+        row.Children.Add(Element("td", standard, new HtmlStyle { Padding = AllSpacing(CssLength.Rem(0.4m)) }));
+        row.Children.Add(Element("td", premium, new HtmlStyle { Padding = AllSpacing(CssLength.Rem(0.4m)) }));
         return row;
     }
 
@@ -1040,7 +1085,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         list.Children.Add(Element("dt", term, Typography(color: "#111827", weight: 700)));
         list.Children.Add(Element("dd", description, new HtmlStyle
         {
-            Padding = All(CssLength.Rem(0.75m)),
+            Padding = AllSpacing(CssLength.Rem(0.75m)),
             Typography = new CssTypographyStyle { Color = CssColor.Hex("#4b5563") }
         }));
     }
@@ -1054,7 +1099,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(0.75m),
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#f8fafc", CssLength.Rem(0.75m))
         });
         var figure = Element("figure");
@@ -1103,7 +1148,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(0.75m),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#f8fafc", CssLength.Rem(0.75m))
         });
         article.Children.Add(Element("h3", heading, Typography(color: "#111827", size: CssLength.Rem(1.25m), weight: 700)));
@@ -1138,7 +1183,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(1),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         article.Children.Add(Element("h3", name, Typography(color: "#111827", size: CssLength.Rem(1.5m), weight: 700)));
@@ -1160,7 +1205,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var article = Element("article", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         var figure = Element("figure");
@@ -1177,7 +1222,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var article = Element("article", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#1f2937", CssLength.Rem(0.75m))
         });
         var data = Element("data", display, Typography(
@@ -1187,6 +1232,219 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         article.Children.Add(Element("p", label, Typography(
             color: "#e5e7eb", alignment: CssTextAlignment.Center)));
         return article;
+    }
+
+    // Daisy templates deliberately use literal prefixed tokens so Tailwind source scanning retains them.
+    private HtmlNode CreateDaisyButton()
+    {
+        var button = Element("button", "Get started");
+        button.Attributes["type"] = "button";
+        button.ThemeClasses.AddRange(["d-btn", "d-btn-primary"]);
+        return button;
+    }
+
+    private HtmlNode CreateDaisyBadge()
+    {
+        var badge = Element("span", "New");
+        badge.ThemeClasses.AddRange(["d-badge", "d-badge-primary"]);
+        return badge;
+    }
+
+    private HtmlNode CreateDaisyAlert()
+    {
+        var alert = Element("div");
+        alert.Attributes["role"] = "status";
+        alert.ThemeClasses.AddRange(["d-alert", "d-alert-info"]);
+        alert.Children.Add(Element("span", "This is a helpful status message."));
+        return alert;
+    }
+
+    private HtmlNode CreateDaisyCard()
+    {
+        var card = Element("article");
+        card.ThemeClasses.AddRange(["d-card", "d-card-border", "bg-base-100"]);
+        var body = Element("div");
+        body.ThemeClasses.Add("d-card-body");
+        body.Children.Add(Element("h2", "Card title"));
+        body.Children.Add(Element("p", "Use this card to present a focused piece of content."));
+        var actions = Element("div");
+        actions.ThemeClasses.AddRange(["d-card-actions", "justify-end"]);
+        var action = CreateDaisyButton();
+        action.Children.Clear();
+        action.Children.Add(HtmlNode.CreateText("Learn more"));
+        actions.Children.Add(action);
+        body.Children.Add(actions);
+        card.Children.Add(body);
+        return card;
+    }
+
+    private HtmlNode CreateDaisyHero()
+    {
+        var hero = Element("section");
+        hero.ThemeClasses.AddRange(["d-hero", "bg-base-200"]);
+        var content = Element("div");
+        content.ThemeClasses.Add("d-hero-content");
+        var copy = Element("div");
+        copy.Children.Add(Element("h1", "Build something remarkable"));
+        copy.Children.Add(Element("p", "Start with a clear message and a useful next step."));
+        copy.Children.Add(CreateDaisyButton());
+        content.Children.Add(copy);
+        hero.Children.Add(content);
+        return hero;
+    }
+
+    private HtmlNode CreateDaisyStat()
+    {
+        var stats = Element("section");
+        stats.ThemeClasses.Add("d-stats");
+        var stat = Element("div");
+        stat.ThemeClasses.Add("d-stat");
+        var title = Element("div", "Total visitors");
+        title.ThemeClasses.Add("d-stat-title");
+        var value = Element("div", "31,000");
+        value.ThemeClasses.Add("d-stat-value");
+        var description = Element("div", "21% more than last month");
+        description.ThemeClasses.Add("d-stat-desc");
+        stat.Children.Add(title);
+        stat.Children.Add(value);
+        stat.Children.Add(description);
+        stats.Children.Add(stat);
+        return stats;
+    }
+
+    private HtmlNode CreateDaisyProgress()
+    {
+        var progress = Element("progress");
+        progress.Attributes["value"] = "70";
+        progress.Attributes["max"] = "100";
+        progress.Attributes["aria-label"] = "Profile completion: 70 percent";
+        progress.ThemeClasses.AddRange(["d-progress", "d-progress-primary"]);
+        return progress;
+    }
+
+    private HtmlNode CreateDaisySkeleton()
+    {
+        var skeleton = Element("div");
+        skeleton.Attributes["aria-label"] = "Loading content";
+        skeleton.Attributes["role"] = "status";
+        skeleton.ThemeClasses.AddRange(["d-skeleton", "h-24", "w-full"]);
+        return skeleton;
+    }
+
+    private HtmlNode CreateDaisyDivider()
+    {
+        var divider = Element("div", "More information");
+        divider.Attributes["role"] = "separator";
+        divider.ThemeClasses.Add("d-divider");
+        return divider;
+    }
+
+    private HtmlNode CreateDaisyBreadcrumbs()
+    {
+        var nav = Element("nav");
+        nav.Attributes["aria-label"] = "Breadcrumb";
+        nav.ThemeClasses.Add("d-breadcrumbs");
+        var list = Element("ul");
+        foreach (var label in new[] { "Home", "Products", "Current page" })
+        {
+            var item = Element("li");
+            var link = Element("a", label);
+            link.Attributes["href"] = "#";
+            item.Children.Add(link);
+            list.Children.Add(item);
+        }
+        nav.Children.Add(list);
+        return nav;
+    }
+
+    private HtmlNode CreateDaisySteps()
+    {
+        var steps = Element("ul");
+        steps.ThemeClasses.AddRange(["d-steps", "d-steps-vertical"]);
+        foreach (var label in new[] { "Plan", "Build", "Publish" })
+        {
+            var item = Element("li", label);
+            item.ThemeClasses.Add("d-step");
+            steps.Children.Add(item);
+        }
+        return steps;
+    }
+
+    private HtmlNode CreateDaisyTimeline()
+    {
+        var timeline = Element("ul");
+        timeline.ThemeClasses.AddRange(["d-timeline", "d-timeline-vertical"]);
+        foreach (var (date, milestone) in new[]
+                 {
+                     ("2024", "Project started"),
+                     ("2025", "First release"),
+                     ("Today", "Keep improving")
+                 })
+        {
+            var item = Element("li");
+            var start = Element("div", date);
+            start.ThemeClasses.Add("d-timeline-start");
+            var middle = Element("div", "•");
+            middle.Attributes["aria-hidden"] = "true";
+            middle.ThemeClasses.Add("d-timeline-middle");
+            var content = Element("div", milestone);
+            content.ThemeClasses.AddRange(["d-timeline-end", "d-timeline-box"]);
+            item.Children.Add(start);
+            item.Children.Add(middle);
+            item.Children.Add(content);
+            item.Children.Add(Element("hr"));
+            timeline.Children.Add(item);
+        }
+        return timeline;
+    }
+
+    private HtmlNode CreateDaisyTable()
+    {
+        var table = Element("table");
+        table.ThemeClasses.Add("d-table");
+        var header = Element("thead");
+        var headerRow = Element("tr");
+        headerRow.Children.Add(Element("th", "Feature"));
+        headerRow.Children.Add(Element("th", "Included"));
+        header.Children.Add(headerRow);
+        var body = Element("tbody");
+        var row = Element("tr");
+        row.Children.Add(Element("td", "Editor access"));
+        row.Children.Add(Element("td", "Yes"));
+        body.Children.Add(row);
+        table.Children.Add(header);
+        table.Children.Add(body);
+        return table;
+    }
+
+    private HtmlNode CreateDaisyPagination()
+    {
+        var nav = Element("nav");
+        nav.Attributes["aria-label"] = "Pagination";
+        var list = Element("div");
+        list.ThemeClasses.Add("d-join");
+        foreach (var label in new[] { "Previous", "1", "2", "Next" })
+        {
+            var button = Element("button", label);
+            button.Attributes["type"] = "button";
+            button.ThemeClasses.AddRange(["d-join-item", "d-btn"]);
+            list.Children.Add(button);
+        }
+        nav.Children.Add(list);
+        return nav;
+    }
+
+    private HtmlNode CreateDaisyAccordion()
+    {
+        var details = Element("details");
+        details.ThemeClasses.AddRange(["d-collapse", "d-collapse-arrow", "bg-base-200"]);
+        var summary = Element("summary", "What is included?");
+        summary.ThemeClasses.Add("d-collapse-title");
+        var content = Element("div", "Everything in this component is ordinary editable HTML.");
+        content.ThemeClasses.Add("d-collapse-content");
+        details.Children.Add(summary);
+        details.Children.Add(content);
+        return details;
     }
 
     /// <summary>Appends a labeled input while keeping label and control association explicit.</summary>
@@ -1241,7 +1499,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             Display = CssDisplay.Flex,
             FlexDirection = CssFlexDirection.Column,
             Gap = CssLength.Rem(0.75m),
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#f8fafc", CssLength.Rem(0.75m))
         });
         article.Children.Add(Element("h3", heading, Typography(color: "#111827", size: CssLength.Rem(1.25m), weight: 700)));
@@ -1254,7 +1512,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var article = Element("article", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(1.5m)),
+            Padding = AllSpacing(CssLength.Rem(1.5m)),
             Surface = Surface("#f8fafc", CssLength.Rem(0.75m))
         });
         article.Children.Add(Element("h3", heading, Typography(color: "#111827", size: CssLength.Rem(1.125m), weight: 700)));
@@ -1271,7 +1529,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             FlexDirection = CssFlexDirection.Row,
             AlignItems = CssAlignment.Center,
             Gap = CssLength.Rem(1),
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#f8fafc", CssLength.Rem(0.75m))
         });
         article.Children.Add(Element("span", number, Typography(
@@ -1289,7 +1547,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     {
         var details = Element("details", style: new HtmlStyle
         {
-            Padding = All(CssLength.Rem(1.25m)),
+            Padding = AllSpacing(CssLength.Rem(1.25m)),
             Surface = Surface("#ffffff", CssLength.Rem(0.75m))
         });
         details.Children.Add(Element("summary", heading, Typography(
@@ -1362,7 +1620,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
     };
 
     /// <summary>Creates equal logical spacing on all four sides.</summary>
-    private static CssLogicalSpacing All(CssLength value) => new()
+    private static CssLogicalSpacing AllSpacing(CssLength value) => new()
     {
         BlockStart = value,
         InlineEnd = value,

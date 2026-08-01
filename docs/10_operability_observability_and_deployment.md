@@ -55,7 +55,7 @@ Typical deployment:
 - load balancer
 - 2+ CMS app nodes
 - Redis or Garnet
-- PostgreSQL
+- SurrealDB (AeroDB.Sable) — embedded SurrealKV or remote server
 - object storage
 - 1+ TickerQ worker nodes
 

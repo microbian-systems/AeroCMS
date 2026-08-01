@@ -208,24 +208,31 @@ public sealed class EditorSmokeTests
         await OpenPaletteAsync(page);
 
         var components = page.Locator("[data-aero-palette-kind='component']");
-        (await components.CountAsync()).Should().Be(6);
-        await page.GetByText("Start here", new() { Exact = true }).WaitForAsync(Visible());
-        (await page.Locator("[data-aero-palette-category='Start here']").CountAsync()).Should().Be(2);
+        var basicComponents = page.Locator("[data-aero-palette-kind='component'][data-aero-palette-category='Basics']");
+        var daisyComponents = page.Locator("[data-aero-palette-kind='component'][data-aero-palette-category='Daisy']");
+        (await basicComponents.CountAsync()).Should().Be(6);
+        (await daisyComponents.CountAsync()).Should().Be(15);
+        (await page.Locator("[data-aero-palette-value='basic.feature-comparison']").CountAsync()).Should().Be(0);
 
         await page.GetByRole(AriaRole.Button, new()
         {
-            NameRegex = new Regex("^Show all \\d+ components$")
+            NameRegex = new Regex("^Show all \\d+ Basics$")
         })
             .ClickAsync();
-        (await components.CountAsync()).Should().Be(26);
-        await page.GetByText("Structure", new() { Exact = true }).WaitForAsync(Visible());
+        await page.Locator("[data-aero-palette-value='basic.feature-comparison']").WaitForAsync(Visible());
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Daisy", Exact = true }).ClickAsync();
+        (await components.CountAsync()).Should().Be(15);
+        (await basicComponents.CountAsync()).Should().Be(0);
+        await page.Locator("[data-aero-palette-value='daisy.accordion']").WaitForAsync(Visible());
 
         await page.Locator("#aero-element-search").FillAsync("accordion");
-        (await components.CountAsync()).Should().Be(1);
-        (await components.First.GetAttributeAsync("data-aero-palette-value"))
-            .Should().Be("AccordionFaq");
+        (await components.CountAsync()).Should().Be(2);
+        var daisyAccordion = page.Locator("[data-aero-palette-kind='component'][data-aero-palette-value='daisy.accordion']");
+        await daisyAccordion.ClickAsync();
+        await page.Locator(".aero-page-canvas__surface details").WaitForAsync(Visible());
         await page.Locator(".aero-element-palette__guidance")
-            .GetByText("Showing 1 matching options.", new() { Exact = true })
+            .GetByText("Showing 2 matching options.", new() { Exact = true })
             .WaitForAsync(Visible());
     }
 
@@ -579,7 +586,7 @@ public sealed class EditorSmokeTests
         var page = await OpenNewEditorAsync();
         await OpenPaletteAsync(page);
 
-        await AddComponentFromPaletteAsync(page, "FeatureComparisonTable", "Feature comparison");
+        await AddComponentFromPaletteAsync(page, "basic.feature-comparison", "Feature comparison");
         var table = page.Locator(".aero-page-canvas__surface table");
         await table.WaitForAsync(Visible());
         (await table.Locator("caption").CountAsync()).Should().Be(1);
@@ -703,7 +710,7 @@ public sealed class EditorSmokeTests
         var page = await OpenNewEditorAsync();
 
         await OpenPaletteAsync(page);
-        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "Hero");
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "basic.hero");
 
         var outline = page.Locator(".aero-page-outline");
         await outline.GetByRole(AriaRole.Heading, new() { Name = "Document outline", Exact = true })
@@ -918,7 +925,7 @@ public sealed class EditorSmokeTests
         const string alternativeText = "Aero team collaborating on a page";
 
         await OpenPaletteAsync(page);
-        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "SplitHero");
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "basic.split-hero");
 
         var heroHeading = page.Locator("h1[data-aero-node-id]").Filter(new()
         {
@@ -1020,7 +1027,7 @@ public sealed class EditorSmokeTests
         const string backgroundImage = "/_content/Aero.Cms.Shared/images/page-builder/hero.svg";
 
         await OpenPaletteAsync(page);
-        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "Hero");
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "basic.hero");
 
         var heading = page.GetByRole(AriaRole.Heading, new()
         {
@@ -1197,15 +1204,15 @@ public sealed class EditorSmokeTests
         await OpenPaletteAsync(page);
         await page.GetByRole(AriaRole.Button, new()
         {
-            NameRegex = new Regex("^Show all \\d+ components$")
+            NameRegex = new Regex("^Show all \\d+ Basics$")
         })
             .ClickAsync();
 
-        await AddComponentFromPaletteAsync(page, "SplitHero", "Make a stronger first impression");
-        await AddComponentFromPaletteAsync(page, "FeatureGrid", "Everything you need");
-        await AddComponentFromPaletteAsync(page, "CenteredCallToAction", "Turn interest into action");
-        await AddComponentFromPaletteAsync(page, "Gallery", "Gallery");
-        await AddComponentFromPaletteAsync(page, "ContactForm", "Let’s talk");
+        await AddComponentFromPaletteAsync(page, "basic.split-hero", "Make a stronger first impression");
+        await AddComponentFromPaletteAsync(page, "basic.feature-grid", "Everything you need");
+        await AddComponentFromPaletteAsync(page, "basic.centered-call-to-action", "Turn interest into action");
+        await AddComponentFromPaletteAsync(page, "basic.gallery", "Gallery");
+        await AddComponentFromPaletteAsync(page, "basic.contact-form", "Let’s talk");
 
         await page.Locator(".pe-living-toolbar")
             .GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
@@ -1683,7 +1690,7 @@ public sealed class EditorSmokeTests
         {
             await page.GetByRole(AriaRole.Button, new()
             {
-                NameRegex = new Regex("^Show all \\d+ components$")
+                NameRegex = new Regex("^Show all \\d+ Basics$")
             }).ClickAsync();
         }
 

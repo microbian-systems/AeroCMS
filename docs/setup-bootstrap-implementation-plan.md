@@ -11,7 +11,7 @@ Extend first-run setup to support:
   - ASP.NET Core Data Protection + X509 certificate
   - Infisical
 - Embedded readiness checks for:
-  - embedded PostgreSQL
+  - embedded SurrealDB (AeroDB.Sable)
   - embedded Garnet cache
 
 ## Confirmed Decisions
@@ -136,7 +136,7 @@ Extend first-run setup to support:
 24. `src/Aero.AppServer/Startup/MultiStartupSignal.cs`
 
 25. `src/Aero.AppServer/Startup/StartupServiceNames.cs`
-   - `EmbeddedPostgres`
+   - `AeroEmbeddedDb` (embedded SurrealDB/SurrealKV)
    - `EmbeddedGarnet`
 
 26. `src/Aero.AppServer/Startup/IInfrastructureReadinessSnapshot.cs`
@@ -163,7 +163,7 @@ Extend first-run setup to support:
 
 - Multi-service startup barrier is for **runtime readiness**
 - Setup UI still uses a status endpoint for browser polling
-- Embedded mode readiness can require Postgres only, or Postgres + Garnet based on chosen cache mode
+- Embedded mode readiness can require SurrealDB (AeroDB.Sable) only, or SurrealDB + Garnet based on chosen cache mode
 
 ---
 
@@ -175,7 +175,7 @@ Extend first-run setup to support:
    - Returns:
      - database mode
      - cache mode
-     - embedded postgres ready
+     - embedded SurrealDB ready
      - embedded garnet ready
      - combined readiness flags
 
@@ -199,7 +199,7 @@ Extend first-run setup to support:
      - Conditional DB server connection string field
      - Conditional cache server connection string field
      - Conditional Infisical machine id + client secret fields
-     - Embedded readiness card for Postgres/Garnet
+     - Embedded readiness card for SurrealDB/Garnet
    - Disable submit when required embedded services are not ready
    - Preserve existing styling/colors
 
@@ -281,7 +281,7 @@ Extend first-run setup to support:
 46. Infisical secret manager tests
 
 47. AppServer readiness tests
-   - Postgres ready
+   - SurrealDB ready
    - Garnet ready
    - combined readiness
 

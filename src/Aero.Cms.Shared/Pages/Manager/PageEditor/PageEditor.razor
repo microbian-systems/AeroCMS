@@ -133,6 +133,7 @@
 
             <HtmlPageEditorCanvas Content="HtmlEditor.Content"
                                   Catalog="HtmlCatalog"
+                                  ComponentCatalog="HtmlComponentCatalog"
                                   ContentPolicy="HtmlContentPolicy"
                                   RenderedFragments="HtmlEditor.Composition.RenderedFragments"
                                   SelectedNodeId="HtmlEditor.SelectedNodeId"
@@ -655,6 +656,7 @@ else if (ActiveTab == "translations")
                     break;
                 default:
                     <HtmlElementPalette Elements="HtmlElementDefinitions"
+                                        ComponentCatalog="HtmlComponentCatalog"
                                         RegisteredFragments="RegisteredFragmentDescriptors"
                                         AiEnabled="@SourceAiEnabled"
                                         AiUnavailableMessage="@SourceAiUnavailableMessage"

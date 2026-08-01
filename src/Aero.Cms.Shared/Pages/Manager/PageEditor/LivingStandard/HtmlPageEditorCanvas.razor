@@ -1,4 +1,5 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Abstractions.Theming
 
 <section class="aero-page-canvas" aria-label="Page canvas">
     <p id="aero-page-canvas-instructions" class="pe-visually-hidden">
@@ -12,6 +13,7 @@
 
     <div class="aero-page-canvas__surface"
          @ref="_surface"
+         data-theme="@BuiltInThemeDefaults.ComponentThemeName"
          data-aero-sortable-enabled="@(!PreviewMode ? "true" : "false")"
          data-aero-root-node-id="@RootNodeId"
          data-aero-can-have-children="true"

@@ -15,7 +15,7 @@ Public request flow:
 HTTP client/proxy response cache
   -> ASP.NET Core OutputCache
     -> FusionCache data/object cache
-      -> Marten DB
+      -> AeroDB.Sable (SurrealDB)
 ```
 
 Manager/admin data flow:
@@ -23,7 +23,7 @@ Manager/admin data flow:
 ```text
 Manager UI / admin API
   -> FusionCache data/object cache
-    -> Marten DB
+    -> AeroDB.Sable (SurrealDB)
 ```
 
 ## Architecture

@@ -1,11 +1,18 @@
 # Aero CMS Page Hierarchy Implementation Specification
 
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document's data-model design remains valid; its Marten/PostgreSQL
+> persistence details are historical.
+
 **Version:** 3.0  
 **Status:** Implementating (Phase 2)  
 **Last Updated:** 2026-05-10  
 **Target Framework:** ASP.NET Core 10 / .NET 10  
 **Architecture:** Razor Pages + Blazor WASM Hybrid + Blazor Server  
-**Data Store:** Marten (PostgreSQL document database)  
+**Data Store:** AeroDB.Sable (SurrealDB document store)  
 
 ---
 

@@ -15,7 +15,7 @@
 5. [Generator 2 — CmsPipelineSourceGenerator](#5-generator-2--cmspipelinesourcegenerator)
 6. [Generator 3 — CmsViewComponentSourceGenerator](#6-generator-3--cmsviewcomponentsourcegenerator)
 7. [Generator 4 — CmsModuleSourceGenerator](#7-generator-4--cmsmodulesourcegenerator)
-8. **[Marten + AOT + Source Generators Guide](marten-aot.md)** (Refer to dedicated specification)
+8. **[AOT + Source Generators Guide](marten-aot.md)** (Refer to dedicated specification — the AOT/source-generator principles apply to AeroDB.Sable)
 9. [Generator 5 — CmsEventHandlerSourceGenerator](#8-generator-5--cmseventhandlersourcegenerator)
 10. [Generator 6 — CmsAdminSectionSourceGenerator](#9-generator-6--cmsadminsectionsourcegenerator)
 11. [Integration — Program.cs Generated Extensions](#10-integration--programcs-generated-extensions)

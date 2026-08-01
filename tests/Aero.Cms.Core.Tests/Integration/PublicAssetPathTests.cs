@@ -23,6 +23,24 @@ public sealed class PublicAssetPathTests
     }
 
     [Test]
+    public async Task Generated_public_styles_include_prefixed_Daisy_components_and_corporate_theme()
+    {
+        var repositoryRoot = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var stylesheet = await File.ReadAllTextAsync(Path.Combine(
+            repositoryRoot,
+            "src",
+            "Aero.Cms.Web",
+            "wwwroot",
+            "css",
+            "aero.generated.css"));
+
+        await Assert.That(stylesheet).Contains(".d-btn");
+        await Assert.That(stylesheet).Contains(".d-card");
+        await Assert.That(stylesheet).Contains("[data-theme=corporate]");
+    }
+
+    [Test]
     public async Task PublicRazorViews_UseRootRelativeSharedAssets()
     {
         var repositoryRoot = Path.GetFullPath(

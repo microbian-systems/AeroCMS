@@ -11,6 +11,12 @@ $tailwindVersion = '4.3.3'
 $releaseBaseUri = "https://github.com/tailwindlabs/tailwindcss/releases/download/v$tailwindVersion"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $toolRoot = Join-Path $repoRoot ".tools\tailwindcss\$tailwindVersion"
+$daisyUiRoot = Join-Path $repoRoot 'src\Aero.Cms.Web\Styles\vendor\daisyui\5.7.9'
+
+$daisyUiAssets = @{
+    'daisyui.mjs'       = 'ce4fd6c6cb51971a80b9438dd6be717248e45ee665e8dff4b76e5dd4e6b35b23'
+    'daisyui-theme.mjs' = '404b588fad561c7c3c9bc93d1afd7c7b38a681233067d7e8d7960122ae324288'
+}
 
 $assets = @{
     'linux-arm64'      = @{ Name = 'tailwindcss-linux-arm64';      Sha256 = '55fd0b241214eff3de1e8ee4f22796662f2d2e7a49bcfca7477cfd0bac398195' }
@@ -79,6 +85,21 @@ function Get-VerifiedTailwindTool {
     return $toolPath
 }
 
+function Assert-VerifiedDaisyUiAssets {
+    foreach ($assetName in $daisyUiAssets.Keys) {
+        $assetPath = Join-Path $daisyUiRoot $assetName
+        if (-not (Test-Path -LiteralPath $assetPath)) {
+            throw "Pinned DaisyUI v5.7.9 build input is missing: $assetPath. Restore the vendored release asset before compiling CSS."
+        }
+
+        $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $assetPath).Hash.ToLowerInvariant()
+        $expectedHash = $daisyUiAssets[$assetName]
+        if ($actualHash -ne $expectedHash) {
+            throw "DaisyUI v5.7.9 checksum mismatch for '$assetPath'. Expected $expectedHash, received $actualHash. Restore the vendored release asset before compiling CSS."
+        }
+    }
+}
+
 $compilations = @(
     @{
         Name = 'Aero CMS web and manager styles'
@@ -92,6 +113,7 @@ $compilations = @(
     }
 )
 
+Assert-VerifiedDaisyUiAssets
 $tool = Get-VerifiedTailwindTool
 
 foreach ($compilation in $compilations) {

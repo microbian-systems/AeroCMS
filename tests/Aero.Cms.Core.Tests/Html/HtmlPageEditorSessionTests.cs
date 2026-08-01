@@ -173,7 +173,7 @@ public sealed class HtmlPageEditorSessionTests
     {
         var session = CreateSession();
 
-        var added = session.AddComponent(HtmlComponentTemplateKind.Hero) as Result<HtmlNode>.Ok;
+        var added = session.AddComponent("basic.hero") as Result<HtmlNode>.Ok;
 
         await Assert.That(added).IsNotNull();
         await Assert.That(added!.Value.TagName).IsEqualTo("section");
@@ -792,7 +792,7 @@ public sealed class HtmlPageEditorSessionTests
         var session = CreateSession(section);
 
         var added = session.AddComponentRelative(
-            HtmlComponentTemplateKind.CallToAction,
+            "basic.call-to-action",
             section.NodeId,
             HtmlRelativePlacement.After) as Result<HtmlNode>.Ok;
 
@@ -1212,7 +1212,7 @@ public sealed class HtmlPageEditorSessionTests
                 new HtmlContentModelPolicy(catalog),
                 new HtmlAttributePolicy()),
             new HtmlLayoutStarterFactory(catalog),
-            new HtmlComponentTemplateFactory(catalog),
+            new HtmlComponentCatalog(catalog),
             new NativeCssStyleCompiler(),
             new NativeStyleProfile(),
             composition);

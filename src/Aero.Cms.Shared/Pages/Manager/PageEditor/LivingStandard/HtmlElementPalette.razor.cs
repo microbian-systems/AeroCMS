@@ -14,44 +14,12 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 /// </remarks>
 public partial class HtmlElementPalette
 {
-    private const int InitialComponentCount = 6;
-
+    private const int InitialBasicComponentCount = 6;
     private static readonly HashSet<string> BasicElementTags = new(StringComparer.OrdinalIgnoreCase)
     {
         "section", "div", "h1", "h2", "h3", "p", "a", "button", "img", "figure",
         "ul", "ol", "hr", "blockquote", "details", "table", "form", "audio", "video"
     };
-
-    private static readonly IReadOnlyList<ComponentOption> ComponentOptions =
-    [
-        new(HtmlComponentTemplateKind.Hero, "Hero", "A centered introduction with primary actions", "◆", "Start here"),
-        new(HtmlComponentTemplateKind.SplitHero, "Hero + image", "A responsive split hero with editable image and actions", "◩", "Start here"),
-        new(HtmlComponentTemplateKind.FeatureGrid, "Features", "A responsive three-card feature section", "▦", "Content"),
-        new(HtmlComponentTemplateKind.FeatureList, "Feature list", "A responsive numbered benefit list with supporting copy", "☷", "Content"),
-        new(HtmlComponentTemplateKind.CallToAction, "Call to action", "A focused prompt with one primary action", "→", "Conversion"),
-        new(HtmlComponentTemplateKind.CenteredCallToAction, "CTA + image", "A centered call to action over an editable background image", "◎", "Conversion"),
-        new(HtmlComponentTemplateKind.FrequentlyAskedQuestions, "FAQ", "A responsive question-and-answer section", "?", "Trust"),
-        new(HtmlComponentTemplateKind.AccordionFaq, "FAQ accordion", "Expandable semantic questions and answers", "⌄", "Trust"),
-        new(HtmlComponentTemplateKind.Testimonial, "Testimonial", "A highlighted customer quotation", "“”", "Trust"),
-        new(HtmlComponentTemplateKind.Statistics, "Statistics", "Three responsive headline metrics", "%", "Trust"),
-        new(HtmlComponentTemplateKind.ImageAndText, "Image + text", "A responsive visual and copy split", "◫", "Content"),
-        new(HtmlComponentTemplateKind.ContactForm, "Contact form", "A static, accessible contact section", "✉", "Conversion"),
-        new(HtmlComponentTemplateKind.Gallery, "Gallery", "A responsive three-image gallery", "▧", "Content"),
-        new(HtmlComponentTemplateKind.NavigationHeader, "Navigation", "A responsive site header with editable links", "☰", "Navigation"),
-        new(HtmlComponentTemplateKind.LogoCloud, "Partner logos", "An accessible grid of editable partner names", "✦", "Trust"),
-        new(HtmlComponentTemplateKind.PricingGrid, "Pricing", "Three responsive plans with benefits and actions", "¤", "Conversion"),
-        new(HtmlComponentTemplateKind.TeamGrid, "Team", "A responsive team section with editable portraits", "♙", "Trust"),
-        new(HtmlComponentTemplateKind.SiteFooter, "Footer links", "A responsive page section of editable link groups", "▤", "Navigation"),
-        new(HtmlComponentTemplateKind.NewsletterSignup, "Newsletter", "A static email signup section ready for later processing", "✉", "Conversion"),
-        new(HtmlComponentTemplateKind.AnnouncementBanner, "Announcement", "A responsive update banner with one ordinary link", "!", "Navigation"),
-        new(HtmlComponentTemplateKind.LatestArticles, "Latest articles", "Three responsive static article cards", "▥", "Content"),
-        new(HtmlComponentTemplateKind.ProcessSteps, "Process steps", "Three numbered steps with editable explanations", "①", "Structure"),
-        new(HtmlComponentTemplateKind.ShowcaseCollection, "Collection", "A responsive three-item static collection", "▦", "Content"),
-        new(HtmlComponentTemplateKind.MilestoneTimeline, "Timeline", "Three dated milestones in a semantic ordered timeline", "◷", "Structure"),
-        new(HtmlComponentTemplateKind.FeatureComparisonTable, "Comparison table", "A compact editable feature comparison", "▤", "Structure"),
-        new(HtmlComponentTemplateKind.DetailsList, "Details list", "Responsive editable terms and descriptions", "☷", "Structure"),
-        new(HtmlComponentTemplateKind.ConfirmationDialog, "Confirmation dialog", "An editable open dialog with two static actions", "▣", "Conversion"),
-    ];
 
     private static readonly IReadOnlyList<LayoutOption> LayoutOptions =
     [
@@ -96,7 +64,8 @@ public partial class HtmlElementPalette
     private IReadOnlyList<ElementGroup> _groups = [];
     private string _searchText = string.Empty;
     private bool _showAdvanced;
-    private bool _showAllComponents;
+    private bool _showAllBasicComponents;
+    private HtmlPaletteFilter _filter = HtmlPaletteFilter.All;
 
     /// <summary>
     /// Gets or sets the element catalog entries available for palette grouping and filtering.
@@ -107,6 +76,10 @@ public partial class HtmlElementPalette
     /// </remarks>
     [Parameter, EditorRequired]
     public IReadOnlyList<HtmlElementDefinition> Elements { get; set; } = [];
+
+    /// <summary>Gets the shared descriptor catalog for component rows and insertion keys.</summary>
+    [Parameter, EditorRequired]
+    public HtmlComponentCatalog ComponentCatalog { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the callback invoked with the tag name of an element insertion request.
@@ -124,7 +97,7 @@ public partial class HtmlElementPalette
     /// Gets or sets the callback invoked with the selected static component template.
     /// </summary>
     [Parameter]
-    public EventCallback<HtmlComponentTemplateKind> ComponentRequested { get; set; }
+    public EventCallback<string> ComponentRequested { get; set; }
 
     /// <summary>
     /// Gets or sets the callback invoked with the selected source-rendered fragment strategy.
@@ -169,34 +142,65 @@ public partial class HtmlElementPalette
 
     private bool HasSearch => !string.IsNullOrWhiteSpace(SearchText);
 
-    private bool CanToggleComponents => string.IsNullOrWhiteSpace(SearchText)
-        && ComponentOptions.Count > InitialComponentCount;
+    private HtmlPaletteFilter EffectiveFilter => HasSearch ? HtmlPaletteFilter.All : _filter;
 
-    private IReadOnlyList<ComponentOption> FilteredComponentOptions => ComponentOptions
-        .Where(option => MatchesSearch(option.Label, option.Description))
-        .Take(CanToggleComponents && !_showAllComponents ? InitialComponentCount : ComponentOptions.Count)
-        .ToArray();
+    private static string FilterLabel(HtmlPaletteFilter filter) => filter == HtmlPaletteFilter.Html
+        ? "HTML"
+        : filter.ToString();
 
-    private IReadOnlyList<ComponentGroup> FilteredComponentGroups => FilteredComponentOptions
-        .GroupBy(option => option.Category, StringComparer.Ordinal)
-        .Select(group => new ComponentGroup(group.Key, group.ToArray()))
-        .ToArray();
+    private bool ShowsBasics => EffectiveFilter is HtmlPaletteFilter.All or HtmlPaletteFilter.Basics;
+    private bool ShowsHtml => EffectiveFilter is HtmlPaletteFilter.All or HtmlPaletteFilter.Html;
+    private bool ShowsImport => !HasSearch
+        && EffectiveFilter is (HtmlPaletteFilter.All or HtmlPaletteFilter.Html);
+    private bool ShowsPatterns => EffectiveFilter == HtmlPaletteFilter.Patterns;
+    private bool CanToggleBasicComponents => !HasSearch && ShowsBasics
+        && ComponentCatalog.Basics.Count > InitialBasicComponentCount;
+
+    private IReadOnlyList<HtmlComponentDescriptor> FilteredComponents
+    {
+        get
+        {
+            var candidates = ComponentCatalog.All
+                .Where(descriptor => EffectiveFilter switch
+                {
+                    HtmlPaletteFilter.Basics => descriptor.Group == HtmlComponentCatalogGroup.Basics,
+                    HtmlPaletteFilter.Daisy => descriptor.Group == HtmlComponentCatalogGroup.Daisy,
+                    HtmlPaletteFilter.Patterns => descriptor.Group == HtmlComponentCatalogGroup.Patterns,
+                    HtmlPaletteFilter.Html => false,
+                    _ => true
+                })
+                .Where(MatchesSearch)
+                .ToArray();
+
+            return CanToggleBasicComponents && !_showAllBasicComponents
+                ? candidates.Where(descriptor => descriptor.Group != HtmlComponentCatalogGroup.Basics)
+                    .Concat(candidates.Where(descriptor => descriptor.Group == HtmlComponentCatalogGroup.Basics)
+                        .Take(InitialBasicComponentCount))
+                    .ToArray()
+                : candidates;
+        }
+    }
 
     private IReadOnlyList<LayoutOption> FilteredLayoutOptions => LayoutOptions
+        .Where(_ => ShowsBasics)
         .Where(option => MatchesSearch(option.Label, option.Description))
         .ToArray();
 
     private IReadOnlyList<RenderedFragmentOption> FilteredRenderedFragmentOptions => RenderedFragmentOptions
+        .Where(_ => ShowsBasics)
         .Where(option => MatchesSearch(option.Label, option.Description))
         .ToArray();
 
     private IReadOnlyList<PageRegisteredFragmentDescriptor> FilteredRegisteredFragments => RegisteredFragments
+        .Where(_ => ShowsBasics)
         .Where(descriptor => MatchesSearch(descriptor.DisplayName, descriptor.Description ?? descriptor.Key))
         .OrderBy(descriptor => descriptor.Category, StringComparer.OrdinalIgnoreCase)
         .ThenBy(descriptor => descriptor.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    private IReadOnlyList<ElementGroup> FilteredGroups => _groups
+    private IReadOnlyList<ElementGroup> FilteredGroups => !ShowsHtml
+        ? []
+        : _groups
         .Select(group => new ElementGroup(
             group.Category,
             group.Elements
@@ -207,17 +211,18 @@ public partial class HtmlElementPalette
         .ToArray();
 
     private bool HasNoMatches => !string.IsNullOrWhiteSpace(SearchText)
-        && FilteredComponentOptions.Count == 0
+        && FilteredComponents.Count == 0
         && FilteredRenderedFragmentOptions.Count == 0
         && FilteredRegisteredFragments.Count == 0
         && FilteredLayoutOptions.Count == 0
         && FilteredGroups.Count == 0;
 
-    private int VisibleItemCount => FilteredComponentOptions.Count
+    private int VisibleItemCount => FilteredComponents.Count
         + FilteredRenderedFragmentOptions.Count
         + FilteredRegisteredFragments.Count
         + FilteredLayoutOptions.Count
-        + FilteredGroups.Sum(group => group.Elements.Count);
+        + FilteredGroups.Sum(group => group.Elements.Count)
+        + (ShowsImport ? 1 : 0);
 
     /// <summary>
     /// Rebuilds the categorized element groups from the current catalog parameter.
@@ -260,6 +265,11 @@ public partial class HtmlElementPalette
         || label.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
         || description.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
 
+    private bool MatchesSearch(HtmlComponentDescriptor descriptor) =>
+        MatchesSearch(descriptor.DisplayName, descriptor.Description)
+        || descriptor.Key.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+        || descriptor.Keywords.Any(keyword => keyword.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>
     /// Forwards an element insertion request to the owning editor.
     /// </summary>
@@ -277,9 +287,9 @@ public partial class HtmlElementPalette
     /// <summary>
     /// Forwards a static component insertion request to the owning editor.
     /// </summary>
-    /// <param name="kind">The selected component template.</param>
+    /// <param name="key">The stable component descriptor key.</param>
     /// <returns>A task that completes when the callback has finished.</returns>
-    private Task RequestComponentAsync(HtmlComponentTemplateKind kind) => ComponentRequested.InvokeAsync(kind);
+    private Task RequestComponentAsync(string key) => ComponentRequested.InvokeAsync(key);
 
     /// <summary>Forwards a source-rendered fragment request to the owning editor.</summary>
     private Task RequestRenderedFragmentAsync(PageRenderedFragmentKind kind) =>
@@ -309,17 +319,16 @@ public partial class HtmlElementPalette
     /// </summary>
     private void ToggleAdvanced() => _showAdvanced = !_showAdvanced;
 
-    /// <summary>
-    /// Toggles between the initial component subset and the complete component catalog.
-    /// </summary>
-    private void ToggleComponents() => _showAllComponents = !_showAllComponents;
+    private void SetFilter(HtmlPaletteFilter filter) => _filter = filter;
+
+    private void ToggleBasicComponents() => _showAllBasicComponents = !_showAllBasicComponents;
 
     /// <summary>
     /// Creates a stable render key for a component category.
     /// </summary>
     /// <param name="category">The category name.</param>
     /// <returns>A key namespaced to component groups.</returns>
-    private static string ComponentGroupKey(string category) => $"component:{category}";
+    private static string ComponentGroupKey(HtmlComponentCatalogGroup category) => $"component:{category}";
 
     /// <summary>
     /// Creates a stable render key for an element category.
@@ -336,13 +345,6 @@ public partial class HtmlElementPalette
     private sealed record ElementGroup(string Category, IReadOnlyList<HtmlElementDefinition> Elements);
 
     /// <summary>
-    /// Groups static component templates under one palette category.
-    /// </summary>
-    /// <param name="Category">The display category.</param>
-    /// <param name="Options">The component choices in display order.</param>
-    private sealed record ComponentGroup(string Category, IReadOnlyList<ComponentOption> Options);
-
-    /// <summary>
     /// Describes one responsive layout starter presented by the palette.
     /// </summary>
     /// <param name="Kind">The layout starter identifier emitted to the owner.</param>
@@ -355,20 +357,7 @@ public partial class HtmlElementPalette
         string Description,
         string Icon);
 
-    /// <summary>
-    /// Describes one static component template presented by the palette.
-    /// </summary>
-    /// <param name="Kind">The component template identifier emitted to the owner.</param>
-    /// <param name="Label">The compact display label.</param>
-    /// <param name="Description">The user-facing component description.</param>
-    /// <param name="Icon">The text glyph displayed for the option.</param>
-    /// <param name="Category">The palette category used for grouping.</param>
-    private sealed record ComponentOption(
-        HtmlComponentTemplateKind Kind,
-        string Label,
-        string Description,
-        string Icon,
-        string Category);
+    private enum HtmlPaletteFilter { All, Basics, Daisy, Patterns, Html }
 
     /// <summary>Describes one source-backed fragment presented by the palette.</summary>
     private sealed record RenderedFragmentOption(

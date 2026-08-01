@@ -1,5 +1,11 @@
 # Aero CMS - Blocks, Renderers, PageEditor, and NeoUI Refactor
 
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). See
+> [`surrealdb-marten-port.md`](surrealdb-marten-port.md). `BlockBase` page
+> content still persists, but through AeroDB.Sable document sessions, not Marten.
+
 > **See also:** [`aero-page-document-refactor.md`](aero-page-document-refactor.md) — Data model contract that this editor/renderer implementation depends on. That document defines the core documents (`PageDocument`, `PageEditorState`, `BlockBase`), event shapes (`PageMetadataUpdated`, `PagePublished`), the `IPageLayoutManifestBuilder`, preview/publish pipelines, and value objects. This document assumes that model; changes to the data contract must be reflected in both.
 
 ## Purpose

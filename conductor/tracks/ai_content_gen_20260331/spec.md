@@ -1,3 +1,10 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). This dated
+> track is a historical record from when Marten/PostgreSQL was the active store;
+> its persistence details do not reflect the current stack.
+
 # Track ai_content_gen_20260331: AI Content Generation Integration
 
 ## Overview

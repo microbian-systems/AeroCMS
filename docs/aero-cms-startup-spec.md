@@ -17,19 +17,19 @@ Aero CMS uses a two-stage startup architecture to handle initial configuration w
 ## Deployment Modes
 
 ### Mode 1: Embedded
-- **Description**: Self-contained deployment with embedded PostgreSQL and Garnet (Redis-compatible)
+- **Description**: Self-contained deployment with embedded SurrealDB (SurrealKV) and Garnet (Redis-compatible)
 - **Target**: Single-server deployments, development, demo environments
 - **Components**: 
-  - Embedded PostgreSQL (port 5433)
+  - Embedded SurrealDB via SurrealKV (file-backed at `App_Data/aerodb-surrealkv`)
   - Embedded Garnet (port 6380)
-- **Connection String**: Auto-configured to `localhost:5433`
+- **Connection String**: Auto-configured to the embedded SurrealKV data path
 - **Encryption**: Connection string encrypted with X.509 + Data Protection, stored in `appsettings.{Environment}.json`
-- **Background Services**: `EmbeddedPostgresService`, `EmbeddedGarnetService` registered as `IHostedService`
+- **Background Services**: `AeroEmbeddedDbService`, `EmbeddedGarnetService` registered as `IHostedService`
 
 ### Mode 2: Server - Local Secrets
 - **Description**: External database with secrets stored locally in appsettings
 - **Target**: Small production deployments, environments without secrets management infrastructure
-- **Components**: External PostgreSQL/SQL Server, external Redis/Garnet
+- **Components**: External SurrealDB server, external Redis/Garnet
 - **Connection String**: User-provided
 - **Encryption**: Connection string encrypted with X.509 + Data Protection, stored in `appsettings.{Environment}.json`
 - **Background Services**: None
@@ -37,7 +37,7 @@ Aero CMS uses a two-stage startup architecture to handle initial configuration w
 ### Mode 3: Server - Infisical Secrets
 - **Description**: External database with secrets managed by Infisical
 - **Target**: Production deployments with centralized secrets management
-- **Components**: External PostgreSQL/SQL Server, external Redis/Garnet, Infisical secrets manager
+- **Components**: External SurrealDB server, external Redis/Garnet, Infisical secrets manager
 - **Connection String**: Retrieved from Infisical at startup
 - **Encryption**: Infisical API key encrypted with X.509 + Data Protection, stored in `appsettings.{Environment}.json`
 - **Background Services**: None
@@ -78,7 +78,7 @@ Determine: Setup needed? Which mode configured?
 2. **Check for Local Secrets** (`ConnectionStrings:Aero` in appsettings)
    - If `EmbeddedMode=true`: Decrypt connection string with Data Protection
    - If `EmbeddedMode=false`: Use connection string as-is (external database)
-   - Test connection with `NpgsqlConnection`
+   - Test connection with the SurrealDB client / document store session
    - If connection succeeds: Check database for `SetupStatus` document
    - Return `SetupResult`
 
@@ -97,7 +97,7 @@ Determine: Setup needed? Which mode configured?
 - `AddSingleton<ISetupService, SetupService>`
 - `AddSingleton(setupResult)` - Pass verification result to UI
 
-**Note**: Background services (PostgreSQL, Garnet) are **not** registered in setup app. They only run after setup completes.
+**Note**: Background services (SurrealDB/AeroDB.Sable, Garnet) are **not** registered in setup app. They only run after setup completes.
 
 **Flow**:
 ```
@@ -142,14 +142,14 @@ Re-run SetupVerifier.VerifySetup() with fresh config
 Validate setup is complete (throw if not)
     ↓
 Conditional: If SecretsMode.Embedded
-    ↓   Register EmbeddedPostgresService
+    ↓   Register AeroEmbeddedDbService
     ↓   Register EmbeddedGarnetService
     ↓
 Cache connection string in ISecretsCache
     ↓
 Register Aero services:
     - AddSecretsEncryption(certificate)
-    - AddMarten(connString) [registration only, no connection yet]
+    - AddAeroDB(opts) [registration only, no connection yet]
     - AddOrleansServer()
     - AddWolverine()
     - AddAeroApplicationServer()
@@ -158,10 +158,10 @@ Build main WebApplication
     ↓
 Conditional: If SecretsMode.Embedded
     ↓   await app.StartAsync() [starts background services]
-    ↓   Get EmbeddedPostgresService from DI
+    ↓   Get AeroEmbeddedDbService from DI
     ↓   Get EmbeddedGarnetService from DI
     ↓   await Task.WhenAll(
-    ↓       postgres.WaitForReadyAsync(timeout),
+    ↓       sable.WaitForReadyAsync(timeout),
     ↓       garnet.WaitForReadyAsync(timeout)
     ↓   )
     ↓   Log: "Embedded services ready"
@@ -177,7 +177,7 @@ await app.RunAsync() [starts if not already started]
 
 ### Problem
 
-Marten and Orleans are registered in the DI container **before** embedded PostgreSQL/Garnet are ready. If Blazor pages immediately query Marten, connections will fail.
+AeroDB.Sable and Orleans are registered in the DI container **before** embedded SurrealDB/Garnet are ready. If Blazor pages immediately query AeroDB, connections will fail.
 
 ### Solution: TaskCompletionSource Pattern
 
@@ -194,7 +194,7 @@ public interface IEmbeddedServiceHealth
 **Implementation Pattern**:
 
 ```csharp
-public class EmbeddedPostgresService : BackgroundService, IEmbeddedServiceHealth
+public class AeroEmbeddedDbService : BackgroundService, IEmbeddedServiceHealth
 {
     private readonly TaskCompletionSource _readyTcs = new();
     
@@ -205,10 +205,9 @@ public class EmbeddedPostgresService : BackgroundService, IEmbeddedServiceHealth
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Start postgres process
-        _postgresProcess = Process.Start(/* ... */);
+        // Start embedded SurrealKV (SurrealDbKvClient) at App_Data/aerodb-surrealkv
         
-        // Poll until connection succeeds
+        // Poll until the document store accepts queries
         var timeout = TimeSpan.FromSeconds(30);
         var started = DateTime.UtcNow;
         
@@ -216,8 +215,8 @@ public class EmbeddedPostgresService : BackgroundService, IEmbeddedServiceHealth
         {
             try
             {
-                await using var conn = new NpgsqlConnection(connString);
-                await conn.OpenAsync(stoppingToken);
+                await using var session = await store.LightweightSessionAsync();
+                await session.QueryRawAsync<object>("SELECT 1", stoppingToken);
                 
                 IsReady = true;
                 _readyTcs.SetResult(); // Signal ready!
@@ -230,7 +229,7 @@ public class EmbeddedPostgresService : BackgroundService, IEmbeddedServiceHealth
         }
         
         if (!IsReady)
-            _readyTcs.SetException(new TimeoutException("PostgreSQL failed to start"));
+            _readyTcs.SetException(new TimeoutException("AeroDB.Sable failed to start"));
         
         // Keep running
         await Task.Delay(Timeout.Infinite, stoppingToken);
@@ -245,8 +244,8 @@ if (finalSetupResult.Mode == SecretsMode.Embedded)
 {
     await app.StartAsync(); // Triggers ExecuteAsync() for both services
     
-    var postgres = app.Services.GetServices<IHostedService>()
-        .OfType<EmbeddedPostgresService>().First();
+    var sable = app.Services.GetServices<IHostedService>()
+        .OfType<AeroEmbeddedDbService>().First();
     var garnet = app.Services.GetServices<IHostedService>()
         .OfType<EmbeddedGarnetService>().First();
     
@@ -254,11 +253,11 @@ if (finalSetupResult.Mode == SecretsMode.Embedded)
     
     // This blocks until BOTH call SetResult()
     await Task.WhenAll(
-        postgres.WaitForReadyAsync(cts.Token),
+        sable.WaitForReadyAsync(cts.Token),
         garnet.WaitForReadyAsync(cts.Token)
     );
     
-    // Now safe - PostgreSQL accepting connections on 5433
+    // Now safe - AeroDB.Sable accepting queries against embedded SurrealKV
 }
 ```
 
@@ -360,7 +359,7 @@ public class X509DataProtectionEncryption : ISecretsEncryption
 
 ## Database Schema
 
-### SetupStatus Document (Marten)
+### SetupStatus Document (AeroDB.Sable)
 
 ```csharp
 public class SetupStatus
@@ -380,15 +379,14 @@ public class SetupStatus
 
 **Schema Creation**:
 ```csharp
-var store = DocumentStore.For(opts =>
-{
-    opts.Connection(connectionString);
-    opts.DatabaseSchemaName = "aero";
-    opts.AutoCreateSchemaObjects = AutoCreate.CreateOrUpdate;
-});
+var opts = new AeroDB.Sable.StoreOptions();
+opts.Endpoint = connectionString;
+opts.DatabaseSchemaName = Schemas.Aero;
+opts.Events.StreamIdentity = StreamIdentity.AsString;
+var store = new DocumentStore(opts);
 ```
 
-Marten auto-creates tables on first use - no migrations required.
+AeroDB.Sable auto-creates tables on first use - no migrations required.
 
 ---
 
@@ -479,8 +477,8 @@ services:
     volumes:
       - aero-certs:/app/certs      # X509 certificate + password
       - aero-keys:/app/keys        # Data Protection key ring
-      - aero-postgres:/app/embedded/postgres/data  # Embedded PostgreSQL data
-      - aero-garnet:/app/embedded/garnet/data      # Embedded Garnet data
+      - aero-surrealkv:/app/App_Data/aerodb-surrealkv  # Embedded SurrealDB (SurrealKV) data
+      - aero-garnet:/app/embedded/garnet/data          # Embedded Garnet data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - AERO_CERT_PASSWORD=${CERT_PASSWORD}  # Optional BYOK password
@@ -490,7 +488,7 @@ services:
 volumes:
   aero-certs:
   aero-keys:
-  aero-postgres:
+  aero-surrealkv:
   aero-garnet:
 ```
 
@@ -543,9 +541,9 @@ volumes:
 | Scenario | Behavior |
 |----------|----------|
 | Setup claims complete but config missing | Throw `InvalidOperationException` - critical failure |
-| Embedded PostgreSQL fails to start | Throw `TimeoutException` after 2 minutes |
+| Embedded SurrealDB (SurrealKV) fails to start | Throw `TimeoutException` after 2 minutes |
 | Embedded Garnet fails to start | Throw `TimeoutException` after 2 minutes |
-| Marten query before services ready | Should not occur (coordinated by `WaitForReadyAsync`) |
+| AeroDB query before services ready | Should not occur (coordinated by `WaitForReadyAsync`) |
 
 ### Recovery Procedures
 
@@ -592,14 +590,14 @@ volumes:
 - [x] Data Protection keys are shared between setup and main app
 
 **Embedded Services**:
-- [x] PostgreSQL accepts connections after `WaitForReadyAsync()` completes
+- [x] SurrealDB (SurrealKV) accepts queries after `WaitForReadyAsync()` completes
 - [x] Garnet accepts PING after `WaitForReadyAsync()` completes
-- [x] Marten queries succeed after embedded services signal ready
+- [x] AeroDB.Sable queries succeed after embedded services signal ready
 
 ### Manual Testing Checklist
 
 - [ ] Fresh install → Setup UI appears
-- [ ] Embedded mode → PostgreSQL/Garnet start, main app serves requests
+- [ ] Embedded mode → SurrealDB/Garnet start, main app serves requests
 - [ ] Server mode (local secrets) → External database connects
 - [ ] Server mode (Infisical) → Secrets fetched, database connects
 - [ ] Invalid connection string → Setup UI shows error
@@ -613,12 +611,12 @@ volumes:
 ### Phase 2 Features
 - [ ] Setup wizard for database schema migration (detect existing data)
 - [ ] Health check endpoints for embedded services
-- [ ] Graceful shutdown for embedded PostgreSQL (pg_ctl stop vs kill)
-- [ ] Support for PostgreSQL authentication (not just trust localhost)
+- [ ] Graceful shutdown for embedded SurrealDB (SurrealKV)
+- [ ] Support for SurrealDB authentication on the embedded store
 - [ ] Embedded service logs exposed via structured logging
 
 ### Phase 3 Features
-- [ ] Multi-node embedded clustering (embedded PostgreSQL replication)
+- [ ] Multi-node embedded clustering (SurrealDB cluster mode)
 - [ ] Hot-reload configuration changes without restart
 - [ ] Admin UI for rotating encryption certificates
 - [ ] Backup/restore for embedded database data
@@ -632,7 +630,7 @@ volumes:
 
 **Rejected**: Single app with conditional service registration based on runtime flags.
 
-**Problem**: Once `IServiceCollection.Build()` is called, the container is sealed. You cannot add Marten with a connection string that doesn't exist yet.
+**Problem**: Once `IServiceCollection.Build()` is called, the container is sealed. You cannot add AeroDB.Sable with a connection string that doesn't exist yet.
 
 **Solution**: Setup app collects configuration, saves to disk, stops. Main app reads configuration from disk, builds container with full knowledge.
 
@@ -646,7 +644,7 @@ volumes:
 
 ### Why Not Run Embedded Services in Setup App?
 
-**Rejected**: Start embedded PostgreSQL/Garnet during setup so user can test connection.
+**Rejected**: Start embedded SurrealDB/Garnet during setup so user can test connection.
 
 **Problem**: Adds complexity to setup app (needs background service coordination), and user might change their mind and select server mode.
 
@@ -672,7 +670,7 @@ volumes:
 | **TaskCompletionSource** | Promise-like primitive for coordinating async operations without polling |
 | **Data Protection** | ASP.NET Core's encryption API for protecting sensitive data at rest |
 | **X.509 Certificate** | Asymmetric key pair used to encrypt Data Protection keys |
-| **Marten** | Document database library for PostgreSQL with event sourcing support |
+| **AeroDB.Sable** | Document database and event store library for SurrealDB (embedded SurrealKV or remote server) |
 | **Orleans** | Actor model framework for distributed systems |
 | **Wolverine** | Messaging and background job framework |
 | **Infisical** | Open-source secrets management platform |

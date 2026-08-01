@@ -1,5 +1,14 @@
 # Aero CMS Multi-Provider Persistence Architecture
 
+> [!IMPORTANT]
+> **SUPERSEDED — NOT ADOPTED.** The multi-provider abstraction (Marten/Postgres,
+> Dali/SurrealDB, Polecat/MSSQL) was **rejected**. The actual architecture is a
+> **1:1 replacement of Marten with AeroDB.Sable over SurrealDB** — no
+> `IAeroDbSession`/`IAeroDocumentStore` abstraction layer. See
+> [`surrealdb-marten-port.md`](surrealdb-marten-port.md). SurrealDB via
+> AeroDB.Sable is the exclusive backend database. Keep this document only as a
+> historical record of the rejected design.
+
 ## Goal
 
 Allow Aero CMS to support multiple document database providers selected

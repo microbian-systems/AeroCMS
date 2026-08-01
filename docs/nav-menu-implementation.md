@@ -4,8 +4,14 @@
 
 Draft for implementation.
 
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). See
+> [`surrealdb-marten-port.md`](surrealdb-marten-port.md). Event-sourcing here is
+> AeroDB.Sable event streams, not Marten.
+
 > [!NOTE]
-> Current Marten event-sourcing decision: do not create or write
+> Current event-sourcing decision: do not create or write
 > `NavMenuVersionDocument`. Marten event streams are the version history for
 > navigation menus. `NavMenuDraftSaved` and `NavMenuPublished` event payloads
 > carry the immutable `NavMenuSnapshot`; stream versions replace the earlier

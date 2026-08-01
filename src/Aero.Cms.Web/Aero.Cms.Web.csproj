@@ -365,8 +365,11 @@
   <ItemGroup>
     <AeroThemeAssetInput Include="$(AeroThemeAssetScript)" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/**/*.css" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Styles/vendor/**/*" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/Components/**/*;$(MSBuildProjectDirectory)/Pages/**/*;$(MSBuildProjectDirectory)/Views/**/*;$(MSBuildProjectDirectory)/ts/**/*" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Layout/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Shared/ts/**/*" />
+    <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Html/**/*.cs"
+                         Exclude="$(MSBuildProjectDirectory)/../Aero.Cms.Html/bin/**;$(MSBuildProjectDirectory)/../Aero.Cms.Html/obj/**;$(MSBuildProjectDirectory)/../Aero.Cms.Html/Generated/**" />
     <AeroThemeAssetInput Include="$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Areas/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Components/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Pages/**/*;$(MSBuildProjectDirectory)/../Aero.Cms.Modules.*/Views/**/*" Exclude="$(AeroRepositoryRoot)/src/**/bin/**;$(AeroRepositoryRoot)/src/**/obj/**;$(AeroRepositoryRoot)/src/**/wwwroot/**;$(AeroRepositoryRoot)/src/**/Generated/**" />
   </ItemGroup>
 

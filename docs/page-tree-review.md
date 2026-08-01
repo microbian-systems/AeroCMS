@@ -1,3 +1,10 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
 Yes, this is accurate as a target architecture, and it lines up well with how serious modern visual editors are actually built. The core diagnosis is right: `LayoutRegions` (fixed zones, each holding a list of placements) is a rendering-era concept from server-templated CMS systems where the page shape was baked into the theme. A WYSIWYG editor needs the opposite — arbitrary nesting, arbitrary composition, no hardcoded slots at the page level — so collapsing everything into a single recursive `PageNode` tree, with `PageDocument` holding only routing/SEO metadata and pointers to draft/published composition documents, is the correct shape. The Webflow/GrapesJS/Notion/Portable-Text comparisons are fair: all of those systems treat the document body as a typed node tree rather than a manifest of regions, and publish-by-pointer-swap (rather than mutating a single record in place) is the same pattern Contentful and Sanity use for draft/publish separation. None of that needs correcting.
 
 A few things in the schema are worth pinning down before you lock it in, though, because they're the kind of decisions that are cheap to make now and expensive to retrofit later.

@@ -19,7 +19,7 @@ The public stack should be read as:
 Response cache / HTTP headers
   -> Output cache / server full response
     -> FusionCache / data and object cache
-      -> Marten DB / source of truth
+      -> AeroDB.Sable / SurrealDB source of truth
 ```
 
 ## Public Triple Threat Stack
@@ -45,7 +45,7 @@ Used inside public API handlers, public render services, and manager/admin data 
 - **Stampede Protection:** Built-in request coalescing.
 
 ### Source of Truth: Persistent Store
-**Marten DB** (PostgreSQL Document Store).
+**AeroDB.Sable** (SurrealDB document store — embedded SurrealKV or remote server).
 - **AOT Optimization:** Must be configured for Native AOT using code-generation features during build time to avoid reflection at runtime.
 
 ## Cache Invalidation

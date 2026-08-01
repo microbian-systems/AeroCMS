@@ -1,18 +1,21 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
 
 <section class="aero-element-palette" aria-label="Page elements">
-    <div class="aero-element-palette__section">
-        <h3>Import</h3>
-        <div class="aero-element-palette__grid">
-            <button type="button"
-                    class="aero-element-palette__item aero-element-palette__item--component"
-                    title="Import a validated static HTML fragment into this page"
-                    @onclick="RequestImportAsync">
-                <span class="aero-element-palette__component-icon" aria-hidden="true">&lt;/&gt;</span>
-                <span>Import HTML</span>
-            </button>
+    @if (ShowsImport)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Import</h3>
+            <div class="aero-element-palette__grid">
+                <button type="button"
+                        class="aero-element-palette__item aero-element-palette__item--component"
+                        title="Import a validated static HTML fragment into this page"
+                        @onclick="RequestImportAsync">
+                    <span class="aero-element-palette__component-icon" aria-hidden="true">&lt;/&gt;</span>
+                    <span>Import HTML</span>
+                </button>
+            </div>
         </div>
-    </div>
+    }
 
     <div class="aero-element-palette__search">
         <label for="aero-element-search">Add content</label>
@@ -31,6 +34,16 @@
                 <span>Start with a template, then select any part on the canvas to make it your own.</span>
             }
         </p>
+    </div>
+
+    <div class="aero-element-palette__filters" aria-label="Element catalog filters">
+        @foreach (var filter in new[] { HtmlPaletteFilter.All, HtmlPaletteFilter.Basics, HtmlPaletteFilter.Daisy, HtmlPaletteFilter.Patterns, HtmlPaletteFilter.Html })
+        {
+            <button type="button"
+                    class="aero-element-palette__filter"
+                    aria-pressed="@(EffectiveFilter == filter)"
+                    @onclick="() => SetFilter(filter)">@FilterLabel(filter)</button>
+        }
     </div>
 
     @if (FilteredRenderedFragmentOptions.Count > 0)
@@ -94,40 +107,45 @@
         </div>
     }
 
-    @if (FilteredComponentGroups.Count > 0)
+    @if (FilteredComponents.Count > 0)
     {
-        @foreach (var group in FilteredComponentGroups)
+        @foreach (var group in FilteredComponents.GroupBy(descriptor => descriptor.Group))
         {
-            <div @key="ComponentGroupKey(group.Category)" class="aero-element-palette__section">
-                <h3>@group.Category</h3>
+            <div @key="ComponentGroupKey(group.Key)" class="aero-element-palette__section">
+                <h3>@group.Key</h3>
                 <div class="aero-element-palette__grid">
-                    @foreach (var option in group.Options)
+                    @foreach (var descriptor in group)
                     {
-                        <button @key="option.Kind"
+                        <button @key="descriptor.Key"
                                 type="button"
                                 class="aero-element-palette__item aero-element-palette__item--component"
-                                title="@($"{option.Description}. Click to add or drag onto the page.")"
+                                title="@($"{descriptor.Description}. Click to add or drag onto the page.")"
                                 data-aero-palette-kind="component"
-                                data-aero-palette-value="@option.Kind"
-                                data-aero-palette-label="@option.Label"
-                                data-aero-palette-category="@option.Category"
-                                @onclick="() => RequestComponentAsync(option.Kind)">
-                            <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
-                            <span>@option.Label</span>
+                                data-aero-palette-value="@descriptor.Key"
+                                data-aero-palette-label="@descriptor.DisplayName"
+                                data-aero-palette-category="@descriptor.Group"
+                                @onclick="() => RequestComponentAsync(descriptor.Key)">
+                            <span class="aero-element-palette__component-icon" aria-hidden="true">@descriptor.Icon</span>
+                            <span>@descriptor.DisplayName</span>
+                            <small>@descriptor.Description</small>
                         </button>
                     }
                 </div>
             </div>
         }
-        @if (CanToggleComponents)
+        @if (CanToggleBasicComponents)
         {
             <button type="button"
                     class="aero-element-palette__show-more"
-                    aria-expanded="@_showAllComponents"
-                    @onclick="ToggleComponents">
-                @(_showAllComponents ? "Show fewer components" : $"Show all {ComponentOptions.Count} components")
+                    aria-expanded="@_showAllBasicComponents"
+                    @onclick="ToggleBasicComponents">
+                @(_showAllBasicComponents ? "Show fewer Basics" : $"Show all {ComponentCatalog.Basics.Count} Basics")
             </button>
         }
+    }
+    else if (ShowsPatterns)
+    {
+        <div class="aero-element-palette__empty">Patterns are coming next. This phase includes reusable Basics and Daisy components.</div>
     }
 
     @if (FilteredLayoutOptions.Count > 0)
@@ -153,6 +171,8 @@
         </div>
     }
 
+    @if (ShowsHtml)
+    {
     <div class="aero-element-palette__element-heading">
         <div>
             <h3>@(ShowingAllElements ? "All HTML elements" : "Basic elements")</h3>
@@ -194,5 +214,6 @@
                 </div>
             </div>
         }
+    }
     }
 </section>

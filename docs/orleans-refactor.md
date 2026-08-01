@@ -1,3 +1,11 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
+
 # AeroCMS Refactoring Plan: Startup Encapsulation, API Decoupling, and Orleans Grain Migration
 
 **Status**: Phase 1-3 Complete ✅ | Phase 4: Front-end done ✅, cleanup/cleanup pending  

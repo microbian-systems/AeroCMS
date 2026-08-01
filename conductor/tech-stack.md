@@ -3,7 +3,7 @@
 ## Backend
 - **Framework:** .NET 10.0 (ASP.NET Core)
 - **Messaging/CQRS:** Wolverine
-- **Persistence:** Marten (PostgreSQL)
+- **Persistence:** SurrealDB (via AeroDB.Sable document store — embedded SurrealKV or remote server)
 - **Caching:** FusionCache, Garnet, Redis
 - **Security:** JWT, OpenID, IdentityServer
 - **Job Scheduling:** TickerQ

@@ -42,7 +42,7 @@ AeroCMS supports pluggable security via the `IAeroSecurity` interface.
 
 - **Security (Identity)**
   - **Function**: Handles authentication and authorization using ASP.NET Core Identity.
-  - **Storage**: Uses Entity Framework Core with a dedicated PostgreSQL database context.
+  - **Storage**: Uses ASP.NET Core Identity with AeroDB.AspNetIdentity over the AeroDB.Sable (SurrealDB) document store.
   - **Registration**: Registers identity services, roles, and permission-based authorization filters.
 - **Simple Security**
   - **Function**: An optional, lightweight security module for basic authentication scenarios (e.g., API keys or simple password checks).

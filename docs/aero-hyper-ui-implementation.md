@@ -1,3 +1,11 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
+
 # Aero HyperUI Migration Plan
 
 > Migrate 21 HyperUI marketing component types (122 variants) from static HTML/Tailwind into an ASP.NET Core Blazor RCL (`Aero.Cms.Ui.Hyper`) targeting **Static SSR** with **Tailwind CSS v4 via CDN**, **`dark:` class-based dark mode**, and **logical-property-based RTL support**.

@@ -115,8 +115,8 @@ Alternatives:
 - shared DB with `TenantId`
 - schema per tenant
 
-For Marten:
-- connection string per tenant
+For AeroDB.Sable (SurrealDB):
+- connection string / endpoint per tenant
 - per-tenant document store or tenant-aware session factory
 
 ## Tenant Admin Experience

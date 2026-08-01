@@ -1,3 +1,10 @@
+
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). Marten
+> was migrated out in [`surrealdb-marten-port.md`](surrealdb-marten-port.md).
+> This document is a historical implementation record; its Marten/PostgreSQL
+> persistence details do not reflect the current stack.
 Here's how I'd architect this. Let me break it down into layers: interface taxonomy, HTML element mapping, and then the component dependency diagram.
 
 > **AeroCMS decision note (2026-06-16):** This proposal is adopted as the

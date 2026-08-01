@@ -10,9 +10,9 @@ Accepted
 
 ## Context
 
-AeroCMS currently renders persisted CMS blocks through a manually maintained switch in `BlockRenderer.razor`. The same block knowledge is duplicated across `BlockBase` `JsonDerivedType` attributes, `BlockJsonContext`, Marten subclass registration, editor metadata, and a legacy visitor/slice rendering path.
+AeroCMS currently renders persisted CMS blocks through a manually maintained switch in `BlockRenderer.razor`. The same block knowledge is duplicated across `BlockBase` `JsonDerivedType` attributes, `BlockJsonContext`, document-store subclass registration, editor metadata, and a legacy visitor/slice rendering path.
 
-This creates drift. A new block can be added to one registration point while missing another, which moves failures from build time to runtime. The current inventory already shows that Marten and `BlockRenderer.razor` do not cover the full set of block models known to `BlockBase` and `BlockJsonContext`.
+This creates drift. A new block can be added to one registration point while missing another, which moves failures from build time to runtime. The current inventory already shows that the document store (`AeroDB.Sable`) and `BlockRenderer.razor` do not cover the full set of block models known to `BlockBase` and `BlockJsonContext`.
 
 AeroCMS also wants to improve trim-safety and prepare the rendering pipeline for future Native AOT support. Runtime assembly scanning and reflection-based renderer discovery would be convenient, but they are a poor fit for that direction.
 
@@ -32,8 +32,8 @@ Later phases will expand the same discovery model to generate or assist:
 
 - the block manifest used by editor metadata.
 - `System.Text.Json` polymorphic registration.
-- Marten subclass registration.
-- diagnostics for metadata, renderer, JSON, and Marten drift.
+- AeroDB.Sable subclass registration.
+- diagnostics for metadata, renderer, JSON, and document-store drift.
 
 ## Alternatives Considered
 

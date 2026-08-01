@@ -278,7 +278,7 @@ manage one when the type is embedded-only.
 | STJ round-trip fidelity | ❌ Numbers become `JsonElement`, strings lose type | ✅ `JsonElement` preserves the source token type |
 | AOT-safe deserialization | ❌ Requires runtime polymorphic resolution | ✅ `element.Deserialize<T>(ctx.Options)` with source-generated context |
 | Scriban integration | ❌ Extra conversion step needed | ✅ `JsonToScribanMapper` already converts `JsonElement` → `ScriptObject` |
-| Linq/query in Marten | ⚠️ Fragile | ⚠️ Same — both require computed index workarounds |
+| Linq/query in AeroDB.Sable | ⚠️ Fragile | ⚠️ Same — both require computed index workarounds |
 
 **Field access helper:**
 
@@ -1361,10 +1361,10 @@ public interface IContentService
 }
 ```
 
-### 8.2 Marten document models
+### 8.2 AeroDB.Sable document models
 
 ```csharp
-public sealed class ContentTypeDocument : Entity
+public sealed class ContentTypeDocument : SableDocument, IAuditable
 {
     public long SiteId { get; set; }
     public string Alias { get; set; } = string.Empty;
@@ -1377,20 +1377,20 @@ public sealed class ContentTypeDocument : Entity
     public ContentTypeRenderMode RenderMode { get; set; }
 }
 
-// ContentItem itself is an Entity, stored directly via Marten
+// ContentItem itself is an Entity, stored directly via AeroDB.Sable
 ```
 
-Marten configuration:
+AeroDB.Sable configuration:
 
 ```csharp
 opts.Schema.For<ContentTypeDocument>()
     .Identity(x => x.Id)
-    .DocumentAlias("content_type_definitions")
+    .TableName("content_type_definitions")
     .Index(x => x.SiteId)
     .UniqueIndex(x => x.SiteId, x => x.Alias);
 
 opts.Schema.For<ContentItem>()
-    .DocumentAlias("content_items")
+    .TableName("content_items")
     .Index(x => x.SiteId)
     .Index(x => x.Slug)
     .Index(x => x.ContentTypeAlias);
@@ -1564,10 +1564,10 @@ public interface IContentQueryService
 }
 ```
 
-Marten implementation uses the document identity and computed indexes:
+Sable implementation uses the document identity and computed indexes:
 
 ```csharp
-public sealed class MartenContentQueryService(IDocumentSession session) : IContentQueryService
+public sealed class AeroContentQueryService(IDocumentSession session) : IContentQueryService
 {
     public async Task<Result<(IReadOnlyList<ContentItem>, long), AeroError>> GetByTypeAsync(
         long siteId, string alias, int skip, int take, CancellationToken ct)
@@ -1758,7 +1758,7 @@ public override void Configure(IAeroModuleBuilder builder)
 | `IContentDefinitionModule` | Marker interface for content-type modules — already exists |
 | `ContentSlugDocument` | Slug uniqueness enforcement |
 | `FluentValidation` | Validation of schemas and content — `AbstractValidator<>`, `Custom` method |
-| `Marten` `IDocumentSession` | Querying content types, content items, dynamic block definitions |
+| `AeroDB.Sable` `IDocumentSession` | Querying content types, content items, dynamic block definitions |
 | `Result<T, AeroError>` | Railway return types in all service signatures |
 
 ---
@@ -1768,7 +1768,7 @@ public override void Configure(IAeroModuleBuilder builder)
 | Project | Owns |
 |---------|------|
 | `Aero.Cms.Abstractions` | `ContentTypeDefinition`, `ContentFieldDefinition`, `ContentItem`, `FieldBlockInstance`, `IFieldTemplateSnippet`, `IContentFieldEditor`, `IContentFieldValidator`, `IAsyncContentValidator`, `ContentValidationMode` |
-| `Aero.Cms.Core` | `ContentTypeDynamicBlockBridge`, `ContentTypeTemplateGenerator`, `ContentTypeSchemaGenerator`, `MartenContentTypeService`, `MartenContentService`, `DynamicContentValidator`, `ContentValidationService`, `ContentCommandService`, `TextFieldValidator`, `NumberFieldValidator`, `ReferenceFieldValidator`, `ReferenceExistenceValidator`, `UniqueSlugValidator` |
+| `Aero.Cms.Core` | `ContentTypeDynamicBlockBridge`, `ContentTypeTemplateGenerator`, `ContentTypeSchemaGenerator`, `AeroContentTypeService`, `AeroContentService`, `DynamicContentValidator`, `ContentValidationService`, `ContentCommandService`, `TextFieldValidator`, `NumberFieldValidator`, `ReferenceFieldValidator`, `ReferenceExistenceValidator`, `UniqueSlugValidator` |
 | `Aero.Cms.SourceGenerators` | `ContentTypeGenerator` (new) — discovers `[ContentType]` + `[ContentField]`, produces `GeneratedContentTypes` |
 | `Aero.Cms.Shared` | `ContentTypeFieldEditor.razor` (admin UI), bridge Razor components |
 | `Aero.Cms.Modules.*` | Register content types, field editors, field validators, async validators, field template snippets, block renderers |
@@ -2053,7 +2053,7 @@ Site Layout
   └─────────────────────┘
 ```
 
-This can be modeled as a `SiteSettingsDocument : Entity` stored in Marten:
+This can be modeled as a `SiteSettingsDocument : Entity` stored in AeroDB.Sable:
 
 ```csharp
 public sealed class SiteSettingsDocument : Entity
@@ -2131,10 +2131,10 @@ public enum ContentSlugOwnerType
 ```
 
 ```csharp
-// 3. Marten StoreOptions — add schema configs (additive, not breaking)
+// 3. AeroDB.Sable StoreOptions — add schema configs (additive, not breaking)
 opts.Schema.For<ContentTypeDocument>()
     .Identity(x => x.Id)
-    .DocumentAlias("content_type_definitions")
+    .TableName("content_type_definitions")
     .Index(x => x.SiteId)
     .UniqueIndex(x => x.SiteId, x => x.Alias);
 
@@ -2213,7 +2213,7 @@ Integration point              Change type
 ─────────────────────────────────────────────────
 ContentTypeDefinition          New (additive)
 ContentItem : Entity           New (additive)
-ContentTypeDocument (Marten)   Snowflake id + site-scoped alias uniqueness
+ContentTypeDocument (Sable)    Snowflake id + site-scoped alias uniqueness
 IContentFieldValidator         New (additive)
 IAsyncContentValidator         New (additive)
 IContentFieldEditor            New (fills existing IFieldEditor marker)
@@ -2226,7 +2226,7 @@ IAeroModule usage              Existing — Configure(builder) already virtual
 IContentDefinitionModule       Existing — just implement it
 PageRouteHandler               Future optional change for public item routes
 ContentSlugOwnerType           Future optional value for public item routes
-Marten StoreOptions            Add 3 schema configs
+AeroDB.Sable StoreOptions      Add 3 schema configs
 PageDocument                   Zero changes
 BlockBase hierarchy            Zero changes
 DynamicTemplateBlock           Zero changes

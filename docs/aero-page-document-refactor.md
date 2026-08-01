@@ -1,5 +1,11 @@
 # Aero CMS — Page Document Architecture (v2)
 
+> [!IMPORTANT]
+> **STORAGE SUPERSEDED — MARTEN IS NO LONGER USED.** The backend database is now
+> **SurrealDB via AeroDB.Sable** (embedded SurrealKV or remote server). See
+> [`surrealdb-marten-port.md`](surrealdb-marten-port.md). The document/event
+> model below is unchanged; persistence goes through AeroDB.Sable.
+
 > **See also:** [`aero-blocks-renderers-neoui.md`](aero-blocks-renderers-neoui.md) — Editor/renderer implementation contract that consumes this data model. The current document defines the data model (documents, events, pipelines); the NeoUI doc defines the PageEditor shell, block composition catalog, public Razor component rendering, output caching, and legacy migration implementation.
 
 ## Changelog from v1

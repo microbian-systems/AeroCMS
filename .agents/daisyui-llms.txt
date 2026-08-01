@@ -1,0 +1,59 @@
+---
+name: aerocms-daisyui-reference
+description: Opt-in DaisyUI guidance for new AeroCMS components and page-editor templates.
+metadata:
+  version: 5.7.9
+  source: https://daisyui.com/llms.txt
+alwaysApply: false
+applyTo: "src/Aero.Cms.Html/**,src/Aero.Cms.Shared/Pages/Manager/PageEditor/**,src/Aero.Cms.Web/Styles/**"
+---
+
+# DaisyUI guidance for AeroCMS
+
+DaisyUI is an additive component vocabulary for new AeroCMS UI and authored page
+components. Existing manager and public markup is not migrated merely because
+DaisyUI is available.
+
+## AeroCMS integration rules
+
+- Do not use npm, a browser Tailwind build, or a DaisyUI CDN.
+- Use only the pinned, vendored DaisyUI 5.7.9 ESM plugins under
+  `src/Aero.Cms.Web/Styles/vendor/daisyui/5.7.9`.
+- Compile through `eng/theme-assets/build-theme-assets.ps1` and keep its SHA-256
+  checks fail closed.
+- Use the configured `d-` prefix for Daisy component and modifier classes, such
+  as `d-btn`, `d-btn-primary`, and `d-card`.
+- Tailwind utility classes remain unprefixed.
+- The built-in component theme is `corporate`; scope it with
+  `data-theme="corporate"` at page-content boundaries, not the manager root.
+- Do not replace current CSS or rewrite existing markup without an explicit task.
+- Do not add HyperUI CSS or runtime dependencies. HyperUI may only inspire
+  Aero-owned, reviewed compositions made from DaisyUI and Tailwind classes.
+- Keep class names as complete static literals so the standalone Tailwind scanner
+  can discover them.
+- Page-editor entries must persist as ordinary `HtmlNode` trees, not Daisy-specific
+  database records or component discriminators.
+
+## Component authoring
+
+Use semantic HTML first, then apply the smallest Daisy component vocabulary that
+fits. Prefer native script-free structures such as `details`/`summary` for
+disclosure. Keep interactive components that require JavaScript outside the
+Phase 1 catalog until their behavior, accessibility, and security are reviewed.
+
+Examples:
+
+```html
+<button class="d-btn d-btn-primary">Continue</button>
+
+<article class="d-card bg-base-100 shadow-sm">
+  <div class="d-card-body">
+    <h2 class="d-card-title">Card title</h2>
+    <p>Editable page content.</p>
+  </div>
+</article>
+```
+
+For upstream component semantics and available modifiers, consult the pinned
+version of the official DaisyUI documentation. AeroCMS repository constraints
+take precedence over generic installation guidance.

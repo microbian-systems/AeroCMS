@@ -89,6 +89,7 @@ protected string LastSaved    { get; set; } = "Never";
 protected string Author       { get; set; } = "Admin";
 
     private static readonly HtmlElementCatalog HtmlCatalog = HtmlElementCatalog.CreateDefault();
+    private static readonly HtmlComponentCatalog HtmlComponentCatalog = new(HtmlCatalog);
     private static readonly IHtmlContentModelPolicy HtmlContentPolicy = new HtmlContentModelPolicy(HtmlCatalog);
 
     protected IReadOnlyList<HtmlElementDefinition> HtmlElementDefinitions { get; }
@@ -198,7 +199,7 @@ protected string Author       { get; set; } = "Admin";
             HtmlContentPolicy,
             new HtmlAttributePolicy()),
         new HtmlLayoutStarterFactory(HtmlCatalog),
-        new HtmlComponentTemplateFactory(HtmlCatalog),
+        HtmlComponentCatalog,
         new NativeCssStyleCompiler(),
         styleProfile,
         composition);
@@ -981,9 +982,9 @@ protected async Task TogglePreview()
         return Task.CompletedTask;
     }
 
-    protected Task AddHtmlComponentAsync(HtmlComponentTemplateKind kind)
+    protected Task AddHtmlComponentAsync(string key)
     {
-        var result = HtmlEditor.AddComponent(kind);
+        var result = HtmlEditor.AddComponent(key);
         HandleHtmlEditorResult(result, "Component added.");
         return Task.CompletedTask;
     }
@@ -1155,11 +1156,8 @@ protected async Task TogglePreview()
                     layoutKind,
                     intent.TargetNodeId,
                     intent.Placement),
-            HtmlPaletteItemKind.Component when Enum.TryParse<HtmlComponentTemplateKind>(
-                intent.ItemValue,
-                true,
-                out var componentKind) => HtmlEditor.AddComponentRelative(
-                    componentKind,
+            HtmlPaletteItemKind.Component when HtmlComponentCatalog.TryGet(intent.ItemValue, out _) => HtmlEditor.AddComponentRelative(
+                    intent.ItemValue,
                     intent.TargetNodeId,
                     intent.Placement),
             HtmlPaletteItemKind.ContentList
@@ -2620,10 +2618,12 @@ protected string FormatCulture(string? culture)
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
         var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
         var pagesCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Modules.Pages/css/pages.css");
+        var aeroCss = new Uri(new Uri(baseUri), "css/aero.generated.css");
+        var componentThemeName = Aero.Cms.Abstractions.Theming.BuiltInThemeDefaults.ComponentThemeName;
 
         return $$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="en" data-theme="{{componentThemeName}}">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2632,6 +2632,7 @@ protected string FormatCulture(string? culture)
                 <link rel="stylesheet" href="{{managerCss}}">
                 <link rel="stylesheet" href="{{radzenCss}}">
                 <link rel="stylesheet" href="{{pagesCss}}">
+                <link rel="stylesheet" href="{{aeroCss}}">
                 <style>
                     html, body { margin: 0; min-height: 100%; background: #fff; }
                     body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }

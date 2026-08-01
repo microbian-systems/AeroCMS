@@ -15,7 +15,7 @@ public sealed class HtmlPageEditorSession
     private readonly HtmlElementCatalog _catalog;
     private readonly IHtmlContentModelPolicy _contentPolicy;
     private readonly IHtmlContentValidator _contentValidator;
-    private readonly IHtmlComponentTemplateFactory _componentFactory;
+    private readonly HtmlComponentCatalog _componentCatalog;
     private readonly IHtmlLayoutStarterFactory _layoutFactory;
     private readonly IStyleCompiler _styleCompiler;
     private readonly IStyleProfile _styleProfile;
@@ -28,7 +28,7 @@ public sealed class HtmlPageEditorSession
         IHtmlContentModelPolicy contentPolicy,
         IHtmlContentValidator contentValidator,
         IHtmlLayoutStarterFactory layoutFactory,
-        IHtmlComponentTemplateFactory componentFactory,
+        HtmlComponentCatalog componentCatalog,
         IStyleCompiler styleCompiler,
         IStyleProfile styleProfile,
         PageCompositionDocument? composition = null)
@@ -38,7 +38,7 @@ public sealed class HtmlPageEditorSession
         _contentPolicy = contentPolicy ?? throw new ArgumentNullException(nameof(contentPolicy));
         _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
         _layoutFactory = layoutFactory ?? throw new ArgumentNullException(nameof(layoutFactory));
-        _componentFactory = componentFactory ?? throw new ArgumentNullException(nameof(componentFactory));
+        _componentCatalog = componentCatalog ?? throw new ArgumentNullException(nameof(componentCatalog));
         _styleCompiler = styleCompiler ?? throw new ArgumentNullException(nameof(styleCompiler));
         _styleProfile = styleProfile ?? throw new ArgumentNullException(nameof(styleProfile));
         _treeEditor = new HtmlTreeEditor(content, contentPolicy, validateCandidate: ValidateCandidate);
@@ -152,10 +152,10 @@ public sealed class HtmlPageEditorSession
     }
 
     public Result<HtmlNode> AddComponent(
-        HtmlComponentTemplateKind kind,
+        string key,
         long? parentNodeId = null)
     {
-        var component = _componentFactory.Create(kind);
+        var component = _componentCatalog.Create(key);
         return component switch
         {
             Result<HtmlNode>.Ok ok => Insert(ok.Value, parentNodeId),
@@ -165,11 +165,11 @@ public sealed class HtmlPageEditorSession
     }
 
     public Result<HtmlNode> AddComponentRelative(
-        HtmlComponentTemplateKind kind,
+        string key,
         long targetNodeId,
         HtmlRelativePlacement placement)
     {
-        var component = _componentFactory.Create(kind);
+        var component = _componentCatalog.Create(key);
         return component switch
         {
             Result<HtmlNode>.Ok ok => InsertRelative(ok.Value, targetNodeId, placement),

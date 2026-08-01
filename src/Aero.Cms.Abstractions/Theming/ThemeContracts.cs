@@ -76,6 +76,9 @@ public interface IThemeStylesheetResolver
 /// </summary>
 public static class BuiltInThemeDefaults
 {
+    /// <summary>The DaisyUI component-token theme applied at site rendering boundaries.</summary>
+    public const string ComponentThemeName = "corporate";
+
     /// <summary>The stable identifier of the safe built-in theme.</summary>
     public const string Id = "aero-safe";
 
