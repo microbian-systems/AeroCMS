@@ -1,7 +1,9 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Entities;
@@ -31,8 +33,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
-using MysticMind.PostgresEmbed;
-using Npgsql;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
@@ -56,8 +56,8 @@ namespace Aero.Cms.E2E.Tests;
 /// via a special HttpClient. Playwright (real browser) needs a real TCP listener.
 ///
 /// Startup sequence:
-///   1. Start embedded Postgres via MysticMind.PostgresEmbed
-///   2. Build a WebApplication using the real <c>AddAeroCmsAsync</c> DI setup
+///   1. Build a WebApplication using the real <c>AddAeroCmsAsync</c> DI setup
+///   2. Replace the production store with embedded in-memory SurrealDB via AeroDB.Sable
 ///   3. Configure the middleware pipeline (mirrors <c>RunAeroCmsAsync</c> minus HTTPS)
 ///   4. Start the app via <c>app.StartAsync()</c> on a background thread
 ///   5. Poll for HTTP readiness
@@ -70,8 +70,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     private static readonly long E2EUserId = Snowflake.NewId();
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
-    private PgServer? _postgres;
-    private int _pgPort;
     private AeroDB.Sable.IDocumentStore? _store;
     private WebApplication? _app;
     private CancellationTokenSource? _appCts;
@@ -94,16 +92,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         {
             if (_app is not null) return;
 
-            // ── 1. Start embedded Postgres ──────────────────────────────
-            const string dbName = "aero_e2e_test";
-            _pgPort = 5436;
-            _postgres = new PgServer("18.3.0", dbName, port: _pgPort, clearInstanceDirOnStop: true);
-            await _postgres.StartAsync();
-            await EnsureDatabaseAsync(dbName, _pgPort);
-
-            var connString = $"Host=localhost;Port={_pgPort};Username={dbName};Database={dbName};";
-
-            // ── 3. Build & start the real web app with Kestrel ───────────
+            // ── 1. Build & start the real web app with Kestrel ───────────
             var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
 
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -113,10 +102,15 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 ApplicationName = "Aero.Cms.Web"
             });
 
+            // This fixture executes from the test assembly's output directory while
+            // hosting Aero.Cms.Web. Load the web project's generated static-assets
+            // manifest explicitly so MapStaticAssets can resolve referenced Blazor
+            // WebAssembly files to their physical build outputs.
+            builder.WebHost.UseStaticWebAssets();
+
             // Override config for testing
             builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:aero"] = connString,
                 ["AeroCms:Bootstrap:State"] = "Running",
                 ["AeroCms:Bootstrap:SetupComplete"] = "true",
                 ["AeroCms:Bootstrap:SeedComplete"] = "true",
@@ -126,10 +120,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 ["AeroCms:Bootstrap:RequestedMemberAuthenticationProvider"] = "disabled",
                 ["AeroCms:Infrastructure:CacheMode"] = "Local",
                 ["AeroCms:Infrastructure:SecretProvider"] = "Local Certificate",
-                ["Aero:Embedded:Port"] = _pgPort.ToString(),
-                ["Aero:Embedded:Username"] = dbName,
-                ["Aero:Embedded:Password"] = "",
-                ["Aero:Embedded:Database"] = dbName,
                 ["urls"] = BaseUrl,
                 ["ApiSettings:BaseUrl"] = BaseUrl,
                 ["Logging:LogLevel:Default"] = "Warning",
@@ -204,7 +194,8 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                         .Build());
             });
 
-            // Remove the embedded DB background service (already have PG running externally)
+            // The fixture supplies its own in-memory Sable store, so the production
+            // embedded SurrealKV lifecycle service must not start a second store.
             var embeddedDbDescriptor = builder.Services.FirstOrDefault(d =>
                 d.ImplementationType?.Name == "AeroEmbeddedDbService");
             if (embeddedDbDescriptor is not null)
@@ -918,26 +909,30 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
         var normalizedSlug = slug.Trim().Trim('/');
-        var page = new PageDocument
+        if (_app is null)
         {
-            Id = Snowflake.NewId(),
-            SiteId = SiteId,
-            Slug = normalizedSlug,
-            Title = title.Trim(),
-            Path = $"/{normalizedSlug}",
-            Depth = 0,
-            Order = 100,
-            Kind = PageKind.Standard,
-            PublicationState = ContentPublicationState.Draft,
-            ShowInNavMenu = false,
-            ShowHeaderNavigation = false
-        };
-        page.ReplaceDraftContent(new HtmlPageContent(), DateTimeOffset.UtcNow);
+            throw new InvalidOperationException("The E2E application has not been initialized.");
+        }
 
-        await using var session = await _store!.LightweightSessionAsync();
-        session.Store(page);
-        await session.SaveChangesAsync();
-        return page.Id;
+        var pages = _app.Services.GetRequiredService<IAeroPageActor>();
+        var result = await pages.CreateAsync(new CreatePageRequest(
+            title.Trim(),
+            normalizedSlug,
+            Summary: null,
+            SeoTitle: null,
+            SeoDescription: null,
+            PublicationState: ContentPublicationState.Draft,
+            ShowInNavMenu: false,
+            ShowHeaderNavigation: false,
+            SiteId: SiteId));
+
+        if (!string.IsNullOrWhiteSpace(result.error.Message))
+        {
+            throw new InvalidOperationException(
+                $"Failed to create the E2E draft page: {result.error.Message}");
+        }
+
+        return result.data.Id;
     }
 
     /// <summary>
@@ -1047,22 +1042,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
-    private static async Task EnsureDatabaseAsync(string dbName, int port)
-    {
-        await using var conn = new NpgsqlConnection(
-            $"Host=localhost;Port={port};Username={dbName};Database=postgres;");
-        await conn.OpenAsync();
-
-        await using var cmd = new NpgsqlCommand(
-            "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = @name)", conn);
-        cmd.Parameters.AddWithValue("name", dbName);
-        if (await cmd.ExecuteScalarAsync() is true) return;
-
-        await using var createCmd = new NpgsqlCommand(
-            $"CREATE DATABASE {dbName} OWNER {dbName}", conn);
-        await createCmd.ExecuteNonQueryAsync();
-    }
-
     // ── Cleanup ──────────────────────────────────────────────────────────
 
     public async ValueTask DisposeAsync()
@@ -1089,10 +1068,5 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
 
         if (_app is not null) await _app.DisposeAsync();
-        if (_postgres is not null)
-        {
-            await _postgres.StopAsync();
-            await _postgres.DisposeAsync();
-        }
     }
 }

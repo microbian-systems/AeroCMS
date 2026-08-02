@@ -17,7 +17,7 @@ namespace Aero.Cms.Core.Tests.Integration;
 /// Tests the chain of responsibility pipeline:
 ///   Request → SiteResolutionMiddleware → AliasRewriteRule → rest of pipeline
 /// 
-/// Uses in-memory TestHost with NSubstitute mocks — no PostgreSQL required.
+/// Uses in-memory TestHost with NSubstitute mocks and no external database.
 /// </summary>
 public sealed class SitePipelineChainTests
 {
@@ -440,7 +440,7 @@ public sealed class SitePipelineChainTests
 
         // Manually populate cache via reflection or test the Find method with prepopulated data
         // Since RefreshAsync requires DB, we test Find via the internal state
-        // We'll use the cache after RefreshAsync with mocked Marten
+        // We'll use the cache after RefreshAsync with mocked Sable persistence.
 
         // Actually test the SitePathKey equality
         var key1 = new SitePathKey(1, "en-US", "/test");
@@ -606,7 +606,7 @@ public sealed class SitePipelineChainTests
 
         // 2. Terminal — capture and respond. These tests only assert the
         // site-resolution feature, so alias rewriting would add unrelated
-        // Marten dependencies to the harness.
+        // Sable dependencies to the harness.
         app.Run(async context =>
         {
             captureAction(context);

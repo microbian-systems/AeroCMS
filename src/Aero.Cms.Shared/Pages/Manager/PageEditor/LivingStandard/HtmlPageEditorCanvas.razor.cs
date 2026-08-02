@@ -3,6 +3,7 @@ using Aero.Cms.Html;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using System.Globalization;
+using Aero.Cms.Abstractions.Theming;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
@@ -68,6 +69,18 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     /// </summary>
     [Parameter]
     public CompiledPageStyles? CompiledStyles { get; set; }
+
+    /// <summary>Gets or sets the exact Daisy data-theme name resolved for the selected site.</summary>
+    [Parameter, EditorRequired]
+    public string DataThemeName { get; set; } = BuiltInThemeDefaults.ComponentThemeName;
+
+    /// <summary>Gets or sets the exact runtime stylesheets resolved for the selected site.</summary>
+    [Parameter]
+    public IReadOnlyList<ThemeStylesheetAsset> ThemeStylesheets { get; set; } = [];
+
+    private IEnumerable<ThemeStylesheetAsset> GeneratedThemeStylesheets => ThemeStylesheets
+        .Where(static asset => asset.Path.StartsWith("/_cms/themes/", StringComparison.Ordinal))
+        .OrderBy(static asset => asset.Order);
 
     /// <summary>
     /// Gets or sets whether editing interactions are suppressed for preview-only rendering.

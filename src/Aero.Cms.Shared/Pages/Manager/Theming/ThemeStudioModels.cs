@@ -12,6 +12,22 @@ public sealed record ThemeColorChange(ThemeDefaultMode Mode, string Token, strin
 public sealed record ThemeShapeChange(string Token, decimal Value);
 public sealed record ThemeAssignmentRequest(string ThemeId, string Version);
 
+internal static class ThemeStudioDraftSelector
+{
+    public static ThemeDefinitionView? FindAssigned(
+        long tenantId,
+        string? assignedThemeId,
+        IReadOnlyList<ThemeDefinitionView> drafts)
+    {
+        if (tenantId <= 0 || string.IsNullOrWhiteSpace(assignedThemeId)) return null;
+
+        return drafts.FirstOrDefault(draft => string.Equals(
+            assignedThemeId,
+            $"tenant-{tenantId.ToString(CultureInfo.InvariantCulture)}-theme-{draft.Id.ToString(CultureInfo.InvariantCulture)}",
+            StringComparison.Ordinal));
+    }
+}
+
 public sealed record ThemeContrastResult(string Label, ThemeDefaultMode Mode, double Ratio)
 {
     public bool Passes => Ratio >= 4.5d;
@@ -89,7 +105,9 @@ internal static class ThemeStudioTokens
 
     private static IEnumerable<ThemeContrastResult> Pairs(ThemeColorTokens colors, ThemeDefaultMode mode)
     {
-        yield return Result("Base", colors.Base100, colors.BaseContent, mode);
+        yield return Result("Base 100", colors.Base100, colors.BaseContent, mode);
+        yield return Result("Base 200", colors.Base200, colors.BaseContent, mode);
+        yield return Result("Base 300", colors.Base300, colors.BaseContent, mode);
         yield return Result("Primary", colors.Primary, colors.PrimaryContent, mode);
         yield return Result("Secondary", colors.Secondary, colors.SecondaryContent, mode);
         yield return Result("Accent", colors.Accent, colors.AccentContent, mode);

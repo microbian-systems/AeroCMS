@@ -13,32 +13,25 @@ using Aero.Cms.Modules.Modules.Services;
 namespace Aero.Cms.Core.Tests.Integration;
 
 /// <summary>
-/// Regression tests for Marten schema composition through the module system.
+/// Regression tests for Sable schema composition through the module system.
 /// 
-/// VALIDATION APPROACH: These tests verify that module-level IConfigureMarten contributions
+/// VALIDATION APPROACH: These tests verify that module-level <see cref="IConfigureAeroDB"/>
+/// contributions
 /// contributed by independently registered modules
-/// flow into the resolved DocumentStore when AddAeroDataLayer() is called.
+/// flow into the resolved Sable document store.
 ///
-/// The critical gap being tested: AddAeroDataLayer() must be called AFTER module
-/// ConfigureServices() registrations complete, so that all IConfigureMarten contributors
-/// are available in DI when AddMarten() resolves them internally.
-///
-/// This test class does NOT require a live PostgreSQL instance - it validates the
-/// DI registration composition only.
+/// The critical behavior being tested is that module <c>ConfigureServices()</c>
+/// registrations remain available when Sable composes its shared
+/// <see cref="StoreOptions"/> instance.
 /// </summary>
-public class AeroDbSchemaCompositionTests
+public class SableSchemaCompositionTests
 {
     /// <summary>
-    /// Test that IConfigureMarten registrations from module ConfigureServices() are
-    /// captured and available for AddAeroDataLayer() to consume.
-    ///
-    /// EXPECTED TO FAIL initially: The test module registers an IConfigureMarten
-    /// via ConfigureServices(), but AddAeroDataLayer() is never called from the CMS
-    /// startup chain (Program.cs â†’ AddAeroCmsAsync â†’ AddAeroModulesAsync).
-    /// Until AddAeroDataLayer() is wired in, no DocumentStore will be created.
+    /// Verifies that <see cref="IConfigureAeroDB"/> registrations contributed by a
+    /// module are captured after the module's <c>ConfigureServices()</c> runs.
     /// </summary>
     [Test]
-    public void ModuleConfigureServices_ShouldRegisterIConfigureMartenContributions()
+    public void ModuleConfigureServices_ShouldRegisterIConfigureAeroDbContributions()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -50,7 +43,7 @@ public class AeroDbSchemaCompositionTests
         services.AddModuleSystemServices();
     
         
-        // 2. Register a test module that contributes IConfigureMarten (simulating DocsModule)
+        // Register a test module that contributes Sable schema configuration.
         services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
         // 3. Build provider and call Configure/ConfigureServices
@@ -61,41 +54,30 @@ public class AeroDbSchemaCompositionTests
         testModule.ConfigureServices(services, configuration, environment);
 
         // Act - verify TestAeroDbConfiguration is registered
-        var configureMartenServices = services
+        var configureAeroDbServices = services
             .Where(sd => sd.ServiceType == typeof(global::AeroDB.Sable.IConfigureAeroDB))
             .ToList();
 
-        configureMartenServices.Should().Contain(sd => 
+        configureAeroDbServices.Should().Contain(sd => 
             sd.ImplementationType == typeof(TestAeroDbConfiguration),
             "TestAeroDbConfiguration should be registered via TestAeroDbModule.ConfigureServices()");
 
-        configureMartenServices.Should().ContainSingle(
+        configureAeroDbServices.Should().ContainSingle(
             "the test module is the only persistence contributor registered in this isolated service collection");
     }
 
     /// <summary>
-    /// Test that AddAeroDataLayer() must be called in the startup chain AFTER
-    /// module ConfigureServices() registrations complete.
-    ///
-    /// This test FAILS currently because AddAeroDataLayer() is not called from
-    /// Program.cs â†’ AddAeroCmsAsync â†’ AddAeroModulesAsync.
-    ///
-    /// After fix: this test will pass, confirming AddAeroDataLayer() is wired.
+    /// Verifies that the retained legacy data-layer extension does not remove or
+    /// replace Sable schema contributions registered by modules.
     /// </summary>
     [Test]
-    public void AddAeroDataLayer_ShouldBeWiredAfterModuleRegistration()
+    public void LegacyDataLayerHook_ShouldPreserveSableModuleRegistration()
     {
         // Arrange
         var services = new ServiceCollection();
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:aero"] = "Host=localhost;Database=test"
-            })
-            .Build();
+        var configuration = new ConfigurationBuilder().Build();
         var environment = new FakeHostEnvironment();
 
-        // Simulate full startup chain up to where AddAeroDataLayer() should be
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
@@ -105,24 +87,21 @@ public class AeroDbSchemaCompositionTests
         var testModule = provider.GetServices<IAeroModule>().OfType<TestAeroDbModule>().First();
         testModule.ConfigureServices(services, configuration, environment);
 
-        // Act - Call AddAeroDataLayer (now a no-op after EF Core Npgsql removal)
+        // Act - the legacy hook is a no-op because Sable is registered elsewhere.
         services.AddAeroDataLayer(configuration, environment);
 
-        // Assert - AddAeroDataLayer is a no-op (all persistence uses AeroDB.Sable registered elsewhere)
-        // Verify it doesn't throw and returns the service collection
-        services.Should().NotBeNull();
+        using var configuredProvider = services.BuildServiceProvider();
+        configuredProvider.GetServices<IConfigureAeroDB>()
+            .Should().ContainSingle(configuration => configuration is TestAeroDbConfiguration);
     }
 
     /// <summary>
-    /// Test that IConfigureMarten implementations from different modules don't conflict.
-    /// Verifies that the StoreOptions passed to each configurator are the SAME instance.
+    /// Verifies that Sable configurators from different modules receive the same
+    /// mutable <see cref="StoreOptions"/> instance.
     /// </summary>
     [Test]
-    public void MultipleIConfigureMarten_ShouldReceiveSameStoreOptions()
+    public void MultipleIConfigureAeroDb_ShouldReceiveSameStoreOptions()
     {
-        // This test validates the composition order guarantee:
-        // all IConfigureMarten contributors receive the same StoreOptions mutable object.
-        
         var receivedOptions = new List<StoreOptions>();
         
         var services = new ServiceCollection();
@@ -139,8 +118,7 @@ public class AeroDbSchemaCompositionTests
             receivedOptions.Add(opts);
         }));
 
-        // Simulate what AddMarten does internally: resolve all IConfigureMarten and call them
-        // with the SAME StoreOptions instance
+        // Resolve every Sable configurator and compose them against one options instance.
         using var provider = services.BuildServiceProvider();
         var configurators = provider.GetServices<global::AeroDB.Sable.IConfigureAeroDB>().ToList();
         
@@ -153,16 +131,16 @@ public class AeroDbSchemaCompositionTests
         // Assert - both configurators should have received the SAME StoreOptions instance
         receivedOptions.Should().HaveCount(2);
         receivedOptions[0].Should().BeSameAs(receivedOptions[1],
-            "All IConfigureMarten contributors must receive the same StoreOptions instance");
+            "all Sable configurators must receive the same StoreOptions instance");
         receivedOptions[0].Should().BeSameAs(storeOptions);
     }
 
     /// <summary>
-    /// Test that verifies the DI chain: IConfigureMarten registered via module system
-    /// should be resolvable from the service provider AFTER ConfigureServices runs.
+    /// Verifies that Sable schema configuration registered through the module system
+    /// is resolvable after <c>ConfigureServices()</c> runs.
     /// </summary>
     [Test]
-    public void IConfigureMarten_ShouldBeResolvableFromModuleConfigureServices()
+    public void IConfigureAeroDb_ShouldBeResolvableFromModuleConfigureServices()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -177,7 +155,7 @@ public class AeroDbSchemaCompositionTests
         var testModule = provider.GetServices<IAeroModule>().OfType<TestAeroDbModule>().First();
         testModule.ConfigureServices(services, configuration, environment);
 
-        // Act - resolve all IConfigureMarten registrations
+        // Act - resolve all Sable schema configurators.
         using var afterConfigServices = services.BuildServiceProvider();
         var configurators = afterConfigServices.GetServices<global::AeroDB.Sable.IConfigureAeroDB>().ToList();
 
@@ -187,7 +165,7 @@ public class AeroDbSchemaCompositionTests
     }
 
     // =====================================================================
-    // Test module helpers - simulate what DocsModule does
+    // Test module helpers - simulate a module-owned Sable schema contribution.
     // =====================================================================
 
     private class FakeHostEnvironment : IHostEnvironment
@@ -199,7 +177,7 @@ public class AeroDbSchemaCompositionTests
     }
 
     /// <summary>
-    /// Test module that mimics DocsModule's IConfigureMarten registration pattern.
+    /// Test module that contributes Sable schema configuration.
     /// </summary>
     private sealed class TestAeroDbModule : AeroModuleBase
     {
@@ -209,7 +187,7 @@ public class AeroDbSchemaCompositionTests
         public override short Order => 100;
         public override IReadOnlyList<string> Dependencies => [];
         public override IReadOnlyList<string> Category => ["test"];
-        public override IReadOnlyList<string> Tags => ["test", "marten"];
+        public override IReadOnlyList<string> Tags => ["test", "sable"];
 
         public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
         {

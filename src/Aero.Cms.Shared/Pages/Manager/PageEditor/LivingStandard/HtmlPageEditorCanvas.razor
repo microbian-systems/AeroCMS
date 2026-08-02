@@ -10,10 +10,14 @@
     {
         <style>@((MarkupString)CompiledStyles.CssText)</style>
     }
+    @foreach (var stylesheet in GeneratedThemeStylesheets)
+    {
+        <link data-aero-editor-theme rel="stylesheet" href="@stylesheet.Path" />
+    }
 
     <div class="aero-page-canvas__surface"
          @ref="_surface"
-         data-theme="@BuiltInThemeDefaults.ComponentThemeName"
+         data-theme="@DataThemeName"
          data-aero-sortable-enabled="@(!PreviewMode ? "true" : "false")"
          data-aero-root-node-id="@RootNodeId"
          data-aero-can-have-children="true"

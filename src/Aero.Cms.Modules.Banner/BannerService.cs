@@ -86,14 +86,14 @@ public Task DeleteAsync(long id)
     /// <inheritdoc />
 public async Task<IEnumerable<BannerModel>> FindAsync(Expression<Func<BannerModel, bool>> predicate)
     {
-        log.LogInformation("querying marten store...");
+        log.LogInformation("Querying Sable document store");
         return await session.Query<BannerModel>().Where(predicate).ToListAsync();
     }
 
     /// <inheritdoc />
 public async Task<long> CountAsync()
     {
-        log.LogInformation("counting entities in marten store...");
+        log.LogInformation("Counting entities in Sable document store");
         return await session.Query<BannerModel>().CountAsync();
     }
 

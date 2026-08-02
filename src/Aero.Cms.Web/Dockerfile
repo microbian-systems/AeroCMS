@@ -156,8 +156,8 @@ EXPOSE 333
 
 # -- Health check --
 #    Hits the root endpoint. The Setup App starts first, then transitions to
-#    the main app. Start period of 90s allows for embedded PG init + Orleans
-#    silo startup + Marten document store initialization.
+#    the main app. Start period of 90s allows for embedded SurrealDB init + Orleans
+#    silo startup + Sable document store initialization.
 #    If /health endpoint exists, use it instead for lighter checks.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider https://localhost:333/ || exit 1

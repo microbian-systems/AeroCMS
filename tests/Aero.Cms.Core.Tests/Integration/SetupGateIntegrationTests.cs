@@ -194,7 +194,7 @@ public sealed class SetupGateIntegrationTests
     }
 
     [Test]
-    public async Task Marten_setup_state_store_loads_the_fixed_singleton_id()
+    public async Task Sable_setup_state_store_loads_the_fixed_singleton_id()
     {
         await using var harness = new SableTestHarness()
             .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()

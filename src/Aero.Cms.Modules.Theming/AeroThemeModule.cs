@@ -40,9 +40,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddSingleton<IThemeCssCompiler, ThemeCssCompiler>();
         services.AddMemoryCache();
         services.AddScoped<ThemeDesignContextAccessor>();
+        services.AddScoped<IAuthorizationHandler, ThemeDesignPermissionHandler>();
         services.AddScoped<IThemeApplicationService, ThemeApplicationService>();
         services.Configure<AuthorizationOptions>(options =>
-            options.AddPolicy("theme:design", policy => policy.RequireAuthenticatedUser()));
+            options.AddPolicy("theme:design", policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new ThemeDesignPermissionRequirement());
+            }));
         services.AddScoped<IThemeLibrary, CompositeThemeLibrary>();
         services.AddScoped<IThemeStylesheetResolver, SiteThemeStylesheetResolver>();
     }
@@ -50,10 +55,21 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// <inheritdoc />
     public void Configure(StoreOptions options)
     {
-        var definitions = options.Schema.For<ThemeDefinitionDocument>().TableName(Schemas.Tables.ThemeDefinitions).Index(x => x.TenantId).Index(x => x.Slug);
+        var definitions = options.Schema.For<ThemeDefinitionDocument>()
+            .TableName(Schemas.Tables.ThemeDefinitions)
+            .Index(x => x.TenantId)
+            .UniqueIndex(x => new { x.TenantId, x.Slug });
         definitions.UseOptimisticConcurrency = true;
-        options.Schema.For<ThemeVersionDocument>().TableName(Schemas.Tables.ThemeVersions).Index(x => x.TenantId).Index(x => x.ThemeDefinitionId).Index(x => x.ThemeId).Index(x => x.Version);
-        options.Schema.For<SiteThemePublicationDocument>().TableName(Schemas.Tables.SiteThemePublications).Index(x => x.TenantId).Index(x => x.SiteId).Index(x => x.Revision);
+        options.Schema.For<ThemeVersionDocument>()
+            .TableName(Schemas.Tables.ThemeVersions)
+            .Index(x => x.TenantId)
+            .Index(x => x.ThemeDefinitionId)
+            .UniqueIndex(x => new { x.TenantId, x.ThemeId, x.Version });
+        options.Schema.For<SiteThemePublicationDocument>()
+            .TableName(Schemas.Tables.SiteThemePublications)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.Revision });
     }
 
     /// <inheritdoc />

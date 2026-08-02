@@ -16,7 +16,7 @@ using Wolverine;
 namespace Aero.AppServer;
 
 // todo - move the aero.appserver project to its own sln and git repo for max config options. it can also be used as standalone
-// library for hosting the core services (orleans, marten, etc.) without the web server if desired.  This will also allow
+// library for hosting the core services (Orleans, Sable, etc.) without the web server if desired. This will also allow
 // us to target netstandard for the library and net10 for the web server project, which is currently not possible with them
 // combined in one project.  Can be combined with Aero.Modular (like aero.cms uses)
 

@@ -22,6 +22,7 @@ using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Abstractions.Ai;
+using Aero.Cms.Abstractions.Theming;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -47,6 +48,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable
     /// Gets or sets the Sites Client.
     /// </summary>
 [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+[Inject] protected IThemesHttpClient ThemesClient { get; set; } = default!;
         /// <summary>
     /// Gets or sets the Current Site Accessor.
     /// </summary>
@@ -253,6 +255,15 @@ protected string? PreviewFrameUrl => Id is { } id
     /// Gets or sets the Preview Frame Document.
     /// </summary>
 protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
+
+    /// <summary>The selected site's exact runtime theme used by manager rendering boundaries.</summary>
+    protected ResolvedThemeStylesheets EditorTheme { get; private set; } = new(
+        BuiltInThemeDefaults.Id,
+        BuiltInThemeDefaults.Version,
+        BuiltInThemeDefaults.ComponentThemeName,
+        0,
+        [],
+        true);
         /// <summary>
     /// Gets or sets the Right Sidebar Collapsed.
     /// </summary>
@@ -533,6 +544,7 @@ protected override async Task OnInitializedAsync()
 
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
+        await ResolveEditorThemeAsync();
         await EnsureSiteStyleProfileAsync();
         await LoadPageRendererCatalogAsync();
         await LoadRegisteredFragmentCatalogAsync();
@@ -1905,6 +1917,7 @@ protected async Task TogglePreview()
             }
 
             CurrentSite = ownerSite;
+            await ResolveEditorThemeAsync();
             _siteStyleProfile = null;
             _styleProfileResolutionAttempted = false;
             _previewBaseUri = ResolvePreviewBaseUri(ownerSite) ?? NavManager.BaseUri;
@@ -2134,6 +2147,20 @@ protected async Task TogglePreview()
 
         var defaultResult = await SitesClient.GetDefaultAsync();
         return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private async Task ResolveEditorThemeAsync()
+    {
+        var result = await ThemesClient.GetCurrentRuntimeAsync();
+        EditorTheme = result is Result<ResolvedThemeStylesheets, AeroError>.Ok ok
+            ? ok.Value
+            : new ResolvedThemeStylesheets(
+                BuiltInThemeDefaults.Id,
+                BuiltInThemeDefaults.Version,
+                BuiltInThemeDefaults.ComponentThemeName,
+                0,
+                [],
+                true);
     }
 
     private string? ResolvePreviewBaseUri(SiteViewModel? site)
@@ -2609,7 +2636,7 @@ protected string FormatCulture(string? culture)
             : $"{normalized}-{culture.ToLowerInvariant()}";
     }
 
-    private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
+    private string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         var content = string.IsNullOrWhiteSpace(html)
             ? $"<main class=\"pe-empty-state\"><h3>{L["No preview content"]}</h3></main>"
@@ -2619,7 +2646,12 @@ protected string FormatCulture(string? culture)
         var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
         var pagesCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Modules.Pages/css/pages.css");
         var aeroCss = new Uri(new Uri(baseUri), "css/aero.generated.css");
-        var componentThemeName = Aero.Cms.Abstractions.Theming.BuiltInThemeDefaults.ComponentThemeName;
+        var componentThemeName = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(EditorTheme.DataThemeName);
+        var themeStylesheets = string.Join(
+            Environment.NewLine,
+            EditorTheme.Stylesheets
+                .OrderBy(static asset => asset.Order)
+                .Select(asset => $"                <link data-aero-editor-theme rel=\"stylesheet\" href=\"{System.Text.Encodings.Web.HtmlEncoder.Default.Encode(new Uri(new Uri(baseUri), asset.Path.TrimStart('/')).ToString())}\">"));
 
         return $$"""
             <!DOCTYPE html>
@@ -2633,6 +2665,7 @@ protected string FormatCulture(string? culture)
                 <link rel="stylesheet" href="{{radzenCss}}">
                 <link rel="stylesheet" href="{{pagesCss}}">
                 <link rel="stylesheet" href="{{aeroCss}}">
+            {{themeStylesheets}}
                 <style>
                     html, body { margin: 0; min-height: 100%; background: #fff; }
                     body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }

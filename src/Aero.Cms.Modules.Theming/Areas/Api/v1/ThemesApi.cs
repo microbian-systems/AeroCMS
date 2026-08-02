@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Theming;
+using Aero.Cms.Core.Entities;
 using AeroDB.Sable;
 using System.Text;
 using System.Text.Json;
@@ -18,22 +19,23 @@ public static class ThemesApi
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/themes")
             .WithTags("Admin - Themes")
-            .RequireAuthorization("theme:design")
+            .RequireAuthorization()
             .AddEndpointFilter(MapExpectedFailuresAsync);
         group.MapGet("/", GetAllThemes).WithName("GetAllThemes");
         group.MapGet("/details/{id}/{version}", GetTheme).WithName("GetThemeByIdentity");
-        group.MapGet("/drafts", ListDrafts);
-        group.MapPost("/drafts", CreateDraft);
-        group.MapGet("/drafts/{id:long}", GetDraft);
-        group.MapPut("/drafts/{id:long}", SaveDraft);
-        group.MapPost("/drafts/{id:long}/publish", Publish);
-        group.MapGet("/drafts/{id:long}/versions", ListVersions);
-        group.MapGet("/drafts/{id:long}/export", Export);
-        group.MapPost("/import", Import);
-        group.MapPost("/drafts/{id:long}/preview", CreatePreview);
-        group.MapGet("/preview/{token}.css", GetPreviewCss);
-        group.MapGet("/publication-history", ListHistory);
-        group.MapPost("/assign", Assign);
+        group.MapGet("/runtime", GetRuntime).RequireAuthorization("site:read");
+        group.MapGet("/drafts", ListDrafts).RequireAuthorization("theme:design");
+        group.MapPost("/drafts", CreateDraft).RequireAuthorization("theme:design");
+        group.MapGet("/drafts/{id:long}", GetDraft).RequireAuthorization("theme:design");
+        group.MapPut("/drafts/{id:long}", SaveDraft).RequireAuthorization("theme:design");
+        group.MapPost("/drafts/{id:long}/publish", Publish).RequireAuthorization("theme:design");
+        group.MapGet("/drafts/{id:long}/versions", ListVersions).RequireAuthorization("theme:design");
+        group.MapGet("/drafts/{id:long}/export", Export).RequireAuthorization("theme:design");
+        group.MapPost("/import", Import).RequireAuthorization("theme:design");
+        group.MapPost("/drafts/{id:long}/preview", CreatePreview).RequireAuthorization("theme:design");
+        group.MapGet("/preview/{token}.css", GetPreviewCss).RequireAuthorization("theme:design");
+        group.MapGet("/publication-history", ListHistory).RequireAuthorization("theme:design");
+        group.MapPost("/assign", Assign).RequireAuthorization("theme:design");
 
         // Published documents are public only by their immutable tenant/theme/version/hash identity.
         app.MapGet("/_cms/themes/{tenantId:long}/{themeId}/{version}/{sha256}.css", GetPublishedCss)
@@ -42,6 +44,45 @@ public static class ThemesApi
 
     private static IResult GetAllThemes([FromServices] IThemeCatalog catalog) => TypedResults.Ok<IReadOnlyList<ThemeSummary>>(catalog.GetAll().Select(ToSummary).ToList());
     private static IResult GetTheme(string id, string version, [FromServices] IThemeCatalog catalog) => catalog.Find(id, version) is { } theme ? TypedResults.Ok(ToDetail(theme)) : TypedResults.NotFound();
+    private static async Task<IResult> GetRuntime(
+        HttpRequest request,
+        [FromServices] IQuerySession session,
+        [FromServices] IThemeLibrary library,
+        [FromServices] IThemeCatalog catalog,
+        CancellationToken ct)
+    {
+        if (!long.TryParse(request.Cookies["AeroCms.SiteId"], out var siteId))
+            return Results.NotFound();
+
+        var site = await session.LoadAsync<SitesModel>(siteId, ct);
+        if (site is null)
+            return Results.NotFound();
+
+        var selected = await library.ResolveAsync(
+            site.TenantId,
+            site.ThemeId,
+            site.ThemeVersion,
+            ct);
+        if (selected is not null)
+        {
+            return Results.Ok(new ResolvedThemeStylesheets(
+                selected.ThemeId,
+                selected.ThemeVersion,
+                selected.DataThemeName,
+                site.ThemeRevision,
+                selected.Stylesheets,
+                false));
+        }
+
+        var safe = catalog.SafeDefault;
+        return Results.Ok(new ResolvedThemeStylesheets(
+            safe.Id,
+            safe.Version,
+            BuiltInThemeDefaults.ComponentThemeName,
+            site.ThemeRevision,
+            safe.Stylesheets,
+            true));
+    }
     private static async Task<IResult> ListDrafts(IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct));
     private static async Task<IResult> GetDraft(long id, IThemeApplicationService service, CancellationToken ct) => await service.GetAsync(id, ct) is { } theme ? Results.Ok(theme) : Results.NotFound();
     private static async Task<IResult> CreateDraft(CreateThemeCommand command, IThemeApplicationService service, CancellationToken ct)

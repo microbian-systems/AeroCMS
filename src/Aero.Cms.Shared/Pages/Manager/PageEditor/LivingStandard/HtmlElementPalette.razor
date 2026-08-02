@@ -41,7 +41,7 @@
         {
             <button type="button"
                     class="aero-element-palette__filter"
-                    aria-pressed="@(EffectiveFilter == filter)"
+                    aria-pressed="@((EffectiveFilter == filter).ToString().ToLowerInvariant())"
                     @onclick="() => SetFilter(filter)">@FilterLabel(filter)</button>
         }
     </div>

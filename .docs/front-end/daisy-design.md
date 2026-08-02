@@ -2,10 +2,10 @@
 
 ## Status
 
-Approved for incremental implementation. This document is also the task brief
-for the first production slice.
+Implemented and browser-verified through Phase 4. This document records both
+the design contract and the delivered production slices.
 
-The first slice adds DaisyUI to AeroCMS's existing Tailwind asset build, defines
+The foundation adds DaisyUI to AeroCMS's existing Tailwind asset build, defines
 the initial Aero corporate theme, and introduces a scalable component catalog
 inside the PageEditor. It does **not** rewrite existing manager or public-page
 markup. Existing styles remain valid and unchanged; DaisyUI is the preferred
@@ -241,12 +241,13 @@ Each adopted pattern receives an Aero name, stable catalog key, attribution
 review, responsive verification, and accessibility review. The source
 submodule is never included in public CSS or documentation ingestion.
 
-## Future internal visual theme generator
+## Internal visual theme generator
 
-A later phase will add a manager experience inspired by DaisyUI's theme
-generator. It will be an Aero-owned editor, not an embedded third-party page.
+Theme Studio is the delivered Aero-owned manager experience inspired by
+DaisyUI's theme generator. It is implemented inside AeroCMS rather than
+embedding a third-party page.
 
-The generator will expose:
+The delivered generator exposes:
 
 - base, primary, secondary, accent, neutral, info, success, warning, and error
   color pairs;
@@ -256,13 +257,14 @@ The generator will expose:
 - light/dark color-scheme metadata;
 - live previews across representative components and content patterns;
 - accessible contrast feedback; and
-- clone, rename, preview, publish, and revert workflows.
+- clone/create, rename, preview, publish, assign, history, and revert
+  workflows.
 
 The database stores a structured, validated token document and its published
 version. It does not store unrestricted plugin CSS as the authoritative model.
-Publishing validates tokens, generates deterministic Daisy theme CSS, compiles
-or publishes a versioned site asset, and invalidates the relevant theme/output
-caches. Draft preview can render unpublished tokens in an isolated preview
+Publishing validates tokens, generates deterministic Daisy theme CSS, writes
+an immutable versioned site asset, and invalidates the relevant theme/output
+caches. Draft preview renders unpublished tokens in an isolated preview
 boundary.
 
 ```text
@@ -288,31 +290,64 @@ Theme token draft
 
 ### Phase 1: foundation and catalog
 
-1. Vendor and verify pinned DaisyUI standalone plugin inputs.
-2. Compile the prefixed component CSS and corporate theme through the current
+Complete:
+
+1. Vendored and verified pinned DaisyUI standalone plugin inputs.
+2. Compiled the prefixed component CSS and corporate theme through the current
    Tailwind asset script.
-3. Add a descriptor-driven PageEditor component catalog and category filter.
-4. Ship the initial script-free Daisy component templates.
-5. Verify editor insertion, save/reload, preview, publish, and public rendering.
+3. Added a descriptor-driven PageEditor component catalog and category filter.
+4. Shipped the initial script-free Daisy component templates.
+5. Verified drag insertion, save/reload, preview, publish, and public rendering
+   with a focused Playwright lifecycle test.
 
 ### Phase 2: curated patterns
 
-1. Recreate selected HyperUI-inspired patterns in Aero-owned templates.
-2. Add responsive and accessibility regression coverage.
-3. Add component thumbnails or lightweight previews after catalog behavior is
-   stable.
+Complete:
+
+1. Recreated selected HyperUI-inspired patterns as Aero-owned, script-free
+   Daisy/Tailwind templates.
+2. Added semantic, responsive, horizontal-overflow, and accessibility
+   regression coverage.
+3. Added lightweight catalog previews and searchable pattern metadata.
 
 ### Phase 3: site theme management
 
-1. Persist a site-level theme selection and version.
-2. Add manager preview and safe publish/revert workflows.
-3. Ensure CSS artifact and output-cache invalidation is deterministic.
+Complete:
+
+1. Persisted exact site-level theme selections and immutable versions.
+2. Added isolated manager preview plus publish, assign, history, and restore
+   workflows.
+3. Added deterministic generated CSS artifacts and theme/output-cache
+   invalidation.
+4. Applied the same resolved theme to the PageEditor canvas, draft preview, and
+   public rendering boundaries.
 
 ### Phase 4: visual theme generator
 
-1. Add the token editor and component preview gallery.
-2. Add contrast validation and light/dark theme workflows.
-3. Add import/export of validated Daisy-compatible theme tokens.
+Complete:
+
+1. Added Theme Studio's closed token editor and responsive component/pattern
+   preview gallery.
+2. Added light/dark editing, Base 100/200/300 contrast validation, and
+   publication blocking for invalid themes.
+3. Added bounded, schema-validated Daisy-compatible JSON import/export.
+4. Restricted authoring to the dedicated, selected-site `theme:design`
+   permission while keeping runtime theme reads site-scoped.
+
+## Verification record
+
+The delivered slices are covered by focused TUnit and Playwright scenarios:
+
+- generated CSS contains prefixed Daisy components and the corporate theme;
+- theme compiler validation covers Base 100, Base 200, and Base 300 contrast;
+- theme authoring authorization requires exact selected-site design permission;
+- Theme Studio simulates desktop, tablet, and phone layouts without horizontal
+  overflow;
+- curated patterns remain searchable, previewable, responsive, and semantic;
+- Daisy components survive drag insertion, save/reload, preview, publish, and
+  public rendering; and
+- a generated theme survives draft, publish/assign, editor canvas, preview,
+  public rendering, and restore-to-previous-theme boundaries.
 
 ## Acceptance criteria for Phase 1
 

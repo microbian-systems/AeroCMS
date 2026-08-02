@@ -24,6 +24,8 @@ public interface IThemesHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The theme detail or an error.</returns>
     Task<Result<ThemeDetail, AeroError>> GetByIdAsync(string id, string version, CancellationToken ct = default);
+    /// <summary>Resolves the selected site's exact runtime theme for manager rendering boundaries.</summary>
+    Task<Result<ResolvedThemeStylesheets, AeroError>> GetCurrentRuntimeAsync(CancellationToken ct = default);
     Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default);
     Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
     Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default);
@@ -57,6 +59,8 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
     {
         return GetAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}/{Uri.EscapeDataString(version)}", ct);
     }
+    public Task<Result<ResolvedThemeStylesheets, AeroError>> GetCurrentRuntimeAsync(CancellationToken ct = default)
+        => GetAsync<ResolvedThemeStylesheets>("runtime", ct);
     public Task<Result<IReadOnlyList<ThemeDefinitionView>, AeroError>> ListDraftsAsync(CancellationToken ct = default) => GetAsync<IReadOnlyList<ThemeDefinitionView>>("drafts", ct);
     public Task<Result<ThemeDefinitionView, AeroError>> GetDraftAsync(long id, CancellationToken ct = default) => GetAsync<ThemeDefinitionView>($"drafts/{id}", ct);
     public Task<Result<ThemeDefinitionView, AeroError>> CreateDraftAsync(CreateThemeCommand command, CancellationToken ct = default) => PostAsync<CreateThemeCommand, ThemeDefinitionView>("drafts", command, ct);

@@ -92,18 +92,20 @@ public partial class ThemeStudio : ComponentBase, IAsyncDisposable
             }
             AdminState.SetSite(SiteId, _site.Name ?? "Site");
 
-            var draftsTask = ThemesClient.ListDraftsAsync(_lifetime.Token);
-            var historyTask = ThemesClient.GetPublicationHistoryAsync(_lifetime.Token);
-            await Task.WhenAll(draftsTask, historyTask);
-
-            if (draftsTask.Result is not Result<IReadOnlyList<ThemeDefinitionView>, AeroError>.Ok draftsOk)
+            // Keep the two store-backed reads sequential. Embedded SurrealDB can
+            // invoke completion callbacks for concurrent requests on the same
+            // engine out of order, and Theme Studio gains nothing from racing two
+            // small initialization queries.
+            var draftsResult = await ThemesClient.ListDraftsAsync(_lifetime.Token);
+            if (draftsResult is not Result<IReadOnlyList<ThemeDefinitionView>, AeroError>.Ok draftsOk)
             {
                 _loadError = "Theme drafts could not be loaded. Check your theme design permission and try again.";
                 return;
             }
 
             _drafts = draftsOk.Value.OrderBy(static draft => draft.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-            _publications = historyTask.Result is Result<IReadOnlyList<SiteThemePublicationView>, AeroError>.Ok historyOk
+            var historyResult = await ThemesClient.GetPublicationHistoryAsync(_lifetime.Token);
+            _publications = historyResult is Result<IReadOnlyList<SiteThemePublicationView>, AeroError>.Ok historyOk
                 ? historyOk.Value.OrderByDescending(static item => item.PublishedOn).ToArray() : [];
 
             var initialDraft = RequestedDraftId.HasValue
@@ -123,8 +125,9 @@ public partial class ThemeStudio : ComponentBase, IAsyncDisposable
 
     private ThemeDefinitionView? FindAssignedDraft()
     {
-        if (_site is null || !_site.ThemeId.StartsWith("tenant-", StringComparison.Ordinal)) return null;
-        return _drafts.FirstOrDefault(draft => _site.ThemeId.EndsWith($"-{draft.Slug}", StringComparison.Ordinal));
+        return _site is null
+            ? null
+            : ThemeStudioDraftSelector.FindAssigned(_site.TenantId, _site.ThemeId, _drafts);
     }
 
     private void LoadDraft(ThemeDefinitionView? draft)

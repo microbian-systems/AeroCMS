@@ -41,11 +41,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Integration\PageCompositionMartenPersistenceTests.cs" />
-    <Compile Remove="Services\PageTreeServiceTests.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Html\Aero.Cms.Html.csproj" />

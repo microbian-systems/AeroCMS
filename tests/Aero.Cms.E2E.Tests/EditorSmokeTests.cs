@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Playwright;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -256,8 +257,125 @@ public sealed class EditorSmokeTests
         await page.GetByRole(AriaRole.Button, new() { Name = "Patterns" }).ClickAsync();
         await page.GetByText("Marketing hero", new() { Exact = true }).WaitForAsync(Visible());
 
+        var patternGrid = page.Locator("[data-aero-theme-preview-pattern='feature-grid']");
+        var desktopColumns = await patternGrid.EvaluateAsync<string>(
+            "element => getComputedStyle(element).gridTemplateColumns");
+        desktopColumns.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length.Should().Be(3);
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Tablet preview" }).ClickAsync();
+        await page.Locator(".preview-frame--tablet").WaitForAsync(Visible());
+        var tabletColumns = await patternGrid.EvaluateAsync<string>(
+            "element => getComputedStyle(element).gridTemplateColumns");
+        tabletColumns.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length.Should().Be(2);
+
         await page.GetByRole(AriaRole.Button, new() { Name = "Phone preview" }).ClickAsync();
-        await page.Locator(".preview-frame--phone").WaitForAsync(Visible());
+        var phoneFrame = page.Locator(".preview-frame--phone");
+        await phoneFrame.WaitForAsync(Visible());
+        var phoneColumns = await patternGrid.EvaluateAsync<string>(
+            "element => getComputedStyle(element).gridTemplateColumns");
+        phoneColumns.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length.Should().Be(1);
+        var hasHorizontalOverflow = await phoneFrame.EvaluateAsync<bool>(
+            "element => element.scrollWidth > element.clientWidth + 1");
+        hasHorizontalOverflow.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task GeneratedThemeCanBePublishedRenderedEverywhereAndRestored()
+    {
+        await Fixture.LoginAsync();
+        await Fixture.WarmUpBlazorAsync();
+        var page = Fixture.Page!;
+        var suffix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var themeName = $"E2E Ocean {suffix}";
+        var themeSlug = $"e2e-ocean-{suffix}";
+
+        await page.GotoAsync($"{Fixture.BaseUrl}/manager/sites/{Fixture.SiteId}/theme-studio", new()
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = 30_000
+        });
+        await page.GetByRole(AriaRole.Heading, new() { Name = "Theme Studio" }).WaitForAsync(Visible());
+
+        var editing = page.Locator(".studio-header__editing");
+        await editing.Locator("label").Filter(new() { HasText = "Name" }).Locator("input").FillAsync(themeName);
+        await editing.Locator("label").Filter(new() { HasText = "Slug" }).Locator("input").FillAsync(themeSlug);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save draft", Exact = true }).ClickAsync();
+        await page.GetByText("Draft saved. Local preview and server revision now match.", new() { Exact = true })
+            .WaitForAsync(Visible());
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Publish & assign", Exact = true }).ClickAsync();
+        await page.GetByText(new Regex("tenant-\\d+-theme-\\d+@1\\.0 is now assigned"))
+            .WaitForAsync(Visible());
+
+        var runtimeResponse = await page.APIRequest.GetAsync(
+            $"{Fixture.BaseUrl}/api/v1/admin/themes/runtime");
+        runtimeResponse.Status.Should().Be(StatusCodes.Status200OK);
+        using var runtimeJson = JsonDocument.Parse(await runtimeResponse.TextAsync());
+        var runtimeRoot = runtimeJson.RootElement;
+        var generatedThemeId = runtimeRoot.GetProperty("themeId").GetString();
+        var generatedDataTheme = runtimeRoot.GetProperty("dataThemeName").GetString();
+        var generatedStylesheet = runtimeRoot.GetProperty("stylesheets")[0].GetProperty("path").GetString();
+        generatedThemeId.Should().MatchRegex("^tenant-[0-9]+-theme-[0-9]+$");
+        generatedDataTheme.Should().MatchRegex("^theme-[0-9]+-1$");
+        generatedStylesheet.Should().StartWith("/_cms/themes/");
+
+        var cssResponse = await page.APIRequest.GetAsync($"{Fixture.BaseUrl}{generatedStylesheet}");
+        cssResponse.Status.Should().Be(StatusCodes.Status200OK);
+        (await cssResponse.TextAsync()).Should().Contain($"[data-theme={generatedDataTheme}]");
+
+        var title = $"Generated theme page {suffix}";
+        var slug = $"generated-theme-page-{suffix}";
+        page = await OpenBlankDraftEditorAsync(title, slug);
+        var canvas = page.Locator(".aero-page-canvas__surface");
+        await Assertions.Expect(canvas).ToHaveAttributeAsync("data-theme", generatedDataTheme!);
+        await Assertions.Expect(page.Locator($"link[data-aero-editor-theme][href='{generatedStylesheet}']"))
+            .ToHaveCountAsync(1);
+
+        await OpenPaletteAsync(page);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Daisy", Exact = true }).ClickAsync();
+        await DragPaletteItemOntoEmptyCanvasAsync(page, "component", "daisy.accordion");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await page.GetByText("Page saved successfully", new() { Exact = true }).WaitForAsync(Visible());
+
+        await page.Locator(".pe-living-toolbar")
+            .GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
+            .ClickAsync();
+        var preview = page.Locator("iframe[title='Page preview']");
+        await preview.WaitForAsync(Visible());
+        var previewFrame = page.FrameLocator("iframe[title='Page preview']");
+        await Assertions.Expect(previewFrame.Locator("html")).ToHaveAttributeAsync("data-theme", generatedDataTheme!);
+        await Assertions.Expect(previewFrame.Locator($"link[href='{generatedStylesheet}']"))
+            .ToHaveCountAsync(1);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Close Preview", Exact = true }).ClickAsync();
+
+        var persistedPath = await GetPersistedPagePathAsync(page);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Publish", Exact = true }).ClickAsync();
+        await page.GetByText("Page published!", new() { Exact = true }).WaitForAsync(Visible());
+        await page.GotoAsync($"{Fixture.BaseUrl}{persistedPath}", new()
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = 30_000
+        });
+        await Assertions.Expect(page.Locator("html")).ToHaveAttributeAsync("data-theme", generatedDataTheme!);
+        await Assertions.Expect(page.Locator($"link[href='{generatedStylesheet}']")).ToHaveCountAsync(1);
+        await page.Locator("details summary").WaitForAsync(Visible());
+
+        await page.GotoAsync($"{Fixture.BaseUrl}/manager/sites/{Fixture.SiteId}/theme-studio", new()
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = 30_000
+        });
+        await page.GetByRole(AriaRole.Heading, new() { Name = "Theme Studio" }).WaitForAsync(Visible());
+        await page.GetByRole(AriaRole.Button, new() { Name = "Restore previous", Exact = true }).First.ClickAsync();
+        await page.GetByText("aero-safe@1.0.0 is now assigned", new() { Exact = false }).WaitForAsync(Visible());
+
+        var restoredRuntimeResponse = await page.APIRequest.GetAsync(
+            $"{Fixture.BaseUrl}/api/v1/admin/themes/runtime");
+        restoredRuntimeResponse.Status.Should().Be(StatusCodes.Status200OK);
+        using var restoredRuntimeJson = JsonDocument.Parse(await restoredRuntimeResponse.TextAsync());
+        restoredRuntimeJson.RootElement.GetProperty("themeId").GetString().Should().Be("aero-safe");
+        restoredRuntimeJson.RootElement.GetProperty("themeVersion").GetString().Should().Be("1.0.0");
+        restoredRuntimeJson.RootElement.GetProperty("dataThemeName").GetString().Should().Be("corporate");
     }
 
     [Test]
@@ -1098,7 +1216,9 @@ public sealed class EditorSmokeTests
 
         var accordion = page.Locator(".aero-page-canvas__surface details[data-aero-node-id]");
         await accordion.WaitForAsync(Visible());
-        await accordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        var accordionSummary = accordion.Locator("summary").GetByText(summaryText, new() { Exact = true });
+        await accordionSummary.WaitForAsync(Visible());
+        await accordionSummary.ClickAsync();
         await accordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
 
         await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
@@ -1107,15 +1227,21 @@ public sealed class EditorSmokeTests
         await page.ReloadAsync(new() { WaitUntil = WaitUntilState.Load, Timeout = 30_000 });
         accordion = page.Locator(".aero-page-canvas__surface details[data-aero-node-id]");
         await accordion.WaitForAsync(Visible());
-        await accordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        accordionSummary = accordion.Locator("summary").GetByText(summaryText, new() { Exact = true });
+        await accordionSummary.WaitForAsync(Visible());
+        await accordionSummary.ClickAsync();
         await accordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
 
-        await page.GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true }).ClickAsync();
+        await page.Locator(".pe-living-toolbar")
+            .GetByRole(AriaRole.Button, new() { Name = "Preview", Exact = true })
+            .ClickAsync();
         var preview = page.Locator("iframe[title='Page preview']");
         await preview.WaitForAsync(Visible());
         var previewFrame = page.FrameLocator("iframe[title='Page preview']");
         var previewAccordion = previewFrame.Locator("details");
-        await previewAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        var previewSummary = previewAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true });
+        await previewSummary.WaitForAsync(Visible());
+        await previewSummary.ClickAsync();
         await previewAccordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
         await page.GetByRole(AriaRole.Button, new() { Name = "Close Preview", Exact = true }).ClickAsync();
 
@@ -1147,7 +1273,9 @@ public sealed class EditorSmokeTests
 
         await page.GotoAsync(publicUrl, new() { WaitUntil = WaitUntilState.Load, Timeout = 30_000 });
         var publicAccordion = page.Locator("details");
-        await publicAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true }).WaitForAsync(Visible());
+        var publicSummary = publicAccordion.Locator("summary").GetByText(summaryText, new() { Exact = true });
+        await publicSummary.WaitForAsync(Visible());
+        await publicSummary.ClickAsync();
         await publicAccordion.GetByText(contentText, new() { Exact = true }).WaitForAsync(Visible());
     }
 

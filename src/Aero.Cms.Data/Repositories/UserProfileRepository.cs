@@ -100,7 +100,7 @@ public async Task<AeroUserProfile> FindByIdAsync(long id)
     /// <returns>Matching profiles without an explicit ordering.</returns>
 public async Task<IEnumerable<AeroUserProfile>> FindAsync(Expression<Func<AeroUserProfile, bool>> predicate)
     {
-        log.LogInformation("querying marten store...");
+        log.LogInformation("Querying Sable document store");
         return await session.Query<AeroUserProfile>()
             .Where(predicate).ToListAsync();
     }

@@ -35,6 +35,21 @@ public sealed class ThemeCssCompilerTests
     }
 
     [Test]
+    public async Task Publish_validation_checks_all_base_surfaces_against_base_content()
+    {
+        var tokens = new ThemeTokenSet();
+        tokens.Light.Base200 = "#ffffff";
+        tokens.Light.Base300 = "#ffffff";
+        tokens.Light.BaseContent = "#ffffff";
+
+        var warnings = ThemeTokenValidator.GetContrastWarnings(tokens);
+
+        await Assert.That(warnings.Any(warning => warning.Message.Contains("base 200", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        await Assert.That(warnings.Any(warning => warning.Message.Contains("base 300", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        await Assert.That(() => new ThemeCssCompiler().Compile("tenant-theme", tokens)).Throws<ArgumentException>();
+    }
+
+    [Test]
     public async Task Strict_theme_json_rejects_unknown_fields()
     {
         var json = "{\"schemaVersion\":1,\"theme\":{\"name\":\"A\",\"slug\":\"a\",\"tokens\":{}},\"unexpected\":true}";
