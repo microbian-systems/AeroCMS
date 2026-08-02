@@ -805,7 +805,7 @@
 
 /* ── Sidebars ───────────────────────────────────────────── */
 .pe-sidebar {
-    width: var(--pe-sidebar-w);
+    width: var(--pe-sidebar-expanded-w, var(--pe-sidebar-w));
     background: var(--pe-bg-secondary);
     border-right: 1px solid var(--pe-border);
     display: flex; flex-direction: column;
@@ -814,6 +814,20 @@
 }
 .pe-sidebar.collapsed { width: var(--pe-sidebar-coll); }
 .pe-sidebar.pe-sidebar-right { border-right: none; border-left: 1px solid var(--pe-border); }
+.pe-sidebar.pe-sidebar-right.pe-sidebar-resizable:not(.collapsed) {
+    min-width: var(--pe-sidebar-min-w, var(--pe-sidebar-w));
+    max-width: min(var(--pe-sidebar-max-w, 640px), 60vw);
+    resize: horizontal;
+    direction: rtl;
+    transition: none;
+}
+.pe-sidebar.pe-sidebar-right.pe-sidebar-resizable:not(.collapsed) > * { direction: ltr; }
+.pe-sidebar.pe-sidebar-right.pe-sidebar-resizable.collapsed {
+    min-width: var(--pe-sidebar-coll);
+    max-width: var(--pe-sidebar-coll);
+    resize: none;
+    direction: ltr;
+}
 
 .pe-sidebar-header {
     display: flex; align-items: center; gap: 12px;
@@ -829,6 +843,23 @@
     transition: all .2s; flex-shrink: 0;
 }
 .pe-collapse-btn:hover { background: var(--pe-bg-hover); color: var(--pe-text-primary); }
+.pe-sidebar-width-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid transparent; border-radius: var(--pe-radius-sm);
+    color: var(--pe-text-secondary); cursor: pointer;
+    transition: background .2s, border-color .2s, color .2s;
+}
+.pe-sidebar-width-btn:hover,
+.pe-sidebar-width-btn:focus-visible,
+.pe-sidebar-width-btn[aria-pressed="true"] {
+    background: var(--pe-bg-tertiary);
+    border-color: var(--pe-border);
+    color: var(--pe-text-primary);
+    outline: none;
+}
 .pe-sidebar:not(.pe-sidebar-right).collapsed .pe-collapse-btn svg { transform: rotate(180deg); }
 .pe-sidebar.pe-sidebar-right.collapsed .pe-collapse-btn svg { transform: rotate(180deg); }
 .pe-sidebar-title { font-size: 14px; font-weight: 600; color: var(--pe-text-primary); white-space: nowrap; }

@@ -542,6 +542,11 @@ else if (ActiveTab == "translations")
     {
     <AeroSidebar Title="@RightSidebarTitle"
                  Side="SidebarSide.Right"
+                 IsResizable="true"
+                 DefaultWidth="340"
+                 ExpandedWidth="520"
+                 MinimumWidth="300"
+                 MaximumWidth="640"
                  IsCollapsed="RightSidebarCollapsed"
                  IsCollapsedChanged="OnRightSidebarCollapsedChanged">
         @if (ActiveTab == "editor")
