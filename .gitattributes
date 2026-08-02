@@ -1,0 +1,6 @@
+# Treat JavaScript files as vendored for repository language statistics.
+*.js linguist-vendored
+
+# DaisyUI release assets are checksum-pinned build inputs. Treat them as
+# byte-exact vendor artifacts so Git never rewrites their line endings.
+src/Aero.Cms.Web/Styles/vendor/daisyui/**/*.mjs -text

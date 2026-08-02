@@ -1,5 +1,0 @@
-# Treat all JS files as vendor/data so they don't count toward language stats
-*.js linguist-vendored
-
-# Or, if you have a specific large file:
-# path/to/your/huge-file.js linguist-detectable=false
