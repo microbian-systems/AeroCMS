@@ -36,6 +36,13 @@ public sealed class PageSourceAuthoringTests
         await _harness.InitializeAsync();
 
         _renderer = Substitute.For<IPageRenderer>();
+        _renderer.Descriptor.Returns(new PageRendererDescriptor(
+            PageRendererIds.Scriban,
+            "Scriban",
+            PageEditorKinds.Source,
+            SupportsFragments: true,
+            IsExperimental: false,
+            SourceLanguage: "liquid"));
         _renderer.RenderAsync(Arg.Any<PageRenderRequest>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<Result<RenderedPage>>(
                 new Result<RenderedPage>.Ok(new RenderedPage("<main>ok</main>", string.Empty, []))));

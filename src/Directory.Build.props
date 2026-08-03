@@ -12,6 +12,13 @@
 		<BaseOutputPath>bin\browser\</BaseOutputPath>
 		<BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
 		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+		<!--
+		  Static Web Assets performs a second MSBuild invocation after discovering a
+		  referenced project's asset configuration. Preserve the browser project
+		  instance for that invocation so it reads the manifest from obj\browser.
+		-->
+		<StaticWebAssetsAdditionalBuildProperties>$(StaticWebAssetsAdditionalBuildProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalBuildProperties>
+		<StaticWebAssetsAdditionalPublishProperties>$(StaticWebAssetsAdditionalPublishProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalPublishProperties>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR

@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
@@ -155,6 +156,16 @@ public sealed class PageEditorPublishingGoldenPathTests
 
     private static PagePublishingWorkflowService CreatePublishingService(IDocumentSession session)
     {
+        var renderer = Substitute.For<IPageRenderer>();
+        renderer.Descriptor.Returns(new PageRendererDescriptor(
+            PageRendererIds.AeroComposition,
+            "Aero",
+            PageEditorKinds.VisualComposition,
+            SupportsFragments: true,
+            IsExperimental: false));
+        var registry = Substitute.For<IPageRendererRegistry>();
+        registry.Resolve(PageRendererIds.AeroComposition)
+            .Returns(new Result<IPageRenderer>.Ok(renderer));
         var catalog = HtmlElementCatalog.CreateDefault();
         return new PagePublishingWorkflowService(
             session,
@@ -165,7 +176,8 @@ public sealed class PageEditorPublishingGoldenPathTests
                 new HtmlAttributePolicy()),
             new NativeCssStyleCompiler(),
             CreateStyleProfileResolver(),
-            NullLogger<PagePublishingWorkflowService>.Instance);
+            NullLogger<PagePublishingWorkflowService>.Instance,
+            pageRendererRegistry: registry);
     }
 
     private static async Task<DynamicPageModel> RenderPublicPageAsync(

@@ -56,6 +56,24 @@
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
   </ItemGroup>
 
+  <!--
+    The .NET Static Web Assets SDK does not forward ProjectReference
+    AdditionalProperties during its configuration-discovery call. Add the
+    browser discriminator to the supported SetConfiguration metadata after
+    project references have been prepared, before the SDK reads their asset
+    manifests.
+  -->
+  <Target Name="AeroConfigureBrowserStaticWebAssetReferences"
+          DependsOnTargets="PrepareProjectReferences"
+          BeforeTargets="ResolveReferencedProjectsStaticWebAssetsConfiguration">
+    <ItemGroup>
+      <_MSBuildProjectReferenceExistent Update="@(_MSBuildProjectReferenceExistent)"
+                                        Condition="'%(_MSBuildProjectReferenceExistent.AdditionalProperties)' == 'AeroCmsBrowserClient=true'">
+        <SetConfiguration>%(_MSBuildProjectReferenceExistent.SetConfiguration);AeroCmsBrowserClient=true</SetConfiguration>
+      </_MSBuildProjectReferenceExistent>
+    </ItemGroup>
+  </Target>
+
   <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
     <PropertyGroup>
       <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>

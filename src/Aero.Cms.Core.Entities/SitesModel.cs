@@ -9,7 +9,7 @@ namespace Aero.Cms.Core.Entities;
 /// Represents a hosted site within Aero CMS.
 /// Multi-domain/CNAME support is managed via the separate <see cref="SiteHost"/> entity.
 /// </summary>
-public class SitesModel : SableDocument, IAuditable
+public class SitesModel : SableDocument, IAuditable, IVersioned
 {
         /// <summary>
     /// The culture label used to initialize culture-related properties.
@@ -54,6 +54,9 @@ public string? DefaultCulture { get; set; } = DefaultCultureName;
 
     /// <summary>Gets or sets the optimistic revision of the theme selection.</summary>
     public long ThemeRevision { get; set; } = 1;
+
+    /// <summary>Gets or sets the document version used for optimistic concurrency.</summary>
+    public long Version { get; set; }
 
     // IAuditable
     /// <summary>Gets or sets the creation timestamp. The default is UTC, but setters do not enforce an offset.</summary>

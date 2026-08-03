@@ -42,21 +42,21 @@ public static class ThemesApi
 
     private static IResult GetAllThemes([FromServices] IThemeCatalog catalog) => TypedResults.Ok<IReadOnlyList<ThemeSummary>>(catalog.GetAll().Select(ToSummary).ToList());
     private static IResult GetTheme(string id, string version, [FromServices] IThemeCatalog catalog) => catalog.Find(id, version) is { } theme ? TypedResults.Ok(ToDetail(theme)) : TypedResults.NotFound();
-    private static async Task<IResult> ListDrafts(IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct));
-    private static async Task<IResult> GetDraft(long id, IThemeApplicationService service, CancellationToken ct) => await service.GetAsync(id, ct) is { } theme ? Results.Ok(theme) : Results.NotFound();
-    private static async Task<IResult> CreateDraft(CreateThemeCommand command, IThemeApplicationService service, CancellationToken ct)
+    private static async Task<IResult> ListDrafts([FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListAsync(ct));
+    private static async Task<IResult> GetDraft(long id, [FromServices] IThemeApplicationService service, CancellationToken ct) => await service.GetAsync(id, ct) is { } theme ? Results.Ok(theme) : Results.NotFound();
+    private static async Task<IResult> CreateDraft(CreateThemeCommand command, [FromServices] IThemeApplicationService service, CancellationToken ct)
     {
         var created = await service.CreateAsync(command, ct);
         return Results.Created($"drafts/{created.Id}", created);
     }
-    private static async Task<IResult> SaveDraft(long id, SaveThemeDraftCommand command, IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.SaveDraftAsync(id, command, ct));
-    private static async Task<IResult> Publish(long id, IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.PublishAsync(id, ct));
-    private static async Task<IResult> ListVersions(long id, IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListVersionsAsync(id, ct));
-    private static async Task<IResult> ListHistory(IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListPublicationHistoryAsync(ct));
-    private static async Task<IResult> Assign(AssignThemeCommand command, IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.AssignAsync(command, ct));
-    private static async Task<IResult> CreatePreview(long id, IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.CreatePreviewAsync(id, ct));
-    private static async Task<IResult> Export(long id, IThemeApplicationService service, CancellationToken ct) => await service.GetAsync(id, ct) is { } theme ? Results.Ok(service.Import(service.Export(theme))) : Results.NotFound();
-    private static async Task<IResult> Import(HttpRequest request, IThemeApplicationService service, CancellationToken ct)
+    private static async Task<IResult> SaveDraft(long id, SaveThemeDraftCommand command, [FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.SaveDraftAsync(id, command, ct));
+    private static async Task<IResult> Publish(long id, [FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.PublishAsync(id, ct));
+    private static async Task<IResult> ListVersions(long id, [FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListVersionsAsync(id, ct));
+    private static async Task<IResult> ListHistory([FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.ListPublicationHistoryAsync(ct));
+    private static async Task<IResult> Assign(AssignThemeCommand command, [FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.AssignAsync(command, ct));
+    private static async Task<IResult> CreatePreview(long id, [FromServices] IThemeApplicationService service, CancellationToken ct) => Results.Ok(await service.CreatePreviewAsync(id, ct));
+    private static async Task<IResult> Export(long id, [FromServices] IThemeApplicationService service, CancellationToken ct) => await service.GetAsync(id, ct) is { } theme ? Results.Ok(service.Import(service.Export(theme))) : Results.NotFound();
+    private static async Task<IResult> Import(HttpRequest request, [FromServices] IThemeApplicationService service, CancellationToken ct)
     {
         if (request.ContentLength is > MaximumImportCharacters)
         {
@@ -130,7 +130,7 @@ public static class ThemesApi
             builder.Append(buffer, 0, read);
         }
     }
-    private static async Task<IResult> GetPreviewCss(string token, HttpResponse response, IThemeApplicationService service, CancellationToken ct)
+    private static async Task<IResult> GetPreviewCss(string token, HttpResponse response, [FromServices] IThemeApplicationService service, CancellationToken ct)
     {
         var css = await service.ResolvePreviewCssAsync(token, ct);
         if (css is null) return Results.NotFound();

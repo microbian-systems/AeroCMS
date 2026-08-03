@@ -55,7 +55,9 @@ public sealed class LoadingExperienceAssetTests
 
         await Assert.That(markup).Contains("id=\"setup-handoff\"");
         await Assert.That(markup).Contains("setup-handoff.js");
-        await Assert.That(script).Contains("status.setupComplete === true && status.seedComplete === true");
+        await Assert.That(script).Contains("status.setupComplete === true");
+        await Assert.That(script).Contains("status.seedComplete === true");
+        await Assert.That(script).Contains("persistCreatedSite(status)");
         await Assert.That(script).Contains("'/',");
         await Assert.That(script).Contains("redirect: 'follow'");
         await Assert.That(script).Contains("window.location.replace('/')");

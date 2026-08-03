@@ -178,9 +178,11 @@ public sealed class AdminEndpointAuthorizationMetadataTests
         await Assert.That(themeEndpoints).IsNotEmpty();
         await Assert.That(themeEndpoints.All(endpoint =>
             endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
-            && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any()
             && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
-                .All(data => data.Policy is null))).IsTrue();
+                .Any(data => string.Equals(
+                    data.Policy,
+                    "theme:design",
+                    StringComparison.Ordinal)))).IsTrue();
 
         var aiSettingsEndpoints = endpoints
             .Where(endpoint => string.Equals(

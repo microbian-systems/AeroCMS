@@ -17,7 +17,10 @@ public sealed class DefaultAiProviderProfilesTests
         profiles.Should().Contain(profile => profile.Id == "anthropic" && profile.Provider == AiProviderKind.Anthropic);
         profiles.Should().Contain(profile => profile.Id == "openrouter" && profile.Provider == AiProviderKind.OpenRouter);
         profiles.Should().Contain(profile => profile.Id == "lm-studio" && profile.Provider == AiProviderKind.LmStudio);
-        profiles.Should().Contain(profile => profile.Id == "opencode" && !profile.SupportsContentEnhancement);
+        profiles.Should().Contain(profile =>
+            profile.Id == "opencode"
+            && profile.Provider == AiProviderKind.OpenCode
+            && profile.SupportsContentEnhancement);
         await Assert.That(profiles.Count).IsGreaterThanOrEqualTo(14);
     }
 

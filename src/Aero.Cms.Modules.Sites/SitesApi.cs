@@ -95,6 +95,9 @@ public static class SitesApi
             return Results.Ok(null);
         }
 
+        if (!await CanReadSiteAsync(httpContext.User, siteId, userSiteService, cancellationToken))
+            return Results.Forbid();
+
         var allSites = await siteLookup.GetAllAsync(cancellationToken);
         var site = allSites.FirstOrDefault(s => s.Id == siteId);
         if (site is null)
@@ -102,9 +105,6 @@ public static class SitesApi
             ExpireCurrentSiteCookie(httpContext);
             return Results.Ok(null);
         }
-
-        if (!await CanReadSiteAsync(httpContext.User, siteId, userSiteService, cancellationToken))
-            return Results.Forbid();
 
         return Results.Ok(site);
     }

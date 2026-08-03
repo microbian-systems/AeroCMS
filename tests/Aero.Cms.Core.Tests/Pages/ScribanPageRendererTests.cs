@@ -25,12 +25,19 @@ public sealed class ScribanPageRendererTests
         var renderer = CreateRenderer();
 
         renderer.Id.Value.ShouldBe(PageRendererIds.Scriban);
-        renderer.Descriptor.ShouldBe(new PageRendererDescriptor(
-            PageRendererIds.Scriban,
-            "Scriban",
-            PageEditorKinds.Source,
-            SupportsFragments: true,
-            IsExperimental: false));
+        renderer.Descriptor.DisplayName.ShouldBe("Scriban");
+        renderer.Descriptor.EditorKind.ShouldBe(PageEditorKinds.Source);
+        renderer.Descriptor.SupportsFragments.ShouldBeTrue();
+        renderer.Descriptor.IsExperimental.ShouldBeFalse();
+        renderer.Descriptor.SourceLanguage.ShouldBe("liquid");
+        renderer.Descriptor.InitialSource.ShouldNotBeNull();
+        renderer.Descriptor.InitialSource.ReplaceLineEndings("\n").ShouldBe(
+            """
+            <main class="aero-page">
+              <h1>{{ page.title }}</h1>
+            </main>
+            """.ReplaceLineEndings("\n"));
+        renderer.Descriptor.RequiresSource.ShouldBeTrue();
     }
 
     [Test]

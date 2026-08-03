@@ -470,6 +470,16 @@ public sealed class PagePublishingWorkflowHtmlTests
         IDocumentSession session,
         IContentCompositionReferenceValidator? referenceValidator = null)
     {
+        var renderer = Substitute.For<IPageRenderer>();
+        renderer.Descriptor.Returns(new PageRendererDescriptor(
+            PageRendererIds.AeroComposition,
+            "Aero",
+            PageEditorKinds.VisualComposition,
+            SupportsFragments: true,
+            IsExperimental: false));
+        var registry = Substitute.For<IPageRendererRegistry>();
+        registry.Resolve(PageRendererIds.AeroComposition)
+            .Returns(new Result<IPageRenderer>.Ok(renderer));
         var catalog = HtmlElementCatalog.CreateDefault();
         var contentPolicy = new HtmlContentModelPolicy(catalog);
         var attributePolicy = new HtmlAttributePolicy();
@@ -480,7 +490,8 @@ public sealed class PagePublishingWorkflowHtmlTests
             new NativeCssStyleCompiler(),
             CreateStyleProfileResolver(),
             NullLogger<PagePublishingWorkflowService>.Instance,
-            referenceValidator);
+            referenceValidator,
+            pageRendererRegistry: registry);
     }
 
     private static PagePublishingWorkflowService CreateSourceService(
@@ -489,6 +500,13 @@ public sealed class PagePublishingWorkflowHtmlTests
         IPageRenderer renderer,
         IPageContentQueryResolver queryResolver)
     {
+        renderer.Descriptor.Returns(new PageRendererDescriptor(
+            PageRendererIds.Scriban,
+            "Scriban",
+            PageEditorKinds.Source,
+            SupportsFragments: true,
+            IsExperimental: false,
+            SourceLanguage: "liquid"));
         var registry = Substitute.For<IPageRendererRegistry>();
         registry.Resolve(PageRendererIds.Scriban)
             .Returns(new Result<IPageRenderer>.Ok(renderer));

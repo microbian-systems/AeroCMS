@@ -37,6 +37,12 @@
     <Project Path="../AeroDB/src/AeroDB.SourceGenerators/AeroDB.SourceGenerators.csproj" />
     <Project Path="../AeroDB/src/AeroDB.WolverineFx/AeroDB.WolverineFx.csproj" />
   </Folder>
+  <Folder Name="/SurrealDB/">
+    <Project Path="../AeroDB/surrealdb.net/SurrealDb.Net/SurrealDb.Net.csproj" />
+    <Project Path="../AeroDB/surrealdb.net/SurrealDb.Reactive/SurrealDb.Reactive.csproj" />
+    <Project Path="../AeroDB/surrealdb.net/SurrealDb.Embedded.InMemory/SurrealDb.Embedded.InMemory.csproj" />
+    <Project Path="../AeroDB/surrealdb.net/SurrealDb.Embedded.SurrealKv/SurrealDb.Embedded.SurrealKv.csproj" />
+  </Folder>
   <Folder Name="/Modules/">
     <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
     <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
