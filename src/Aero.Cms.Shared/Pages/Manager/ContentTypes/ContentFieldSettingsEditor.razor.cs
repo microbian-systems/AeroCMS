@@ -19,7 +19,7 @@ public partial class ContentFieldSettingsEditor
         Enum.GetValues<AeroAiFieldExposure>();
 
     private ContentTypeDetail? _referenceTargetDefinition;
-    private string? _loadedReferenceAlias;
+    private long? _loadedReferenceTargetId;
 
     [Parameter, EditorRequired]
     public ContentFieldDefinition Field { get; set; } = default!;
@@ -93,8 +93,8 @@ public partial class ContentFieldSettingsEditor
     {
         get
         {
-            var targetAlias = GetStringSetting(ReferenceContentFieldSettings.TargetContentType);
-            if (string.Equals(targetAlias, CurrentContentTypeAlias, StringComparison.Ordinal))
+            var targetId = GetTargetContentTypeId();
+            if (targetId is not null && ContentTypes.Any(type => type.Id == targetId && string.Equals(type.Alias, CurrentContentTypeAlias, StringComparison.Ordinal)))
             {
                 return OwnerFields.Where(candidate =>
                     candidate.FieldType == ContentFieldTypes.Reference &&
@@ -219,11 +219,11 @@ public partial class ContentFieldSettingsEditor
     private async Task OnReferenceTargetChangedAsync(ChangeEventArgs args)
     {
         SetSetting(
-            ReferenceContentFieldSettings.TargetContentType,
+            ReferenceContentFieldSettings.TargetContentTypeId,
             args.Value?.ToString());
         Field.Indexed = true;
         Field.Settings.Remove(ReferenceContentFieldSettings.TargetFilterField);
-        _loadedReferenceAlias = null;
+        _loadedReferenceTargetId = null;
         _referenceTargetDefinition = null;
         await LoadReferenceTargetDefinitionAsync();
         await NotifyChangedAsync();
@@ -292,20 +292,24 @@ public partial class ContentFieldSettingsEditor
             return;
         }
 
-        var targetAlias = GetStringSetting(ReferenceContentFieldSettings.TargetContentType);
-        if (string.IsNullOrWhiteSpace(targetAlias)
-            || string.Equals(targetAlias, CurrentContentTypeAlias, StringComparison.Ordinal)
-            || string.Equals(targetAlias, _loadedReferenceAlias, StringComparison.Ordinal))
+        var targetId = GetTargetContentTypeId();
+        if (targetId is null || targetId <= 0 || targetId == _loadedReferenceTargetId)
         {
             return;
         }
 
-        var result = await ContentTypesApi.GetByAliasAsync(targetAlias);
+        var result = await ContentTypesApi.GetByIdAsync(targetId.Value);
         if (result is Result<ContentTypeDetail, AeroError>.Ok ok)
         {
             _referenceTargetDefinition = ok.Value;
-            _loadedReferenceAlias = targetAlias;
+            _loadedReferenceTargetId = targetId;
         }
+    }
+
+    private long? GetTargetContentTypeId()
+    {
+        var value = GetStringSetting(ReferenceContentFieldSettings.TargetContentTypeId);
+        return long.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) && id > 0 ? id : null;
     }
 
     private Task NotifyChangedAsync() =>

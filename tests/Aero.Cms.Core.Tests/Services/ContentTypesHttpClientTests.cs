@@ -11,6 +11,18 @@ namespace Aero.Cms.Core.Tests.Services;
 public sealed class ContentTypesHttpClientTests
 {
     [Test]
+    public async Task Reference_options_uses_target_content_type_id_in_the_path()
+    {
+        using var handler = new RecordingHandler();
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://aero.test/") };
+        var client = new ContentItemsHttpClient(httpClient, NullLogger<ContentItemsHttpClient>.Instance);
+
+        await client.GetReferenceOptionsAsync(123456789, search: "wolf");
+
+        await Assert.That(handler.RequestUri!.PathAndQuery)
+            .StartsWith("/api/v1/admin/content-items/reference-options/123456789?");
+    }
+    [Test]
     public async Task Create_surfaces_problem_detail_as_a_validation_error()
     {
         using var handler = new ProblemDetailsHandler(
@@ -63,5 +75,15 @@ public sealed class ContentTypesHttpClientTests
                             Status = (int)HttpStatusCode.BadRequest
                         })
                 });
+    }
+
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        public Uri? RequestUri { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestUri = request.RequestUri;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(Array.Empty<ContentReferenceOption>()) });
+        }
     }
 }

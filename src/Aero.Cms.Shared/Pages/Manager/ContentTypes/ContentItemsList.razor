@@ -6,19 +6,19 @@
 <PageTitle>@_typeName</PageTitle>
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["Content entries"]</p>
             <h1 class="text-2xl font-bold pe-heading">@_typeName</h1>
             <p class="mt-1 text-sm pe-description">@HeaderDescription</p>
         </div>
-        <div class="flex gap-3">
+        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             @if (!_isHierarchical)
             {
                 <RadzenTextBox Placeholder="@L["Search {0}...", _typeName.ToLowerInvariant()]"
                                Value="@_searchText"
                                ValueChanged="@OnSearchChanged"
-                               class="w-64" />
+                               class="w-full sm:w-64" />
             }
             <RadzenButton Icon="add"
                           Text="@L["New {0}", _typeName]"

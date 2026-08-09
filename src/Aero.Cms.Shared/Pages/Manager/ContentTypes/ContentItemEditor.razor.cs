@@ -1,6 +1,6 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
@@ -91,6 +91,13 @@ public partial class ContentItemEditor
             GetStringSetting(field, ReferenceContentFieldSettings.TargetKind),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
             StringComparison.Ordinal);
+
+    private static long? GetTargetContentTypeId(ContentFieldDefinition field)
+        => GetStringSetting(field, ReferenceContentFieldSettings.TargetContentTypeId) is { } value
+           && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+           && id > 0
+            ? id
+            : null;
 
     private static IReadOnlyList<string> GetAllowedCmsReferenceSources(
         ContentFieldDefinition field)

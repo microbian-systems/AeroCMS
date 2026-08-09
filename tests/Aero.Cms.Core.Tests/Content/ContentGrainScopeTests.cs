@@ -20,6 +20,33 @@ namespace Aero.Cms.Core.Tests.Content;
 public sealed class ContentGrainScopeTests
 {
     [Test]
+    public async Task Content_type_delete_preserves_not_found_and_conflict_failures()
+    {
+        var absentService = Substitute.For<IContentTypeService>();
+        absentService.GetByAliasAsync(1, "missing", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                AeroError.NotFoundError("Content type 'missing' not found.")));
+        var conflictService = Substitute.For<IContentTypeService>();
+        conflictService.GetByAliasAsync(1, "referenced", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                new ContentTypeDefinition { Id = 1, SiteId = 1, Alias = "referenced" }));
+        conflictService.DeleteAsync(1, "referenced", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                AeroError.ConflictError("Referenced by another content type.")));
+
+        await using var absentProvider = new ServiceCollection().AddSingleton(absentService).BuildServiceProvider();
+        await using var conflictProvider = new ServiceCollection().AddSingleton(conflictService).BuildServiceProvider();
+        var absentGrain = new AeroContentTypeGrain(NullLogger<AeroActor>.Instance, absentProvider.GetRequiredService<IServiceScopeFactory>());
+        var conflictGrain = new AeroContentTypeGrain(NullLogger<AeroActor>.Instance, conflictProvider.GetRequiredService<IServiceScopeFactory>());
+
+        var absent = await absentGrain.DeleteAsync(1, "missing");
+        var conflict = await conflictGrain.DeleteAsync(1, "referenced");
+
+        await Assert.That(absent is Result<bool, AeroError>.Failure { Error: AeroError.NotFound }).IsTrue();
+        await Assert.That(conflict is Result<bool, AeroError>.Failure { Error: AeroError.Conflict }).IsTrue();
+    }
+
+    [Test]
     public async Task Content_item_inherited_identifier_and_request_crud_fail_closed_without_scope()
     {
         var scopes = Substitute.For<IServiceScopeFactory>();

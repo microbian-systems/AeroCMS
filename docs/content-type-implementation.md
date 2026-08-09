@@ -898,7 +898,7 @@ Reference field adds its own settings model:
 
 ```csharp
 public sealed record ReferenceFieldSettings(
-    string TargetContentType,
+    string TargetContentTypeId,
     bool AllowMultiple = false);
 ```
 
@@ -910,7 +910,7 @@ From a ContentFieldDefinition stored in JSON:
   "fieldType": "reference",
   "required": true,
   "settings": {
-    "targetContentType": "author",
+    "targetContentTypeId": "123456789",
     "allowMultiple": false
   }
 }
@@ -1136,8 +1136,8 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
         ContentValidationMode mode,
         ValidationContext<ContentItem> context)
     {
-        var targetContentType = field.Settings.TryGetValue("targetContentType", out var t)
-            ? t.GetString() : null;
+        // The asynchronous validator resolves targetContentTypeId in the
+        // current site before accepting the referenced item.
 
         if (field.Settings.TryGetValue("allowMultiple", out var multiObj) &&
             multiObj.ValueKind == JsonValueKind.True)

@@ -16,17 +16,18 @@ public sealed class ContentApiAuthorizationTests
         app.MapContentTypesApi();
         app.MapContentItemsApi();
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>().ToList();
-        await Assert.That(endpoints.Count).IsEqualTo(17);
+        await Assert.That(endpoints.Count).IsEqualTo(18);
         var expected = new (string Method, string Route, string Policy)[]
         {
             ("GET", "/api/v1/admin/content-types/", "site:read"),
+            ("GET", "/api/v1/admin/content-types/id/{id:long}", "site:read"),
             ("GET", "/api/v1/admin/content-types/{alias}", "site:read"),
             ("POST", "/api/v1/admin/content-types/", "site:create"),
             ("PUT", "/api/v1/admin/content-types/{alias}", "site:update"),
             ("DELETE", "/api/v1/admin/content-types/{alias}", "site:delete"),
             ("GET", "/api/v1/admin/content-items/", "site:read"),
             ("GET", "/api/v1/admin/content-items/{alias}/{id:long}", "site:read"),
-            ("GET", "/api/v1/admin/content-items/{alias}/reference-options", "site:read"),
+            ("GET", "/api/v1/admin/content-items/reference-options/{targetContentTypeId:long}", "site:read"),
             ("GET", "/api/v1/admin/content-items/reference-sources", "site:read"),
             ("GET", "/api/v1/admin/content-items/reference-sources/{source}/options", "site:read"),
             ("POST", "/api/v1/admin/content-items/{alias}", "site:create"),

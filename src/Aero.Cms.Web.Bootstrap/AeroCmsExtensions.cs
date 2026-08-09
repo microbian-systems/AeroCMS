@@ -160,7 +160,7 @@ public static class AeroCmsExtensions
         PublishResolvedInfrastructure(config, resolvedInfrastructure);
 
         services.AddControllersWithViews();
-        services.AddAuthentication(authentication =>
+        var authenticationBuilder = services.AddAuthentication(authentication =>
             {
                 authentication.DefaultScheme = ManagerRecoveryDefaults.ManagerScheme;
                 authentication.DefaultAuthenticateScheme = ManagerRecoveryDefaults.ManagerScheme;
@@ -221,6 +221,10 @@ public static class AeroCmsExtensions
                 cookie.ExpireTimeSpan = ManagerRecoveryDefaults.SessionLifetime;
                 cookie.LoginPath = "/manager/recovery";
             });
+
+        authenticationBuilder.AddExternalCookie();
+        authenticationBuilder.AddTwoFactorRememberMeCookie();
+        authenticationBuilder.AddTwoFactorUserIdCookie();
 
         services.AddAuthorization(authorization =>
         {

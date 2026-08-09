@@ -38,7 +38,7 @@ public static class ReferenceContentFieldSettings
     public const string TargetKind = "targetKind";
     public const string TargetKindContentType = "contentType";
     public const string TargetKindCmsDocument = "cmsDocument";
-    public const string TargetContentType = "targetContentType";
+    public const string TargetContentTypeId = "targetContentTypeId";
     public const string AllowedSources = "allowedSources";
     public const string AllowMultiple = "allowMultiple";
     public const string SelectionMode = "selectionMode";

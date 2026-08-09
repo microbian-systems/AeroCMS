@@ -131,14 +131,16 @@ public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(Content
     /// Deletes a site-scoped definition and publishes its pre-delete representation.
     /// </summary>
     /// <returns><see langword="true"/> only when lookup and deletion both succeed.</returns>
-public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
+public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
 
         var existing = await service.GetByAliasAsync(siteId, alias, ct);
         if (existing is not Result<ContentTypeDefinition, AeroError>.Ok ok)
-            return false;
+            return existing is Result<ContentTypeDefinition, AeroError>.Failure failure
+                ? failure.Error
+                : AeroError.NotFoundError($"Content type '{alias}' not found.");
 
         var result = await service.DeleteAsync(siteId, alias, ct);
         if (result is Result<bool, AeroError>.Ok deleteOk && deleteOk.Value)
@@ -149,7 +151,7 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
             return true;
         }
 
-        return false;
+        return result;
     }
 
     // ── AeroRequestResponse helpers ────────────────────────────────────

@@ -54,7 +54,8 @@ public sealed class ContentReferenceValidatorTests
             }));
         var validator = new ReferenceExistenceValidator(
             contentService,
-            harness.Session);
+            harness.Session,
+            contentTypeService: ContentTypes((31, "taxonomy")));
         var type = Definition();
 
         var parentFailures = await validator.ValidateAsync(
@@ -74,7 +75,7 @@ public sealed class ContentReferenceValidatorTests
             .Contains("Referenced item '10' must be a leaf entry without children.");
         await Assert.That(leafFailures).IsEmpty();
         await Assert.That(wrongTypeFailures.Select(failure => failure.ErrorMessage))
-            .Contains("Referenced item '13' is not a 'taxonomy' entry.");
+            .Contains("Referenced item '13' is not an entry of the configured content type.");
     }
 
     [Test]
@@ -118,16 +119,17 @@ public sealed class ContentReferenceValidatorTests
             }));
         var validator = new ReferenceExistenceValidator(
             contentService,
-            harness.Session);
+            harness.Session,
+            contentTypeService: ContentTypes((2000, "genus"), (3000, "species")));
         var type = new ContentTypeDefinition
         {
             Alias = "animal",
             Fields =
             [
-                ReferenceField("genus", "genus"),
+                ReferenceField("genus", 2000),
                 ReferenceField(
                     "species",
-                    "species",
+                    3000,
                     dependsOn: "genus",
                     targetFilter: "genus")
             ]
@@ -309,8 +311,8 @@ public sealed class ContentReferenceValidatorTests
                     FieldType = ContentFieldTypes.Reference,
                     Settings = new Dictionary<string, JsonElement>
                     {
-                        [ReferenceContentFieldSettings.TargetContentType] =
-                            JsonSerializer.SerializeToElement("taxonomy"),
+                        [ReferenceContentFieldSettings.TargetContentTypeId] =
+                            JsonSerializer.SerializeToElement("31"),
                         [ReferenceContentFieldSettings.SelectionMode] =
                             JsonSerializer.SerializeToElement(
                                 ReferenceContentFieldSettings.SelectionModeHierarchy),
@@ -337,7 +339,7 @@ public sealed class ContentReferenceValidatorTests
 
     private static ContentFieldDefinition ReferenceField(
         string name,
-        string target,
+        long target,
         string? dependsOn = null,
         string? targetFilter = null)
     {
@@ -348,8 +350,8 @@ public sealed class ContentReferenceValidatorTests
             FieldType = ContentFieldTypes.Reference,
             Settings = new Dictionary<string, JsonElement>
             {
-                [ReferenceContentFieldSettings.TargetContentType] =
-                    JsonSerializer.SerializeToElement(target)
+                [ReferenceContentFieldSettings.TargetContentTypeId] =
+                    JsonSerializer.SerializeToElement(target.ToString(System.Globalization.CultureInfo.InvariantCulture))
             }
         };
         if (!string.IsNullOrWhiteSpace(dependsOn))
@@ -383,6 +385,17 @@ public sealed class ContentReferenceValidatorTests
                         CmsContentReferenceSources.All.ToArray())
             }
         };
+
+    private static IContentTypeService ContentTypes(params (long Id, string Alias)[] types)
+    {
+        var service = Substitute.For<IContentTypeService>();
+        foreach (var (id, alias) in types)
+        {
+            service.GetByIdAsync(1, id, Arg.Any<CancellationToken>())
+                .Returns(Prelude.Ok<ContentTypeDefinition, AeroError>(new ContentTypeDefinition { Id = id, SiteId = 1, Alias = alias }));
+        }
+        return service;
+    }
 
     private static ContentItem CmsContentEntryReferenceItem(
         string source,

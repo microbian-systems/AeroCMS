@@ -98,12 +98,12 @@
                 <span class="pe-property-label">@L["Related content type"]</span>
                 <select class="w-full rounded-md shadow-sm sm:text-sm"
                         style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                        value="@GetStringSetting(ReferenceContentFieldSettings.TargetContentType)"
+                        value="@GetStringSetting(ReferenceContentFieldSettings.TargetContentTypeId)"
                         @onchange="OnReferenceTargetChangedAsync">
                     <option value="">@L["Choose a content type"]</option>
                     @foreach (var contentType in AvailableReferenceContentTypes)
                     {
-                        <option value="@contentType.Alias">@contentType.Name</option>
+                        <option value="@contentType.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)">@contentType.Name</option>
                     }
                 </select>
             </label>

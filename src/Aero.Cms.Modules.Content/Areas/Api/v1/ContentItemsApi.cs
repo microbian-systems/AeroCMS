@@ -39,7 +39,7 @@ public static class ContentItemsApi
         group.MapGet("/{alias}/{id:long}", GetContentItem)
             .RequireAuthorization("site:read")
             .WithName("GetContentItem");
-        group.MapGet("/{alias}/reference-options", ListReferenceOptions)
+        group.MapGet("/reference-options/{targetContentTypeId:long}", ListReferenceOptions)
             .RequireAuthorization("site:read")
             .WithName("ListContentReferenceOptions");
         group.MapGet("/reference-sources", ListCmsReferenceSources)
@@ -757,7 +757,7 @@ public static class ContentItemsApi
     /// Returns bounded, site-scoped options for flat reference pickers.
     /// </summary>
     private static async Task<IResult> ListReferenceOptions(
-        string alias,
+        long targetContentTypeId,
         [FromServices] IContentQueryService queryService,
         [FromServices] IContentTypeService contentTypeService,
         [FromServices] ISiteContext siteContext,
@@ -774,9 +774,9 @@ public static class ContentItemsApi
             return MissingSite();
         }
 
-        var contentType = await contentTypeService.GetByAliasAsync(
+        var contentType = await contentTypeService.GetByIdAsync(
             siteId,
-            alias,
+            targetContentTypeId,
             ct);
         if (contentType is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
         {
@@ -820,7 +820,7 @@ public static class ContentItemsApi
 
         var result = await queryService.SearchAsync(
             siteId,
-            alias,
+            typeOk.Value.Alias,
             filters,
             ct);
         return result switch

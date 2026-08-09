@@ -10,7 +10,7 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentReferencePicker : IAsyncDisposable
 {
-    [Parameter] public string? TargetContentTypeAlias { get; set; }
+    [Parameter] public long? TargetContentTypeId { get; set; }
     [Parameter] public string? Culture { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
@@ -22,7 +22,7 @@ public partial class ContentReferencePicker : IAsyncDisposable
 
     private readonly List<ReferencePickerOption> _options = [];
     private CancellationTokenSource? _loadCancellation;
-    private string? _loadedAlias;
+    private long? _loadedTargetContentTypeId;
     private string? _loadedCulture;
     private string? _loadedFilterField;
     private string? _loadedFilterValue;
@@ -34,7 +34,7 @@ public partial class ContentReferencePicker : IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (string.Equals(_loadedAlias, TargetContentTypeAlias, StringComparison.Ordinal)
+        if (_loadedTargetContentTypeId == TargetContentTypeId
             && string.Equals(_loadedCulture, Culture, StringComparison.Ordinal)
             && string.Equals(_loadedFilterField, FilterField, StringComparison.Ordinal)
             && string.Equals(_loadedFilterValue, FilterValue, StringComparison.Ordinal))
@@ -52,14 +52,14 @@ public partial class ContentReferencePicker : IAsyncDisposable
         _loadCancellation?.Dispose();
         _loadCancellation = new CancellationTokenSource();
 
-        _loadedAlias = TargetContentTypeAlias;
+        _loadedTargetContentTypeId = TargetContentTypeId;
         _loadedCulture = Culture;
         _loadedFilterField = FilterField;
         _loadedFilterValue = FilterValue;
         _options.Clear();
         _error = null;
 
-        if (string.IsNullOrWhiteSpace(TargetContentTypeAlias))
+        if (TargetContentTypeId is null or <= 0)
         {
             _error = "Choose a target content type in the field settings.";
             return;
@@ -74,7 +74,7 @@ public partial class ContentReferencePicker : IAsyncDisposable
         try
         {
             var result = await ContentItemsApi.GetReferenceOptionsAsync(
-                TargetContentTypeAlias,
+                TargetContentTypeId.Value,
                 Culture,
                 _search,
                 FilterField,

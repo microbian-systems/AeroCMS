@@ -71,8 +71,7 @@ public partial class ContentTypeEditor
     private bool _entriesLoading;
     private string _entriesSearchText = string.Empty;
     private IReadOnlyList<ContentTypeSummary> _availableParentContentTypes = [];
-    private readonly Dictionary<string, ContentTypeDetail> _referenceTargetDefinitions =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<long, ContentTypeDetail> _referenceTargetDefinitions = [];
 
     private string Name { get; set; } = string.Empty;
     private string AliasValue { get; set; } = string.Empty;
@@ -412,18 +411,18 @@ protected override async Task OnInitializedAsync()
 
     private async Task OnReferenceTargetChangedAsync(
         ContentFieldDefinition field,
-        string? targetAlias)
+        string? targetContentTypeId)
     {
         SetSetting(
             field,
-            ReferenceContentFieldSettings.TargetContentType,
-            targetAlias);
+            ReferenceContentFieldSettings.TargetContentTypeId,
+            targetContentTypeId);
         field.Indexed = true;
         field.Settings.Remove(
             ReferenceContentFieldSettings.TargetFilterField);
-        if (!string.IsNullOrWhiteSpace(targetAlias))
+        if (TryParseContentTypeId(targetContentTypeId, out var targetId))
         {
-            await LoadReferenceTargetDefinitionAsync(targetAlias);
+            await LoadReferenceTargetDefinitionAsync(targetId);
         }
     }
 
@@ -451,64 +450,53 @@ protected override async Task OnInitializedAsync()
     private IEnumerable<ContentFieldDefinition> TargetReferenceFields(
         ContentFieldDefinition selected)
     {
-        var targetAlias = GetStringSetting(
+        var targetIdText = GetStringSetting(
             selected,
-            ReferenceContentFieldSettings.TargetContentType);
-        if (string.Equals(
-                targetAlias,
-                AliasValue,
-                StringComparison.Ordinal))
+            ReferenceContentFieldSettings.TargetContentTypeId);
+        if (!TryParseContentTypeId(targetIdText, out var targetId))
         {
-            return Fields.Where(
-                field => field.FieldType == ContentFieldTypes.Reference);
+            return [];
         }
 
-        return !string.IsNullOrWhiteSpace(targetAlias)
-            && _referenceTargetDefinitions.TryGetValue(
-                targetAlias,
-                out var target)
-                ? target.Fields.Where(
-                    field => field.FieldType == ContentFieldTypes.Reference)
-                : [];
+        if (_referenceTargetDefinitions.TryGetValue(targetId, out var target))
+        {
+            return target.Fields.Where(field => field.FieldType == ContentFieldTypes.Reference);
+        }
+        return [];
     }
 
     private async Task LoadReferenceTargetDefinitionsAsync()
     {
-        foreach (var targetAlias in Fields
+        foreach (var targetId in Fields
                      .Where(field =>
                          field.FieldType == ContentFieldTypes.Reference)
                      .Select(field => GetStringSetting(
                          field,
-                         ReferenceContentFieldSettings.TargetContentType))
-                     .Where(alias => !string.IsNullOrWhiteSpace(alias))
-                     .Distinct(StringComparer.Ordinal))
+                         ReferenceContentFieldSettings.TargetContentTypeId))
+                     .Select(value => TryParseContentTypeId(value, out var id) ? id : 0)
+                     .Where(id => id > 0)
+                     .Distinct())
         {
-            await LoadReferenceTargetDefinitionAsync(targetAlias!);
+            await LoadReferenceTargetDefinitionAsync(targetId);
         }
     }
 
-    private async Task LoadReferenceTargetDefinitionAsync(string targetAlias)
+    private async Task LoadReferenceTargetDefinitionAsync(long targetId)
     {
-        if (_referenceTargetDefinitions.ContainsKey(targetAlias))
+        if (_referenceTargetDefinitions.ContainsKey(targetId))
         {
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(AliasValue)
-            && string.Equals(
-                AliasValue,
-                targetAlias,
-                StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var result = await ContentTypesApi.GetByAliasAsync(targetAlias);
+        var result = await ContentTypesApi.GetByIdAsync(targetId);
         if (result is Result<ContentTypeDetail, AeroError>.Ok ok)
         {
-            _referenceTargetDefinitions[targetAlias] = ok.Value;
+            _referenceTargetDefinitions[targetId] = ok.Value;
         }
     }
+
+    private static bool TryParseContentTypeId(string? value, out long id) =>
+        long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out id) && id > 0;
 
     private static bool SupportsFullTextSearch(
         ContentFieldDefinition field) =>
@@ -917,7 +905,7 @@ protected override async Task OnInitializedAsync()
             if (string.IsNullOrWhiteSpace(
                     GetSettingString(
                         field,
-                        ReferenceContentFieldSettings.TargetContentType)))
+                        ReferenceContentFieldSettings.TargetContentTypeId)))
             {
                 Notify(
                     NotificationSeverity.Warning,

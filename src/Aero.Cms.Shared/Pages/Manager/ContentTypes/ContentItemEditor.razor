@@ -230,7 +230,7 @@
                                     else if (IsHierarchyReference(field))
                                     {
                                         <ContentHierarchyReferencePicker
-                                            TargetContentTypeAlias="@GetStringSetting(field, ReferenceContentFieldSettings.TargetContentType)"
+                                            TargetContentTypeId="@GetTargetContentTypeId(field)"
                                             Culture="@_culture"
                                             Value="@_fieldValues[field.Name]"
                                             ValueChanged="@(value => OnReferenceValueChangedAsync(field, value))"
@@ -240,7 +240,7 @@
                                     else
                                     {
                                         <ContentReferencePicker
-                                            TargetContentTypeAlias="@GetStringSetting(field, ReferenceContentFieldSettings.TargetContentType)"
+                                            TargetContentTypeId="@GetTargetContentTypeId(field)"
                                             Culture="@_culture"
                                             Value="@_fieldValues[field.Name]"
                                             ValueChanged="@(value => OnReferenceValueChangedAsync(field, value))"

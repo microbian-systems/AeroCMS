@@ -219,6 +219,17 @@ public sealed class ContentItem : Entity
 It can still be stored on embedded content, but the UI should avoid forcing
 non-technical users to think about it unless it matters.
 
+### Reference-field targets
+
+Ordinary `reference` fields store their schema target in the setting
+`targetContentTypeId`. Its JSON value is a positive, invariant-culture decimal
+string containing the target content type's Snowflake ID (for example,
+`"123456789"`), never a JSON number or alias. Reference field values remain
+decimal-string content-item IDs. The target is resolved within the current site;
+cross-site, malformed, zero, negative, and alias-shaped values are invalid.
+CMS document sources such as `content:<alias>` are a separate source contract
+and continue to use aliases.
+
 ---
 
 ## Rendering Model

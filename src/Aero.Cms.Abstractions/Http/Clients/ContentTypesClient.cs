@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Microsoft.Extensions.Logging;
 using System.Net;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
@@ -18,6 +19,7 @@ Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(Cancellat
     /// GetByAliasAsync method.
     /// </summary>
 Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default);
+    Task<Result<ContentTypeDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
         /// <summary>
     /// CreateAsync method.
     /// </summary>
@@ -53,6 +55,9 @@ public Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(Ca
     /// </summary>
 public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default)
         => GetAsync<ContentTypeDetail>(Uri.EscapeDataString(alias), ct);
+
+    public Task<Result<ContentTypeDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        => GetAsync<ContentTypeDetail>($"id/{id.ToString(CultureInfo.InvariantCulture)}", ct);
 
         /// <summary>
     /// CreateAsync method.
@@ -146,7 +151,7 @@ public interface IContentItemsHttpClient
 Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
     /// <summary>Gets bounded options for a searchable or cascading content reference.</summary>
     Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
-        string alias,
+        long targetContentTypeId,
         string? culture = null,
         string? search = null,
         string? filterField = null,
@@ -236,7 +241,7 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<ContentReferenceOption>, AeroError>> GetReferenceOptionsAsync(
-        string alias,
+        long targetContentTypeId,
         string? culture = null,
         string? search = null,
         string? filterField = null,
@@ -250,7 +255,7 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
         AddQueryParameter(parameters, "filterField", filterField);
         AddQueryParameter(parameters, "filterValue", filterValue);
         var url =
-            $"{Uri.EscapeDataString(alias)}/reference-options?{string.Join("&", parameters)}";
+            $"reference-options/{targetContentTypeId.ToString(CultureInfo.InvariantCulture)}?{string.Join("&", parameters)}";
         return GetAsync<IReadOnlyList<ContentReferenceOption>>(url, ct);
     }
 

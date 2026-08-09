@@ -10,7 +10,7 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentHierarchyReferencePicker : IAsyncDisposable
 {
-    [Parameter] public string? TargetContentTypeAlias { get; set; }
+    [Parameter] public long? TargetContentTypeId { get; set; }
     [Parameter] public string? Culture { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
@@ -18,10 +18,11 @@ public partial class ContentHierarchyReferencePicker : IAsyncDisposable
     [Parameter] public bool ShowAncestors { get; set; } = true;
 
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+    [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
 
     private readonly List<HierarchyReferenceOption> _options = [];
     private CancellationTokenSource? _loadCancellation;
-    private string? _loadedAlias;
+    private long? _loadedTargetContentTypeId;
     private string? _loadedCulture;
     private bool _loadedLeafOnly;
     private bool _loadedShowAncestors;
@@ -30,7 +31,7 @@ public partial class ContentHierarchyReferencePicker : IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (string.Equals(_loadedAlias, TargetContentTypeAlias, StringComparison.Ordinal)
+        if (_loadedTargetContentTypeId == TargetContentTypeId
             && string.Equals(_loadedCulture, Culture, StringComparison.Ordinal)
             && _loadedLeafOnly == SelectLeafOnly
             && _loadedShowAncestors == ShowAncestors)
@@ -47,14 +48,14 @@ public partial class ContentHierarchyReferencePicker : IAsyncDisposable
         _loadCancellation?.Dispose();
         _loadCancellation = new CancellationTokenSource();
 
-        _loadedAlias = TargetContentTypeAlias;
+        _loadedTargetContentTypeId = TargetContentTypeId;
         _loadedCulture = Culture;
         _loadedLeafOnly = SelectLeafOnly;
         _loadedShowAncestors = ShowAncestors;
         _options.Clear();
         _error = null;
 
-        if (string.IsNullOrWhiteSpace(TargetContentTypeAlias))
+        if (TargetContentTypeId is null or <= 0)
         {
             _error = "Choose a target hierarchy in the content-type settings.";
             return;
@@ -63,8 +64,15 @@ public partial class ContentHierarchyReferencePicker : IAsyncDisposable
         _isLoading = true;
         try
         {
+            var target = await ContentTypesApi.GetByIdAsync(TargetContentTypeId.Value, _loadCancellation.Token);
+            if (target is not Result<ContentTypeDetail, AeroError>.Ok targetOk)
+            {
+                _error = "The configured target content type was not found.";
+                return;
+            }
+
             var result = await ContentItemsApi.GetHierarchyAsync(
-                TargetContentTypeAlias,
+                targetOk.Value.Alias,
                 Culture,
                 _loadCancellation.Token);
             switch (result)

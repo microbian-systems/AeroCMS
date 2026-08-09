@@ -185,7 +185,7 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
     /// <remarks>
     /// When <c>allowMultiple</c> is JSON <see langword="true"/>, the value must be an array
     /// of strings parseable as <see cref="long"/>. Otherwise one parseable string is required.
-    /// The optional <c>targetContentType</c> setting is read but is not enforced.
+    /// Target content-type IDs are resolved by the asynchronous validator.
     /// </remarks>
     public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
@@ -195,10 +195,6 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
             return;
         }
 
-        var targetContentType = field.Settings.TryGetValue("targetContentType", out var target)
-            && target.ValueKind == JsonValueKind.String
-                ? target.GetString()
-                : null;
         var isRequired = field.Required && mode == ContentValidationMode.Publish;
 
         if (field.Settings.TryGetValue("allowMultiple", out var multiple)

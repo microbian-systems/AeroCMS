@@ -28,6 +28,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             .RequireAuthorization();
 
         group.MapGet("/", ListContentTypes).RequireAuthorization("site:read").WithName("ListContentTypes");
+        group.MapGet("/id/{id:long}", GetContentTypeById).RequireAuthorization("site:read").WithName("GetContentTypeById");
         group.MapGet("/{alias}", GetContentTypeByAlias).RequireAuthorization("site:read").WithName("GetContentTypeByAlias");
         group.MapPost("/", CreateContentType).RequireAuthorization("site:create").WithName("CreateContentType");
         group.MapPut("/{alias}", UpdateContentType).RequireAuthorization("site:update").WithName("UpdateContentType");
@@ -117,6 +118,25 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             logger.LogError(ex, "Error retrieving content type {Alias}", alias);
             return TypedResults.NotFound();
         }
+    }
+
+    private static async Task<IResult> GetContentTypeById(
+        long id,
+        [FromServices] IContentTypeService contentTypeService,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (siteContext.SiteId <= 0)
+            return MissingSite();
+
+        var type = await contentTypeService.GetByIdAsync(siteContext.SiteId, id, ct);
+        return type is Result<ContentTypeDefinition, AeroError>.Ok ok
+            ? TypedResults.Ok(new ContentTypeDetail(
+                ok.Value.Alias, ok.Value.Name, ok.Value.Description, ok.Value.Category,
+                ok.Value.Icon, ok.Value.AllowPublicUrl, ok.Value.IncludeInSearch, ok.Value.IncludeInPublicAi,
+                ok.Value.Fields, ok.Value.ScribanTemplate, ok.Value.ScheduleConfig, ok.Value.Id,
+                ok.Value.Cardinality, ok.Value.Structure, ok.Value.HierarchyRules))
+            : TypedResults.NotFound();
     }
 
     /// <summary>
@@ -259,7 +279,20 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 return MissingSite();
 
             var deleted = await contentTypeActor.DeleteAsync(siteId, alias, ct);
-            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+            return deleted switch
+            {
+                Result<bool, AeroError>.Ok { Value: true } => TypedResults.NoContent(),
+                Result<bool, AeroError>.Ok => TypedResults.NotFound(),
+                Result<bool, AeroError>.Failure { Error: AeroError.Conflict } conflict => TypedResults.Conflict(new ProblemDetails
+                {
+                    Title = "Content type is referenced",
+                    Detail = conflict.Error.ToString(),
+                    Status = StatusCodes.Status409Conflict
+                }),
+                Result<bool, AeroError>.Failure { Error: AeroError.NotFound } => TypedResults.NotFound(),
+                Result<bool, AeroError>.Failure failure => TypedResults.Problem(failure.Error.ToString()),
+                _ => TypedResults.Problem("Unexpected content-type delete result.")
+            };
         }
         catch (Exception ex)
         {

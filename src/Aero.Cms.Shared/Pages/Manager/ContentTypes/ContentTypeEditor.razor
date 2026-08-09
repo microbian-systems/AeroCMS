@@ -338,6 +338,7 @@
                         var selected = SelectedField;
                         var selectedOption = GetFieldOption(selected);
                         <ContentFieldSettingsEditor
+                            @key="@selected"
                             Field="@selected"
                             OwnerFields="@Fields"
                             ContentTypes="@_availableParentContentTypes"

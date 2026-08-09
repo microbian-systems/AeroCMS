@@ -12,6 +12,18 @@ namespace Aero.Cms.Core.Tests.Content;
 public sealed class ContentTypeServiceScopeTests
 {
     [Test]
+    public async Task Missing_alias_is_classified_as_not_found()
+    {
+        await using var harness = new SableTestHarness().WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var service = new AeroContentTypeService(harness.Session, [], new ScribanTemplateValidator());
+
+        var result = await service.GetByAliasAsync(1, "missing");
+
+        await Assert.That(result is Result<ContentTypeDefinition, AeroError>.Failure { Error: AeroError.NotFound }).IsTrue();
+    }
+
+    [Test]
     public async Task Nonzero_missing_or_foreign_id_fails_while_same_alias_is_allowed_across_sites()
     {
         await using var harness = new SableTestHarness().WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
@@ -198,18 +210,51 @@ public sealed class ContentTypeServiceScopeTests
             new ScribanTemplateValidator());
 
         var missing = await service.SaveAsync(
-            ReferencingType("species-missing", "missing-taxonomy"));
+            ReferencingType("species-missing", 99));
         var flat = await service.SaveAsync(
-            ReferencingType("species-flat", "flat-category"));
+            ReferencingType("species-flat", 30));
         var foreign = await service.SaveAsync(
-            ReferencingType("species-foreign", "foreign-taxonomy"));
+            ReferencingType("species-foreign", 32));
         var valid = await service.SaveAsync(
-            ReferencingType("species", "taxonomy"));
+            ReferencingType("species", 31));
+        var aliasShaped = ReferencingType("species-alias", 31);
+        aliasShaped.Fields[0].Settings[ReferenceContentFieldSettings.TargetContentTypeId] =
+            JsonSerializer.SerializeToElement("taxonomy");
+        var aliasResult = await service.SaveAsync(aliasShaped);
 
         await Assert.That(missing.IsFailure).IsTrue();
         await Assert.That(flat.IsFailure).IsTrue();
         await Assert.That(foreign.IsFailure).IsTrue();
         await Assert.That(valid.IsSuccess).IsTrue();
+        await Assert.That(aliasResult.IsFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task Delete_rejects_external_reference_preserves_target_and_allows_self_reference()
+    {
+        await using var harness = new SableTestHarness().WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var target = new ContentTypeDocument { Id = 70, SiteId = 1, Alias = "target", Name = "Target" };
+        harness.Session.Store(target, new ContentTypeDocument
+        {
+            Id = 71, SiteId = 1, Alias = "dependent", Name = "Dependent",
+            Fields = [FlatReference("target", 70)]
+        });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentTypeService(harness.Session, [], new ScribanTemplateValidator());
+
+        var blocked = await service.DeleteAsync(1, "target");
+        await Assert.That(blocked.IsFailure).IsTrue();
+        var preserved = await harness.Session.LoadAsync<ContentTypeDocument>(70);
+        await Assert.That(preserved).IsNotNull();
+
+        harness.Session.Delete(await harness.Session.LoadAsync<ContentTypeDocument>(71));
+        target.Fields = [FlatReference("self", 70)];
+        harness.Session.Store(target);
+        await harness.Session.SaveChangesAsync();
+        var deleted = await service.DeleteAsync(1, "target");
+        await Assert.That(deleted.IsSuccess).IsTrue();
+        await Assert.That(((Result<bool, AeroError>.Ok)deleted).Value).IsTrue();
     }
 
     [Test]
@@ -234,7 +279,7 @@ public sealed class ContentTypeServiceScopeTests
                 Name = "Phylum",
                 Fields =
                 [
-                    FlatReference("kingdom", "kingdom")
+                    FlatReference("kingdom", 40)
                 ]
             });
         await harness.Session.SaveChangesAsync();
@@ -242,8 +287,8 @@ public sealed class ContentTypeServiceScopeTests
             harness.Session,
             [],
             new ScribanTemplateValidator());
-        var kingdom = FlatReference("kingdom", "kingdom");
-        var phylum = FlatReference("phylum", "phylum");
+        var kingdom = FlatReference("kingdom", 40);
+        var phylum = FlatReference("phylum", 41);
         phylum.Settings[ReferenceContentFieldSettings.DependsOnField] =
             JsonSerializer.SerializeToElement("kingdom");
         phylum.Settings[ReferenceContentFieldSettings.TargetFilterField] =
@@ -305,7 +350,7 @@ public sealed class ContentTypeServiceScopeTests
 
     private static ContentTypeDefinition ReferencingType(
         string alias,
-        string targetAlias) =>
+        long targetId) =>
         new()
         {
             SiteId = 1,
@@ -321,8 +366,8 @@ public sealed class ContentTypeServiceScopeTests
                     FieldType = ContentFieldTypes.Reference,
                     Settings = new Dictionary<string, JsonElement>
                     {
-                        [ReferenceContentFieldSettings.TargetContentType] =
-                            JsonSerializer.SerializeToElement(targetAlias),
+                        [ReferenceContentFieldSettings.TargetContentTypeId] =
+                            JsonSerializer.SerializeToElement(targetId.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                         [ReferenceContentFieldSettings.SelectionMode] =
                             JsonSerializer.SerializeToElement(
                                 ReferenceContentFieldSettings.SelectionModeHierarchy)
@@ -333,7 +378,7 @@ public sealed class ContentTypeServiceScopeTests
 
     private static ContentFieldDefinition FlatReference(
         string name,
-        string targetAlias) =>
+        long targetId) =>
         new()
         {
             Name = name,
@@ -341,8 +386,8 @@ public sealed class ContentTypeServiceScopeTests
             FieldType = ContentFieldTypes.Reference,
             Settings = new Dictionary<string, JsonElement>
             {
-                [ReferenceContentFieldSettings.TargetContentType] =
-                    JsonSerializer.SerializeToElement(targetAlias)
+                [ReferenceContentFieldSettings.TargetContentTypeId] =
+                    JsonSerializer.SerializeToElement(targetId.ToString(System.Globalization.CultureInfo.InvariantCulture))
             }
         };
 }

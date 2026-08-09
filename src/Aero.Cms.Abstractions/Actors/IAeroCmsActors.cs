@@ -254,7 +254,7 @@ public interface IAeroContentTypeActor : IAeroActor
     /// <summary>Update a content type definition.</summary>
     Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, long siteId, CancellationToken ct = default);
     /// <summary>Delete a content type by alias.</summary>
-    Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias, CancellationToken ct = default);
 }
 /// <summary>
 /// Defines an interface for IAeroSettingActor.

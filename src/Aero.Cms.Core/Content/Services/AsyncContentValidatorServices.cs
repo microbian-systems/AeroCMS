@@ -3,6 +3,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using FluentValidation.Results;
+using System.Globalization;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -35,7 +36,7 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
 /// </summary>
 /// <remarks>
 /// Only fields whose type is exactly <c>reference</c> are inspected. The validator honors a
-/// Boolean <c>allowMultiple</c> setting. Configured targets are checked by content-type alias,
+/// Boolean <c>allowMultiple</c> setting. Configured targets are resolved by immutable content-type ID,
 /// and hierarchy references can require a leaf entry. Non-parseable identifiers are expected to be
 /// rejected by synchronous field validation and do not produce an existence failure here. When
 /// invoked outside <see cref="ContentValidationService"/>, incorrectly shaped JSON may cause
@@ -216,18 +217,30 @@ public sealed class ReferenceExistenceValidator(
             return;
         }
 
-        var targetAlias = GetStringSetting(
-            field,
-            ReferenceContentFieldSettings.TargetContentType);
-        if (!string.IsNullOrWhiteSpace(targetAlias)
-            && !string.Equals(
+        if (!TryGetTargetContentTypeId(field, out var targetContentTypeId))
+        {
+            failures.Add(new ValidationFailure(
+                field.Name,
+                "The reference field has no valid target content-type identifier."));
+            return;
+        }
+
+        if (contentTypeService is null)
+        {
+            failures.Add(new ValidationFailure(field.Name, "Content type resolution is unavailable."));
+            return;
+        }
+
+        var target = await contentTypeService.GetByIdAsync(item.SiteId, targetContentTypeId, ct);
+        if (target is not Result<ContentTypeDefinition, AeroError>.Ok targetOk
+            || !string.Equals(
                 ok.Value.ContentTypeAlias,
-                targetAlias,
+                targetOk.Value.Alias,
                 StringComparison.Ordinal))
         {
             failures.Add(new ValidationFailure(
                 field.Name,
-                $"Referenced item '{id}' is not a '{targetAlias}' entry."));
+                $"Referenced item '{id}' is not an entry of the configured content type."));
             return;
         }
 
@@ -334,4 +347,13 @@ public sealed class ReferenceExistenceValidator(
         && value.ValueKind == System.Text.Json.JsonValueKind.String
             ? value.GetString()
             : null;
+
+    private static bool TryGetTargetContentTypeId(ContentFieldDefinition field, out long id)
+    {
+        id = 0;
+        return field.Settings.TryGetValue(ReferenceContentFieldSettings.TargetContentTypeId, out var value)
+               && value.ValueKind == System.Text.Json.JsonValueKind.String
+               && long.TryParse(value.GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out id)
+               && id > 0;
+    }
 }

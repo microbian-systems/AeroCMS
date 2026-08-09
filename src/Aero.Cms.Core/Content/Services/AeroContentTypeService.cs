@@ -3,6 +3,8 @@ using Aero.Cms.Core.Content.Templating;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
+using System.Globalization;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -34,7 +36,7 @@ public sealed class AeroContentTypeService(
             .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Alias == alias, ct);
 
         if (doc is null)
-            return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.CreateError($"Content type '{alias}' not found."));
+            return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.NotFoundError($"Content type '{alias}' not found."));
         return Prelude.Ok<ContentTypeDefinition, AeroError>(Map(doc));
     }
 
@@ -80,7 +82,7 @@ public sealed class AeroContentTypeService(
             return referenceFailure.Error;
         }
 
-        var hierarchyValidation = ValidateHierarchy(definition);
+        var hierarchyValidation = await ValidateHierarchyAsync(definition, ct);
         if (hierarchyValidation is Result<NoneType, AeroError>.Failure hierarchyFailure)
         {
             return hierarchyFailure.Error;
@@ -149,6 +151,21 @@ public sealed class AeroContentTypeService(
         if (doc is null)
             return Prelude.Ok<bool, AeroError>(false);
 
+        var dependents = await session.Query<ContentTypeDocument>()
+            .Where(candidate => candidate.SiteId == siteId && candidate.Id != doc.Id)
+            .ToListAsync(ct);
+        if (dependents.Any(candidate =>
+                candidate.HierarchyRules.AllowedParentContentTypeIds.Contains(doc.Id)
+                || candidate.Fields.Any(field =>
+                    field.FieldType == ContentFieldTypes.Reference
+                    && (!field.Settings.TryGetValue(ReferenceContentFieldSettings.TargetContentTypeId, out _)
+                        || !TryGetTargetContentTypeId(field, out var targetId)
+                        || targetId == doc.Id))))
+        {
+            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                "This content type is referenced by another content type."));
+        }
+
         session.Delete(doc);
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);
@@ -178,8 +195,9 @@ public sealed class AeroContentTypeService(
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
     }
 
-    private static Result<NoneType, AeroError> ValidateHierarchy(
-        ContentTypeDefinition definition)
+    private async Task<Result<NoneType, AeroError>> ValidateHierarchyAsync(
+        ContentTypeDefinition definition,
+        CancellationToken ct)
     {
         if (!Enum.IsDefined(definition.Cardinality))
         {
@@ -221,6 +239,19 @@ public sealed class AeroContentTypeService(
                 ["Allowed parent content-type identifiers must be positive."]);
         }
 
+        foreach (var parentTypeId in rules.AllowedParentContentTypeIds.Distinct())
+        {
+            if (definition.Id > 0 && parentTypeId == definition.Id)
+                continue;
+
+            var parent = await session.LoadAsync<ContentTypeDocument>(parentTypeId, ct);
+            if (parent is null || parent.SiteId != definition.SiteId)
+            {
+                return AeroError.ValidationError(
+                    ["Allowed parent content types must exist in the current site."]);
+            }
+        }
+
         if (!string.Equals(
                 rules.DefaultOrdering,
                 "sortOrder,title",
@@ -249,35 +280,29 @@ public sealed class AeroContentTypeService(
                 continue;
             }
 
-            var targetAlias = GetStringSetting(
-                field,
-                ReferenceContentFieldSettings.TargetContentType);
-            if (string.IsNullOrWhiteSpace(targetAlias))
+            if (!TryGetTargetContentTypeId(field, out var targetId))
             {
                 errors.Add(
-                    $"Reference field '{label}' must select a target content type.");
+                    $"Reference field '{label}' must select a positive content-type identifier.");
                 continue;
             }
 
             ContentStructure targetStructure;
             IReadOnlyList<ContentFieldDefinition> targetFields;
-            if (string.Equals(targetAlias, definition.Alias, StringComparison.Ordinal))
+            if (definition.Id > 0 && targetId == definition.Id)
             {
                 targetStructure = definition.Structure;
                 targetFields = definition.Fields;
             }
             else
             {
-                var target = await session.Query<ContentTypeDocument>()
-                    .FirstOrDefaultAsync(
-                        candidate =>
-                            candidate.SiteId == definition.SiteId
-                            && candidate.Alias == targetAlias,
-                        ct);
+                var target = await session.LoadAsync<ContentTypeDocument>(targetId, ct);
+                if (target is not null && target.SiteId != definition.SiteId)
+                    target = null;
                 if (target is null)
                 {
                     errors.Add(
-                        $"Reference field '{label}' targets an unknown content type '{targetAlias}'.");
+                        $"Reference field '{label}' targets an unknown content type '{targetId.ToString(CultureInfo.InvariantCulture)}'.");
                     continue;
                 }
 
@@ -338,26 +363,35 @@ public sealed class AeroContentTypeService(
                 continue;
             }
 
-            var dependencyTarget = GetStringSetting(
-                dependency,
-                ReferenceContentFieldSettings.TargetContentType);
-            var relationshipTarget = GetStringSetting(
-                targetRelationship,
-                ReferenceContentFieldSettings.TargetContentType);
-            if (string.IsNullOrWhiteSpace(dependencyTarget)
-                || !string.Equals(
-                    dependencyTarget,
-                    relationshipTarget,
-                    StringComparison.Ordinal))
+            if (!TryGetTargetContentTypeId(dependency, out var dependencyTarget)
+                || !TryGetTargetContentTypeId(targetRelationship, out var relationshipTarget)
+                || dependencyTarget != relationshipTarget)
             {
                 errors.Add(
-                    $"Reference field '{label}' cannot cascade because '{dependsOnField}' and '{targetAlias}.{targetFilterField}' target different content types.");
+                    $"Reference field '{label}' cannot cascade because '{dependsOnField}' and its target relationship field target different content types.");
             }
         }
 
         return errors.Count == 0
             ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
             : AeroError.ValidationError(errors);
+    }
+
+    private static bool TryGetTargetContentTypeId(
+        ContentFieldDefinition field,
+        out long id)
+    {
+        id = 0;
+        return field.Settings.TryGetValue(
+                   ReferenceContentFieldSettings.TargetContentTypeId,
+                   out var value)
+               && value.ValueKind == JsonValueKind.String
+               && long.TryParse(
+                   value.GetString(),
+                   NumberStyles.None,
+                   CultureInfo.InvariantCulture,
+                   out id)
+               && id > 0;
     }
 
     private static void ValidateCmsDocumentReferenceDefinition(
