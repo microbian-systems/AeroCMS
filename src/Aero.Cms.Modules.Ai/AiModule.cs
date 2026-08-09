@@ -204,6 +204,16 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             chunk.SourceKind,
             chunk.SourceId
         });
+        chunks.UniqueIndex(chunk => new
+        {
+            chunk.TenantId,
+            chunk.SiteId,
+            chunk.SourceKind,
+            chunk.SourceId,
+            chunk.Audience,
+            chunk.ChunkRevision,
+            chunk.SearchSchemaVersion
+        });
         chunks.FullTextIndex(
             chunk => chunk.FullText,
             AeroAiKnowledgeConstants.AnalyzerName);

@@ -23,43 +23,44 @@ public sealed class AeroAiKnowledgeProjectionService(
         CancellationToken cancellationToken = default)
     {
         source = await ValidateAndScopeSourceAsync(source, cancellationToken);
-        await DeletePriorChunksAsync(
+        var existing = await LoadPriorChunksAsync(
             source.TenantId,
             source.SiteId,
             source.SourceKind,
             source.SourceId,
             cancellationToken);
 
-        if (!source.IncludeInSearch)
-            return;
-
-        var managerSections = source.ManagerSections
-            .Where(section => AeroAiContentExposureRules.IsFieldAvailable(
-                AeroAiAudience.Manager,
-                section.Exposure));
-        await StageAudienceAsync(
-            source,
-            AeroAiAudience.Manager,
-            managerSections,
-            cancellationToken);
-
-        if (!AeroAiContentExposureRules.IsEligibleForPublicAi(
-                source.IsPublished,
-                source.IncludeInSearch,
-                source.IncludeInPublicAi))
+        var desired = new List<AeroAiKnowledgeChunkDocument>();
+        if (source.IncludeInSearch)
         {
-            return;
+            var managerSections = source.ManagerSections
+                .Where(section => AeroAiContentExposureRules.IsFieldAvailable(
+                    AeroAiAudience.Manager,
+                    section.Exposure));
+            StageAudience(
+                desired,
+                source,
+                AeroAiAudience.Manager,
+                managerSections);
+
+            if (AeroAiContentExposureRules.IsEligibleForPublicAi(
+                    source.IsPublished,
+                    source.IncludeInSearch,
+                    source.IncludeInPublicAi))
+            {
+                var publicSections = source.PublicSections
+                    .Where(section => AeroAiContentExposureRules.IsFieldAvailable(
+                        AeroAiAudience.Public,
+                        section.Exposure));
+                StageAudience(
+                    desired,
+                    source,
+                    AeroAiAudience.Public,
+                    publicSections);
+            }
         }
 
-        var publicSections = source.PublicSections
-            .Where(section => AeroAiContentExposureRules.IsFieldAvailable(
-                AeroAiAudience.Public,
-                section.Exposure));
-        await StageAudienceAsync(
-            source,
-            AeroAiAudience.Public,
-            publicSections,
-            cancellationToken);
+        await ReconcileAsync(existing, desired, cancellationToken);
     }
 
     public async Task StageDeleteAsync(
@@ -79,19 +80,21 @@ public sealed class AeroAiKnowledgeProjectionService(
             tenantId,
             siteId,
             cancellationToken);
-        await DeletePriorChunksAsync(
+        var prior = await LoadPriorChunksAsync(
             resolvedTenantId,
             siteId,
             sourceKind,
             sourceId,
             cancellationToken);
+        foreach (var chunk in prior)
+            session.Delete(chunk);
     }
 
-    private async Task StageAudienceAsync(
+    private static void StageAudience(
+        ICollection<AeroAiKnowledgeChunkDocument> desired,
         AeroAiKnowledgeSource source,
         AeroAiAudience audience,
-        IEnumerable<AeroAiKnowledgeSection> sections,
-        CancellationToken cancellationToken)
+        IEnumerable<AeroAiKnowledgeSection> sections)
     {
         var chunkRevision = 0;
         foreach (var section in sections)
@@ -118,7 +121,6 @@ public sealed class AeroAiKnowledgeProjectionService(
                         .Where(value => !string.IsNullOrWhiteSpace(value)));
                 var document = new AeroAiKnowledgeChunkDocument
                 {
-                    Id = Snowflake.NewId(),
                     TenantId = source.TenantId,
                     SiteId = source.SiteId,
                     Audience = audience,
@@ -137,28 +139,44 @@ public sealed class AeroAiKnowledgeProjectionService(
                     Content = content,
                     FullText = fullText,
                     ContentHash = Convert.ToHexString(
-                        SHA256.HashData(Encoding.UTF8.GetBytes(fullText))),
-                    GeneratedOn = DateTimeOffset.UtcNow
+                        SHA256.HashData(Encoding.UTF8.GetBytes(fullText)))
                 };
 
-                await TryAttachEmbeddingAsync(document, cancellationToken);
-                session.Store(document);
+                desired.Add(document);
             }
         }
     }
 
     private async Task TryAttachEmbeddingAsync(
         AeroAiKnowledgeChunkDocument document,
+        AeroAiKnowledgeChunkDocument? prior,
         CancellationToken cancellationToken)
     {
         if (!embeddingGenerator.IsAvailable)
+        {
+            if (prior?.ContentHash == document.ContentHash)
+                PreserveEmbedding(document, prior);
             return;
+        }
         if (embeddingGenerator.Dimensions != AeroAiKnowledgeConstants.VectorDimensions)
         {
             throw new InvalidOperationException(
                 $"Embedding generator '{embeddingGenerator.ModelId}' emits " +
                 $"{embeddingGenerator.Dimensions} dimensions; " +
                 $"{AeroAiKnowledgeConstants.VectorDimensions} are required.");
+        }
+
+        if (prior is not null
+            && prior.ContentHash == document.ContentHash
+            && string.Equals(
+                prior.EmbeddingModelId,
+                embeddingGenerator.ModelId,
+                StringComparison.Ordinal)
+            && prior.EmbeddingDimensions == embeddingGenerator.Dimensions
+            && prior.Embedding?.Length == embeddingGenerator.Dimensions)
+        {
+            PreserveEmbedding(document, prior);
+            return;
         }
 
         var generated = await embeddingGenerator.GenerateAsync(
@@ -179,14 +197,45 @@ public sealed class AeroAiKnowledgeProjectionService(
         document.Embedding = success.Value;
     }
 
-    private async Task DeletePriorChunksAsync(
+    private async Task ReconcileAsync(
+        IReadOnlyCollection<AeroAiKnowledgeChunkDocument> existing,
+        IReadOnlyCollection<AeroAiKnowledgeChunkDocument> desired,
+        CancellationToken cancellationToken)
+    {
+        var existingBySlot = existing.ToDictionary(KnowledgeChunkSlot.From);
+        foreach (var candidate in desired)
+        {
+            var slot = KnowledgeChunkSlot.From(candidate);
+            existingBySlot.Remove(slot, out var prior);
+            candidate.Id = prior?.Id ?? Snowflake.NewId();
+            candidate.GeneratedOn = prior?.GeneratedOn ?? DateTimeOffset.UtcNow;
+            await TryAttachEmbeddingAsync(candidate, prior, cancellationToken);
+
+            if (prior is null)
+            {
+                session.Store(candidate);
+                continue;
+            }
+
+            if (Equivalent(prior, candidate))
+                continue;
+
+            Copy(candidate, prior);
+            session.Update(prior);
+        }
+
+        foreach (var obsolete in existingBySlot.Values)
+            session.Delete(obsolete);
+    }
+
+    private async Task<List<AeroAiKnowledgeChunkDocument>> LoadPriorChunksAsync(
         long tenantId,
         long siteId,
         string sourceKind,
         long sourceId,
         CancellationToken cancellationToken)
     {
-        var prior = await session.Query<AeroAiKnowledgeChunkDocument>()
+        return await session.Query<AeroAiKnowledgeChunkDocument>()
             .Where(chunk =>
                 chunk.TenantId == tenantId
                 && chunk.SiteId == siteId
@@ -194,8 +243,76 @@ public sealed class AeroAiKnowledgeProjectionService(
                 && chunk.SourceId == sourceId)
             .Take(AeroAiKnowledgeConstants.MaximumChunksPerSource * 2)
             .ToListAsync(cancellationToken);
-        foreach (var chunk in prior)
-            session.Delete(chunk);
+    }
+
+    private static void PreserveEmbedding(
+        AeroAiKnowledgeChunkDocument target,
+        AeroAiKnowledgeChunkDocument source)
+    {
+        target.EmbeddingModelId = source.EmbeddingModelId;
+        target.EmbeddingDimensions = source.EmbeddingDimensions;
+        target.Embedding = source.Embedding;
+    }
+
+    private static bool Equivalent(
+        AeroAiKnowledgeChunkDocument left,
+        AeroAiKnowledgeChunkDocument right)
+        => left.TenantId == right.TenantId
+           && left.SiteId == right.SiteId
+           && left.Audience == right.Audience
+           && left.SourceKind == right.SourceKind
+           && left.SourceId == right.SourceId
+           && left.SourceUri == right.SourceUri
+           && left.Culture == right.Culture
+           && left.SourceRevision == right.SourceRevision
+           && left.ChunkRevision == right.ChunkRevision
+           && left.SearchSchemaVersion == right.SearchSchemaVersion
+           && left.FieldExposure == right.FieldExposure
+           && left.IsPublished == right.IsPublished
+           && left.IncludeInSearch == right.IncludeInSearch
+           && left.IncludeInPublicAi == right.IncludeInPublicAi
+           && left.Title == right.Title
+           && left.Section == right.Section
+           && left.Content == right.Content
+           && left.FullText == right.FullText
+           && left.ContentHash == right.ContentHash
+           && left.EmbeddingModelId == right.EmbeddingModelId
+           && left.EmbeddingDimensions == right.EmbeddingDimensions
+           && EqualVectors(left.Embedding, right.Embedding);
+
+    private static bool EqualVectors(float[]? left, float[]? right)
+        => ReferenceEquals(left, right)
+           || left is not null
+           && right is not null
+           && left.AsSpan().SequenceEqual(right);
+
+    private static void Copy(
+        AeroAiKnowledgeChunkDocument source,
+        AeroAiKnowledgeChunkDocument target)
+    {
+        target.TenantId = source.TenantId;
+        target.SiteId = source.SiteId;
+        target.Audience = source.Audience;
+        target.SourceKind = source.SourceKind;
+        target.SourceId = source.SourceId;
+        target.SourceUri = source.SourceUri;
+        target.Culture = source.Culture;
+        target.SourceRevision = source.SourceRevision;
+        target.ChunkRevision = source.ChunkRevision;
+        target.SearchSchemaVersion = source.SearchSchemaVersion;
+        target.FieldExposure = source.FieldExposure;
+        target.IsPublished = source.IsPublished;
+        target.IncludeInSearch = source.IncludeInSearch;
+        target.IncludeInPublicAi = source.IncludeInPublicAi;
+        target.Title = source.Title;
+        target.Section = source.Section;
+        target.Content = source.Content;
+        target.FullText = source.FullText;
+        target.ContentHash = source.ContentHash;
+        target.GeneratedOn = DateTimeOffset.UtcNow;
+        target.EmbeddingModelId = source.EmbeddingModelId;
+        target.EmbeddingDimensions = source.EmbeddingDimensions;
+        target.Embedding = source.Embedding;
     }
 
     private async Task<AeroAiKnowledgeSource> ValidateAndScopeSourceAsync(
@@ -239,5 +356,25 @@ public sealed class AeroAiKnowledgeProjectionService(
         }
 
         return site.TenantId;
+    }
+
+    private readonly record struct KnowledgeChunkSlot(
+        long TenantId,
+        long SiteId,
+        string SourceKind,
+        long SourceId,
+        AeroAiAudience Audience,
+        int ChunkRevision,
+        int SearchSchemaVersion)
+    {
+        public static KnowledgeChunkSlot From(AeroAiKnowledgeChunkDocument document)
+            => new(
+                document.TenantId,
+                document.SiteId,
+                document.SourceKind,
+                document.SourceId,
+                document.Audience,
+                document.ChunkRevision,
+                document.SearchSchemaVersion);
     }
 }

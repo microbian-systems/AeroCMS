@@ -378,26 +378,12 @@ public static class AeroCmsExtensions
         {
             app.Use(static async (context, next) =>
             {
-                var isFrameworkAsset = context.Request.Path.StartsWithSegments(
-                    "/_framework",
-                    StringComparison.OrdinalIgnoreCase);
                 var isManagerDocument = HttpMethods.IsGet(context.Request.Method) &&
                     context.Request.Path.StartsWithSegments(
                         "/manager",
                         StringComparison.OrdinalIgnoreCase);
 
-                if (isFrameworkAsset)
-                {
-                    context.Response.OnStarting(static state =>
-                    {
-                        var response = (HttpResponse)state;
-                        response.Headers.CacheControl = "no-store, no-cache, max-age=0";
-                        response.Headers.Pragma = "no-cache";
-                        response.Headers.Expires = "0";
-                        return Task.CompletedTask;
-                    }, context.Response);
-                }
-                else if (isManagerDocument)
+                if (isManagerDocument)
                 {
                     context.Response.OnStarting(static state =>
                     {

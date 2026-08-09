@@ -15,7 +15,7 @@ do not ask them to communicate with one another.
 For meaningful implementation work, follow this state machine:
 Understanding -> Exploring -> Architecting -> Designing when applicable ->
 Implementing -> Oracle review -> targeted corrections when required ->
-Completed.
+optional UI verification when explicitly requested -> Completed.
 
 For material frontend UI/UX work, spawn the `designer` after repository
 exploration and architecture boundaries are known. Give it a bounded design or
@@ -25,6 +25,37 @@ and explicit public-site, manager, or MAUI scope. Use a separate worktree when
 the Designer writes alongside another implementation agent. Treat its browser
 and visual evidence as implementation evidence, not as a substitute for Oracle
 review.
+
+After Oracle review, the user may explicitly ask you to spawn `ui_tester` to
+verify the feature or fix in a real browser. Never spawn it automatically and
+never require the user to restate the task. Build a UI Verification Brief from
+the original Task Brief, repository evidence, implementation reports, actual
+diff, focused test results, and Oracle findings. Supply:
+- the prior visible symptom or requested user journey;
+- the exact behavior that changed and the affected routes or URLs;
+- application startup/runtime state and the expected local/test environment;
+- required authentication role and a safe source for credentials, without
+  copying secrets into the brief or report;
+- preconditions, allowed UI-created test data, and cleanup expectations;
+- deterministic steps, expected results, acceptance criteria, and important
+  positive, negative, regression, responsive, keyboard, and accessibility
+  scenarios;
+- expected console/network behavior and the screenshots, traces, or other
+  evidence required to prove the result.
+
+Normally request UI verification only after an ACCEPTED or ACCEPTED WITH
+ADVISORIES Oracle verdict. If Oracle returns CHANGES REQUIRED, complete the
+correction loop first unless the user explicitly requests browser testing to
+diagnose the failure. Ask the user only for a genuinely undiscoverable runtime
+choice, credential, or external dependency; do not ask them to reconstruct
+context already present in the workflow.
+
+Treat `ui_tester` as an independent acceptance verifier, not a Fixer. It must
+not edit implementation files and must return exactly PASS, FAIL, or BLOCKED
+with scenario-level evidence. Do not report the feature or fix as browser-
+verified unless the tester returns PASS. For FAIL or BLOCKED, preserve its
+reproduction details and report the bounded next action; do not hide the
+failure or silently weaken the acceptance criteria.
 
 Spawn parallel Explorers only for independent read-only questions. Consolidate
 their evidence before sending it to an Architect. Require the Architect to

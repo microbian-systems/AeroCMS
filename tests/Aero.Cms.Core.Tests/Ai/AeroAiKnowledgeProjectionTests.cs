@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Ai.Pipeline;
 using Aero.Cms.Abstractions.Enums;
@@ -118,6 +120,113 @@ public sealed class AeroAiKnowledgeProjectionTests
 
         exception.Message.ShouldContain("tenant and site scopes do not match");
         (await LoadChunksAsync(harness)).ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task Identical_projection_replay_preserves_ids_timestamps_hashes_and_embeddings()
+    {
+        await using var harness = await CreateHarnessAsync();
+        var embeddings = new DeterministicEmbeddingGenerator();
+        var service = CreateProjection(harness.Session, embeddings);
+        var source = CreateSource(
+            publicSections: [Section("Body", "public replay content", AeroAiFieldExposure.Public)],
+            managerSections: [Section("Notes", "manager replay content", AeroAiFieldExposure.Internal)]);
+
+        await service.StageUpsertAsync(source);
+        await harness.Session.SaveChangesAsync();
+        var first = (await LoadChunksAsync(harness))
+            .OrderBy(chunk => chunk.Audience)
+            .ThenBy(chunk => chunk.ChunkRevision)
+            .ToArray();
+
+        await service.StageUpsertAsync(source);
+        await harness.Session.SaveChangesAsync();
+        var replay = (await LoadChunksAsync(harness))
+            .OrderBy(chunk => chunk.Audience)
+            .ThenBy(chunk => chunk.ChunkRevision)
+            .ToArray();
+
+        replay.Length.ShouldBe(first.Length);
+        embeddings.CallCount.ShouldBe(first.Length);
+        for (var index = 0; index < first.Length; index++)
+        {
+            replay[index].Id.ShouldBe(first[index].Id);
+            replay[index].GeneratedOn.ShouldBe(first[index].GeneratedOn);
+            replay[index].ContentHash.ShouldBe(first[index].ContentHash);
+            replay[index].EmbeddingModelId.ShouldBe(first[index].EmbeddingModelId);
+            replay[index].EmbeddingDimensions.ShouldBe(first[index].EmbeddingDimensions);
+            replay[index].Embedding.ShouldBe(first[index].Embedding);
+        }
+    }
+
+    [Test]
+    public async Task Changed_projection_reuses_matching_slot_and_removes_obsolete_slots()
+    {
+        await using var harness = await CreateHarnessAsync();
+        var embeddings = new DeterministicEmbeddingGenerator();
+        var service = CreateProjection(harness.Session, embeddings);
+        var source = CreateSource(
+            publicSections:
+            [
+                Section("Lead", "original lead", AeroAiFieldExposure.Public),
+                Section("Tail", "obsolete tail", AeroAiFieldExposure.Public)
+            ],
+            managerSections: []);
+
+        await service.StageUpsertAsync(source);
+        await harness.Session.SaveChangesAsync();
+        var original = (await LoadChunksAsync(harness))
+            .OrderBy(chunk => chunk.ChunkRevision)
+            .ToArray();
+        original.Length.ShouldBe(2);
+        var originalId = original[0].Id;
+        var originalHash = original[0].ContentHash;
+        var originalEmbedding = original[0].Embedding?.ToArray();
+
+        await service.StageUpsertAsync(source with
+        {
+            SourceRevision = 2,
+            PublicSections =
+            [
+                Section("Lead", "updated lead", AeroAiFieldExposure.Public)
+            ]
+        });
+        await harness.Session.SaveChangesAsync();
+
+        var changed = await LoadChunksAsync(harness);
+        var retained = changed.ShouldHaveSingleItem();
+        retained.Id.ShouldBe(originalId);
+        retained.SourceRevision.ShouldBe(2);
+        retained.ChunkRevision.ShouldBe(0);
+        retained.Content.ShouldBe("updated lead");
+        retained.ContentHash.ShouldNotBe(originalHash);
+        retained.Embedding.ShouldNotBe(originalEmbedding);
+        embeddings.CallCount.ShouldBe(3);
+    }
+
+    [Test]
+    public async Task Projection_schema_rejects_duplicate_stable_slots()
+    {
+        await using var harness = await CreateHarnessAsync();
+        var first = KnowledgeChunk(
+            id: 801,
+            tenantId: TenantId,
+            siteId: SiteId,
+            audience: AeroAiAudience.Public,
+            content: "first slot");
+        var duplicate = KnowledgeChunk(
+            id: 802,
+            tenantId: TenantId,
+            siteId: SiteId,
+            audience: AeroAiAudience.Public,
+            content: "duplicate slot");
+        duplicate.SourceId = first.SourceId;
+
+        harness.Session.Store(first);
+        harness.Session.Store(duplicate);
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => harness.Session.SaveChangesAsync());
     }
 
     [Test]
@@ -254,6 +363,11 @@ public sealed class AeroAiKnowledgeProjectionTests
         IDocumentSession session)
         => new(session, new UnavailableContentEmbeddingGenerator());
 
+    private static AeroAiKnowledgeProjectionService CreateProjection(
+        IDocumentSession session,
+        IContentEmbeddingGenerator embeddingGenerator)
+        => new(session, embeddingGenerator);
+
     private static AeroAiKnowledgeSource CreateSource(
         IReadOnlyList<AeroAiKnowledgeSection> publicSections,
         IReadOnlyList<AeroAiKnowledgeSection> managerSections)
@@ -297,7 +411,7 @@ public sealed class AeroAiKnowledgeProjectionTests
     {
         var harness = new SableTestHarness()
             .WithSchema<SitesModel>(SchemaMode.Flexible)
-            .WithSchema<AeroAiKnowledgeChunkDocument>(SchemaMode.Flexible);
+            .WithConfiguration(options => new AiModule().Configure(options));
         if (includePages)
             harness.WithSchema<PageDocument>(SchemaMode.Flexible);
 
@@ -353,4 +467,24 @@ public sealed class AeroAiKnowledgeProjectionTests
             ContentHash = $"hash-{id}",
             GeneratedOn = DateTimeOffset.UtcNow
         };
+
+    private sealed class DeterministicEmbeddingGenerator : IContentEmbeddingGenerator
+    {
+        public string ModelId => "projection-test-embedding";
+        public int Dimensions => AeroAiKnowledgeConstants.VectorDimensions;
+        public bool IsAvailable => true;
+        public int CallCount { get; private set; }
+
+        public Task<Result<float[]>> GenerateAsync(
+            string text,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            var digest = SHA256.HashData(Encoding.UTF8.GetBytes(text));
+            return Task.FromResult<Result<float[]>>(
+                Enumerable.Range(0, Dimensions)
+                    .Select(index => digest[index % digest.Length] / 255F)
+                    .ToArray());
+        }
+    }
 }
