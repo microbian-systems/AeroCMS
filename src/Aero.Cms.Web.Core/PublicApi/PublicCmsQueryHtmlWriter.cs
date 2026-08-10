@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using Aero.Cms.Abstractions.Content;
 
-namespace Aero.Cms.Web.Areas.Api.V1;
+namespace Aero.Cms.Web.Core.PublicApi;
 
 /// <summary>
 /// Produces fixed, encoded semantic fragments for HTMX callers.

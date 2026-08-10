@@ -41,6 +41,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.UI\Aero.Cms.UI.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>
 

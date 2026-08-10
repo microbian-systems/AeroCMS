@@ -10,9 +10,9 @@ using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Identity;
+using Aero.Cms.Hosting.Defaults;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
-using Aero.Cms.Web.Infrastructure;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Models.Entities;
@@ -36,15 +36,11 @@ using Npgsql;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
-using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.Extensions.Options;
 using SurrealDb.Embedded.InMemory;
-using Wolverine;
-using Orleans.Runtime;
-using Aero.Modular;
 using Hydro.Configuration;
 
 namespace Aero.Cms.E2E.Tests;
@@ -57,8 +53,8 @@ namespace Aero.Cms.E2E.Tests;
 ///
 /// Startup sequence:
 ///   1. Start embedded Postgres via MysticMind.PostgresEmbed
-///   2. Build a WebApplication using the real <c>AddAeroCmsAsync</c> DI setup
-///   3. Configure the middleware pipeline (mirrors <c>RunAeroCmsAsync</c> minus HTTPS)
+///   2. Build a WebApplication using the public arbitrary-host registration contract
+///   3. Configure the public staged middleware pipeline (minus HTTPS)
 ///   4. Start the app via <c>app.StartAsync()</c> on a background thread
 ///   5. Poll for HTTP readiness
 ///   6. Start Playwright
@@ -104,13 +100,10 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             var connString = $"Host=localhost;Port={_pgPort};Username={dbName};Database={dbName};";
 
             // ── 3. Build & start the real web app with Kestrel ───────────
-            var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
-
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
-                ContentRootPath = webProjectPath,
-                EnvironmentName = Environments.Development,
-                ApplicationName = "Aero.Cms.Web"
+                ContentRootPath = Directory.GetCurrentDirectory(),
+                EnvironmentName = Environments.Development
             });
 
             // Override config for testing
@@ -142,22 +135,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             });
 
             // Configure Serilog for bootstrap logging
-            AeroCmsExtensions.ConfigureAeroCmsBootstrapLogging(webProjectPath);
+            AeroCmsExtensions.ConfigureAeroCmsBootstrapLogging(builder.Environment.ContentRootPath);
 
-            // Load module descriptors via reflection — avoids CS0433 type collisions from
-            // the source generator that emits GeneratedAeroModuleCatalog / GeneratedWolverineHandlerCatalog
-            // into every project referencing Aero.Modular.
-            var (descriptors, configureWolverine, configureGrains) = LoadGeneratedCatalogs();
-
-            // Call the real startup to register all services
-            await builder.AddAeroCmsAsync<DefaultSiteContext>(options =>
-            {
-                options.ModuleDescriptors = descriptors;
-                options.ConfigureWolverine = configureWolverine;
-                options.ConfigureGrains = configureGrains;
-                options.ConfigureApplicationCookie = cookie =>
-                    cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-            });
+            await builder
+                .AddAeroCms(AeroCmsDefaultCatalog.Catalog, options =>
+                    options.ConfigureApplicationCookie = cookie =>
+                        cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest)
+                .WithSetupSettingsDirectory(builder.Environment.ContentRootPath)
+                .RegisterHostAsync<PlaywrightE2EFixture>();
 
             builder.Services.RemoveAll<AeroDB.Sable.IDocumentStore>();
             builder.Services.AddAeroDB(options =>
@@ -233,14 +218,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 {
                     await _app.StartAsync(_appCts.Token);
 
-                    // Optional post-start initialization (migrations, modules)
-                    // Non-fatal — app stays up even if these fail.
-                    try { await _app.PrepareAeroAppAsync(); }
-                    catch (Exception ex) { Log.Warning(ex, "PrepareAeroAppAsync failed (non-fatal)"); }
-
-                    try { await _app.InitializeAeroAppAsync(); }
-                    catch (Exception ex) { Log.Warning(ex, "InitializeAeroAppAsync failed (non-fatal)"); }
-
                     // Wait until cancellation is requested (by DisposeAsync)
                     var tcs = new TaskCompletionSource();
                     _appCts.Token.Register(() => tcs.TrySetResult());
@@ -310,55 +287,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
-    // ── Generated catalog loader (reflection-based) ──────────────────────
-
-    /// <summary>
-    /// Loads source-generated catalogs from the web project's assembly via reflection.
-    ///
-    /// Avoids CS0433: the source generator emits the same type names
-    /// (GeneratedAeroModuleCatalog, GeneratedWolverineHandlerCatalog) into every
-    /// project that references Aero.Modular, making compile-time resolution ambiguous.
-    /// Runtime reflection picks the correct copy from the <c>Aero.Cms.Web</c> assembly.
-    /// </summary>
-    private static (IReadOnlyList<ModuleDescriptor> Descriptors,
-                    Action<WolverineOptions> ConfigureWolverine,
-                    Action<ISiloBuilder> ConfigureGrains) LoadGeneratedCatalogs()
-    {
-        var webAssembly = typeof(DefaultSiteContext).Assembly;
-
-        // ModuleDescriptors from GeneratedAeroModuleCatalog.Descriptors
-        IReadOnlyList<ModuleDescriptor> descriptors = [];
-        var moduleCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedAeroModuleCatalog");
-        if (moduleCatalogType is not null)
-        {
-            var prop = moduleCatalogType.GetProperty("Descriptors", BindingFlags.Public | BindingFlags.Static);
-            if (prop?.GetValue(null) is IReadOnlyList<ModuleDescriptor> list)
-                descriptors = list;
-        }
-
-        // Wolverine registration callback from GeneratedWolverineHandlerCatalog.Register
-        Action<WolverineOptions> configureWolverine = static _ => { };
-        var wolverineCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedWolverineHandlerCatalog");
-        if (wolverineCatalogType is not null)
-        {
-            var method = wolverineCatalogType.GetMethod("Register", BindingFlags.Public | BindingFlags.Static);
-            if (method is not null)
-                configureWolverine = method.CreateDelegate<Action<WolverineOptions>>();
-        }
-
-        // Grain registration callback from GeneratedAeroGrainCatalog.Register
-        Action<ISiloBuilder> configureGrains = static _ => { };
-        var grainCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedAeroGrainCatalog");
-        if (grainCatalogType is not null)
-        {
-            var method = grainCatalogType.GetMethod("Register", BindingFlags.Public | BindingFlags.Static);
-            if (method is not null)
-                configureGrains = method.CreateDelegate<Action<ISiloBuilder>>();
-        }
-
-        return (descriptors, configureWolverine, configureGrains);
-    }
-
     // ── Middleware pipeline ──────────────────────────────────────────────
 
     /// <summary>
@@ -371,9 +299,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     /// </summary>
     private void ConfigureTestMiddleware(WebApplication app)
     {
-        var env = app.Environment;
-        var options = app.Services.GetRequiredService<AeroCmsOptions>();
-
         app.Map("/__e2e/ready", readyApp =>
             readyApp.Run(context =>
             {
@@ -397,124 +322,21 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             })));
 
         app.UseExceptionHandler();
-
-        if (env.IsDevelopment())
+        if (app.Environment.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();
         }
-        else
-        {
-            app.UseExceptionHandler("/error", createScopeForErrors: true);
-            // HSTS skipped for testing
-        }
-
-        // HTTPS redirection skipped — Playwright tests use HTTP.
-
-        app.UseAeroApplicationServer();
         app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
-        app.Use(static async (context, next) =>
-        {
-            if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-            {
-                var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
-                if (statusCodePagesFeature is not null)
-                {
-                    statusCodePagesFeature.Enabled = false;
-                }
-            }
-
-            await next(context);
-        });
-
-        // The production host receives this through SiteStartupFilter. This
-        // fixture builds its pipeline manually, so add it explicitly to give
-        // public requests the same host-derived site context. The readiness
-        // endpoint runs before the database is seeded and must stay reachable.
-        app.UseWhen(
-            context => !context.Request.Path.StartsWithSegments("/__e2e", StringComparison.OrdinalIgnoreCase),
-            branch => branch.UseMiddleware<SiteResolutionMiddleware>());
-
+        app.UseAeroCmsRouting();
         app.UseStaticFiles();
-        app.MapStaticAssets();
-
-        app.UseRouting();
-        app.UseRequestLocalization(localization =>
-        {
-            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures | CultureTypes.NeutralCultures)
-                .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
-                .ToArray();
-
-            localization.DefaultRequestCulture = new RequestCulture("en-US");
-            localization.SupportedCultures = supportedCultures;
-            localization.SupportedUICultures = supportedCultures;
-            localization.ApplyCurrentCultureToResponseHeaders = true;
-
-            localization.RequestCultureProviders.Clear();
-            localization.RequestCultureProviders.Add(new Aero.Cms.Web.Bootstrap.Localization.AeroRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new CookieRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
-        });
+        app.UseAeroCmsSiteAndLocalization();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
-        app.UseAeroCmsModulePipeline();
+        app.UseAeroCmsRequestPipeline();
         app.UseAntiforgery();
-
-        // Culture cookie setter
-        app.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
-        {
-            context.Response.Cookies.Append(
-                CookieRequestCultureProvider.DefaultCookieName,
-                CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
-                new CookieOptions
-                {
-                    Expires = DateTimeOffset.UtcNow.AddYears(1),
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Lax
-                });
-
-            return Results.Redirect(returnUrl);
-        });
-
-        app.MapRazorPages();
-
-        var componentBuilder = app.MapRazorComponents<Aero.Cms.Web.Components.App>()
-            .AddInteractiveServerRenderMode()
-            .AddInteractiveWebAssemblyRenderMode()
-            .AddAdditionalAssemblies(
-                typeof(Aero.Cms.Shared._Imports).Assembly,
-                typeof(Aero.Cms.Web.Client._Imports).Assembly,
-                typeof(SetupModule).Assembly);
-
-        Aero.Cms.Modules.Identity.IdentityApi.MapIdentityApi(app);
-        app.MapAeroCmsEndpoints();
-
-        if (options.EnableOpenApi)
-        {
-            app.MapOpenApi();
-        }
-
-        if (options.EnableScalarApiReference)
-        {
-            app.MapScalarApiReference(scalar =>
-            {
-                scalar.WithTitle("Aero CMS")
-                    .ForceDarkMode()
-                    .HideSearch()
-                    .ShowOperationId()
-                    .ExpandAllTags()
-                    .SortTagsAlphabetically()
-                    .SortOperationsByMethod()
-                    .PreserveSchemaPropertyOrder();
-            });
-        }
-
-        if (options.EnableHydro)
-        {
-            // Hydro MUST be last — it internally calls UseEndpoints().
-            app.UseHydro(app.Environment);
-        }
+        app.MapAeroCms();
+        app.UseAeroCmsTerminalPipeline();
     }
 
     // ── Readiness polling ────────────────────────────────────────────────

@@ -5,6 +5,7 @@ using Aero.Cms.Data.Repositories;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using AeroDB.Sable;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -22,7 +23,7 @@ namespace Aero.Cms.Modules.Sites;
 /// pipeline. Site-resolution middleware is omitted when the module is disabled in production.
 /// </remarks>
 [Module(nameof(SitesModule))]
-public class SitesModule : AeroWebModule, IConfigureAeroDB
+public class SitesModule : AeroWebModule, IConfigureAeroDB, IAeroPipelineModule
 {
     /// <summary>
     /// Gets the stable module name used by module discovery.
@@ -92,12 +93,17 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             options.AddPolicy("site:delete", policy => policy.AddRequirements(new SitePermissionRequirement("delete")));
         });
 
-        // Register startup filter for site resolution middleware.
-        // Runs first in pipeline because SitesModule has the lowest Order (-9999)
-        // and ConfigureServices is called in load order.
+    }
+
+    /// <summary>Places site resolution in the explicit early Aero CMS pipeline stage.</summary>
+    public int PipelineOrder => -10_000;
+
+    /// <inheritdoc />
+    public void ConfigurePipeline(Microsoft.AspNetCore.Builder.IApplicationBuilder app)
+    {
         if (!DisabledInProduction)
         {
-            services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, SiteStartupFilter>());
+            app.UseMiddleware<SiteResolutionMiddleware>();
         }
     }
 

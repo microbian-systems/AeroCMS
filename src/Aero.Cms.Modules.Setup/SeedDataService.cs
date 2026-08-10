@@ -1328,9 +1328,19 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     private async Task SeedStarterMediaAsync(CancellationToken ct)
     {
         var mediaDir = Path.Combine(env.WebRootPath, "media");
-        if (!Directory.Exists(mediaDir))
+        try
         {
-            Log.Warning("Media directory not found at {Path}. Skipping media seed.", mediaDir);
+            if (!await StarterMediaStager.StageAsync(env, ct))
+            {
+                Log.Warning(
+                    "Aero CMS starter media was not available from {StaticAssetPath}. Skipping media seed.",
+                    StarterMediaStager.SourceSubpath);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Log.Warning(ex, "Failed to stage Aero CMS starter media into {Path}. Skipping media seed.", mediaDir);
             return;
         }
 
@@ -1345,7 +1355,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             [".ico"] = "image/x-icon"
         };
 
-        // Seed top-level media files in wwwroot/media/
+        // Seed the starter files now staged into the host-owned media root.
         foreach (var filePath in Directory.EnumerateFiles(mediaDir))
         {
             var fileName = Path.GetFileName(filePath);

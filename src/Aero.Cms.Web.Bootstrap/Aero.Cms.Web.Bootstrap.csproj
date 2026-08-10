@@ -34,7 +34,9 @@
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Hosting.Abstractions\Aero.Cms.Hosting.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+    <ProjectReference Include="..\Aero.Cms.UI\Aero.Cms.UI.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 
     <!-- CMS infrastructure -->

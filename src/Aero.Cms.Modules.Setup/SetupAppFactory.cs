@@ -30,21 +30,35 @@ public static class SetupAppFactory
     /// Creates and configures a setup-specific <see cref="WebApplication"/>.
     /// </summary>
     /// <param name="args">Command-line arguments passed to the setup host builder.</param>
-    /// <param name="earlyConfig">The caller's early configuration snapshot. The current factory retains this contract but builds setup services from the new host configuration.</param>
+    /// <param name="earlyConfig">The consuming host's authoritative configuration.</param>
+    /// <param name="contentRootPath">The consuming host's content root.</param>
+    /// <param name="environmentName">The consuming host's resolved environment name.</param>
     /// <returns>A configured application that has not yet been started.</returns>
     /// <remarks>
     /// Creating the application may create or load a data-protection certificate and key
     /// ring. The setup host intentionally omits runtime database, Orleans, and Identity services.
     /// </remarks>
-    public static async Task<WebApplication> CreateSetupAppAsync(string[] args, IConfiguration earlyConfig)
+    public static async Task<WebApplication> CreateSetupAppAsync(
+        string[] args,
+        IConfiguration earlyConfig,
+        string contentRootPath,
+        string environmentName)
     {
-        var webProjectPath = AppSettingsPathResolver.GetWebProjectPath();
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentRootPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
+        var webProjectPath = Path.GetFullPath(contentRootPath);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
             ContentRootPath = webProjectPath,
-            EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Development
+            EnvironmentName = environmentName
         });
+
+        // The setup host is a temporary UI surface, not a second configuration owner. Consume the
+        // exact resolved configuration graph supplied by the application and do not add another
+        // appsettings/environment/command-line precedence stack.
+        builder.Configuration.Sources.Clear();
+        builder.Configuration.AddConfiguration(earlyConfig);
         var services = builder.Services;
         var config = builder.Configuration;
         var env = builder.Environment;

@@ -6,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using System.Text.Json;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -39,107 +38,29 @@ public static class AeroStartupPipeline
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(args);
 
-        var result = await RunEarlyPhasesAsync(args)
-            ?? throw new InvalidOperationException("Aero CMS bootstrap configuration could not be initialized.");
+        Log.Information("Aero CMS starting up...");
+        var state = GetBootstrapState(builder.Configuration);
+        Log.Information("Bootstrap state: {State}", state.State);
 
-        if (!result.State.IsConfiguredMode && !result.State.IsRunningMode)
+        if (state.IsSetupMode)
+        {
+            Log.Information("Setup mode detected. Starting setup application...");
+            await RunSetupAppAsync(
+                args,
+                builder.Configuration,
+                builder.Environment.ContentRootPath,
+                builder.Environment.EnvironmentName);
+            state = await ReloadBootstrapStateAfterSetupAsync(builder.Configuration);
+            Log.Information("Post-setup bootstrap state: {State}", state.State);
+        }
+
+        if (!state.IsConfiguredMode && !state.IsRunningMode)
         {
             throw new InvalidOperationException(
-                $"Invalid bootstrap state '{result.State.State}' after setup. Expected Configured or Running.");
+                $"Invalid bootstrap state '{state.State}' after setup. Expected Configured or Running.");
         }
 
-        // The normal builder was created before the setup host ran. Add the freshly reloaded
-        // snapshot at the highest priority so all subsequent registrations observe the handoff.
-        builder.Configuration.AddConfiguration(result.Config);
-        return result.State;
-    }
-
-    /// <summary>
-    /// Contains configuration and bootstrap state reloaded after any setup-host handoff.
-    /// </summary>
-    /// <param name="Config">The early configuration snapshot.</param>
-    /// <param name="State">The bootstrap state read from <paramref name="Config"/>.</param>
-    /// <param name="WebProjectPath">The base path used to load application settings.</param>
-    public readonly record struct EarlyStartupResult(
-        IConfiguration Config,
-        BootstrapState State,
-        string WebProjectPath);
-
-    /// <summary>
-    /// Builds early configuration and, when setup mode is active, runs the setup application before
-    /// reloading configuration and bootstrap state.
-    /// </summary>
-    /// <param name="args">Command-line arguments applied with the highest configuration priority.</param>
-    /// <returns>
-    /// A task whose result contains the configuration, bootstrap state, and web project path for main-host
-    /// startup, or <see langword="null"/> when any early-startup operation fails.
-    /// </returns>
-    /// <remarks>
-    /// In setup mode, this method waits until the setup host is told to stop, stops that host, and then
-    /// retries the configuration reload up to ten times with 200-millisecond delays while setup mode
-    /// remains active. Exceptions are logged as fatal and converted to a <see langword="null"/> result.
-    /// </remarks>
-    public static async Task<EarlyStartupResult?> RunEarlyPhasesAsync(string[] args)
-    {
-        var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
-
-        try
-        {
-            Log.Information("Aero CMS starting up...");
-
-            // Phase 1: Build early configuration and check bootstrap state
-            var earlyConfig = BuildEarlyConfiguration(args, webProjectPath);
-            var bootstrapState = GetBootstrapState(earlyConfig);
-
-            Log.Information("Bootstrap state: {State}", bootstrapState.State);
-
-            // Phase 2: Run Setup App if needed
-            if (bootstrapState.IsSetupMode)
-            {
-                Log.Information("Setup mode detected. Starting setup application...");
-                await RunSetupAppAsync(args, earlyConfig);
-
-                // Re-read configuration after setup app exits
-                Log.Information("Setup application completed. Re-reading configuration...");
-                (earlyConfig, bootstrapState) = await ReloadBootstrapStateAfterSetupAsync(args, webProjectPath);
-
-                Log.Information("Post-setup bootstrap state: {State}", bootstrapState.State);
-            }
-
-            return new EarlyStartupResult(earlyConfig, bootstrapState, webProjectPath);
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Application terminated unexpectedly during early startup phases");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Builds the configuration snapshot used before the main dependency-injection container is available.
-    /// </summary>
-    /// <param name="args">Command-line arguments applied with the highest configuration priority.</param>
-    /// <param name="webProjectPath">The base path from which JSON settings files are loaded.</param>
-    /// <returns>A non-reloading configuration snapshot.</returns>
-    /// <remarks>
-    /// Sources are added in increasing priority: optional <c>appsettings.json</c>, optional
-    /// environment-specific settings, environment variables, and command-line arguments. If
-    /// <c>ASPNETCORE_ENVIRONMENT</c> is unset, the environment name defaults to <c>Development</c>.
-    /// </remarks>
-    public static IConfiguration BuildEarlyConfiguration(string[] args, string webProjectPath)
-    {
-        var configBuilder = new ConfigurationBuilder();
-
-        configBuilder.SetBasePath(webProjectPath);
-        configBuilder.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
-
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        configBuilder.AddJsonFile($"appsettings.{env}.json", optional: true, reloadOnChange: false);
-
-        configBuilder.AddEnvironmentVariables();
-        configBuilder.AddCommandLine(args);
-
-        return configBuilder.Build();
+        return state;
     }
 
     /// <summary>
@@ -153,61 +74,42 @@ public static class AeroStartupPipeline
         return provider.GetState();
     }
 
-    private static async Task<(IConfiguration Config, BootstrapState State)> ReloadBootstrapStateAfterSetupAsync(string[] args, string webProjectPath)
+    private static async Task<BootstrapState> ReloadBootstrapStateAfterSetupAsync(
+        ConfigurationManager configuration)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        var envPath = Path.Combine(webProjectPath, $"appsettings.{env}.json");
-
         for (var attempt = 1; attempt <= 10; attempt++)
         {
-            var config = BuildEarlyConfiguration(args, webProjectPath);
-            var state = GetBootstrapState(config);
+            ((IConfigurationRoot)configuration).Reload();
+            var state = GetBootstrapState(configuration);
 
             Log.Information(
-                "Bootstrap reread attempt {Attempt}. Environment={Environment}, File={FilePath}, State={State}",
+                "Bootstrap configuration reload attempt {Attempt}. State={State}",
                 attempt,
-                env,
-                envPath,
                 state.State);
 
             if (!state.IsSetupMode)
             {
-                return (config, state);
-            }
-
-            if (File.Exists(envPath))
-            {
-                try
-                {
-                    var json = await File.ReadAllTextAsync(envPath);
-                    using var document = JsonDocument.Parse(json);
-
-                    if (document.RootElement.TryGetProperty("AeroCms", out var aeroCms) &&
-                        aeroCms.TryGetProperty("Bootstrap", out var bootstrap) &&
-                        bootstrap.TryGetProperty("State", out var rawState))
-                    {
-                        Log.Warning(
-                            "Bootstrap file still reports State={RawState} on reread attempt {Attempt}.",
-                            rawState.GetString(),
-                            attempt);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Failed reading bootstrap file directly during reread attempt {Attempt}.", attempt);
-                }
+                return state;
             }
 
             await Task.Delay(200);
         }
 
-        var finalConfig = BuildEarlyConfiguration(args, webProjectPath);
-        return (finalConfig, GetBootstrapState(finalConfig));
+        ((IConfigurationRoot)configuration).Reload();
+        return GetBootstrapState(configuration);
     }
 
-    private static async Task RunSetupAppAsync(string[] args, IConfiguration earlyConfig)
+    private static async Task RunSetupAppAsync(
+        string[] args,
+        IConfiguration earlyConfig,
+        string contentRootPath,
+        string environmentName)
     {
-        var setupApp = await SetupAppFactory.CreateSetupAppAsync(args, earlyConfig);
+        var setupApp = await SetupAppFactory.CreateSetupAppAsync(
+            args,
+            earlyConfig,
+            contentRootPath,
+            environmentName);
 
         await setupApp.StartAsync();
 

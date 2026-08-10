@@ -1,7 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Core.Railway;
 
-namespace Aero.Cms.Web.Areas.Api.V1;
+namespace Aero.Cms.Web.Core.PublicApi;
 
 /// <summary>A bounded page of published query results.</summary>
 public sealed record PublicQueryPage<T>(

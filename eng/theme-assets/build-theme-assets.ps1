@@ -104,7 +104,7 @@ $compilations = @(
     @{
         Name = 'Aero CMS web and manager styles'
         Input = Join-Path $repoRoot 'src\Aero.Cms.Web\Styles\aero.tailwind.css'
-        Output = Join-Path $repoRoot 'src\Aero.Cms.Web\wwwroot\css\aero.generated.css'
+        Output = Join-Path $repoRoot 'src\Aero.Cms.UI\wwwroot\css\aero.generated.css'
     },
     @{
         Name = 'Aero CMS docs styles'

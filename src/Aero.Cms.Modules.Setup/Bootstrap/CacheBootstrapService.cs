@@ -139,9 +139,9 @@ public sealed class CacheBootstrapService(
     /// <summary>
     /// Reads the environment settings object or creates an empty root when the file is absent.
     /// </summary>
-    private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
+    private async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var path = appSettingsWriter.GetFilePath(env);
         if (!File.Exists(path)) return new JsonObject();
 
         var text = await File.ReadAllTextAsync(path, cancellationToken);

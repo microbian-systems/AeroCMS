@@ -10,7 +10,7 @@ public sealed class PublicAssetPathTests
         var stylesheet = await File.ReadAllTextAsync(Path.Combine(
             repositoryRoot,
             "src",
-            "Aero.Cms.Web",
+            "Aero.Cms.UI",
             "wwwroot",
             "css",
             "aero.generated.css"));
@@ -30,7 +30,7 @@ public sealed class PublicAssetPathTests
         var stylesheet = await File.ReadAllTextAsync(Path.Combine(
             repositoryRoot,
             "src",
-            "Aero.Cms.Web",
+            "Aero.Cms.UI",
             "wwwroot",
             "css",
             "aero.generated.css"));

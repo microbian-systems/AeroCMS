@@ -27,6 +27,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.InMemory\SurrealDb.Embedded.InMemory.csproj" />
-        <ProjectReference Include="..\..\src\Aero.Cms.Web\Aero.Cms.Web.csproj" />
+        <ProjectReference Include="..\..\src\Aero.Cms.Hosting.Defaults\Aero.Cms.Hosting.Defaults.csproj" />
+        <ProjectReference Include="..\..\src\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
     </ItemGroup>
 </Project>

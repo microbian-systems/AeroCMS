@@ -14,6 +14,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
 using NSubstitute;
 using Shouldly;
 
@@ -21,6 +22,93 @@ namespace Aero.Cms.Core.Tests.Integration;
 
 public sealed class SeedDatabaseServiceTests
 {
+    [Test]
+    public async Task StarterMediaStager_CopiesRclAssetsWithoutOverwritingHostMedia()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"aerocms-starter-media-{Guid.NewGuid():N}");
+        var sourceRoot = Path.Combine(testRoot, "source");
+        var hostWebRoot = Path.Combine(testRoot, "host", "wwwroot");
+        var sourceMedia = Path.Combine(sourceRoot, "_content", "Aero.Cms.UI", "media");
+        Directory.CreateDirectory(Path.Combine(sourceMedia, "hydrated-images"));
+        Directory.CreateDirectory(Path.Combine(hostWebRoot, "media"));
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(sourceMedia, "data-center.png"), "rcl-data");
+            await File.WriteAllTextAsync(Path.Combine(sourceMedia, "hydrated-images", "photo.jpg"), "photo-data");
+            await File.WriteAllTextAsync(Path.Combine(hostWebRoot, "media", "data-center.png"), "host-data");
+
+            var environment = Substitute.For<IWebHostEnvironment>();
+            environment.WebRootPath.Returns(hostWebRoot);
+            environment.WebRootFileProvider.Returns(new PhysicalFileProvider(sourceRoot));
+
+            var staged = await StarterMediaStager.StageAsync(environment);
+
+            staged.ShouldBeTrue();
+            (await File.ReadAllTextAsync(Path.Combine(hostWebRoot, "media", "data-center.png"))).ShouldBe("host-data");
+            (await File.ReadAllTextAsync(Path.Combine(hostWebRoot, "media", "hydrated-images", "photo.jpg"))).ShouldBe("photo-data");
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task StarterMediaStager_FailedCopyLeavesNoFinalFileAndCanBeRetried()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"aerocms-starter-media-retry-{Guid.NewGuid():N}");
+        var sourceRoot = Path.Combine(testRoot, "source");
+        var hostWebRoot = Path.Combine(testRoot, "host", "wwwroot");
+        var sourceMedia = Path.Combine(sourceRoot, "_content", "Aero.Cms.UI", "media");
+        Directory.CreateDirectory(sourceMedia);
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(sourceMedia, "data-center.png"), "complete-rcl-data");
+
+            var environment = Substitute.For<IWebHostEnvironment>();
+            environment.WebRootPath.Returns(hostWebRoot);
+            environment.WebRootFileProvider.Returns(new PhysicalFileProvider(sourceRoot));
+
+            var failingStream = Substitute.For<Stream>();
+            failingStream
+                .CopyToAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>())
+                .Returns(async call =>
+                {
+                    var target = call.ArgAt<Stream>(0);
+                    await target.WriteAsync("partial"u8.ToArray());
+                    throw new IOException("Simulated interrupted starter-media copy.");
+                });
+
+            await Assert.That(async () =>
+                    await StarterMediaStager.StageAsync(environment, _ => failingStream))
+                .Throws<IOException>();
+
+            var finalPath = Path.Combine(hostWebRoot, "media", "data-center.png");
+            await Assert.That(File.Exists(finalPath)).IsFalse();
+            await Assert.That(Directory.EnumerateFiles(
+                    Path.GetDirectoryName(finalPath)!,
+                    "*.aerocms-staging-*.tmp"))
+                .IsEmpty();
+
+            var retried = await StarterMediaStager.StageAsync(environment);
+
+            retried.ShouldBeTrue();
+            (await File.ReadAllTextAsync(finalPath)).ShouldBe("complete-rcl-data");
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
     [Test]
     public async Task CompleteAsync_RequiredHomepageFailure_DoesNotMarkSetupComplete()
     {

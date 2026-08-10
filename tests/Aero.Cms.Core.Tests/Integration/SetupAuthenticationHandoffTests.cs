@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -60,6 +61,8 @@ public class SetupAuthenticationHandoffTests
             cache,
             pending,
             completion,
+            Substitute.For<IEnvironmentAppSettingsWriter>(),
+            HostEnvironment(),
             lifetime,
             Substitute.For<ILogger<SetupBootstrapHandoffService>>());
         var request = CreateRequest(
@@ -83,8 +86,17 @@ public class SetupAuthenticationHandoffTests
             Substitute.For<ICacheBootstrapService>(),
             Substitute.For<IBootstrapPendingSetupRequestStore>(),
             Substitute.For<IBootstrapCompletionWriter>(),
+            Substitute.For<IEnvironmentAppSettingsWriter>(),
+            HostEnvironment(),
             Substitute.For<IHostApplicationLifetime>(),
             Substitute.For<ILogger<SetupBootstrapHandoffService>>());
+
+    private static IHostEnvironment HostEnvironment()
+    {
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns("Test");
+        return environment;
+    }
 
     private static SeedDatabaseRequest CreateRequest(string managerProvider, string memberProvider)
         => new(

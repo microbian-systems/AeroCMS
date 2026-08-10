@@ -15,7 +15,7 @@ public static class AppSettingsPathResolver
     /// <param name="baseDirectory">The path from which to traverse, or <see langword="null"/> to use <see cref="AppContext.BaseDirectory"/>.</param>
     /// <returns>The normalized absolute web project path; the directory is not required to exist.</returns>
 public static string GetWebProjectPath(string? baseDirectory = null)
-        => Path.GetFullPath(Path.Combine(baseDirectory ?? AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Aero.Cms.Web"));
+        => Path.GetFullPath(baseDirectory ?? Directory.GetCurrentDirectory());
 
     /// <summary>
     /// Resolves the environment-specific settings file used by the web host.

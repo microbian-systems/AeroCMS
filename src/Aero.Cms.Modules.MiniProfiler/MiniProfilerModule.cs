@@ -20,7 +20,7 @@ namespace Aero.Cms.Modules.MiniProfiler;
 /// establish production-safe access control for profiler results or UI resources.
 /// </remarks>
 [Module(nameof(MiniProfilerModule))]
-public class MiniProfilerModule : AeroWebModule, IStartupFilter
+public class MiniProfilerModule : AeroWebModule, IAeroPipelineModule
 {
     /// <summary>Gets the fixed name used to discover this module.</summary>
     public override string Name => nameof(MiniProfilerModule);
@@ -138,7 +138,6 @@ public class MiniProfilerModule : AeroWebModule, IStartupFilter
                 //options.EnableDebugMode = true;
 
             });
-            services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, MiniProfilerModule>());
         }
         
         base.ConfigureServices(services, config, env);
@@ -156,18 +155,16 @@ public class MiniProfilerModule : AeroWebModule, IStartupFilter
     /// Middleware setup is synchronous and exposes no cancellation token. Configuration, middleware-registration,
     /// and downstream-startup exceptions are not caught by this module.
     /// </remarks>
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
-    {
-        return app =>
-        {
-            var enabled = app.ApplicationServices.GetService<IConfiguration>()?
-                .GetValue<bool>("AeroCms:Modules:MiniProfiler:Enable") ?? false;
-            if (enabled)
-            {
-                app.UseMiniProfiler();
-            }
+    public int PipelineOrder => 50;
 
-            next(app);
-        };
+    /// <inheritdoc />
+    public void ConfigurePipeline(IApplicationBuilder app)
+    {
+        var enabled = app.ApplicationServices.GetService<IConfiguration>()?
+            .GetValue<bool>("AeroCms:Modules:MiniProfiler:Enable") ?? false;
+        if (enabled)
+        {
+            app.UseMiniProfiler();
+        }
     }
 }

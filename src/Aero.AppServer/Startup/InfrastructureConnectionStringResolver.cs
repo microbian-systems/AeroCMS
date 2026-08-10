@@ -262,21 +262,20 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
     /// Locates the environment-specific appsettings file used for plaintext-secret upgrades.
     /// </summary>
     /// <param name="environmentName">The ASP.NET Core environment name.</param>
-    /// <returns>A path under <c>src/Aero.Cms.Web</c> when available, otherwise under the current directory.</returns>
+    /// <returns>The path under the consuming host's explicitly configured settings directory.</returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="environmentName"/> is empty or whitespace.
     /// </exception>
-    private static string ResolveAppSettingsPath(string environmentName)
+    private string ResolveAppSettingsPath(string environmentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
-        var webProjectPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "src", "Aero.Cms.Web"));
-        if (!Directory.Exists(webProjectPath))
-        {
-            webProjectPath = Directory.GetCurrentDirectory();
-        }
+        var settingsDirectory = configuration["AeroCms:Configuration:SettingsDirectory"];
+        if (string.IsNullOrWhiteSpace(settingsDirectory))
+            throw new InvalidOperationException(
+                "AEROCMS_CONFIG_PATH_REQUIRED: Plaintext-secret upgrades require a host-owned settings directory.");
 
-        return Path.Combine(webProjectPath, $"appsettings.{environmentName}.json");
+        return Path.Combine(Path.GetFullPath(settingsDirectory), $"appsettings.{environmentName}.json");
     }
 
     /// <summary>

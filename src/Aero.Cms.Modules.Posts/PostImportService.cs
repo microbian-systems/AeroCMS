@@ -39,7 +39,7 @@ public sealed class PostsImportService : IPostImportService
         PropertyNameCaseInsensitive = true
     };
 
-    private const string PlaceholderImage = "/img/placeholder_1600x500.webp";
+    private const string PlaceholderImage = "/_content/Aero.Cms.UI/img/placeholder_1600x500.webp";
     private const string BlogImportFolder = "blog-import";
     private const int MaxPexelsRetries = 2;
     private const int PexelsConcurrency = 3;

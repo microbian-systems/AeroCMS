@@ -2,6 +2,7 @@
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Integration;
@@ -14,8 +15,8 @@ public class BootstrapCompletionWriterTests
         var environment = $"UnitTest_{Guid.NewGuid():N}";
         var webProjectPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Aero.Cms.Web"));
         var filePath = Path.Combine(webProjectPath, $"appsettings.{environment}.json");
-        var originalEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         var writer = Substitute.For<IEnvironmentAppSettingsWriter>();
+        writer.GetFilePath(environment).Returns(filePath);
         string? writtenJson = null;
 
         try
@@ -32,9 +33,7 @@ public class BootstrapCompletionWriterTests
             writer.WriteAsync(environment, Arg.Do<string>(json => writtenJson = json), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
 
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
-
-            var completionWriter = new BootstrapCompletionWriter(writer);
+            var completionWriter = new BootstrapCompletionWriter(writer, HostEnvironment(environment));
 
             await completionWriter.MarkCompleteAsync();
 
@@ -49,7 +48,6 @@ public class BootstrapCompletionWriterTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", originalEnvironment);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
@@ -63,8 +61,8 @@ public class BootstrapCompletionWriterTests
         var environment = $"UnitTest_{Guid.NewGuid():N}";
         var webProjectPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Aero.Cms.Web"));
         var filePath = Path.Combine(webProjectPath, $"appsettings.{environment}.json");
-        var originalEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         var writer = Substitute.For<IEnvironmentAppSettingsWriter>();
+        writer.GetFilePath(environment).Returns(filePath);
         string? writtenJson = null;
 
         try
@@ -79,9 +77,7 @@ public class BootstrapCompletionWriterTests
             writer.WriteAsync(environment, Arg.Do<string>(json => writtenJson = json), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
 
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
-
-            var completionWriter = new BootstrapCompletionWriter(writer);
+            var completionWriter = new BootstrapCompletionWriter(writer, HostEnvironment(environment));
 
             await completionWriter.MarkConfiguredAsync();
 
@@ -94,7 +90,6 @@ public class BootstrapCompletionWriterTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", originalEnvironment);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
@@ -108,8 +103,8 @@ public class BootstrapCompletionWriterTests
         var environment = $"UnitTest_{Guid.NewGuid():N}";
         var webProjectPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Aero.Cms.Web"));
         var filePath = Path.Combine(webProjectPath, $"appsettings.{environment}.json");
-        var originalEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         var writer = Substitute.For<IEnvironmentAppSettingsWriter>();
+        writer.GetFilePath(environment).Returns(filePath);
         string? writtenJson = null;
 
         try
@@ -124,9 +119,7 @@ public class BootstrapCompletionWriterTests
             writer.WriteAsync(environment, Arg.Do<string>(json => writtenJson = json), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
 
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
-
-            var completionWriter = new BootstrapCompletionWriter(writer);
+            var completionWriter = new BootstrapCompletionWriter(writer, HostEnvironment(environment));
 
             await completionWriter.MarkFailedAsync();
 
@@ -139,11 +132,33 @@ public class BootstrapCompletionWriterTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", originalEnvironment);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
-}
+            }
         }
+    }
+
+    [Test]
+    [Arguments("Production")]
+    [Arguments("Sanctuary-Blue")]
+    public async Task Completion_writer_uses_the_consuming_hosts_resolved_environment(string environment)
+    {
+        var writer = Substitute.For<IEnvironmentAppSettingsWriter>();
+        writer.GetFilePath(environment).Returns(Path.Combine(Path.GetTempPath(), $"aero-{Guid.NewGuid():N}.json"));
+        writer.WriteAsync(environment, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        var completionWriter = new BootstrapCompletionWriter(writer, HostEnvironment(environment));
+
+        await completionWriter.MarkConfiguredAsync();
+
+        await writer.Received(1).WriteAsync(environment, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    private static IHostEnvironment HostEnvironment(string environmentName)
+    {
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns(environmentName);
+        return environment;
     }
 }

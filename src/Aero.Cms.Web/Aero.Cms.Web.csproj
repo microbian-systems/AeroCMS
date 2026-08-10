@@ -11,7 +11,7 @@
 		<AeroThemeAssetScript>$(AeroRepositoryRoot)/eng/theme-assets/build-theme-assets.ps1</AeroThemeAssetScript>
 		<AeroPowerShellExe Condition="'$(AeroPowerShellExe)' == ''">pwsh</AeroPowerShellExe>
 		<AeroBuildThemeAssets Condition="'$(AeroBuildThemeAssets)' == ''">true</AeroBuildThemeAssets>
-		<AeroGeneratedCss>$(MSBuildProjectDirectory)/wwwroot/css/aero.generated.css</AeroGeneratedCss>
+		<AeroGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.UI/wwwroot/css/aero.generated.css</AeroGeneratedCss>
 		<AeroDocsGeneratedCss>$(MSBuildProjectDirectory)/../Aero.Cms.Modules.Docs/wwwroot/css/docs.generated.css</AeroDocsGeneratedCss>
 		<UserSecretsId>Aero.Cms.Web</UserSecretsId>
 		<SharpTsToolDirectory>$(NuGetPackageRoot)\sharpts\1.0.8\tools\net10.0\any</SharpTsToolDirectory>
@@ -20,6 +20,7 @@
   <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
   <ItemGroup>
     <Content Remove="tsconfig.json" />
+    <Content Remove="wwwroot\**\*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -351,6 +352,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Hosting.Defaults\Aero.Cms.Hosting.Defaults.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
 

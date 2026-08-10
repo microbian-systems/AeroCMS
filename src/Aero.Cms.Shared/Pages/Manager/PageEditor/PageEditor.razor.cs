@@ -2618,7 +2618,7 @@ protected string FormatCulture(string? culture)
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
         var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
         var pagesCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Modules.Pages/css/pages.css");
-        var aeroCss = new Uri(new Uri(baseUri), "css/aero.generated.css");
+        var aeroCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.UI/css/aero.generated.css");
         var componentThemeName = Aero.Cms.Abstractions.Theming.BuiltInThemeDefaults.ComponentThemeName;
 
         return $$"""

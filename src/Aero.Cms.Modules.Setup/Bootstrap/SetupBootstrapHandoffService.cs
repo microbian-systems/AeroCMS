@@ -68,6 +68,8 @@ public sealed class SetupBootstrapHandoffService(
     ICacheBootstrapService cacheBootstrapService,
     IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
+    IEnvironmentAppSettingsWriter appSettingsWriter,
+    IHostEnvironment hostEnvironment,
     IHostApplicationLifetime hostLifetime,
     ILogger<SetupBootstrapHandoffService> logger) : ISetupBootstrapHandoffService
 {
@@ -125,8 +127,8 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
             logger.LogInformation("Marking bootstrap state as Configured...");
             await MarkConfiguredAsync(cancellationToken);
 
-            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-            var targetPath = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+            var env = hostEnvironment.EnvironmentName;
+            var targetPath = appSettingsWriter.GetFilePath(env);
             logger.LogInformation("Bootstrap state persisted for environment {Environment} at {Path}. Exists={Exists}", env, targetPath, File.Exists(targetPath));
 
             logger.LogInformation("Setup bootstrap handoff completed successfully. Shutting down setup app to transition to main app...");

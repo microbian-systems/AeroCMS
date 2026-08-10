@@ -1150,7 +1150,7 @@ protected override async Task OnParametersSetAsync()
         var appCss = new Uri(root, "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(root, "_content/Aero.Cms.Shared/aero-manager.css");
         var radzenCss = new Uri(root, "_content/Radzen.Blazor/css/standard-base.css");
-        var aeroCss = new Uri(root, "css/aero.generated.css");
+        var aeroCss = new Uri(root, "_content/Aero.Cms.UI/css/aero.generated.css");
 
         return $$"""
             <!DOCTYPE html>

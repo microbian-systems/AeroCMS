@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aero.Cms.AspNetCore" Version="0.0.9.4-alpha" />
+    <PackageReference Include="Aero.Cms.Hosting.Defaults" Version="0.0.9.4-alpha" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CSharpHost.Client\CSharpHost.Client.csproj" />
+  </ItemGroup>
+
+</Project>

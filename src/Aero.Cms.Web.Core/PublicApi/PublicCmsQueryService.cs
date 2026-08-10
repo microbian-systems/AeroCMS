@@ -9,8 +9,9 @@ using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using AeroDB.Sable;
+using Microsoft.Extensions.Logging;
 
-namespace Aero.Cms.Web.Areas.Api.V1;
+namespace Aero.Cms.Web.Core.PublicApi;
 
 /// <summary>
 /// Sable-backed public query facade. Every read is site-scoped, culture-scoped,

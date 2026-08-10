@@ -30,7 +30,7 @@
     @* Per-module browser-ready CSS. *@
     @await RenderSectionAsync("cssPartial", required: false)
 
-    <link rel="stylesheet" href="/css/aero.generated.css" />
+    <link rel="stylesheet" href="/_content/Aero.Cms.UI/css/aero.generated.css" />
     @foreach (var stylesheet in resolvedTheme.Stylesheets.OrderBy(asset => asset.Order))
     {
         <link rel="stylesheet" href="@stylesheet.Path" />
@@ -42,11 +42,11 @@
     <title>@ViewBag.Title</title>
     @await Component.InvokeAsync("SeoScripts", new { placement = "Head" })
     @await RenderSectionAsync("headPartial", required:false)
-    <script src="/lib/htmx/htmx.min.js"></script>
+    <script src="/_content/Aero.Cms.UI/lib/htmx/htmx.min.js"></script>
     @* Alpine.js core + Morph plugin (required by Hydro for DOM diffing/patching).
        Alpine core is libman-managed at ~/lib/alpinejs/ (pulls latest 3.x).
        Source: https://usehydro.dev/introduction/getting-started.html *@
-    <script defer src="~/lib/alpinejs/cdn.min.js" asp-append-version="true"></script>
+    <script defer src="~/_content/Aero.Cms.UI/lib/alpinejs/cdn.min.js" asp-append-version="true"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@@alpinejs/morph@3.x.x/dist/cdn.min.js"></script>
     <meta name="hydro-config" />
     <script defer src="~/hydro/hydro.js" asp-append-version="true"></script>
@@ -84,7 +84,7 @@
         @await Component.InvokeAsync("AeroFooter")
     }
 
-    <script src="/js/app.js" type="module"></script>
+    <script src="/_content/Aero.Cms.UI/js/app.js" type="module"></script>
     @await Component.InvokeAsync("SeoScripts", new { placement = "BodyEnd" })
     @await RenderSectionAsync("Scripts", required:false)
     

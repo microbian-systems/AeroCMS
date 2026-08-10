@@ -5,6 +5,9 @@ namespace Aero.Cms.Modules.Setup.Configuration;
 /// </summary>
 public interface IEnvironmentAppSettingsWriter
 {
+    /// <summary>Gets the exact host-owned settings file targeted for an environment.</summary>
+    string GetFilePath(string environmentName);
+
     /// <summary>
     /// Replaces the target environment settings file with the supplied JSON.
     /// </summary>

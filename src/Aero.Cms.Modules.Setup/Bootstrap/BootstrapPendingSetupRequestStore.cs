@@ -108,9 +108,9 @@ public async Task ClearAsync(CancellationToken cancellationToken = default)
     /// <summary>
     /// Reads the environment settings object, returning an empty object when the file is absent or contains JSON <see langword="null"/>.
     /// </summary>
-    private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
+    private async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var path = appSettingsWriter.GetFilePath(env);
         if (!File.Exists(path))
         {
             return new JsonObject();

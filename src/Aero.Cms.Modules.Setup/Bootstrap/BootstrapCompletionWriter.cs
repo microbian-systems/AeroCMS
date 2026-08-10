@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Aero.Cms.Modules.Setup.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -34,13 +35,15 @@ Task MarkFailedAsync(CancellationToken cancellationToken = default);
 /// missing object sections are created. Malformed JSON and file-system failures propagate
 /// to the caller.
 /// </remarks>
-public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appSettingsWriter) : IBootstrapCompletionWriter
+public sealed class BootstrapCompletionWriter(
+    IEnvironmentAppSettingsWriter appSettingsWriter,
+    IHostEnvironment hostEnvironment) : IBootstrapCompletionWriter
 {
     /// <inheritdoc />
 public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var env = hostEnvironment.EnvironmentName;
+        var path = appSettingsWriter.GetFilePath(env);
         JsonObject root;
 
         if (File.Exists(path))
@@ -70,8 +73,8 @@ public async Task MarkCompleteAsync(CancellationToken cancellationToken = defaul
     /// <inheritdoc />
 public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var env = hostEnvironment.EnvironmentName;
+        var path = appSettingsWriter.GetFilePath(env);
         JsonObject root;
 
         if (File.Exists(path))
@@ -102,8 +105,8 @@ public async Task MarkConfiguredAsync(CancellationToken cancellationToken = defa
     /// <inheritdoc />
 public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var env = hostEnvironment.EnvironmentName;
+        var path = appSettingsWriter.GetFilePath(env);
         JsonObject root;
 
         if (File.Exists(path))

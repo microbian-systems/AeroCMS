@@ -2,8 +2,12 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Content.Search;
 using Aero.Core;
 using Aero.Core.Railway;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Aero.Cms.Web.Areas.Api.V1;
+namespace Aero.Cms.Web.Core.PublicApi;
 
 /// <summary>Maps the public, read-only CMS query facade used by HTMX and JSON clients.</summary>
 public static class PublicCmsQueryApi

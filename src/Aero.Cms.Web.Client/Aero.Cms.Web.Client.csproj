@@ -7,62 +7,30 @@
     <Nullable>enable</Nullable>
     <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
-
-    <!-- WASM Performance: trimming reduces download size significantly -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
-
-    <!-- Manager localization runs in InteractiveWebAssembly after hydration. -->
     <InvariantGlobalization>false</InvariantGlobalization>
     <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
-
-    <!-- WASM runtime optimizations -->
     <WasmNativeStripSymbols>true</WasmNativeStripSymbols>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
     <WasmDebugLevel Condition="'$(AeroCmsEnableWebAssemblyDebugging)' != 'true'">0</WasmDebugLevel>
     <IsPackable>false</IsPackable>
-    <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
-    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
   </PropertyGroup>
 
-  <!-- Keep TypeScript build inputs out of NuGet contentFiles; only compiled wwwroot assets should ship. -->
   <ItemGroup>
-    <Content Remove="tsconfig.json;libman.json;ts\**\*" />
-    <None Remove="tsconfig.json;libman.json;ts\**\*" />
-    <TypeScriptCompile Remove="ts\**\*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="tsconfig.json;libman.json;ts\**\*" Pack="false" Visible="false" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Blazor.LocalStorage.WebAssembly" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
-    <PackageReference Include="Microsoft.Extensions.Localization" />
-    <PackageReference Include="Microsoft.TypeScript.MSBuild">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Serilog.Sinks.OpenObserve" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <Content Remove="Layout\**\*;wwwroot\**\*;_Imports.razor" />
+    <None Remove="Layout\**\*;wwwroot\**\*;_Imports.razor" />
+    <RazorComponent Remove="Layout\**\*.razor;_Imports.razor" />
+    <Compile Include="Program.cs" />
+    <ProjectReference Include="..\Aero.Cms.Client\Aero.Cms.Client.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
-    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
   </ItemGroup>
 
-  <!--
-    The .NET Static Web Assets SDK does not forward ProjectReference
-    AdditionalProperties during its configuration-discovery call. Add the
-    browser discriminator to the supported SetConfiguration metadata after
-    project references have been prepared, before the SDK reads their asset
-    manifests.
-  -->
   <Target Name="AeroConfigureBrowserStaticWebAssetReferences"
           DependsOnTargets="PrepareProjectReferences"
           BeforeTargets="ResolveReferencedProjectsStaticWebAssetsConfiguration">
@@ -72,14 +40,6 @@
         <SetConfiguration>%(_MSBuildProjectReferenceExistent.SetConfiguration);AeroCmsBrowserClient=true</SetConfiguration>
       </_MSBuildProjectReferenceExistent>
     </ItemGroup>
-  </Target>
-
-  <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
-    <PropertyGroup>
-      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
-      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
-    </PropertyGroup>
-    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
   </Target>
 
 </Project>

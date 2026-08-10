@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aero.Cms.AspNetCore" Version="0.0.9.4-alpha" />
+    <PackageReference Include="Aero.Cms.Hosting.Defaults" Version="0.0.9.4-alpha" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FSharpHost.Client\FSharpHost.Client.csproj" />
+  </ItemGroup>
+
+</Project>
