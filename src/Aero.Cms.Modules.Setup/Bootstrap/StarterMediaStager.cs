@@ -11,6 +11,23 @@ internal static class StarterMediaStager
     internal const string SourceSubpath = "_content/Aero.Cms.UI/media";
 
     /// <summary>
+    /// Resolves the host-owned media directory even when the consuming app has no physical web root yet.
+    /// </summary>
+    internal static string ResolveHostMediaRoot(IWebHostEnvironment environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+
+        var webRootPath = environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRootPath))
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(environment.ContentRootPath);
+            webRootPath = Path.Combine(environment.ContentRootPath, "wwwroot");
+        }
+
+        return Path.GetFullPath(Path.Combine(webRootPath, "media"));
+    }
+
+    /// <summary>
     /// Stages missing starter files without overwriting media already owned by the host.
     /// </summary>
     /// <returns><see langword="true"/> when the RCL media directory was available.</returns>
@@ -33,7 +50,7 @@ internal static class StarterMediaStager
             return false;
         }
 
-        var targetRoot = Path.GetFullPath(Path.Combine(environment.WebRootPath, "media"));
+        var targetRoot = ResolveHostMediaRoot(environment);
         Directory.CreateDirectory(targetRoot);
         await CopyDirectoryAsync(
             sourceProvider,

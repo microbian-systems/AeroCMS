@@ -49,7 +49,8 @@ public static class AeroStartupPipeline
                 args,
                 builder.Configuration,
                 builder.Environment.ContentRootPath,
-                builder.Environment.EnvironmentName);
+                builder.Environment.EnvironmentName,
+                builder.Environment.WebRootFileProvider);
             state = await ReloadBootstrapStateAfterSetupAsync(builder.Configuration);
             Log.Information("Post-setup bootstrap state: {State}", state.State);
         }
@@ -103,13 +104,15 @@ public static class AeroStartupPipeline
         string[] args,
         IConfiguration earlyConfig,
         string contentRootPath,
-        string environmentName)
+        string environmentName,
+        Microsoft.Extensions.FileProviders.IFileProvider webRootFileProvider)
     {
         var setupApp = await SetupAppFactory.CreateSetupAppAsync(
             args,
             earlyConfig,
             contentRootPath,
-            environmentName);
+            environmentName,
+            webRootFileProvider);
 
         await setupApp.StartAsync();
 

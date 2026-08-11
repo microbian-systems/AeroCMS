@@ -22,7 +22,14 @@ public sealed record DatabaseBootstrapModel(
     bool HasBootstrapConfig = true,
     bool DatabaseUnauthenticated = false,
     string? DatabaseUsername = null,
-    string? DatabasePassword = null);
+    string? DatabasePassword = null)
+{
+    /// <summary>Gets the installation-wide SurrealDB namespace.</summary>
+    public string DatabaseNamespace { get; init; } = Aero.AppServer.AeroAppServerConstants.SableNamespace;
+
+    /// <summary>Gets the installation-wide SurrealDB database name.</summary>
+    public string DatabaseName { get; init; } = Aero.AppServer.AeroAppServerConstants.SableDatabase;
+}
 
 /// <summary>
 /// Describes cache and secret-provider values to persist before runtime initialization.

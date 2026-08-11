@@ -81,6 +81,30 @@ public class SetupPageModelTests
     }
 
     [Test]
+    public async Task Setup_input_defaults_surreal_namespace_and_database_to_aero()
+    {
+        var input = new SetupInput();
+
+        await Assert.That(input.DatabaseNamespace).IsEqualTo("aero");
+        await Assert.That(input.DatabaseName).IsEqualTo("aero");
+        await Assert.That(input.UseAdvancedDatabaseOptions).IsFalse();
+    }
+
+    [Test]
+    public async Task Database_step_rejects_invalid_advanced_scope_names()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 2;
+        model.Input.DatabaseNamespace = "invalid namespace";
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(2);
+        model.StatusMessage.Should().Contain("SurrealDB namespace must be");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
     public async Task Setup_input_defaults_cache_mode_to_local_garnet()
     {
         var input = new SetupInput();

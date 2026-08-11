@@ -55,6 +55,12 @@ public sealed record SeedDatabaseRequest(
     string DefaultCulture,
     IReadOnlyList<string> SupportedCultures)
 {
+    /// <summary>Gets the installation-wide SurrealDB namespace.</summary>
+    public string DatabaseNamespace { get; init; } = Aero.AppServer.AeroAppServerConstants.SableNamespace;
+
+    /// <summary>Gets the installation-wide SurrealDB database name.</summary>
+    public string DatabaseName { get; init; } = Aero.AppServer.AeroAppServerConstants.SableDatabase;
+
     /// <summary>Gets whether the configured server accepts unauthenticated connections.</summary>
     public bool DatabaseUnauthenticated { get; init; }
 
@@ -1327,9 +1333,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     /// <remarks>A missing media directory and hydrated-image failures are logged and do not fail setup.</remarks>
     private async Task SeedStarterMediaAsync(CancellationToken ct)
     {
-        var mediaDir = Path.Combine(env.WebRootPath, "media");
+        string mediaDir;
         try
         {
+            mediaDir = StarterMediaStager.ResolveHostMediaRoot(env);
             if (!await StarterMediaStager.StageAsync(env, ct))
             {
                 Log.Warning(
@@ -1340,7 +1347,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Log.Warning(ex, "Failed to stage Aero CMS starter media into {Path}. Skipping media seed.", mediaDir);
+            Log.Warning(
+                ex,
+                "Failed to stage Aero CMS starter media below content root {Path}. Skipping media seed.",
+                env.ContentRootPath);
             return;
         }
 

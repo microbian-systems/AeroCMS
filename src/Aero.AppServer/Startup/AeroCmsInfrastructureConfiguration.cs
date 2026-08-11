@@ -11,6 +11,12 @@ public static class AeroCmsInfrastructureConfiguration
     /// <summary>The configured database deployment mode.</summary>
     public const string DatabaseMode = "DatabaseMode";
 
+    /// <summary>The installation-wide SurrealDB namespace.</summary>
+    public const string DatabaseNamespace = "DatabaseNamespace";
+
+    /// <summary>The installation-wide SurrealDB database name.</summary>
+    public const string DatabaseName = "DatabaseName";
+
     /// <summary>The configured cache deployment mode.</summary>
     public const string CacheMode = "CacheMode";
 

@@ -72,6 +72,13 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         ArgumentException.ThrowIfNullOrWhiteSpace(serverConnectionString);
         ArgumentNullException.ThrowIfNull(request);
 
+        if (!Aero.AppServer.SurrealDatabaseScope.TryNormalize(request.DatabaseNamespace, out var databaseNamespace) ||
+            !Aero.AppServer.SurrealDatabaseScope.TryNormalize(request.DatabaseName, out var databaseName))
+        {
+            return SeedDatabaseResult.Failure(
+                "The SurrealDB namespace and database name must use only letters, digits, underscores, or hyphens.");
+        }
+
         logger.LogInformation("=== ServerTargetSetup starting ===");
         logger.LogInformation("Connection: {Connection} (masked)", serverConnectionString[..Math.Min(20, serverConnectionString.Length)] + "...");
         logger.LogInformation("Seed request: siteName={SiteName}, adminEmail={AdminEmail}, hostname={Hostname}",
@@ -89,7 +96,8 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             opts.Username = request.DatabaseUsername;
             opts.Password = request.DatabasePassword;
         }
-        opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
+        opts.Namespace = databaseNamespace;
+        opts.Database = databaseName;
         opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
         opts.Schema.For<AeroRole>()
             .TableName(Schemas.Tables.Roles)

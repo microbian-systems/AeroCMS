@@ -304,7 +304,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
 
             if (!media.IsFolder)
             {
-                var mediaDir = Path.Combine(env.WebRootPath, "media");
+                var mediaDir = Path.Combine(GetWebRootPath(env), "media");
                 var filePath = Path.Combine(mediaDir, media.FileName);
                 if (File.Exists(filePath))
                 {
@@ -327,7 +327,7 @@ public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolde
     {
         try
         {
-            var mediaDir = Path.Combine(env.WebRootPath, "media", subfolder);
+            var mediaDir = Path.Combine(GetWebRootPath(env), "media", subfolder);
             if (!Directory.Exists(mediaDir))
             {
                 Log.Warning("Media subfolder not found at {Path}. Skipping seed.", mediaDir);
@@ -363,7 +363,7 @@ public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolde
                 // Check for existing record by URL to avoid duplicates
                 var url = $"/media/{subfolder}/{fileName}";
                 var exists = await session.Query<MediaAsset>()
-                    .Where(x => x.Url == url).AnyAsync(ct);
+                    .FirstOrDefaultAsync(x => x.Url == url, ct) is not null;
                 if (exists) continue;
 
                 // Read attribution sidecar if present
@@ -444,5 +444,14 @@ public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolde
         string File,
         string Type,
         DateTimeOffset DownloadedAt);
+
+    /// <summary>
+    /// Resolves the configured web root or the conventional <c>wwwroot</c> directory
+    /// beneath the content root when a consuming host has no physical web root yet.
+    /// </summary>
+    private static string GetWebRootPath(IWebHostEnvironment environment) =>
+        string.IsNullOrWhiteSpace(environment.WebRootPath)
+            ? Path.Combine(environment.ContentRootPath, "wwwroot")
+            : environment.WebRootPath;
 }
 

@@ -47,7 +47,7 @@ public sealed class PublicAssetPathTests
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         var files = new[]
         {
-            Path.Combine(repositoryRoot, "src", "Aero.Cms.Web", "Views", "Shared", "_CmsLayout.cshtml"),
+            Path.Combine(repositoryRoot, "src", "Aero.Cms.UI", "Views", "Shared", "_CmsLayout.cshtml"),
             Path.Combine(
                 repositoryRoot,
                 "src",

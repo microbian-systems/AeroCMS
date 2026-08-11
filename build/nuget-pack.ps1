@@ -126,11 +126,19 @@ foreach ($proj in $packageProjects) {
     $packArgs = @(
         "pack", $csproj,
         "-c", $Configuration,
-        "-o", $OutputDir,
-        "--include-symbols",
-        "-p:IncludeSymbols=true",
-        "-p:SymbolPackageFormat=snupkg"
+        "-o", $OutputDir
     )
+
+    # Analyzer-only packages place their assembly under analyzers/ instead of lib/.
+    # Aero.Cms.SourceGenerators therefore opts out of a separate symbol package;
+    # forcing one here produces an empty .snupkg and fails with NU5017.
+    if ($projName -ne "Aero.Cms.SourceGenerators") {
+        $packArgs += @(
+            "--include-symbols",
+            "-p:IncludeSymbols=true",
+            "-p:SymbolPackageFormat=snupkg"
+        )
+    }
 
     if ($projName -eq "Aero.Cms.Client") {
         $packArgs += @(

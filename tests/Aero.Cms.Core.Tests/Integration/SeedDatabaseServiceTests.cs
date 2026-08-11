@@ -23,6 +23,39 @@ namespace Aero.Cms.Core.Tests.Integration;
 public sealed class SeedDatabaseServiceTests
 {
     [Test]
+    public async Task StarterMediaStager_UsesContentRootWhenConsumingHostHasNoPhysicalWebRoot()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"aerocms-starter-media-no-webroot-{Guid.NewGuid():N}");
+        var sourceRoot = Path.Combine(testRoot, "source");
+        var contentRoot = Path.Combine(testRoot, "host");
+        var sourceMedia = Path.Combine(sourceRoot, "_content", "Aero.Cms.UI", "media");
+        Directory.CreateDirectory(sourceMedia);
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(sourceMedia, "data-center.png"), "rcl-data");
+
+            var environment = Substitute.For<IWebHostEnvironment>();
+            environment.WebRootPath.Returns((string?)null);
+            environment.ContentRootPath.Returns(contentRoot);
+            environment.WebRootFileProvider.Returns(new PhysicalFileProvider(sourceRoot));
+
+            var staged = await StarterMediaStager.StageAsync(environment);
+
+            staged.ShouldBeTrue();
+            var targetPath = Path.Combine(contentRoot, "wwwroot", "media", "data-center.png");
+            (await File.ReadAllTextAsync(targetPath)).ShouldBe("rcl-data");
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
+    }
+
+    [Test]
     public async Task StarterMediaStager_CopiesRclAssetsWithoutOverwritingHostMedia()
     {
         var testRoot = Path.Combine(Path.GetTempPath(), $"aerocms-starter-media-{Guid.NewGuid():N}");

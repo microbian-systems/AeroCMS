@@ -1,3 +1,4 @@
+using Aero.AppServer.Startup;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
@@ -19,14 +20,15 @@ Task InitializeAsync(CancellationToken cancellationToken = default);
 /// Executes deferred setup completion from the protected handoff payload.
 /// </summary>
 /// <remarks>
-/// Initialization is a no-op outside the configured state. A missing payload is logged and
-/// left recoverable; a failed completion is promoted to an exception and the payload is retained.
+/// Initialization is a no-op outside the configured state. A missing payload or failed completion
+/// is promoted to an exception so runtime readiness fails closed; an existing payload is retained.
 /// Successful completion clears the payload.
 /// </remarks>
 public sealed class RuntimeBootstrapInitializer(
     ISetupInitializationService setupInitializationService,
     IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
     ISetupCompletionService setupCompletionService,
+    ResolvedInfrastructureSettings infrastructureSettings,
     ILogger<RuntimeBootstrapInitializer> logger) : IRuntimeBootstrapInitializer
 {
     /// <inheritdoc />
@@ -41,8 +43,14 @@ public async Task InitializeAsync(CancellationToken cancellationToken = default)
         var request = await pendingSetupRequestStore.LoadAsync(cancellationToken);
         if (request == null)
         {
-            logger.LogWarning("Bootstrap state is Configured but no pending seed payload exists.");
-            return;
+            throw new InvalidOperationException(
+                "Bootstrap state is Configured but no pending seed payload exists; runtime initialization cannot continue.");
+        }
+
+        var scopeError = BootstrapDatabaseScopeGuard.GetValidationError(request, infrastructureSettings);
+        if (scopeError is not null)
+        {
+            throw new InvalidOperationException(scopeError);
         }
 
         var result = await setupCompletionService.CompleteAsync(request, cancellationToken);

@@ -69,6 +69,9 @@
   <data name="Email Address" xml:space="preserve"><value>Email Address</value></data>
   <data name="Password" xml:space="preserve"><value>Password</value></data>
   <data name="Confirm Password" xml:space="preserve"><value>Confirm Password</value></data>
+  <data name="Advanced database options" xml:space="preserve"><value>Advanced database options</value></data>
+  <data name="SurrealDB namespace" xml:space="preserve"><value>SurrealDB namespace</value></data>
+  <data name="SurrealDB database name" xml:space="preserve"><value>SurrealDB database name</value></data>
 
   <!-- Help Text -->
   <data name="Default: localhost for development" xml:space="preserve"><value>Default: localhost for development</value></data>
@@ -76,6 +79,7 @@
   <data name="Local Certificate keeps setup simple and stores protected values on the host with shared ASP.NET Core Data Protection." xml:space="preserve"><value>Local Certificate keeps setup simple and stores protected values on the host with shared ASP.NET Core Data Protection.</value></data>
   <data name="Local authentication is the only enabled option right now. WorkOS will be added to this setup flow later." xml:space="preserve"><value>Local authentication is the only enabled option right now. WorkOS will be added to this setup flow later.</value></data>
   <data name="Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app." xml:space="preserve"><value>Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app.</value></data>
+  <data name="Changing either value selects a different logical SurrealDB target; existing data is not moved." xml:space="preserve"><value>Changing either value selects a different logical SurrealDB target; existing data is not moved.</value></data>
 
   <!-- Review Section -->
   <data name="Infrastructure" xml:space="preserve"><value>Infrastructure</value></data>

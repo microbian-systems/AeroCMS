@@ -128,8 +128,8 @@ public static class AeroAppServerExtensions
 
         services.AddAeroDB(opts =>
         {
-            opts.Namespace = "aero";
-            opts.Database = "aero";
+            opts.Namespace = resolved.DatabaseNamespace;
+            opts.Database = resolved.DatabaseName;
 
             if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
             {

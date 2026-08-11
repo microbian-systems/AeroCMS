@@ -23,6 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="buildTransitive\Aero.Cms.AspNetCore.props"
+          Pack="true"
+          PackagePath="buildTransitive\Aero.Cms.AspNetCore.props" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Aero framework -->
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />

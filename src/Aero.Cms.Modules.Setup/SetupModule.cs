@@ -96,6 +96,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.TryAddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
         services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
         services.TryAddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
+        services.TryAddSingleton<SetupBootstrapHandoffGate>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddSingleton(_ => new RuntimeBootstrapReadinessGate(runtimeMode));
         services.TryAddTransient<SetupGateMiddleware>();

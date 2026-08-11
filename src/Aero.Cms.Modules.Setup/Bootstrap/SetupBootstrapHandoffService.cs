@@ -57,11 +57,11 @@ public static SetupBootstrapHandoffResult Failure(params string[] errors) => new
 /// Coordinates the ordered, non-transactional handoff from the setup host to the main runtime host.
 /// </summary>
 /// <remarks>
-/// Persistence steps are sequential. A failure stops the sequence and is returned without
-/// requesting shutdown; earlier writes are not rolled back. Repeating the operation overwrites
-/// the same bootstrap keys and pending payload. Database and cache persistence can each write
-/// the configured bootstrap state before the pending request is saved, so a process failure can
-/// leave configured state without a recoverable pending payload.
+    /// Persistence steps are sequential. A failure stops the sequence and is returned without
+    /// requesting shutdown; earlier writes are not rolled back. Database and cache persistence keep
+    /// the application in setup state until the pending request is durable, and the configured state
+    /// is written only after that payload is saved. Repeating the operation overwrites the same
+    /// bootstrap keys and pending payload.
 /// </remarks>
 public sealed class SetupBootstrapHandoffService(
     IDatabaseBootstrapService databaseBootstrapService,
@@ -71,6 +71,7 @@ public sealed class SetupBootstrapHandoffService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     IHostEnvironment hostEnvironment,
     IHostApplicationLifetime hostLifetime,
+    SetupBootstrapHandoffGate handoffGate,
     ILogger<SetupBootstrapHandoffService> logger) : ISetupBootstrapHandoffService
 {
     /// <inheritdoc />
@@ -90,6 +91,13 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
             return SetupBootstrapHandoffResult.Failure("The selected storefront member authentication provider is not available.");
         }
 
+        if (!handoffGate.TryClaim())
+        {
+            return SetupBootstrapHandoffResult.Failure("Setup configuration persistence is already in progress.");
+        }
+
+        var completed = false;
+
         try
         {
             logger.LogInformation("Starting setup bootstrap handoff process...");
@@ -107,7 +115,11 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
                 DatabaseUnauthenticated: request.DatabaseUnauthenticated,
                 DatabaseUsername: request.DatabaseUsername,
                 DatabasePassword: request.DatabasePassword
-            ), cancellationToken);
+            )
+            {
+                DatabaseNamespace = request.DatabaseNamespace,
+                DatabaseName = request.DatabaseName
+            }, cancellationToken);
 
             // Step 2: Persist cache bootstrap configuration
             logger.LogInformation("Persisting cache bootstrap configuration...");
@@ -137,12 +149,20 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
             // The main app will then start with the new configuration
             hostLifetime.StopApplication();
 
+            completed = true;
             return SetupBootstrapHandoffResult.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Setup bootstrap handoff failed");
             return SetupBootstrapHandoffResult.Failure(ex.Message);
+        }
+        finally
+        {
+            if (!completed)
+            {
+                handoffGate.Release();
+            }
         }
     }
 

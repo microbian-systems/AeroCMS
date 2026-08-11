@@ -5,6 +5,7 @@ using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -19,7 +20,8 @@ namespace Aero.Cms.Modules.Setup.Bootstrap;
 public sealed class CacheBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
-    InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : ICacheBootstrapService
+    InfisicalBootstrapSettingsProvider infisicalSettingsProvider,
+    IHostEnvironment hostEnvironment) : ICacheBootstrapService
 {
     /// <inheritdoc />
     public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
@@ -41,12 +43,12 @@ public sealed class CacheBootstrapService(
                 nameof(model));
         }
 
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var env = hostEnvironment.EnvironmentName;
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
         var infrastructure = GetOrCreateObject(root, "AeroCms", "Infrastructure");
 
-        bootstrap["State"] = BootstrapStates.Configured;
+        bootstrap["State"] = BootstrapStates.Setup;
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;

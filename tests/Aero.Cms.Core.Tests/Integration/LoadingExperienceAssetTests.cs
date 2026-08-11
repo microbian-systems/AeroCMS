@@ -45,7 +45,8 @@ public sealed class LoadingExperienceAssetTests
         var app = await File.ReadAllTextAsync(Path.Combine(uiRoot, "App.razor"));
         var reconnect = await File.ReadAllTextAsync(Path.Combine(clientRoot, "Layout", "ReconnectModal.razor"));
         var emptyLayout = await File.ReadAllTextAsync(Path.Combine(root, "src", "Aero.Cms.Shared", "Layout", "EmptyLayout.razor"));
-        var cmsLayout = await File.ReadAllTextAsync(Path.Combine(root, "src", "Aero.Cms.Web", "Views", "Shared", "_CmsLayout.cshtml"));
+        var cmsLayoutPath = Path.Combine(uiRoot, "Views", "Shared", "_CmsLayout.cshtml");
+        var cmsLayout = await File.ReadAllTextAsync(cmsLayoutPath);
         var uiProject = await File.ReadAllTextAsync(Path.Combine(uiRoot, "Aero.Cms.UI.csproj"));
         var clientProject = await File.ReadAllTextAsync(Path.Combine(clientRoot, "Aero.Cms.Client.csproj"));
         var webProject = await File.ReadAllTextAsync(Path.Combine(root, "src", "Aero.Cms.Web", "Aero.Cms.Web.csproj"));
@@ -57,6 +58,8 @@ public sealed class LoadingExperienceAssetTests
 
         await Assert.That(File.Exists(Path.Combine(uiRoot, "wwwroot", "css", "aero.generated.css"))).IsTrue();
         await Assert.That(File.Exists(Path.Combine(uiRoot, "wwwroot", "img", "aero-logo-new.png"))).IsTrue();
+        await Assert.That(File.Exists(cmsLayoutPath)).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(root, "src", "Aero.Cms.Web", "Views", "Shared", "_CmsLayout.cshtml"))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(clientRoot, "wwwroot", "js", "aero.client.js"))).IsTrue();
         await Assert.That(File.Exists(Path.Combine(clientRoot, "wwwroot", "lib", "tippy.js", "tippy.min.css"))).IsTrue();
         await Assert.That(app).Contains("_content/Aero.Cms.Client/Aero.Cms.Client.bundle.scp.css");
@@ -120,6 +123,31 @@ public sealed class LoadingExperienceAssetTests
         await Assert.That(script).Contains("redirect: 'follow'");
         await Assert.That(script).Contains("window.location.replace('/')");
         await Assert.That(script).Contains("fetchWithTimeout");
+    }
+
+    [Test]
+    public async Task Setup_host_reuses_the_consuming_hosts_static_asset_provider()
+    {
+        var root = RepositoryRoot();
+        var factory = await File.ReadAllTextAsync(Path.Combine(root, "src", "Aero.Cms.Modules.Setup", "SetupAppFactory.cs"));
+        var startup = await File.ReadAllTextAsync(Path.Combine(root, "src", "Aero.Cms.Web.Bootstrap", "AeroStartupPipeline.cs"));
+
+        await Assert.That(factory).Contains("builder.Environment.WebRootFileProvider = webRootFileProvider;");
+        await Assert.That(startup).Contains("builder.Environment.WebRootFileProvider");
+    }
+
+    [Test]
+    public async Task AspNetCore_package_requires_framework_assets_for_componentless_hosts()
+    {
+        var root = RepositoryRoot();
+        var projectRoot = Path.Combine(root, "src", "Aero.Cms.Web.Bootstrap");
+        var project = await File.ReadAllTextAsync(Path.Combine(projectRoot, "Aero.Cms.Web.Bootstrap.csproj"));
+        var propsPath = Path.Combine(projectRoot, "buildTransitive", "Aero.Cms.AspNetCore.props");
+        var props = await File.ReadAllTextAsync(propsPath);
+
+        await Assert.That(project).Contains("buildTransitive\\Aero.Cms.AspNetCore.props");
+        await Assert.That(project).Contains("PackagePath=\"buildTransitive\\Aero.Cms.AspNetCore.props\"");
+        await Assert.That(props).Contains("<RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>");
     }
 
     [Test]

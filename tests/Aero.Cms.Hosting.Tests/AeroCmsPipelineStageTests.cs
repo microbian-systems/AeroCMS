@@ -1,11 +1,27 @@
 using Aero.Cms.Hosting.Defaults;
 using Aero.Cms.Web.Bootstrap;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Hosting.Tests;
 
 public sealed class AeroCmsPipelineStageTests
 {
+    [Test]
+    public async Task Reusable_CMS_layout_is_discoverable_without_the_standalone_web_host()
+    {
+        await using var app = await CreateAppAsync();
+        var viewEngine = app.Services.GetRequiredService<IRazorViewEngine>();
+
+        var result = viewEngine.GetView(
+            executingFilePath: null,
+            viewPath: "/Views/Shared/_CmsLayout.cshtml",
+            isMainPage: true);
+
+        await Assert.That(result.Success).IsTrue();
+    }
+
     [Test]
     public async Task Site_stage_requires_the_Aero_CMS_routing_boundary()
     {
