@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Shared.Components;
@@ -52,6 +53,7 @@ public partial class ContentItemEditor
     private readonly Dictionary<string, List<string>> _galleryValues = [];
     private readonly Dictionary<string, List<KeyValueEditorRow>> _dictionaryValues = [];
     private readonly Dictionary<string, CmsContentReferenceValue?> _cmsReferenceValues = [];
+    private readonly Dictionary<string, ContentEntryKey?> _contentEntryReferenceValues = [];
     private readonly Dictionary<string, string> _fieldErrors = [];
 
     private IReadOnlyList<ContentItemDetail> _cultureVariants = [];
@@ -92,6 +94,13 @@ public partial class ContentItemEditor
             ReferenceContentFieldSettings.TargetKindCmsDocument,
             StringComparison.Ordinal);
 
+    private static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
+            StringComparison.Ordinal);
+
     private static long? GetTargetContentTypeId(ContentFieldDefinition field)
         => GetStringSetting(field, ReferenceContentFieldSettings.TargetContentTypeId) is { } value
            && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var id)
@@ -119,6 +128,14 @@ public partial class ContentItemEditor
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static IReadOnlyList<string> GetAllowedContentEntryProviders(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowedProviders, out var providers)
+        && providers.ValueKind == JsonValueKind.Array
+            ? providers.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim()).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            : [];
 
     private static bool GetBoolSetting(
         ContentFieldDefinition field,
@@ -288,6 +305,12 @@ protected override async Task OnInitializedAsync()
                 continue;
             }
 
+            if (IsContentEntryReference(field))
+            {
+                _contentEntryReferenceValues.TryAdd(field.Name, null);
+                continue;
+            }
+
             switch (field.FieldType)
             {
                 case "number":
@@ -433,6 +456,15 @@ protected override async Task OnInitializedAsync()
                 _cmsReferenceValues[field.Name] =
                     element.ValueKind == JsonValueKind.Object
                         ? element.Deserialize(ContentJsonContext.Default.CmsContentReferenceValue)
+                        : null;
+                continue;
+            }
+
+            if (IsContentEntryReference(field))
+            {
+                _contentEntryReferenceValues[field.Name] =
+                    element.ValueKind == JsonValueKind.Object
+                        ? element.Deserialize(ContentJsonContext.Default.ContentEntryKey)
                         : null;
                 continue;
             }
@@ -813,6 +845,9 @@ protected override async Task OnInitializedAsync()
               || cmsReference is null
               || string.IsNullOrWhiteSpace(cmsReference.Source)
               || string.IsNullOrWhiteSpace(cmsReference.Id)
+            : IsContentEntryReference(field)
+              ? !_contentEntryReferenceValues.TryGetValue(field.Name, out var entryReference)
+                || entryReference is not { IsValid: true }
             : field.FieldType switch
         {
             "number" => !_numberValues.TryGetValue(field.Name, out var value) || value is null,
@@ -837,6 +872,14 @@ protected override async Task OnInitializedAsync()
                 dict[field.Name] = JsonSerializer.SerializeToElement(
                     _cmsReferenceValues.GetValueOrDefault(field.Name),
                     ContentJsonContext.Default.CmsContentReferenceValue);
+                continue;
+            }
+
+            if (IsContentEntryReference(field))
+            {
+                dict[field.Name] = JsonSerializer.SerializeToElement(
+                    _contentEntryReferenceValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.ContentEntryKey);
                 continue;
             }
 

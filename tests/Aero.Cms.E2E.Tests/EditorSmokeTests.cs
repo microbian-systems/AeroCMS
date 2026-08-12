@@ -9,7 +9,7 @@ namespace Aero.Cms.E2E.Tests;
 [NotInParallel]
 public sealed class EditorSmokeTests
 {
-    private static readonly PlaywrightE2EFixture Fixture = new();
+    private static PlaywrightE2EFixture Fixture => SharedPlaywrightE2EFixture.Instance;
 
     [Before(TestSession)]
     public static Task SetupSessionAsync() => Fixture.InitializeAsync();

@@ -1,0 +1,35 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes
+
+<div class="cms-reference-picker">
+    <label class="pe-property-group">
+        <span class="pe-property-label">@L["Content-entry provider"]</span>
+        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                value="@_selectedProvider" disabled="@_loadingProviders" @onchange="OnProviderChangedAsync">
+            <option value="">@L["Choose a content-entry provider"]</option>
+            @foreach (var provider in _providers)
+            {
+                <option value="@provider.Key">@provider.DisplayName</option>
+            }
+        </select>
+    </label>
+
+    @if (_loadingProviders || _loadingOptions)
+    {
+        <div class="cms-reference-state" role="status"><RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" /><span>@L["Loading content…"]</span></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="cms-reference-state cms-reference-error" role="alert"><RadzenIcon Icon="error_outline" /><span>@_error</span></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_selectedProvider))
+    {
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Content entry"]</span>
+            <RadzenDropDown TValue="string" Data="@_options" TextProperty="@nameof(EntryOption.DisplayText)" ValueProperty="@nameof(EntryOption.Value)"
+                            Value="@Value?.StableId" ValueChanged="OnOptionChangedAsync" AllowClear="true" AllowFiltering="true"
+                            SearchText="@_searchText" SearchTextChanged="OnSearchTextChangedAsync" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="@L["Search or choose content"]" EmptyText="@L["No matching content"]" Class="w-full" />
+        </label>
+    }
+</div>

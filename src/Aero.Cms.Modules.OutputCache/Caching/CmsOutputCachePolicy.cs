@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Content.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Primitives;
@@ -243,6 +244,19 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
                 foreach (var alias in contentTypeAliases)
                 {
                     context.Tags.Add($"content-type:{siteId}:{alias.ToLowerInvariant()}");
+                }
+            }
+
+            if (items["AeroCms.ContentViewProviders"] is IEnumerable<string> viewProviders)
+            {
+                var scope = new ContentViewScope(
+                    items["AeroCms.TenantId"] is long tenantId ? tenantId : 0,
+                    siteId);
+                if (scope.IsValid)
+                {
+                    context.Tags.Add(ContentViewOutputCacheTags.Site(scope));
+                    foreach (var provider in viewProviders.Where(provider => !string.IsNullOrWhiteSpace(provider)))
+                        context.Tags.Add(ContentViewOutputCacheTags.Provider(scope, provider));
                 }
             }
 

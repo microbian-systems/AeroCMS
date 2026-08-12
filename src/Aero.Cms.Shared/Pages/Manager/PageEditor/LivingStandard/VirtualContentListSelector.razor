@@ -1,0 +1,67 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Abstractions.Http.Clients
+
+<section class="aero-virtual-list-selector"
+         aria-labelledby="aero-virtual-list-title"
+         aria-busy="@IsLoading.ToString().ToLowerInvariant()">
+    <div>
+        <h3 id="aero-virtual-list-title">Query-backed list</h3>
+        <p>Repeat a page template over a bounded, provider-qualified result set.</p>
+    </div>
+
+    <div class="aero-virtual-list-selector__grid">
+        <label>
+            <span>Provider</span>
+            <select value="@SelectedProvider" @onchange="OnProviderChangedAsync" disabled="@(IsLoading || Providers.Count == 0)">
+                <option value="">@(IsLoading ? "Loading providers…" : "Select a provider")</option>
+                @foreach (var provider in Providers)
+                {
+                    <option @key="provider.Provider" value="@provider.Provider">@provider.DisplayName</option>
+                }
+            </select>
+        </label>
+
+        <label>
+            <span>Page size</span>
+            <input type="number"
+                   min="1"
+                   max="100"
+                   value="@PageSize"
+                   @onchange="OnPageSizeChanged"
+                   disabled="@IsLoading" />
+        </label>
+    </div>
+
+    <label>
+        <span>Search text (optional)</span>
+        <input type="search"
+               maxlength="256"
+               value="@SearchText"
+               @oninput="OnSearchChanged"
+               placeholder="Provider search"
+               disabled="@IsLoading" />
+    </label>
+
+    <div class="aero-virtual-list-selector__notice" role="note">
+        Provider-backed lists support paging and one search value. Field sorting and structured filters are unavailable and are never silently ignored.
+    </div>
+
+    @if (!IsLoading && Providers.Count == 0 && string.IsNullOrWhiteSpace(DisplayError))
+    {
+        <p class="aero-virtual-list-selector__empty" role="status">
+            No published query-backed providers are available for this site.
+        </p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(DisplayError))
+    {
+        <p class="aero-virtual-list-selector__error" role="alert">@DisplayError</p>
+    }
+
+    <button type="button"
+            class="aero-virtual-list-selector__add"
+            disabled="@(!CanAdd)"
+            @onclick="AddAsync">
+        Add query-backed list to page
+    </button>
+</section>

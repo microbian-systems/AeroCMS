@@ -22,6 +22,9 @@ public partial class PageEditor
     [Inject]
     private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
 
+    [Inject]
+    private IContentViewsHttpClient ContentViewsApi { get; set; } = default!;
+
     protected HtmlPageEditorSidebarTab RightSidebarTab { get; private set; } =
         HtmlPageEditorSidebarTab.Elements;
 
@@ -50,6 +53,15 @@ public partial class PageEditor
     protected string? ContentPaletteError { get; private set; }
 
     protected string? ContentListSettingsError { get; private set; }
+    protected string VirtualEntryProvider { get; private set; } = string.Empty;
+    protected IReadOnlyList<ContentEntryProviderOption> VirtualEntryProviders { get; private set; } = [];
+    protected bool IsVirtualEntryProvidersLoading { get; private set; }
+    protected string? SelectedVirtualEntryStableId { get; private set; }
+    protected IReadOnlyList<VirtualContentEntryOption> VirtualEntryOptions { get; private set; } = [];
+    protected bool IsVirtualEntriesLoading { get; private set; }
+    protected bool HasVirtualEntrySearch { get; private set; }
+    protected string? VirtualEntryError { get; private set; }
+    protected string? VirtualListError { get; private set; }
 
     private bool _contentTypesLoaded;
     private long _contentItemsRequestVersion;
@@ -89,6 +101,7 @@ public partial class PageEditor
         if (tab == HtmlPageEditorSidebarTab.Content)
         {
             await EnsureContentTypesLoadedAsync();
+            await EnsureVirtualEntryProvidersLoadedAsync();
         }
     }
 
@@ -140,6 +153,136 @@ public partial class PageEditor
                 ? value
                 : null;
         return Task.CompletedTask;
+    }
+
+    protected Task SetVirtualEntryProviderAsync(string provider)
+    {
+        VirtualEntryProvider = provider;
+        SelectedVirtualEntryStableId = null;
+        VirtualEntryOptions = [];
+        HasVirtualEntrySearch = false;
+        VirtualEntryError = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task EnsureVirtualEntryProvidersLoadedAsync()
+    {
+        if (VirtualEntryProviders.Count > 0 || IsVirtualEntryProvidersLoading) return;
+        IsVirtualEntryProvidersLoading = true;
+        try
+        {
+            var result = await ContentViewsApi.GetEntryProvidersAsync();
+            switch (result)
+            {
+                case Result<IReadOnlyList<ContentEntryProviderOption>, AeroError>.Ok ok:
+                    VirtualEntryProviders = ok.Value;
+                    break;
+                case Result<IReadOnlyList<ContentEntryProviderOption>, AeroError>.Failure failure:
+                    VirtualEntryError = FormatError(failure.Error);
+                    break;
+            }
+        }
+        finally { IsVirtualEntryProvidersLoading = false; }
+    }
+
+    protected async Task SearchVirtualEntriesAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(VirtualEntryProvider)) return;
+        IsVirtualEntriesLoading = true;
+        HasVirtualEntrySearch = true;
+        VirtualEntryError = null;
+        try
+        {
+            var result = await ContentViewsApi.SearchEntriesAsync(VirtualEntryProvider, query: query, take: ContentItemPickerPageSize);
+            switch (result)
+            {
+                case Result<IReadOnlyList<VirtualContentEntryOption>, AeroError>.Ok ok:
+                    VirtualEntryOptions = ok.Value;
+                    SelectedVirtualEntryStableId = VirtualEntryOptions.Any(x => x.StableId == SelectedVirtualEntryStableId)
+                        ? SelectedVirtualEntryStableId : null;
+                    break;
+                case Result<IReadOnlyList<VirtualContentEntryOption>, AeroError>.Failure failure:
+                    VirtualEntryOptions = [];
+                    SelectedVirtualEntryStableId = null;
+                    VirtualEntryError = FormatError(failure.Error);
+                    break;
+            }
+        }
+        finally { IsVirtualEntriesLoading = false; }
+    }
+
+    protected Task SelectVirtualEntryAsync(string? stableId)
+    {
+        SelectedVirtualEntryStableId = !string.IsNullOrWhiteSpace(stableId)
+            && VirtualEntryOptions.Any(x => x.Provider == VirtualEntryProvider && x.StableId == stableId) ? stableId : null;
+        return Task.CompletedTask;
+    }
+
+    protected async Task AddVirtualEntryAsync(string? stableIdRouteParameter)
+    {
+        if (string.IsNullOrWhiteSpace(VirtualEntryProvider)
+            || (string.IsNullOrWhiteSpace(SelectedVirtualEntryStableId)
+                && string.IsNullOrWhiteSpace(stableIdRouteParameter)))
+        {
+            VirtualEntryError = "Select an available query-backed entry before adding it to the page.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(stableIdRouteParameter)
+            && !await ValidateSelectedVirtualEntryAsync())
+        {
+            return;
+        }
+
+        var entryKey = new Aero.Cms.Abstractions.Content.Views.ContentEntryKey(
+            VirtualEntryProvider,
+            string.IsNullOrWhiteSpace(stableIdRouteParameter)
+                ? SelectedVirtualEntryStableId!
+                : string.Empty);
+        var result = HtmlEditor.AddVirtualContentItem(entryKey, stableIdRouteParameter);
+        HandleHtmlEditorResult(result, "Query-backed content entry added.");
+    }
+
+    protected Task AddVirtualListAsync(VirtualContentListRequest request)
+    {
+        VirtualListError = null;
+        if (!VirtualEntryProviders.Any(option => string.Equals(
+                option.Provider,
+                request.Provider,
+                StringComparison.Ordinal)))
+        {
+            VirtualListError = "Select an available query-backed provider before adding the list.";
+            return Task.CompletedTask;
+        }
+
+        var result = HtmlEditor.AddVirtualContentList(
+            request.Provider,
+            request.PageSize,
+            request.SearchText);
+        switch (result)
+        {
+            case Result<HtmlNode>.Ok:
+                MarkDirty();
+                ShowToast(L["Query-backed content list added."], "success");
+                break;
+            case Result<HtmlNode>.Failure failure:
+                VirtualListError = FormatError(failure.Error);
+                ShowToast(VirtualListError, "error");
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected async Task<bool> ValidateSelectedVirtualEntryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedVirtualEntryStableId)) return true;
+        var result = await ContentViewsApi.GetEntryAsync(VirtualEntryProvider, SelectedVirtualEntryStableId);
+        if (result is Result<VirtualContentEntryDetail, AeroError>.Ok) return true;
+        VirtualEntryError = result is Result<VirtualContentEntryDetail, AeroError>.Failure failure
+            ? FormatError(failure.Error) : "The selected query-backed entry is unavailable.";
+        ShowToast($"The selected query-backed entry is unavailable: {VirtualEntryError}", "error");
+        return false;
     }
 
     protected async Task SearchContentItemsAsync(string searchText)
@@ -371,6 +514,7 @@ public partial class PageEditor
     {
         ContentListSettingsError = null;
         if (SelectedContentListScope is not { } scope
+            || !string.IsNullOrWhiteSpace(scope.ContentEntryProvider)
             || SelectedContentType?.Id == scope.ContentTypeId)
         {
             return;
@@ -424,6 +568,35 @@ public partial class PageEditor
         {
             return AeroError.ValidationError(
                 ["The selected content-list scope changed. Select it and try again."]);
+        }
+
+
+        if (!string.IsNullOrWhiteSpace(scope.ContentEntryProvider))
+        {
+            if (!string.IsNullOrWhiteSpace(request.Query.SortField))
+                return AeroError.ValidationError(["Provider-backed lists do not support field sorting."]);
+
+            var filters = request.Query.Filters ?? [];
+            if (filters.Count > 1
+                || filters.Any(filter => filter.Operator != PageContentFilterOperator.Contains
+                    || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal)))
+            {
+                return AeroError.ValidationError(
+                    ["Provider-backed lists support one search value; structured filters are unavailable."]);
+            }
+
+            if ((filters.SingleOrDefault()?.Value?.Length ?? 0) > 256)
+                return AeroError.ValidationError(["Provider-backed list search text cannot exceed 256 characters."]);
+
+            return request with
+            {
+                Query = request.Query with
+                {
+                    SortField = null,
+                    SortDirection = PageContentSortDirection.Ascending,
+                    Filters = filters
+                }
+            };
         }
 
         if (SelectedContentType is not { } contentType || contentType.Id != scope.ContentTypeId)

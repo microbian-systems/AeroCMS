@@ -102,7 +102,7 @@ public sealed class PagePublishingWorkflowHtmlTests
         await harness.Session.SaveChangesAsync();
         var referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
         referenceValidator.ValidateAsync(
-                page.SiteId,
+                Arg.Any<Aero.Cms.Abstractions.Content.Views.ContentViewScope>(),
                 Arg.Any<string>(),
                 Arg.Any<PageCompositionDocument>(),
                 ContentReferenceValidationMode.Publishing,

@@ -24,6 +24,7 @@ public partial class ContentTypeEditor
     private const int MaximumHierarchyDepthLimit = 32;
     private const string HierarchyReferenceFieldOption = "hierarchy-reference";
     private const string CmsReferenceFieldOption = "cms-reference";
+    private const string ContentEntryReferenceFieldOption = "content-entry-reference";
     private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
         Enum.GetValues<AeroAiFieldExposure>();
 
@@ -54,6 +55,7 @@ public partial class ContentTypeEditor
         new("reference", L["Related content"], "account_tree", L["Relate this item to an entry from another content type."]),
         new(HierarchyReferenceFieldOption, L["Hierarchy entry"], "family_history", L["Choose an entry from a hierarchy with its full path."]),
         new(CmsReferenceFieldOption, L["Site content"], "article", L["Choose an existing page, post, doc, or public content entry."]),
+        new(ContentEntryReferenceFieldOption, L["Query-backed content"], "database_search", L["Choose an entry from a registered query-backed content provider."]),
         new(ContentFieldTypes.Dictionary, L["Key/value"], "data_object", L["Add a small set of labeled values."])
     ];
 
@@ -203,7 +205,7 @@ protected override async Task OnInitializedAsync()
         var option = GetFieldOption(fieldType);
         var baseLabel = option.Label == "Short text" ? "Title" : option.Label;
         var handle = CreateUniqueFieldName(GenerateHandle(baseLabel));
-        var storedFieldType = fieldType is HierarchyReferenceFieldOption or CmsReferenceFieldOption
+        var storedFieldType = fieldType is HierarchyReferenceFieldOption or CmsReferenceFieldOption or ContentEntryReferenceFieldOption
             ? ContentFieldTypes.Reference
             : fieldType;
 
@@ -236,6 +238,10 @@ protected override async Task OnInitializedAsync()
             field.Settings[ReferenceContentFieldSettings.AllowedSources] =
                 JsonSerializer.SerializeToElement(
                     CmsContentReferenceSources.All.ToArray());
+        }
+        else if (fieldType == ContentEntryReferenceFieldOption)
+        {
+            SetSetting(field, ReferenceContentFieldSettings.TargetKind, ReferenceContentFieldSettings.TargetKindContentEntry);
         }
         else if (fieldType == ContentFieldTypes.List)
         {
@@ -378,6 +384,8 @@ protected override async Task OnInitializedAsync()
     private FieldTypeOption GetFieldOption(ContentFieldDefinition field) =>
         IsCmsDocumentReference(field)
             ? GetFieldOption(CmsReferenceFieldOption)
+            : IsContentEntryReference(field)
+                ? GetFieldOption(ContentEntryReferenceFieldOption)
             : IsHierarchyReference(field)
                 ? GetFieldOption(HierarchyReferenceFieldOption)
                 : GetFieldOption(field.FieldType);
@@ -386,6 +394,12 @@ protected override async Task OnInitializedAsync()
         string.Equals(
             GetSettingString(field, ReferenceContentFieldSettings.TargetKind),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    private static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        string.Equals(
+            GetSettingString(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
             StringComparison.Ordinal);
 
     private static string FieldLabel(ContentFieldDefinition field)
@@ -1189,6 +1203,7 @@ protected override async Task OnInitializedAsync()
         Basics,
         Fields,
         Display,
+        SurrealView,
         Entries
     }
 

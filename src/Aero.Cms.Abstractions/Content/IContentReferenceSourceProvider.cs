@@ -48,3 +48,10 @@ public sealed record CmsContentReferenceOption(
 public sealed record CmsContentReferenceValue(
     string Source,
     string Id);
+
+/// <summary>A site-scoped selector option for a provider-qualified virtual entry.</summary>
+public sealed record ContentEntryReferenceOption(
+    string Provider,
+    string StableId,
+    string Title,
+    string? Detail = null);

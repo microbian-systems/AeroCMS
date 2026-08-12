@@ -1,0 +1,137 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
+@using Aero.Cms.Abstractions.Content.Views
+
+<section class="surreal-view-editor" aria-labelledby="surreal-view-title" aria-busy="@_isLoading">
+    <header class="surreal-view-editor__header">
+        <div>
+            <div class="surreal-view-editor__title-row">
+                <h1 id="surreal-view-title">Surreal View</h1>
+                @if (_isConfigured)
+                {
+                    <span class="surreal-view-editor__status">@PublicationLabel · v@_revisionVersion</span>
+                }
+                else
+                {
+                    <span class="surreal-view-editor__status is-unconfigured">Not configured</span>
+                }
+                @if (_isDirty)
+                {
+                    <span class="surreal-view-editor__status is-dirty">Unsaved changes</span>
+                }
+            </div>
+            <p>Expose existing site-owned SurrealDB records as virtual content without importing a CMS item for every row.</p>
+        </div>
+        <div class="surreal-view-editor__actions" role="toolbar" aria-label="Surreal View commands">
+            <button type="button"
+                    class="pe-btn pe-btn-ghost"
+                    disabled="@(!_isConfigured || _isBusy)"
+                    @onclick="InvalidateCacheAsync">
+                Invalidate cache
+            </button>
+            <button type="button"
+                    class="pe-btn pe-btn-secondary"
+                    disabled="@(!CanPublish)"
+                    title="@PublishTitle"
+                    @onclick="PublishAsync">
+                @(_isPublishing ? "Publishing…" : "Publish view")
+            </button>
+            <button type="button"
+                    class="pe-btn pe-btn-primary"
+                    disabled="@(!CanSave)"
+                    @onclick="SaveAsync">
+                @(_isSaving ? "Saving…" : "Save draft")
+            </button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_pageMessage))
+    {
+        <div class="surreal-view-editor__message @(_pageMessageIsError ? "is-error" : "is-success")"
+             role="@(_pageMessageIsError ? "alert" : "status")">
+            @_pageMessage
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="surreal-view-editor__state">Loading the registered shapes and current view draft…</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="surreal-view-editor__state is-error" role="alert">
+            <strong>The Surreal View editor could not be loaded.</strong>
+            <span>@_loadError</span>
+            <button type="button" class="pe-btn pe-btn-secondary" @onclick="ReloadAsync">Retry</button>
+        </div>
+    }
+    else
+    {
+        @if (!_isConfigured)
+        {
+            <div class="surreal-view-editor__unconfigured">
+                <strong>This content type does not have a query-backed view yet.</strong>
+                <span>Choose a code-owned shape, enter a scoped SELECT query, preview it, then save the first draft.</span>
+            </div>
+        }
+        else
+        {
+            <div class="surreal-view-editor__eligibility @(_publicExecutionEligible ? "is-eligible" : "is-ineligible")"
+                 role="@(_publicExecutionEligible ? "status" : "alert")">
+                <strong>
+                    @(_publicExecutionEligible
+                        ? "Saved revision is eligible for public execution."
+                        : "Saved revision cannot be published for public execution.")
+                </strong>
+                @if (_isDirty)
+                {
+                    <span>Eligibility shown here belongs to the saved revision. Save the current SELECT statements to recalculate it.</span>
+                }
+                @if (!_publicExecutionEligible)
+                {
+                    <span>@(_publicExecutionIneligibilityReason ?? "The server did not provide an eligibility diagnostic.")</span>
+                }
+            </div>
+        }
+
+        <div class="surreal-view-editor__panel">
+            <SurrealViewQueryPanel Shapes="@_shapes"
+                                    SelectedShapeAlias="@_shapeAlias"
+                                    SelectedShapeAliasChanged="SetShapeAlias"
+                                    SelectStatement="@_selectStatement"
+                                    SelectStatementChanged="SetSelectStatement"
+                                    IdentityField="@_identityField"
+                                    IdentityFieldChanged="SetIdentityField"
+                                    TitleField="@_titleField"
+                                    TitleFieldChanged="SetTitleField"
+                                    EntrySelectStatement="@_entrySelectStatement"
+                                    EntrySelectStatementChanged="SetEntrySelectStatement"
+                                    SearchSelectStatement="@_searchSelectStatement"
+                                    SearchSelectStatementChanged="SetSearchSelectStatement"
+                                    DiscoveredOutputFields="@(_preview?.OutputFields ?? [])"
+                                    CacheEnabled="@_cacheEnabled"
+                                    CacheEnabledChanged="SetCacheEnabled"
+                                    CacheDurationSeconds="@_cacheDurationSeconds"
+                                    CacheDurationSecondsChanged="SetCacheDurationSeconds"
+                                    IsBusy="@_isBusy"
+                                    EditorKey="@_editorKey" />
+
+            <SurrealViewPreviewPanel Result="@_preview"
+                                     IsLoading="@_isPreviewing"
+                                     CanPreview="@CanPreview"
+                                     ErrorMessage="@_previewError"
+                                     PreviewRequested="PreviewAsync" />
+
+            <SurrealViewRelationshipsPanel Relationships="@_relationships"
+                                            Shapes="@_shapes"
+                                            CurrentShapeAlias="@_shapeAlias"
+                                            Preview="@_relationshipPreview"
+                                            IsConfigured="@_isConfigured"
+                                            IsLoading="@_relationshipsLoading"
+                                            IsMutating="@_relationshipMutating"
+                                            ErrorMessage="@_relationshipsError"
+                                            SaveDraftRequested="SaveRelationshipDraftAsync"
+                                            PreviewDdlRequested="PreviewRelationshipDdlAsync"
+                                            ApplyDdlRequested="ApplyRelationshipDdlAsync" />
+        </div>
+    }
+</section>

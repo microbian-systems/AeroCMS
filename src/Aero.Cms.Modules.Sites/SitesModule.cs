@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Data.Repositories;
@@ -76,6 +77,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<ISiteService, SiteService>();
         services.AddScoped<ISiteLookupService, SiteLookupService>();
+        services.AddScoped<ISelectedSiteScopeResolver, SelectedSiteScopeResolver>();
         services.AddScoped<IUserSiteService, UserSiteService>();
         services.AddScoped<ISiteStyleProfileResolver, SiteStyleProfileResolver>();
         services.AddScoped<ISiteStyleProfileService, SiteStyleProfileService>();

@@ -1,0 +1,68 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
+@using Aero.Cms.Abstractions.Http.Clients
+
+<section class="surreal-preview" aria-labelledby="surreal-preview-title" aria-busy="@IsLoading">
+    <div class="surreal-preview__heading">
+        <div>
+            <h2 id="surreal-preview-title">Preview</h2>
+            <p>Inspect a bounded result without publishing the draft.</p>
+        </div>
+        <button type="button" class="pe-btn pe-btn-secondary" disabled="@(IsLoading || !CanPreview)" @onclick="PreviewRequested">
+            @(IsLoading ? "Running…" : "Run preview")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="surreal-preview__error" role="alert">@ErrorMessage</div>
+    }
+    else if (IsLoading)
+    {
+        <div class="surreal-preview__state">Running the read-only query…</div>
+    }
+    else if (Result is null)
+    {
+        <div class="surreal-preview__state">Run a preview to discover the projected fields and inspect sample rows.</div>
+    }
+    else if (Result.Rows.Count == 0)
+    {
+        <div class="surreal-preview__state">The query completed successfully but returned no rows.</div>
+    }
+    else
+    {
+        <div class="surreal-preview__fields">
+            <strong>Discovered output</strong>
+            @foreach (var field in Result.OutputFields)
+            {
+                <code @key="field">@field</code>
+            }
+            @if (Result.IsTruncated)
+            {
+                <span>Result truncated</span>
+            }
+        </div>
+        <div class="surreal-preview__table-wrap" tabindex="0" aria-label="Scrollable query preview results">
+            <table>
+                <thead>
+                    <tr>
+                        @foreach (var field in Result.OutputFields)
+                        {
+                            <th scope="col" @key="field">@field</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Result.Rows)
+                    {
+                        <tr @key="row">
+                            @foreach (var field in Result.OutputFields)
+                            {
+                                <td @key="field"><code>@FormatValue(row, field)</code></td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

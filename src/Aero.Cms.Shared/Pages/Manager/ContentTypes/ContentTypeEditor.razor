@@ -1,8 +1,10 @@
 @page "/manager/content-type/editor/{alias?}"
 @using Aero.Cms.Abstractions.Content
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
 @using BlazorMonaco.Editor
 @using Radzen.Blazor
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>@(IsNew ? L["New Content Type"] : $"{L["Edit"]} {Name}")</PageTitle>
 
@@ -83,7 +85,7 @@
     }
 </style>
 
-<div class="pe-page-content space-y-6">
+<div class="pe-page-content content-type-editor space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
             <p class="text-xs font-semibold uppercase tracking-wide ct-muted">@L["Content type builder"]</p>
@@ -96,12 +98,17 @@
         </div>
     </div>
 
-    <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+    <div class="pe-tabs content-type-editor__tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Basics ? "active" : "")" @onclick="() => _activeTab = EditorTab.Basics">@L["Basics"]</button>
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Fields ? "active" : "")" @onclick="() => _activeTab = EditorTab.Fields">@L["Fields"]</button>
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Display ? "active" : "")" @onclick="() => _activeTab = EditorTab.Display">@L["Display"]</button>
         @if (!IsNew)
         {
+            <AuthorizeView Policy="AeroAdmin">
+                <Authorized>
+                    <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.SurrealView ? "active" : "")" @onclick="() => _activeTab = EditorTab.SurrealView">@L["Surreal View"]</button>
+                </Authorized>
+            </AuthorizeView>
             <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Entries ? "active" : "")" @onclick="SwitchToEntriesTab">@L["Entries"]</button>
         }
     </div>
@@ -384,6 +391,17 @@
                 </div>
             }
         </section>
+    }
+    else if (_activeTab == EditorTab.SurrealView)
+    {
+        <AuthorizeView Policy="AeroAdmin">
+            <Authorized>
+                <SurrealViewEditor ContentTypeAlias="@AliasValue" />
+            </Authorized>
+            <NotAuthorized>
+                <div class="ct-panel" role="alert">@L["Only trusted platform administrators can author Surreal Views."]</div>
+            </NotAuthorized>
+        </AuthorizeView>
     }
     else if (_activeTab == EditorTab.Entries)
     {

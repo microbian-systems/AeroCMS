@@ -280,6 +280,12 @@ public sealed class AeroContentTypeService(
                 continue;
             }
 
+            if (ReferenceFieldValidator.IsContentEntryReference(field))
+            {
+                ValidateContentEntryReferenceDefinition(field, label, errors);
+                continue;
+            }
+
             if (!TryGetTargetContentTypeId(field, out var targetId))
             {
                 errors.Add(
@@ -431,6 +437,26 @@ public sealed class AeroContentTypeService(
         {
             errors.Add(
                 $"Reference field '{label}' cannot combine CMS documents with hierarchy or cascading settings.");
+        }
+    }
+
+    private static void ValidateContentEntryReferenceDefinition(
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors)
+    {
+        var providers = ReferenceFieldValidator.GetAllowedProviders(field);
+        if (providers.Any(provider => provider.Length > 200 || provider.Any(char.IsWhiteSpace)))
+        {
+            errors.Add($"Reference field '{label}' contains an invalid content-entry provider key.");
+        }
+
+        if (IsHierarchyReference(field)
+            || !string.IsNullOrWhiteSpace(GetStringSetting(field, ReferenceContentFieldSettings.DependsOnField))
+            || !string.IsNullOrWhiteSpace(GetStringSetting(field, ReferenceContentFieldSettings.TargetFilterField))
+            || field.Settings.ContainsKey(ReferenceContentFieldSettings.TargetContentTypeId))
+        {
+            errors.Add($"Reference field '{label}' cannot combine virtual entries with content-type, hierarchy, or cascading settings.");
         }
     }
 

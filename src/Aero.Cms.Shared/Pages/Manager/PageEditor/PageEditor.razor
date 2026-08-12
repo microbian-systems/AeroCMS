@@ -202,6 +202,17 @@ else if (ActiveTab == "metadata")
                     <PathPreview ParentId="ParentId" Slug="@PageSlug" ExcludePageId="@Id" />
                 </div>
                 <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Route template"]</label>
+                    <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                           style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                           value="@PageRouteTemplate"
+                           @oninput="OnRouteTemplateChanged"
+                           placeholder="/catalog/{entryId}" />
+                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">
+                        @L["Optional. Use lowercase literal segments and exactly one named parameter."]
+                    </p>
+                </div>
+                <div>
                     <span class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Page type"]</span>
                     <div class="pe-page-renderer-summary">
                         <div>
@@ -577,6 +588,23 @@ else if (ActiveTab == "translations")
                                              NextItemsRequested="LoadNextContentItemsAsync"
                                              ItemRequested="AddContentPaletteItemAsync"
                                              RefreshRequested="RefreshContentTypesAsync" />
+                    <VirtualContentEntrySelector Provider="VirtualEntryProvider"
+                                                 Providers="VirtualEntryProviders"
+                                                 IsProvidersLoading="IsVirtualEntryProvidersLoading"
+                                                 SelectedStableId="SelectedVirtualEntryStableId"
+                                                 Entries="VirtualEntryOptions"
+                                                 IsLoading="IsVirtualEntriesLoading"
+                                                 HasSearched="HasVirtualEntrySearch"
+                                                 ErrorMessage="VirtualEntryError"
+                                                 RouteParameterName="PageRouteParameterName"
+                                                 ProviderChanged="SetVirtualEntryProviderAsync"
+                                                 SearchRequested="SearchVirtualEntriesAsync"
+                                                 SelectedStableIdChanged="SelectVirtualEntryAsync"
+                                                 AddRequested="AddVirtualEntryAsync" />
+                    <VirtualContentListSelector Providers="VirtualEntryProviders"
+                                                IsLoading="IsVirtualEntryProvidersLoading"
+                                                ErrorMessage="VirtualListError"
+                                                AddRequested="AddVirtualListAsync" />
                     break;
                 case HtmlPageEditorSidebarTab.Inspector:
                     @if (HtmlEditor.SelectedNode is { } selectedNode

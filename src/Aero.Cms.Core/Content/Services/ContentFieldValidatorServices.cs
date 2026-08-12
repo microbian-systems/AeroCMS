@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using FluentValidation;
 
 namespace Aero.Cms.Core.Content.Services;
@@ -195,6 +197,12 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
             return;
         }
 
+        if (IsContentEntryReference(field))
+        {
+            ValidateContentEntryReference(field, element, mode, context);
+            return;
+        }
+
         var isRequired = field.Required && mode == ContentValidationMode.Publish;
 
         if (field.Settings.TryGetValue("allowMultiple", out var multiple)
@@ -283,6 +291,42 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
         }
     }
 
+    private static void ValidateContentEntryReference(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (element.ValueKind == JsonValueKind.Null)
+        {
+            if (field.Required && mode == ContentValidationMode.Publish)
+                context.AddFailure(field.Name, $"{field.Label ?? field.Name} is required.");
+            return;
+        }
+
+        ContentEntryKey? key;
+        try
+        {
+            key = element.Deserialize(ContentJsonContext.Default.ContentEntryKey);
+        }
+        catch (JsonException)
+        {
+            key = null;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object || key is not { IsValid: true })
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} must select a valid content entry.");
+            return;
+        }
+
+        var allowedProviders = GetAllowedProviders(field);
+        if (allowedProviders.Count > 0 && !allowedProviders.Contains(key.Value.Provider, StringComparer.OrdinalIgnoreCase))
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} uses an unsupported content-entry provider.");
+        }
+    }
+
     internal static bool IsCmsDocumentReference(ContentFieldDefinition field) =>
         field.Settings.TryGetValue(
             ReferenceContentFieldSettings.TargetKind,
@@ -291,6 +335,16 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
         && string.Equals(
             targetKind.GetString(),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    internal static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(
+            ReferenceContentFieldSettings.TargetKind,
+            out var targetKind)
+        && targetKind.ValueKind == JsonValueKind.String
+        && string.Equals(
+            targetKind.GetString(),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
             StringComparison.Ordinal);
 
     internal static IReadOnlyList<string> GetAllowedSources(
@@ -304,6 +358,21 @@ public sealed class ReferenceFieldValidator : IContentFieldValidator
                 .Select(value => value.GetString())
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Select(value => value!)
+                .ToArray()
+            : [];
+
+    internal static IReadOnlyList<string> GetAllowedProviders(
+        ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(
+            ReferenceContentFieldSettings.AllowedProviders,
+            out var providers)
+        && providers.ValueKind == JsonValueKind.Array
+            ? providers.EnumerateArray()
+                .Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
             : [];
 }

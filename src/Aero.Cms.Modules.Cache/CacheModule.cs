@@ -2,6 +2,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.Cache.Handlers;
 using Aero.Cms.Modules.Cache.Services;
 using Aero.Cms.Modules.OutputCache;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Builder;
@@ -104,6 +105,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
         // ---- Page caching hooks ----
         services.AddSingleton<ICacheInvalidationService, FusionCacheInvalidationService>();
+        if (cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IContentViewDistributedCacheCoordinator, DistributedContentViewCacheCoordinator>();
         services.AddScoped<ContentUpdatedHandler>();
         services.AddScoped<PageCacheHook>();
         services.AddScoped<PageCacheStoreHook>();

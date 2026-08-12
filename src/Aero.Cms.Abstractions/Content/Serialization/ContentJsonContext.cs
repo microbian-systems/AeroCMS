@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 
 namespace Aero.Cms.Abstractions.Content.Serialization;
 
@@ -20,6 +21,7 @@ namespace Aero.Cms.Abstractions.Content.Serialization;
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, decimal>))]
 [JsonSerializable(typeof(CmsContentReferenceValue))]
+[JsonSerializable(typeof(ContentEntryKey))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

@@ -3,10 +3,12 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Core;
 using Aero.Core.Http;
 
@@ -31,7 +33,8 @@ public static class ContentItemsApi
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
             .WithTags("Admin - Content Items")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .AddEndpointFilter<SelectedSiteScopeEndpointFilter>();
 
         group.MapGet("/", ListContentItems)
             .RequireAuthorization("site:read")
@@ -48,6 +51,12 @@ public static class ContentItemsApi
         group.MapGet("/reference-sources/{source}/options", ListCmsReferenceOptions)
             .RequireAuthorization("site:read")
             .WithName("ListCmsContentReferenceOptions");
+        group.MapGet("/entry-reference-sources", ListContentEntryReferenceSources)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentEntryReferenceSources");
+        group.MapGet("/entry-reference-sources/{provider}/options", ListContentEntryReferenceOptions)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentEntryReferenceOptions");
         group.MapPost("/{alias}", CreateContentItem)
             .RequireAuthorization("site:create")
             .WithName("CreateContentItem");
@@ -660,6 +669,75 @@ public static class ContentItemsApi
             .OrderBy(source => source.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return TypedResults.Ok<IReadOnlyList<CmsContentReferenceSource>>(ordered);
+    }
+
+    /// <summary>Lists only providers registered for the server-resolved tenant/site scope.</summary>
+    private static async Task<IResult> ListContentEntryReferenceSources(
+        [FromServices] IEnumerable<IContentEntrySourceProvider> providers,
+        [FromServices] IContentEntrySourceProviderCatalog catalog,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (!TryCreateContentEntryScope(siteContext, out var scope, out var failure)) return failure!;
+        var dynamicProviders = await catalog.ListProviderKeysAsync(scope, ct);
+        var sources = providers.Select(provider => provider.Provider)
+            .Concat(dynamicProviders)
+            .Where(provider => !string.IsNullOrWhiteSpace(provider))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(provider => provider, StringComparer.OrdinalIgnoreCase)
+            .Select(provider => new CmsContentReferenceSource(provider, provider))
+            .ToArray();
+        return TypedResults.Ok<IReadOnlyList<CmsContentReferenceSource>>(sources);
+    }
+
+    /// <summary>Searches one exact registered provider; request input never determines its scope.</summary>
+    private static async Task<IResult> ListContentEntryReferenceOptions(
+        string provider,
+        [FromServices] IEnumerable<IContentEntrySourceProvider> providers,
+        [FromServices] IContentEntrySourceProviderCatalog catalog,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] string? culture = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int take = 50,
+        CancellationToken ct = default)
+    {
+        if (!TryCreateContentEntryScope(siteContext, out var scope, out var failure)) return failure!;
+        var source = providers.FirstOrDefault(candidate => string.Equals(candidate.Provider, provider, StringComparison.OrdinalIgnoreCase))
+            ?? await catalog.ResolveAsync(scope, provider, ct);
+        if (source is null || !string.Equals(source.Provider, provider, StringComparison.OrdinalIgnoreCase))
+            return TypedResults.NotFound();
+
+        var entries = await source.SearchAsync(scope, culture, search, Math.Clamp(take, 1, 100), ct);
+        var options = entries
+            .Where(entry => entry.Scope == scope && entry.Key.IsValid && string.Equals(entry.Key.Provider, source.Provider, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => new ContentEntryReferenceOption(
+                entry.Key.Provider,
+                entry.Key.StableId,
+                GetContentEntryDisplay(entry, "title", "name", "scientificName", "label") ?? entry.Key.StableId,
+                GetContentEntryDisplay(entry, "subtitle", "description", "slug")))
+            .ToArray();
+        return TypedResults.Ok<IReadOnlyList<ContentEntryReferenceOption>>(options);
+    }
+
+    private static bool TryCreateContentEntryScope(ISiteContext siteContext, out ContentViewScope scope, out IResult? failure)
+    {
+        scope = new ContentViewScope(siteContext.TenantId, siteContext.SiteId);
+        failure = scope.IsValid ? null : MissingSite();
+        return failure is null;
+    }
+
+    private static string? GetContentEntryDisplay(ContentEntry entry, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (entry.Values.TryGetValue(name, out var value) && value is not null)
+            {
+                var text = Convert.ToString(value, CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<IResult> ListCmsReferenceOptions(

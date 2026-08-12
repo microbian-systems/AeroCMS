@@ -11,6 +11,13 @@ namespace Aero.Cms.Abstractions.Models;
 [GenerateSerializer]
 public record PageViewModel : AeroEntityViewModel
 {
+    /// <summary>Gets the optional editable route template.</summary>
+    [Id(39)]
+    public string? RouteTemplate { get; init; }
+
+    /// <summary>Gets the immutable published route template used for public URL generation.</summary>
+    [Id(40)]
+    public string? PublishedRouteTemplate { get; init; }
         /// <summary>
     /// Gets or sets the Title.
     /// </summary>
@@ -191,4 +198,17 @@ public record PageViewModel : AeroEntityViewModel
 /// </summary>
 [GenerateSerializer]
 [Alias("PageErrorViewModel")]
-public record PageErrorViewModel : AeroErrorViewModel<PageViewModel>;
+public record PageErrorViewModel : AeroErrorViewModel<PageViewModel>
+{
+    /// <summary>Gets the machine-readable page lookup outcome.</summary>
+    [Id(0)]
+    public PageErrorKind Kind { get; init; }
+}
+
+/// <summary>Classifies page actor failures without parsing display messages.</summary>
+public enum PageErrorKind
+{
+    None = 0,
+    NotFound = 1,
+    Failure = 2
+}

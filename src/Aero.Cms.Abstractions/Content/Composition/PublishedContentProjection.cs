@@ -32,6 +32,12 @@ public sealed record PublishedContentPage
     /// <summary>Gets the total number of items after publication, culture, and filter checks.</summary>
     public long TotalCount { get; init; }
 
+    /// <summary>Gets whether <see cref="TotalCount"/> is the complete result count.</summary>
+    public bool IsTotalCountExact { get; init; } = true;
+
+    /// <summary>Gets whether a subsequent page may contain additional entries.</summary>
+    public bool HasMore { get; init; }
+
     /// <summary>Gets the one-based requested page number.</summary>
     public int PageNumber { get; init; } = 1;
 

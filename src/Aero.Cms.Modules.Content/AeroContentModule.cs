@@ -1,10 +1,12 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Content.Search;
+using Aero.Cms.Core.Content.Views;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Content.Caching;
@@ -66,6 +68,11 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+        // Do not let a privileged store registration become an implicit DDL enable switch.  The
+        // default capability is intentionally immutable until the exact transaction/claim proof
+        // exists for the bundled Sable + SurrealDB runtime.
+        services.TryAddSingleton<IContentRelationshipSchemaCapabilityProvider, DisabledContentRelationshipSchemaCapabilityProvider>();
+        services.Replace(ServiceDescriptor.Singleton<IContentViewOutputCacheInvalidator, ContentViewOutputCacheInvalidator>());
         services.AddScoped<ContentCacheInvalidator>();
         services.AddScoped<ContentEventPublisher>();
         services.Replace(ServiceDescriptor.Scoped<IContentTypeService, CachedContentTypeService>());
@@ -149,6 +156,28 @@ public void Configure(StoreOptions opts)
             .TableName(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
 
+        opts.Schema.For<ContentSurrealViewDocument>()
+            .TableName("content_surreal_view_revisions")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.Alias, x.IsPublished, x.Version });
+
+        opts.Schema.For<ContentRelationshipDocument>()
+            .TableName("content_relationship_definitions")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.Alias });
+
+        opts.Schema.For<ContentRelationshipDdlJournalDocument>()
+            .TableName("content_relationship_ddl_journal")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .Index(x => x.RelationshipId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.RelationshipId, x.AppliedSchemaFingerprint });
+
         opts.Schema.For<ContentSearchDocument>()
             .TableName(Schemas.Tables.ContentSearchIndex)
             .Identity(x => x.Id)
@@ -208,6 +237,7 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
         builder.MapContentHierarchyManagerApi();
+        builder.MapContentViewsApi();
 
         return Task.CompletedTask;
     }

@@ -273,6 +273,18 @@ protected string ActiveTab             { get; set; } = "editor";
     /// Gets or sets the Page Slug.
     /// </summary>
 protected string PageSlug { get; set; } = "new-page";
+protected string PageRouteTemplate { get; set; } = string.Empty;
+protected string? PageRouteParameterName
+{
+    get
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            PageRouteTemplate,
+            "\\{([A-Za-z][A-Za-z0-9_]{0,63})\\}",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+}
         /// <summary>
     /// Gets or sets the Summary.
     /// </summary>
@@ -773,6 +785,7 @@ protected override async Task OnInitializedAsync()
             DraftSource = string.Empty;
             PageTitle = page.Title;
             PageSlug = page.Slug;
+            PageRouteTemplate = page.RouteTemplate ?? string.Empty;
             // A loaded page follows its title until the author explicitly edits
             // the slug. This keeps the common title -> URL workflow predictable.
             _slugState = SlugState.Auto;
@@ -2732,7 +2745,8 @@ protected string FormatCulture(string? culture)
                     RendererId: RendererId,
                     DraftSource: UsesSourceEditor ? DraftSource : null,
                     IncludeInSearch: IncludeInSearch,
-                    IncludeInPublicAi: IncludeInPublicAi
+                    IncludeInPublicAi: IncludeInPublicAi,
+                    RouteTemplate: PageRouteTemplate
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -2772,7 +2786,8 @@ protected string FormatCulture(string? culture)
                     RendererId: RendererId,
                     DraftSource: UsesSourceEditor ? DraftSource : null,
                     IncludeInSearch: IncludeInSearch,
-                    IncludeInPublicAi: IncludeInPublicAi
+                    IncludeInPublicAi: IncludeInPublicAi,
+                    RouteTemplate: PageRouteTemplate
                 );
 
                 var result = await PagesClient.CreateAsync(request);
@@ -2958,6 +2973,12 @@ protected void UpdateLastSaved()
         MarkDirty();
         _routeDecisionPending = false;
         _slugState = SlugState.Locked;
+    }
+
+    protected void OnRouteTemplateChanged(ChangeEventArgs args)
+    {
+        PageRouteTemplate = args.Value?.ToString() ?? string.Empty;
+        MarkDirty();
     }
 
     /// <summary>Returns the slug to automatic title synchronization.</summary>

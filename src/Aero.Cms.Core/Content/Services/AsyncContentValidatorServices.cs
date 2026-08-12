@@ -1,9 +1,13 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Core;
 using Aero.Core.Railway;
+using Aero.Core.Http;
 using AeroDB.Sable;
 using FluentValidation.Results;
 using System.Globalization;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -46,13 +50,18 @@ public sealed class ReferenceExistenceValidator(
     IContentService contentService,
     IDocumentSession session,
     IEnumerable<IContentReferenceSourceProvider>? sourceProviders = null,
-    IContentTypeService? contentTypeService = null) : IAsyncContentValidator
+    IContentTypeService? contentTypeService = null,
+    IEnumerable<IContentEntrySourceProvider>? entryProviders = null,
+    IContentEntrySourceProviderCatalog? entryProviderCatalog = null,
+    ISiteContext? siteContext = null) : IAsyncContentValidator
 {
     private readonly IReadOnlyDictionary<string, IContentReferenceSourceProvider>
         cmsSourceProviders = (sourceProviders ?? [])
             .ToDictionary(
                 provider => provider.SourceKey,
                 StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyDictionary<string, IContentEntrySourceProvider> entryProvidersByKey = (entryProviders ?? [])
+        .ToDictionary(provider => provider.Provider, StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
@@ -75,6 +84,12 @@ public sealed class ReferenceExistenceValidator(
                 continue;
             }
 
+            if (ReferenceFieldValidator.IsContentEntryReference(field))
+            {
+                await CheckContentEntryReference(item, element, field, failures, ct);
+                continue;
+            }
+
             if (field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowMultiple, out var multiple)
                 && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
             {
@@ -88,6 +103,58 @@ public sealed class ReferenceExistenceValidator(
         }
 
         return failures;
+    }
+
+    private async Task CheckContentEntryReference(
+        ContentItem item,
+        System.Text.Json.JsonElement element,
+        ContentFieldDefinition field,
+        List<ValidationFailure> failures,
+        CancellationToken ct)
+    {
+        ContentEntryKey? key;
+        try
+        {
+            key = element.Deserialize(ContentJsonContext.Default.ContentEntryKey);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return;
+        }
+
+        if (key is not { IsValid: true }) return;
+        var allowedProviders = ReferenceFieldValidator.GetAllowedProviders(field);
+        if (allowedProviders.Count > 0 && !allowedProviders.Contains(key.Value.Provider, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var scope = new ContentViewScope(siteContext?.TenantId ?? 0, item.SiteId);
+        if (!scope.IsValid)
+        {
+            failures.Add(new ValidationFailure(field.Name, "Content-entry references require a tenant and site scope."));
+            return;
+        }
+
+        var provider = entryProvidersByKey.TryGetValue(key.Value.Provider, out var registered)
+            ? registered
+            : entryProviderCatalog is null
+                ? null
+                : await entryProviderCatalog.ResolveAsync(scope, key.Value.Provider, ct);
+        if (provider is null || !string.Equals(provider.Provider, key.Value.Provider, StringComparison.OrdinalIgnoreCase))
+        {
+            failures.Add(new ValidationFailure(field.Name, $"The '{key.Value.Provider}' content-entry provider is unavailable."));
+            return;
+        }
+
+        var entry = await provider.FindAsync(scope, key.Value.StableId, ct);
+        if (entry is null
+            || entry.Scope != scope
+            || entry.Key != key.Value
+            || !entry.Key.IsValid)
+        {
+            failures.Add(new ValidationFailure(field.Name, $"Referenced content entry '{key.Value.StableId}' was not found."));
+        }
     }
 
     private async Task CheckCmsDocumentReference(

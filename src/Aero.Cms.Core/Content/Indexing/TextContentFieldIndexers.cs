@@ -100,6 +100,20 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
             yield break;
         }
 
+        if (value.ValueKind == JsonValueKind.Object
+            && IsContentEntryReference(field)
+            && value.TryGetProperty("provider", out var providerElement)
+            && providerElement.ValueKind == JsonValueKind.String
+            && value.TryGetProperty("stableId", out var stableIdElement)
+            && stableIdElement.ValueKind == JsonValueKind.String)
+        {
+            var provider = providerElement.GetString()?.Trim().ToLowerInvariant();
+            var stableId = stableIdElement.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(provider) && !string.IsNullOrWhiteSpace(stableId))
+                yield return $"{provider}:{stableId}";
+            yield break;
+        }
+
         if (value.ValueKind != JsonValueKind.Array)
             yield break;
 
@@ -119,6 +133,11 @@ public sealed class ReferenceFieldIndexer : IContentFieldIndexer
             targetKind.GetString(),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
             StringComparison.Ordinal);
+
+    private static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(ReferenceContentFieldSettings.TargetKind, out var targetKind)
+        && targetKind.ValueKind == JsonValueKind.String
+        && string.Equals(targetKind.GetString(), ReferenceContentFieldSettings.TargetKindContentEntry, StringComparison.Ordinal);
 }
 
 /// <summary>

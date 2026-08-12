@@ -227,6 +227,14 @@
                                             Value="@_cmsReferenceValues[field.Name]"
                                             ValueChanged="@(value => _cmsReferenceValues[field.Name] = value)" />
                                     }
+                                    else if (IsContentEntryReference(field))
+                                    {
+                                        <ContentEntryReferencePicker
+                                            Culture="@_culture"
+                                            AllowedProviders="@GetAllowedContentEntryProviders(field)"
+                                            Value="@_contentEntryReferenceValues[field.Name]"
+                                            ValueChanged="@(value => _contentEntryReferenceValues[field.Name] = value)" />
+                                    }
                                     else if (IsHierarchyReference(field))
                                     {
                                         <ContentHierarchyReferencePicker

@@ -92,6 +92,31 @@
                 <p class="ct-help mt-1">@L["Entry authors first choose Pages, Posts, Docs, or a public content type, then search its database entries."]</p>
             </div>
         }
+        else if (IsContentEntryReference)
+        {
+            <div class="rounded-md p-3" style="border: 1px solid var(--pe-border);">
+                <strong style="color: var(--pe-text-primary);">@L["Query-backed content"]</strong>
+                <p class="ct-help mt-1">@L["Authors search entries exposed by registered providers. Leave every provider unchecked to allow the unified current-site provider list."]</p>
+                @if (!_contentEntryProvidersLoaded)
+                {
+                    <p class="ct-help">@L["Loading available providers…"]</p>
+                }
+                else if (_contentEntryProviders.Count == 0)
+                {
+                    <p class="ct-help">@L["No query-backed providers are currently published for this site."]</p>
+                }
+                else
+                {
+                    @foreach (var provider in _contentEntryProviders)
+                    {
+                        <label class="flex items-center gap-2 text-sm mt-2" style="color: var(--pe-text-secondary);">
+                            <RadzenCheckBox TValue="bool" Value="@AllowedContentEntryProviders.Contains(provider.Key)" ValueChanged="@(selected => SetContentEntryProviderAsync(provider.Key, selected))" />
+                            @provider.DisplayName
+                        </label>
+                    }
+                }
+            </div>
+        }
         else
         {
             <label class="pe-property-group">

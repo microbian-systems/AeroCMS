@@ -1,6 +1,7 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content.Services;
@@ -36,6 +37,8 @@ using Npgsql;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
+using System.Net.Sockets;
+using IPAddress = System.Net.IPAddress;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Encodings.Web;
@@ -44,6 +47,15 @@ using SurrealDb.Embedded.InMemory;
 using Hydro.Configuration;
 
 namespace Aero.Cms.E2E.Tests;
+
+/// <summary>
+/// Owns the single browser/Kestrel/Postgres fixture shared by the test session.
+/// Multiple session hooks may initialize or dispose it; both operations are idempotent.
+/// </summary>
+public static class SharedPlaywrightE2EFixture
+{
+    public static PlaywrightE2EFixture Instance { get; } = new();
+}
 
 /// <summary>
 /// E2E test fixture that starts a real Kestrel-hosted WebApplication (not Alba/TestServer).
@@ -90,6 +102,11 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         {
             if (_app is not null) return;
 
+            // Several E2E classes have independent session fixtures. Give each
+            // real Kestrel host its own loopback endpoint rather than competing
+            // for the historical fixed port during a focused test run.
+            BaseUrl = AllocateLoopbackBaseUrl();
+
             // ── 1. Start embedded Postgres ──────────────────────────────
             const string dbName = "aero_e2e_test";
             _pgPort = 5436;
@@ -103,8 +120,19 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
                 ContentRootPath = Directory.GetCurrentDirectory(),
-                EnvironmentName = Environments.Development
+                EnvironmentName = Environments.Development,
+                // MapStaticAssets resolves the generated endpoint manifest from
+                // the host application name. TUnit's process entry point is not
+                // this test assembly, so pin the host identity to the executable
+                // that owns Aero.Cms.E2E.Tests.staticwebassets.endpoints.json.
+                ApplicationName = typeof(PlaywrightE2EFixture).Assembly.GetName().Name
             });
+
+            // This executable is the real Kestrel host for the browser test,
+            // rather than the standalone Aero.Cms.Web host. Load its generated
+            // static-web-assets manifest before MapAeroCms maps the endpoints so
+            // the WebAssembly bootstrap script is available to the browser.
+            builder.WebHost.UseStaticWebAssets();
 
             // Override config for testing
             builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -143,6 +171,17 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                         cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest)
                 .WithSetupSettingsDirectory(builder.Environment.ContentRootPath)
                 .RegisterHostAsync<PlaywrightE2EFixture>();
+
+            // Query-backed views intentionally require an explicitly supplied
+            // read-only connection.  The browser fixture supplies a deterministic
+            // implementation and a generic compile-time shape; production hosts
+            // must still opt in with their own separately constrained identity.
+            builder.Services.AddSingleton<IContentShape, E2ESurrealViewShape>();
+            builder.Services.AddSingleton<IContentViewSource, E2ESurrealViewSource>();
+            builder.Services.RemoveAll<IReadOnlyContentViewExecutor>();
+            builder.Services.AddSingleton<IReadOnlyContentViewExecutor, E2EReadOnlyContentViewExecutor>();
+            builder.Services.RemoveAll<IAdminReadOnlyContentViewExecutor>();
+            builder.Services.AddSingleton<IAdminReadOnlyContentViewExecutor, E2EReadOnlyContentViewExecutor>();
 
             builder.Services.RemoveAll<AeroDB.Sable.IDocumentStore>();
             builder.Services.AddAeroDB(options =>
@@ -275,10 +314,28 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 Console.WriteLine("[Browser page error] {0}", error);
             Page.RequestFailed += (_, request) =>
                 Console.WriteLine("[Browser request failed] {0} {1}", request.Url, request.Failure);
-            Page.Response += (_, response) =>
+            Page.Request += (_, request) =>
+            {
+                if (request.Url.Contains("/api/v1/admin/content-views/", StringComparison.Ordinal))
+                    Console.WriteLine("[Browser content-view cookie] {0}", request.Headers.TryGetValue("cookie", out var cookie) ? cookie : "<none>");
+            };
+            Page.Response += async (_, response) =>
             {
                 if (response.Status >= StatusCodes.Status400BadRequest)
+                {
                     Console.WriteLine("[Browser response:{0}] {1}", response.Status, response.Url);
+                    if (response.Url.Contains("/api/v1/admin/content-views/", StringComparison.Ordinal))
+                    {
+                        try
+                        {
+                            Console.WriteLine("[Browser response body] {0}", await response.TextAsync());
+                        }
+                        catch (PlaywrightException)
+                        {
+                            // A failed/aborted browser request may not expose a response body.
+                        }
+                    }
+                }
             };
         }
         finally
@@ -335,6 +392,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         app.UseAuthorization();
         app.UseAeroCmsRequestPipeline();
         app.UseAntiforgery();
+
+        // The test runner's bootstrap entry point does not automatically expose
+        // this executable's endpoint manifest to MapStaticAssets. Map the
+        // generated manifest explicitly before AeroCMS adds its interactive
+        // WebAssembly render mode.
+        app.MapStaticAssets(Path.Combine(
+            AppContext.BaseDirectory,
+            $"{typeof(PlaywrightE2EFixture).Assembly.GetName().Name}.staticwebassets.endpoints.json"));
         app.MapAeroCms();
         app.UseAeroCmsTerminalPipeline();
     }
@@ -388,6 +453,39 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             $"{BaseUrl}/api/v1/admin/auth/me");
         if (authenticatedResponse.Status == StatusCodes.Status200OK)
         {
+            // Playwright's API request context and the browser circuit can start
+            // independently. Establish the selected-site cookie through the
+            // product endpoint so the WebAssembly client receives the same
+            // authorized site scope as a real manager session.
+            var selectionResponse = await Page.APIRequest.PostAsync(
+                $"{BaseUrl}/api/v1/admin/sites/current",
+                new APIRequestContextOptions
+                {
+                    DataObject = new { siteId = SiteId }
+                });
+            if (selectionResponse.Status != StatusCodes.Status200OK)
+                throw new InvalidOperationException($"Failed to select E2E site: HTTP {selectionResponse.Status}.");
+
+            // APIRequest owns a separate cookie jar. Mirror the server-accepted
+            // selection into the real browser context that hosts the WASM app.
+            await BrowserContext!.AddCookiesAsync(
+            [
+                new Cookie
+                {
+                    Name = "AeroCms.SiteId",
+                    Value = SiteId.ToString(CultureInfo.InvariantCulture),
+                    Url = BaseUrl,
+                    SameSite = SameSiteAttribute.Lax
+                }
+            ]);
+            var selectedCookies = await BrowserContext.CookiesAsync([BaseUrl]);
+            var selectedSiteCookie = selectedCookies.SingleOrDefault(cookie => cookie.Name == "AeroCms.SiteId");
+            Console.WriteLine(
+                "[Login] Browser site cookie present: {0}; domain={1}; path={2}",
+                selectedSiteCookie?.Value == SiteId.ToString(CultureInfo.InvariantCulture),
+                selectedSiteCookie?.Domain ?? "<none>",
+                selectedSiteCookie?.Path ?? "<none>");
+
             Console.WriteLine("[Login] E2E authentication scheme is active");
             return;
         }
@@ -828,6 +926,32 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
+    /// <summary>Seeds the persisted content type which exposes the Surreal View editor tab.</summary>
+    public async Task SeedSurrealViewContentTypeAsync(string alias)
+    {
+        if (_app is null) throw new InvalidOperationException("The E2E application has not been initialized.");
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var contentTypes = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+        var existing = await contentTypes.GetByAliasAsync(SiteId, alias);
+        if (existing is Result<ContentTypeDefinition, AeroError>.Ok) return;
+
+        var result = await contentTypes.SaveAsync(new ContentTypeDefinition
+        {
+            Id = 0,
+            SiteId = SiteId,
+            Alias = alias,
+            Name = "Surreal View E2E records",
+            Description = "Browser fixture for generic query-backed content.",
+            Fields =
+            [
+                new ContentFieldDefinition { Name = "title", Label = "Title", FieldType = "text", Required = true }
+            ]
+        });
+        if (result is Result<ContentTypeDefinition, AeroError>.Failure failure)
+            throw new InvalidOperationException(failure.Error.ToString());
+    }
+
     private static HtmlPageContent CreateTestPageContent(
         string title,
         string summary)
@@ -846,6 +970,74 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         content.Root.Children.Add(main);
 
         return content;
+    }
+
+    private sealed class E2ESurrealViewShape : IContentShape
+    {
+        public ContentShapeDefinition Definition { get; } = CreateDefinition();
+
+        private static ContentShapeDefinition CreateDefinition()
+        {
+            var definition = new ContentShapeDefinition(
+                "e2e-record",
+                [
+                    new ContentShapeField("id", ContentShapeFieldType.String, Required: true),
+                    new ContentShapeField("title", ContentShapeFieldType.String, Required: true),
+                    new ContentShapeField("kind", ContentShapeFieldType.String)
+                ],
+                string.Empty);
+            return definition with { SchemaFingerprint = ContentShapeFingerprint.Create(definition) };
+        }
+    }
+
+    private sealed class E2ESurrealViewSource : IContentViewSource
+    {
+        public ContentViewSourceDefinition Definition { get; } = new(
+            "e2e_records",
+            "e2e_records");
+    }
+
+    private sealed class E2EReadOnlyContentViewExecutor : IReadOnlyContentViewExecutor, IAdminReadOnlyContentViewExecutor
+    {
+        public bool IsReadOnlyGuaranteed => true;
+
+        public Task<ContentViewExecutionResult> ExecuteAsync(ContentViewExecutionRequest request, CancellationToken ct = default)
+        {
+            var rows = new[]
+            {
+                (IReadOnlyDictionary<string, object?>)new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["id"] = "e2e-entry",
+                    ["title"] = "Sample entry",
+                    ["kind"] = "fixture"
+                }
+            };
+
+            if (request.Parameters.TryGetValue("$entryId", out var entryId)
+                && !string.Equals(entryId?.ToString(), "e2e-entry", StringComparison.Ordinal))
+            {
+                rows = [];
+            }
+
+            return Task.FromResult(new ContentViewExecutionResult(rows, false));
+        }
+
+        Task<ContentViewExecutionResult> IAdminReadOnlyContentViewExecutor.ExecuteAsync(
+            ContentSurrealViewRevision view,
+            ContentViewScope scope,
+            IReadOnlyDictionary<string, object?> parameters,
+            ContentViewExecutionLimits limits,
+            CancellationToken ct)
+            => Task.FromResult(new ContentViewExecutionResult(
+            [
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["id"] = "e2e-entry",
+                    ["title"] = "Sample entry",
+                    ["kind"] = "fixture"
+                }
+            ],
+            false));
     }
 
     private sealed class E2EAuthenticationHandler(
@@ -883,6 +1075,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         await using var createCmd = new NpgsqlCommand(
             $"CREATE DATABASE {dbName} OWNER {dbName}", conn);
         await createCmd.ExecuteNonQueryAsync();
+    }
+
+    private static string AllocateLoopbackBaseUrl()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        return $"http://localhost:{port}";
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────

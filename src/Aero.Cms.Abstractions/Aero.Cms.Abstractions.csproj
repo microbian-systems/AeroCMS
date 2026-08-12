@@ -55,6 +55,7 @@
     <Compile Remove="Content\ContentItem.cs" />
     <Compile Remove="Content\ContentItemExtensions.cs" />
     <Compile Remove="Content\ContentTypeDefinition.cs" />
+    <Compile Remove="Content\Importing\**\*.cs" />
     <Compile Remove="Content\IAsyncContentValidator.cs" />
     <Compile Remove="Content\IContentFieldValidator.cs" />
     <Compile Remove="Services\AeroAliasService.cs" />

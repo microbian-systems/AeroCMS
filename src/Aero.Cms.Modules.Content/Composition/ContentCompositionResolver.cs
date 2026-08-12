@@ -2,11 +2,13 @@ using System.Globalization;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
+using Aero.Core.Http;
 
 namespace Aero.Cms.Modules.Content.Composition;
 
@@ -18,11 +20,53 @@ namespace Aero.Cms.Modules.Content.Composition;
 /// provider does not expose safe dynamic JSON query translation. Exceeding the bound fails
 /// closed instead of loading an unbounded content type into memory.
 /// </remarks>
-public sealed class ContentCompositionResolver(
-    IContentTypeService contentTypes,
-    IContentService contentItems,
-    IContentQueryService contentQueries) : IContentCompositionResolver
+public sealed class ContentCompositionResolver : IContentCompositionResolver
 {
+    private readonly IContentTypeService contentTypes;
+    private readonly IContentService contentItems;
+    private readonly IContentQueryService contentQueries;
+    private readonly IReadOnlyDictionary<string, IContentEntrySourceProvider> entryProviders;
+    private readonly IContentEntrySourceProviderCatalog? entryProviderCatalog;
+    private readonly ISiteContext? siteContext;
+
+    public ContentCompositionResolver(
+        IContentTypeService contentTypes,
+        IContentService contentItems,
+        IContentQueryService contentQueries)
+    {
+        this.contentTypes = contentTypes;
+        this.contentItems = contentItems;
+        this.contentQueries = contentQueries;
+        entryProviders = new Dictionary<string, IContentEntrySourceProvider>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public ContentCompositionResolver(
+        IContentTypeService contentTypes,
+        IContentService contentItems,
+        IContentQueryService contentQueries,
+        IEnumerable<IContentEntrySourceProvider> entryProviders,
+        ISiteContext siteContext)
+        : this(contentTypes, contentItems, contentQueries, entryProviders, siteContext, null)
+    {
+    }
+
+    public ContentCompositionResolver(
+        IContentTypeService contentTypes,
+        IContentService contentItems,
+        IContentQueryService contentQueries,
+        IEnumerable<IContentEntrySourceProvider> entryProviders,
+        ISiteContext siteContext,
+        IContentEntrySourceProviderCatalog? entryProviderCatalog)
+    {
+        this.contentTypes = contentTypes;
+        this.contentItems = contentItems;
+        this.contentQueries = contentQueries;
+        this.siteContext = siteContext;
+        this.entryProviderCatalog = entryProviderCatalog;
+        this.entryProviders = entryProviders
+            .GroupBy(provider => provider.Provider, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Single(), StringComparer.OrdinalIgnoreCase);
+    }
     /// <summary>Gets the maximum site/type candidate set evaluated in memory.</summary>
     public const int MaximumCandidateCount = 1_000;
 
@@ -34,6 +78,11 @@ public sealed class ContentCompositionResolver(
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
+
+        if (scope.ContentEntryKey is { } virtualKey)
+        {
+            return await ResolveVirtualItemAsync(siteId, scope, virtualKey, ct);
+        }
 
         var input = ValidateInput(siteId, culture);
         if (input is Result<string, AeroError>.Failure inputFailure)
@@ -79,6 +128,70 @@ public sealed class ContentCompositionResolver(
         return Prelude.Ok<PublishedContentItemProjection, AeroError>(CreateProjection(item));
     }
 
+    private async Task<Result<PublishedContentItemProjection, AeroError>> ResolveVirtualItemAsync(
+        long siteId,
+        PageContentItemScope scope,
+        ContentEntryKey key,
+        CancellationToken ct)
+    {
+        if (!key.IsValid)
+        {
+            return Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.ValidationError([$"Content item scope '{scope.NodeId}' has an invalid virtual entry key."]));
+        }
+
+        if (siteContext is null || siteContext.SiteId != siteId || siteContext.TenantId <= 0)
+        {
+            return Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.ConfigurationError("A current tenant and site are required to resolve virtual page content."));
+        }
+
+        var currentScope = new ContentViewScope(siteContext.TenantId, siteContext.SiteId);
+        var provider = entryProviders.GetValueOrDefault(key.Provider)
+            ?? (entryProviderCatalog is null
+                ? null
+                : await entryProviderCatalog.ResolveAsync(currentScope, key.Provider, ct));
+        if (provider is null)
+        {
+            return Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.NotFoundError($"Virtual content provider '{key.Provider}' for scope '{scope.NodeId}' was not found."));
+        }
+
+        var entry = await provider.FindAsync(currentScope, key.StableId, ct);
+        if (entry is null
+            || entry.Scope != currentScope
+            || !string.Equals(entry.Key.Provider, key.Provider, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(entry.Key.StableId, key.StableId, StringComparison.Ordinal))
+        {
+            return Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.NotFoundError($"Virtual content entry for scope '{scope.NodeId}' was not found."));
+        }
+
+        try
+        {
+            var fields = entry.Values.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value is JsonElement element
+                    ? element.Clone()
+                    : JsonSerializer.SerializeToElement(pair.Value),
+                StringComparer.OrdinalIgnoreCase);
+            return Prelude.Ok<PublishedContentItemProjection, AeroError>(new PublishedContentItemProjection
+            {
+                ContentTypeAlias = string.IsNullOrWhiteSpace(scope.ContentTypeAlias)
+                    ? provider.Provider
+                    : scope.ContentTypeAlias,
+                Slug = key.StableId,
+                Culture = string.Empty,
+                Fields = fields
+            });
+        }
+        catch (Exception)
+        {
+            return Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.ValidationError([$"Virtual content entry for scope '{scope.NodeId}' contains values that cannot be rendered."]));
+        }
+    }
+
     /// <inheritdoc />
     public async Task<Result<PublishedContentPage, AeroError>> ResolveListAsync(
         long siteId,
@@ -100,6 +213,9 @@ public sealed class ContentCompositionResolver(
         {
             return Prelude.Fail<PublishedContentPage, AeroError>(queryError);
         }
+
+        if (!string.IsNullOrWhiteSpace(scope.ContentEntryProvider))
+            return await ResolveVirtualListAsync(siteId, culture, scope, pageNumber, ct);
 
         var normalizedCulture = ((Result<string, AeroError>.Ok)input).Value;
         var definitionResult = await contentTypes.GetByIdAsync(siteId, scope.ContentTypeId, ct);
@@ -158,6 +274,58 @@ public sealed class ContentCompositionResolver(
         });
     }
 
+    private async Task<Result<PublishedContentPage, AeroError>> ResolveVirtualListAsync(long siteId, string culture,
+        PageContentListScope scope, int pageNumber, CancellationToken ct)
+    {
+        if (siteContext is null || siteContext.SiteId != siteId || siteContext.TenantId <= 0)
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.ConfigurationError("A current tenant and site are required to resolve virtual page content."));
+        var providerKey = scope.ContentEntryProvider!.Trim();
+        if (providerKey.Length > 128)
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.ValidationError(["Virtual content provider is too long."]));
+        var viewScope = new ContentViewScope(siteContext.TenantId, siteContext.SiteId);
+        var provider = entryProviders.GetValueOrDefault(providerKey)
+            ?? (entryProviderCatalog is null ? null : await entryProviderCatalog.ResolveAsync(viewScope, providerKey, ct));
+        if (provider is null)
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.NotFoundError($"Virtual content provider '{providerKey}' was not found."));
+        var offset = (long)(pageNumber - 1) * scope.Query.PageSize;
+        var requested = offset + scope.Query.PageSize;
+        if (offset < 0 || requested > 100)
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.ValidationError(["Virtual list paging exceeds the provider's bounded 100-entry window."]));
+        var filters = scope.Query.Filters ?? [];
+        if (!string.IsNullOrWhiteSpace(scope.Query.SortField)
+            || filters.Count > 1
+            || filters.Any(filter => filter.Operator != PageContentFilterOperator.Contains
+                || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal)))
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.ValidationError(["Virtual lists support only one optional Contains search filter on '$search' and no sorting."]));
+        var query = filters.Count == 1 ? filters[0].Value : null;
+        if (query?.Length > 256)
+            return Prelude.Fail<PublishedContentPage, AeroError>(AeroError.ValidationError(["Virtual list search text is too long."]));
+        var fetchTake = checked((int)Math.Min(requested + 1, 100));
+        var entries = await provider.SearchAsync(viewScope, culture, query, fetchTake, ct);
+        var valid = entries.Where(entry => entry.Scope == viewScope && entry.Key.IsValid
+                && string.Equals(entry.Key.Provider, provider.Provider, StringComparison.OrdinalIgnoreCase))
+            .Take(fetchTake).ToArray();
+        var hasMore = requested < 100 && valid.Length > requested;
+        var page = valid.Take((int)requested).Skip((int)offset).Take(scope.Query.PageSize)
+            .Select(entry => CreateVirtualProjection(entry, provider.Provider, scope.ContentTypeAlias)).ToArray();
+        var totalCount = checked(offset + page.Length + (hasMore ? 1 : 0));
+        return Prelude.Ok<PublishedContentPage, AeroError>(new PublishedContentPage
+        {
+            ContentTypeAlias = string.IsNullOrWhiteSpace(scope.ContentTypeAlias) ? provider.Provider : scope.ContentTypeAlias,
+            Items = page, TotalCount = totalCount, IsTotalCountExact = !hasMore, HasMore = hasMore,
+            PageNumber = pageNumber, PageSize = scope.Query.PageSize
+        });
+    }
+
+    private static PublishedContentItemProjection CreateVirtualProjection(ContentEntry entry, string provider, string fallbackAlias)
+        => new()
+        {
+            ContentTypeAlias = string.IsNullOrWhiteSpace(fallbackAlias) ? provider : fallbackAlias,
+            Slug = entry.Key.StableId,
+            Culture = string.Empty,
+            Fields = entry.Values.ToDictionary(pair => pair.Key, pair => pair.Value is JsonElement element ? element.Clone() : JsonSerializer.SerializeToElement(pair.Value), StringComparer.OrdinalIgnoreCase)
+        };
+
     private static Result<string, AeroError> ValidateInput(long siteId, string culture)
     {
         if (siteId <= 0)
@@ -193,6 +361,15 @@ public sealed class ContentCompositionResolver(
             || (scope.Query.Filters?.Count ?? 0) > PageContentListQuery.MaximumFilterCount)
         {
             return AeroError.ValidationError([$"Content list scope '{scope.NodeId}' has an invalid bounded query."]);
+        }
+
+        if (!string.IsNullOrWhiteSpace(scope.ContentEntryProvider)
+            && (!string.IsNullOrWhiteSpace(scope.Query.SortField)
+                || (scope.Query.Filters?.Count ?? 0) > 1
+                || (scope.Query.Filters ?? []).Any(filter => filter.Operator != PageContentFilterOperator.Contains
+                    || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal))))
+        {
+            return AeroError.ValidationError([$"Virtual content list scope '{scope.NodeId}' supports only one optional Contains search filter on '$search' and no sorting."]);
         }
 
         return null;

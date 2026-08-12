@@ -169,6 +169,17 @@ Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alia
             string? search = null,
             int take = 50,
             CancellationToken ct = default);
+    /// <summary>Lists current-site virtual entry providers available to content-reference fields.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetContentEntryReferenceSourcesAsync(CancellationToken ct = default);
+    /// <summary>Gets bounded current-site options for one exact virtual entry provider.</summary>
+    Task<Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>>
+        GetContentEntryReferenceOptionsAsync(
+            string provider,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default);
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
@@ -283,6 +294,28 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
         AddQueryParameter(parameters, "search", search);
         return GetAsync<IReadOnlyList<CmsContentReferenceOption>>(
             $"reference-sources/{Uri.EscapeDataString(source)}/options?{string.Join("&", parameters)}",
+            ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetContentEntryReferenceSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<CmsContentReferenceSource>>("entry-reference-sources", ct);
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>>
+        GetContentEntryReferenceOptionsAsync(
+            string provider,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default)
+    {
+        var parameters = new List<string> { $"take={Math.Clamp(take, 1, 100)}" };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        return GetAsync<IReadOnlyList<ContentEntryReferenceOption>>(
+            $"entry-reference-sources/{Uri.EscapeDataString(provider)}/options?{string.Join("&", parameters)}",
             ct);
     }
 

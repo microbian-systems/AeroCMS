@@ -107,12 +107,16 @@ Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, Cancellation
 /// </summary>
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
+    /// <summary>Creates a page using the authorized tenant/site scope.</summary>
+    Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, long tenantId, long siteId, CancellationToken ct);
     /// <summary>Gets a page only when it belongs to the authorized site.</summary>
     Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Gets the exact editable source only when the page and source belong to the authorized site.</summary>
     Task<PageSourceViewModel?> GetSourceAsync(long id, long siteId, CancellationToken ct);
     /// <summary>Updates a page only when it belongs to the authorized site.</summary>
     Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, long siteId, CancellationToken ct);
+    /// <summary>Updates a page using the authorized tenant/site scope.</summary>
+    Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, long tenantId, long siteId, CancellationToken ct);
     /// <summary>Deletes a page only when it belongs to the authorized site.</summary>
     Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, long siteId, CancellationToken ct);
     /// <summary>Computes the persisted route impact of changing a page slug or parent.</summary>
@@ -129,6 +133,8 @@ public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
     Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(long siteId, int skip, int take, string? search, CancellationToken ct);
     /// <summary>Publish a page (event sourcing).</summary>
     Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, long siteId, CancellationToken ct);
+    /// <summary>Publishes a page using the authorized tenant/site scope.</summary>
+    Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, long tenantId, long siteId, CancellationToken ct);
     /// <summary>Unpublish a page (event sourcing).</summary>
     Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, long siteId, CancellationToken ct);
     /// <summary>List all culture variants for a page.</summary>

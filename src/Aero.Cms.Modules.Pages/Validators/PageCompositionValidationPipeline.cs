@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Rendering;
@@ -14,7 +15,7 @@ internal static class PageCompositionValidationPipeline
 {
     /// <summary>Validates one composition snapshot at an authoring or publishing boundary.</summary>
     public static async Task<Result<bool, AeroError>> ValidateAsync(
-        long siteId,
+        ContentViewScope scope,
         string culture,
         HtmlPageContent content,
         PageCompositionDocument composition,
@@ -75,7 +76,7 @@ internal static class PageCompositionValidationPipeline
         }
 
         return await referenceValidator.ValidateAsync(
-            siteId,
+            scope,
             culture,
             composition,
             mode,

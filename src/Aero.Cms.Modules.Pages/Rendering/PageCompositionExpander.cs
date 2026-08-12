@@ -84,7 +84,8 @@ public sealed class PageCompositionExpander
         PageCompositionDocument? composition,
         IReadOnlyDictionary<long, int>? pageNumbers = null,
         CancellationToken ct = default,
-        PageFragmentRenderContext? fragmentContext = null)
+        PageFragmentRenderContext? fragmentContext = null,
+        IReadOnlyDictionary<string, string>? routeValues = null)
     {
         ArgumentNullException.ThrowIfNull(content);
 
@@ -146,7 +147,8 @@ public sealed class PageCompositionExpander
                     composition,
                     entry.Item!,
                     contentTypeAliases,
-                    ct);
+                    ct,
+                    routeValues);
 
             if (expansion is Result<bool, AeroError>.Failure expansionFailure)
             {
@@ -175,7 +177,8 @@ public sealed class PageCompositionExpander
         PageCompositionDocument composition,
         PageContentItemScope scope,
         ISet<string> contentTypeAliases,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string>? routeValues)
     {
         var scopeNode = HtmlTreeOperations.FindById(candidate.Root, scope.NodeId);
         if (scopeNode is null)
@@ -183,7 +186,28 @@ public sealed class PageCompositionExpander
             return Fail($"Content item scope '{scope.NodeId}' no longer exists in the page HTML.");
         }
 
-        var itemResult = await _contentResolver.ResolveItemAsync(siteId, culture, scope, ct);
+        var resolvedScope = scope;
+        if (!string.IsNullOrWhiteSpace(scope.StableIdRouteParameter))
+        {
+            var routeValue = routeValues?.FirstOrDefault(pair => string.Equals(
+                pair.Key,
+                scope.StableIdRouteParameter,
+                StringComparison.Ordinal)).Value;
+            if (string.IsNullOrWhiteSpace(routeValue) || scope.ContentEntryKey is not { } key)
+            {
+                return Prelude.Fail<bool, AeroError>(
+                    AeroError.NotFoundError($"Route-bound content for scope '{scope.NodeId}' was not found."));
+            }
+
+            resolvedScope = scope with
+            {
+                ContentEntryKey = new Aero.Cms.Abstractions.Content.Views.ContentEntryKey(
+                    key.Provider,
+                    routeValue)
+            };
+        }
+
+        var itemResult = await _contentResolver.ResolveItemAsync(siteId, culture, resolvedScope, ct);
         if (itemResult is Result<PublishedContentItemProjection, AeroError>.Failure itemFailure)
         {
             return Prelude.Fail<bool, AeroError>(itemFailure.Error);

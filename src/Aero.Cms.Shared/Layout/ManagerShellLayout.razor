@@ -42,10 +42,30 @@
 
             case ShellState.Ready:
                 <div class="pe-main-layout">
+                    <button type="button"
+                            class="pe-mobile-sidebar-toggle"
+                            aria-label="@(mobileSidebarOpen ? "Close manager menu" : "Open manager menu")"
+                            aria-expanded="@(mobileSidebarOpen ? "true" : "false")"
+                            @onclick="ToggleMobileSidebar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="4" y1="6" x2="20" y2="6"></line>
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                            <line x1="4" y1="18" x2="20" y2="18"></line>
+                        </svg>
+                        <span>@(mobileSidebarOpen ? "Close menu" : "Menu")</span>
+                    </button>
+                    @if (mobileSidebarOpen)
+                    {
+                        <button type="button"
+                                class="pe-mobile-sidebar-backdrop"
+                                aria-label="Dismiss manager menu"
+                                @onclick="CloseMobileSidebar"></button>
+                    }
                     <AeroSidebar Title="Menu"
                                  Side="SidebarSide.Left"
                                  IsCollapsed="@ThemeService.IsSidebarCollapsed"
-                                 IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
+                                 MobileOpen="@mobileSidebarOpen"
+                                 IsCollapsedChanged="HandleSidebarChanged">
                         <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
                     </AeroSidebar>
 
@@ -72,6 +92,7 @@
 
     private ShellState shellState = ShellState.AuthPending;
     private string? redirectTarget;
+    private bool mobileSidebarOpen;
 
     protected override void OnInitialized()
     {
@@ -170,6 +191,17 @@
     public void Dispose()
     {
         ThemeService.OnThemeChanged -= StateHasChanged;
+    }
+
+    private void ToggleMobileSidebar() => mobileSidebarOpen = !mobileSidebarOpen;
+
+    private void CloseMobileSidebar() => mobileSidebarOpen = false;
+
+    private Task HandleSidebarChanged(bool collapsed)
+    {
+        ThemeService.ToggleSidebar();
+        mobileSidebarOpen = !collapsed;
+        return Task.CompletedTask;
     }
 
     private static string BuildLoginRedirectUrl(string relative)

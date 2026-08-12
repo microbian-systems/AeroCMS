@@ -20,6 +20,8 @@ public partial class ContentFieldSettingsEditor
 
     private ContentTypeDetail? _referenceTargetDefinition;
     private long? _loadedReferenceTargetId;
+    private IReadOnlyList<CmsContentReferenceSource> _contentEntryProviders = [];
+    private bool _contentEntryProvidersLoaded;
 
     [Parameter, EditorRequired]
     public ContentFieldDefinition Field { get; set; } = default!;
@@ -43,6 +45,9 @@ public partial class ContentFieldSettingsEditor
     private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
 
     [Inject]
+    private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+
+    [Inject]
     private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private bool IsCmsDocumentReference =>
@@ -50,6 +55,20 @@ public partial class ContentFieldSettingsEditor
             GetStringSetting(ReferenceContentFieldSettings.TargetKind),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
             StringComparison.Ordinal);
+
+    private bool IsContentEntryReference =>
+        string.Equals(
+            GetStringSetting(ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
+            StringComparison.Ordinal);
+
+    private IReadOnlySet<string> AllowedContentEntryProviders =>
+        Field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowedProviders, out var providers)
+        && providers.ValueKind == JsonValueKind.Array
+            ? providers.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim()).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     private bool IsHierarchyReference =>
         string.Equals(
@@ -130,6 +149,27 @@ public partial class ContentFieldSettingsEditor
     protected override async Task OnParametersSetAsync()
     {
         await LoadReferenceTargetDefinitionAsync();
+        if (IsContentEntryReference && !_contentEntryProvidersLoaded)
+            await LoadContentEntryProvidersAsync();
+    }
+
+    private async Task LoadContentEntryProvidersAsync()
+    {
+        var result = await ContentItemsApi.GetContentEntryReferenceSourcesAsync();
+        if (result is Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>.Ok ok)
+        {
+            _contentEntryProviders = ok.Value;
+            _contentEntryProvidersLoaded = true;
+        }
+    }
+
+    private async Task SetContentEntryProviderAsync(string provider, bool selected)
+    {
+        var values = AllowedContentEntryProviders.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selected) values.Add(provider); else values.Remove(provider);
+        Field.Settings[ReferenceContentFieldSettings.AllowedProviders] =
+            JsonSerializer.SerializeToElement(values.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(), ContentJsonContext.Default.ListString);
+        await NotifyChangedAsync();
     }
 
     private async Task SetLabelAsync(string? value)

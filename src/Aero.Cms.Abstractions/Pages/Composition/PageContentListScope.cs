@@ -5,6 +5,10 @@ namespace Aero.Cms.Abstractions.Pages.Composition;
 /// </summary>
 public sealed record PageContentListScope
 {
+    /// <summary>Optional provider-qualified virtual source (for example <c>view:catalog</c>).</summary>
+    /// <remarks>When set, ContentTypeId/Alias are authoring diagnostics only and list entries are
+    /// resolved through the current tenant/site provider catalog.</remarks>
+    public string? ContentEntryProvider { get; init; }
     /// <summary>Gets the container node that owns this scope.</summary>
     public long NodeId { get; init; }
 
