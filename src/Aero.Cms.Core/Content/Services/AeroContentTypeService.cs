@@ -167,6 +167,18 @@ public sealed class AeroContentTypeService(
                 "This content type is referenced by another content type."));
         }
 
+        var hasItems = await session.Query<ContentItem>()
+            .Where(item => item.SiteId == siteId && item.ContentTypeAlias == alias)
+            .AnyAsync(ct);
+        var hasGroups = await session.Query<ContentTranslationGroupDocument>()
+            .Where(group => group.SiteId == siteId && group.ContentTypeAlias == alias)
+            .AnyAsync(ct);
+        if (hasItems || hasGroups)
+        {
+            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                "This content type has content items or translation groups and cannot be deleted."));
+        }
+
         session.Delete(doc);
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);

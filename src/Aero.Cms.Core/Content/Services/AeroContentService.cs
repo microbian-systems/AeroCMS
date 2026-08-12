@@ -5,6 +5,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using System.Globalization;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -19,6 +20,10 @@ public sealed class AeroContentService(
     public async Task<Result<ContentItem, AeroError>> LoadAsync(long siteId, long id, CancellationToken ct = default)
     {
         var item = await session.LoadAsync<ContentItem>(id, ct);
+        if (item is null || item.SiteId != siteId)
+            return Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item '{id}' not found."));
+
+        await HydrateSharedFieldsAsync(item, ct);
         return item is null || item.SiteId != siteId
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item '{id}' not found."))
             : Prelude.Ok<ContentItem, AeroError>(item);
@@ -28,6 +33,7 @@ public sealed class AeroContentService(
     public async Task<Result<ContentItem, AeroError>> GetBySlugAsync(long siteId, string slug, CancellationToken ct = default)
     {
         var item = await session.Query<ContentItem>().FirstOrDefaultAsync(x => x.SiteId == siteId && x.Slug == slug, ct);
+        if (item is not null) await HydrateSharedFieldsAsync(item, ct);
         return item is null
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item with slug '{slug}' not found."))
             : Prelude.Ok<ContentItem, AeroError>(item);
@@ -49,6 +55,7 @@ public sealed class AeroContentService(
                 x.Culture == normalizedCulture &&
                 x.Slug == slug,
                 ct);
+        if (item is not null) await HydrateSharedFieldsAsync(item, ct);
         return item is null
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError(
                 $"Content item with slug '{slug}' and culture '{normalizedCulture}' not found in type '{contentTypeAlias}'."))
@@ -93,7 +100,7 @@ public sealed class AeroContentService(
         if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
-        foreach (var field in type.Fields.Where(x => x.FieldType == "reference"))
+        foreach (var field in type.Fields.Where(x => x.FieldType == "reference" && !ReferenceFieldValidator.IsContentEntryReference(x)))
         {
             if (!item.Fields.TryGetValue(field.Name, out var value) || value.ValueKind is System.Text.Json.JsonValueKind.Null)
                 continue;
@@ -137,7 +144,8 @@ public sealed class AeroContentService(
         var changedShared = false;
         foreach (var name in sharedNames)
         {
-            if (item.Fields.Remove(name, out var value))
+            if (item.Fields.Remove(name, out var value)
+                && (!group.SharedFields.TryGetValue(name, out var existingShared) || !JsonElement.DeepEquals(existingShared, value)))
             {
                 group.SharedFields[name] = value;
                 changedShared = true;
@@ -207,6 +215,15 @@ public sealed class AeroContentService(
 
     private async Task<bool> BelongsToSiteAsync(long siteId, long id, CancellationToken ct)
         => await session.LoadAsync<ContentItem>(id, ct) is { } item && item.SiteId == siteId;
+
+    private async Task HydrateSharedFieldsAsync(ContentItem item, CancellationToken ct)
+    {
+        if (item.TranslationGroupId is not { } groupId) return;
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct);
+        if (group is null || group.SiteId != item.SiteId) return;
+        foreach (var (name, value) in group.SharedFields)
+            item.Fields[name] = value.Clone();
+    }
 
     private static ContentTypeDefinition MapDefinition(ContentTypeDocument document)
         => new()

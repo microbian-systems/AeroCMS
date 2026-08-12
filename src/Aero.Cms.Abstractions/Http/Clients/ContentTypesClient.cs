@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Globalization;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -498,7 +499,10 @@ public record ContentItemSummary(
     long? TranslationGroupId,
     long? SourceItemId,
     long? ParentId = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    ContentTranslationProvenance? TranslationProvenance = null,
+    ContentTranslationReview? TranslationReview = null,
+    int? TranslationGroupRevision = null);
 
 /// <summary>A bounded manager-facing option for a content reference field.</summary>
 public sealed record ContentReferenceOption(
@@ -523,7 +527,10 @@ public record ContentItemDetail(
     long? TranslationGroupId,
     long? SourceItemId,
     long? ParentId = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    ContentTranslationProvenance? TranslationProvenance = null,
+    ContentTranslationReview? TranslationReview = null,
+    int? TranslationGroupRevision = null);
 
 /// <summary>Request to create or update a content item.</summary>
 public record CreateContentItemRequest(

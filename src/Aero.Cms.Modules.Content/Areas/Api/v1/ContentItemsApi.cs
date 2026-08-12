@@ -523,7 +523,10 @@ public static class ContentItemsApi
             fields, vm.PublicationState.ToString(), vm.PublishedOn,
             vm.VersionNumber, vm.SchedulePublishUtc, vm.ScheduleUnpublishUtc,
             vm.Culture, vm.TranslationGroupId, vm.SourceItemId,
-            vm.ParentId, vm.SortOrder);
+            vm.ParentId, vm.SortOrder,
+            string.IsNullOrWhiteSpace(vm.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(vm.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            string.IsNullOrWhiteSpace(vm.TranslationReviewJson) ? null : JsonSerializer.Deserialize(vm.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview),
+            vm.TranslationGroupRevision);
     }
 
     /// <summary>
@@ -547,7 +550,10 @@ public static class ContentItemsApi
             item.ContentTypeAlias, firstFieldValue,
             item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber,
             item.Culture, item.TranslationGroupId, item.SourceItemId,
-            item.ParentId, item.SortOrder);
+            item.ParentId, item.SortOrder,
+            string.IsNullOrWhiteSpace(item.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(item.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            string.IsNullOrWhiteSpace(item.TranslationReviewJson) ? null : JsonSerializer.Deserialize(item.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview),
+            item.TranslationGroupRevision);
     }
 
     /// <summary>
@@ -587,7 +593,9 @@ public static class ContentItemsApi
             item.TranslationGroupId,
             item.SourceItemId,
             item.ParentId,
-            item.SortOrder);
+            item.SortOrder,
+            item.TranslationProvenance,
+            item.TranslationReview);
 
     /// <summary>
     /// Trims culture input without validating or canonicalizing it.

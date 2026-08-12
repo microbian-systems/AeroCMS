@@ -319,6 +319,8 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         SourceItemId = item.SourceItemId,
         ParentId = item.ParentId,
         SortOrder = item.SortOrder,
+        TranslationProvenanceJson = item.TranslationProvenance is null ? null : JsonSerializer.Serialize(item.TranslationProvenance, ContentJsonContext.Default.ContentTranslationProvenance),
+        TranslationReviewJson = JsonSerializer.Serialize(item.TranslationReview, ContentJsonContext.Default.ContentTranslationReview),
         FieldsJson = JsonSerializer.Serialize(
             item.Fields,
             ContentJsonContext.Default.DictionaryStringJsonElement),
@@ -356,6 +358,8 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
             SourceItemId = vm.SourceItemId,
             ParentId = vm.ParentId,
             SortOrder = vm.SortOrder,
+            TranslationProvenance = string.IsNullOrWhiteSpace(vm.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(vm.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            TranslationReview = string.IsNullOrWhiteSpace(vm.TranslationReviewJson) ? new() : JsonSerializer.Deserialize(vm.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview) ?? new(),
             Fields = fields,
             PublicationState = vm.PublicationState,
             PublishedOn = vm.PublishedOn,
