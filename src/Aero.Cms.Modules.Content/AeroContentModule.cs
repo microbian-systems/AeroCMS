@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Services;
@@ -14,9 +15,11 @@ using Aero.Cms.Modules.Content.Composition;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
 using Aero.Cms.Modules.Content.Events;
 using Aero.Cms.Modules.Content.Rendering;
+using Aero.Cms.Modules.Content.Routing;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -72,6 +75,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // default capability is intentionally immutable until the exact transaction/claim proof
         // exists for the bundled Sable + SurrealDB runtime.
         services.TryAddSingleton<IContentRelationshipSchemaCapabilityProvider, DisabledContentRelationshipSchemaCapabilityProvider>();
+        services.TryAddScoped<IPublicSiteRouteResolver, DisabledPublicSiteRouteResolver>();
         services.Replace(ServiceDescriptor.Singleton<IContentViewOutputCacheInvalidator, ContentViewOutputCacheInvalidator>());
         services.AddScoped<ContentCacheInvalidator>();
         services.AddScoped<ContentEventPublisher>();
@@ -84,14 +88,11 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
         // Public URL rendering for content types
         services.AddScoped<ContentTypeUrlRenderer>();
+        services.AddTransient<PublicContentRouteTransformer>();
         services.AddRazorPages()
             .AddApplicationPart(typeof(ContentModule).Assembly);
         services.Configure<RazorPagesOptions>(options =>
         {
-            options.Conventions.AddAreaPageRoute(
-                "Content",
-                "/PublicContent",
-                "/{culture}/{typeAlias}/{entrySlug}");
             options.Conventions.AddAreaPageRoute(
                 "Content",
                 "/PublicContent",
@@ -244,6 +245,7 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
         builder.MapContentItemsApi();
         builder.MapContentHierarchyManagerApi();
         builder.MapContentViewsApi();
+        builder.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}");
 
         return Task.CompletedTask;
     }

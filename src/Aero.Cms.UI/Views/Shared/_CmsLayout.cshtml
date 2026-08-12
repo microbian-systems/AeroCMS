@@ -5,9 +5,14 @@
     var navMenuOverrideId = ViewBag.NavMenuOverrideId as long?;
     var hideFooter = ViewBag.HideFooter as bool? ?? false;
     var currentCulture = System.Globalization.CultureInfo.CurrentUICulture;
+    var documentCultureOverride = ViewData["DocumentCulture"] as string;
+    if (!string.IsNullOrWhiteSpace(documentCultureOverride))
+    {
+        currentCulture = System.Globalization.CultureInfo.GetCultureInfo(documentCultureOverride);
+    }
     var documentLanguage = currentCulture.Name;
     var isRightToLeft = currentCulture.TextInfo.IsRightToLeft;
-    var documentDirection = isRightToLeft ? "rtl" : "ltr";
+    var documentDirection = ViewData["DocumentDirection"] as string ?? (isRightToLeft ? "rtl" : "ltr");
     var isCultureFallback = ViewBag.IsCultureFallback as bool? ?? false;
     var requestedCultureName = ViewBag.RequestedCulture as string;
     var renderedCultureName = ViewBag.RenderedCulture as string;

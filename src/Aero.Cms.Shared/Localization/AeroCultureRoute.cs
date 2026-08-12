@@ -27,7 +27,7 @@ public const string IsFallbackCultureItemKey = "AeroCms.IsFallbackCulture";
         culture = string.Empty;
         if (string.IsNullOrWhiteSpace(alias)) return false;
 
-        var supported = NormalizeSupportedCultures(supportedCultures, "en-US");
+        var supported = NormalizeSupportedCultures(supportedCultures, string.Empty);
         var exact = supported.FirstOrDefault(x => string.Equals(x, alias.Trim(), StringComparison.OrdinalIgnoreCase));
         if (exact is not null) { culture = exact; return true; }
 
@@ -68,8 +68,10 @@ public static IReadOnlyList<string> NormalizeSupportedCultures(IEnumerable<strin
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (!normalized.Contains(defaultCulture, StringComparer.OrdinalIgnoreCase))
-            normalized.Insert(0, defaultCulture);
+        var normalizedDefault = NormalizeCultureOrDefault(defaultCulture, string.Empty);
+        if (!string.IsNullOrWhiteSpace(normalizedDefault) &&
+            !normalized.Contains(normalizedDefault, StringComparer.OrdinalIgnoreCase))
+            normalized.Insert(0, normalizedDefault);
 
         return normalized;
     }

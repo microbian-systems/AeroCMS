@@ -89,7 +89,7 @@ public async Task<IActionResult> OnGetAsync(
 
         var canonicalRequestPath = AeroCultureRoute.BuildCulturePath(requestedCulture, $"{normalizedType}/{normalizedSlug}");
         if (!string.Equals(Request.Path.Value, canonicalRequestPath, StringComparison.Ordinal))
-            return RedirectPermanent(canonicalRequestPath);
+            return RedirectPermanent(AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, requestedCulture, $"{normalizedType}/{normalizedSlug}"));
 
         try
         {
@@ -99,7 +99,8 @@ public async Task<IActionResult> OnGetAsync(
                 requestedCulture,
                 normalizedSlug,
                 cancellationToken,
-                slice.DefaultCulture);
+                slice.DefaultCulture,
+                slice.SupportedCultures);
 
             if (result is not Result<PublicContentRenderResult, AeroError>.Ok ok)
             {
@@ -114,7 +115,7 @@ public async Task<IActionResult> OnGetAsync(
             RenderedHtml = ok.Value.Html;
             RequestedCulture = ok.Value.RequestedCulture;
             RenderedCulture = ok.Value.RenderedCulture;
-            CanonicalUrl = AeroCultureRoute.BuildCulturePath(RenderedCulture, $"{normalizedType}/{normalizedSlug}");
+            CanonicalUrl = AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, RenderedCulture, $"{normalizedType}/{normalizedSlug}");
             var variants = await queryService.ListCultureVariantsAsync(siteContext.SiteId, normalizedType, ok.Value.TranslationGroupId, cancellationToken);
             if (variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok variantResult)
             {
@@ -123,16 +124,20 @@ public async Task<IActionResult> OnGetAsync(
                     .ToArray();
                 var defaultVariant = publishedVariants.FirstOrDefault(item =>
                     string.Equals(item.Culture, slice.DefaultCulture, StringComparison.OrdinalIgnoreCase));
-                var defaultHref = AeroCultureRoute.BuildCulturePath(
+                var defaultHref = AeroCultureRoute.BuildCulturePathForCurrentRequest(
+                    HttpContext,
                     defaultVariant?.Culture ?? RenderedCulture,
                     $"{normalizedType}/{defaultVariant?.Slug ?? normalizedSlug}");
                 AlternateLinks = publishedVariants
-                    .Select(item => new AlternateContentLink(item.Culture, AeroCultureRoute.BuildCulturePath(item.Culture, $"{normalizedType}/{item.Slug}")))
+                    .Select(item => new AlternateContentLink(item.Culture, AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, item.Culture, $"{normalizedType}/{item.Slug}")))
                     .Append(new AlternateContentLink("x-default", defaultHref))
                     .GroupBy(link => link.Hreflang, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
                     .ToArray();
             }
+            var renderedCultureInfo = CultureInfo.GetCultureInfo(RenderedCulture);
+            ViewData["DocumentCulture"] = renderedCultureInfo.Name;
+            ViewData["DocumentDirection"] = renderedCultureInfo.TextInfo.IsRightToLeft ? "rtl" : "ltr";
             if (!string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase))
             {
                 HttpContext.Items[AeroCultureRoute.IsFallbackCultureItemKey] = true;

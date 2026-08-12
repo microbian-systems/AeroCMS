@@ -77,6 +77,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<ISiteService, SiteService>();
         services.AddScoped<ISiteLookupService, SiteLookupService>();
+        services.AddScoped<IPublicSiteRouteResolver, PublicSiteRouteResolver>();
         services.AddScoped<ISelectedSiteScopeResolver, SelectedSiteScopeResolver>();
         services.AddScoped<IUserSiteService, UserSiteService>();
         services.AddScoped<ISiteStyleProfileResolver, SiteStyleProfileResolver>();

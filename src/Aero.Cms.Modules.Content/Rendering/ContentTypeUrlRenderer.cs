@@ -31,6 +31,7 @@ public sealed class ContentTypeUrlRenderer(
     /// <param name="entrySlug">The public item slug.</param>
     /// <param name="ct">The token propagated through lookup and rendering.</param>
     /// <param name="defaultCulture">The site's default culture used only by an opted-in fallback policy.</param>
+    /// <param name="supportedCultures">The authoritative cultures configured for the current site.</param>
     /// <returns>Rendered HTML and cache metadata, or a failure describing lookup, policy, or rendering.</returns>
     /// <exception cref="CultureNotFoundException">Thrown when <paramref name="culture"/> is invalid.</exception>
     /// <remarks>
@@ -43,7 +44,8 @@ public sealed class ContentTypeUrlRenderer(
         string culture,
         string entrySlug,
         CancellationToken ct = default,
-        string? defaultCulture = null)
+        string? defaultCulture = null,
+        IEnumerable<string>? supportedCultures = null)
     {
         // 1. Look up the content type definition
         var typeResult = await typeService.GetByAliasAsync(siteId, typeAlias, ct);
@@ -65,7 +67,7 @@ public sealed class ContentTypeUrlRenderer(
         if (itemResult is Result<ContentItem, AeroError>.Failure &&
             type.Localization.CultureFallbackPolicy == ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture)
         {
-            foreach (var fallbackCulture in GetFallbackCultures(normalizedCulture, defaultCulture))
+            foreach (var fallbackCulture in GetFallbackCultures(normalizedCulture, defaultCulture, supportedCultures))
             {
                 itemResult = await contentService.GetBySlugAndTypeAsync(siteId, typeAlias, fallbackCulture, entrySlug, ct);
                 if (itemResult is Result<ContentItem, AeroError>.Ok) break;
@@ -89,14 +91,30 @@ public sealed class ContentTypeUrlRenderer(
     }
 
     /// <summary>Returns parent then default cultures without duplicating the exact request.</summary>
-    private static IEnumerable<string> GetFallbackCultures(string requestedCulture, string? defaultCulture)
+    private static IEnumerable<string> GetFallbackCultures(
+        string requestedCulture,
+        string? defaultCulture,
+        IEnumerable<string>? supportedCultures)
     {
+        var supported = Aero.Cms.Shared.Localization.AeroCultureRoute.NormalizeSupportedCultures(
+            supportedCultures,
+            defaultCulture ?? string.Empty);
         var parent = CultureInfo.GetCultureInfo(requestedCulture).Parent.Name;
-        if (!string.IsNullOrWhiteSpace(parent) && !string.Equals(parent, requestedCulture, StringComparison.OrdinalIgnoreCase)) yield return parent;
+        if (!string.IsNullOrWhiteSpace(parent) &&
+            supported.Contains(parent, StringComparer.OrdinalIgnoreCase) &&
+            !string.Equals(parent, requestedCulture, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return parent;
+        }
         if (!string.IsNullOrWhiteSpace(defaultCulture))
         {
             var normalizedDefault = CultureInfo.GetCultureInfo(defaultCulture).Name;
-            if (!string.Equals(normalizedDefault, requestedCulture, StringComparison.OrdinalIgnoreCase) && !string.Equals(normalizedDefault, parent, StringComparison.OrdinalIgnoreCase)) yield return normalizedDefault;
+            if (supported.Contains(normalizedDefault, StringComparer.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedDefault, requestedCulture, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedDefault, parent, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return normalizedDefault;
+            }
         }
     }
 }
