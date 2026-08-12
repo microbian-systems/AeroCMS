@@ -36,8 +36,8 @@ public interface IContentTranslationSiteAuthorizer
 }
 
 /// <summary>Trusted, site-scoped source data loaded server-side before any provider call.</summary>
-public sealed record ContentTranslationSource(long ContentItemId, int VersionNumber, string Culture, IReadOnlyDictionary<string, JsonElement> Fields);
-public sealed record ContentTranslationTarget(long ContentItemId, int VersionNumber);
+public sealed record ContentTranslationSource(long ContentItemId, long SiteId, string ContentTypeAlias, long TranslationGroupId, int VersionNumber, string Culture, IReadOnlyDictionary<string, JsonElement> Fields);
+public sealed record ContentTranslationTarget(long ContentItemId, long SiteId, string ContentTypeAlias, long TranslationGroupId, int VersionNumber, string Culture);
 public sealed record ContentAiTranslationGenerationSnapshot(ContentTypeDefinition ContentType, ContentLocalizationContext Localization, ContentTranslationSource Source, ContentTranslationTarget Target);
 
 /// <summary>Host/persistence boundary that resolves an authoritative translation snapshot; client schema or content is never accepted.</summary>

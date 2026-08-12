@@ -45,13 +45,18 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         }
         var snapshot = ((Result<ContentAiTranslationGenerationSnapshot>.Ok)snapshotResult).Value;
         var cultures = CanonicalCultures(snapshot.Localization);
-        if (cultures is null || !cultures.Contains(snapshot.Source.Culture) || !cultures.Contains(request.TargetCulture)
-            || string.Equals(snapshot.Source.Culture, request.TargetCulture, StringComparison.OrdinalIgnoreCase))
+        if (cultures is null || !cultures.Contains(snapshot.Source.Culture) || !cultures.Contains(snapshot.Target.Culture)
+            || !string.Equals(snapshot.Target.Culture, request.TargetCulture, StringComparison.Ordinal)
+            || string.Equals(snapshot.Source.Culture, snapshot.Target.Culture, StringComparison.Ordinal))
         {
             return AeroError.ValidationError(["Source and target cultures must be distinct canonical supported cultures."]);
         }
 
         if (request.SiteId <= 0 || snapshot.ContentType.SiteId != request.SiteId || snapshot.Localization.SiteId != request.SiteId
+            || snapshot.Source.SiteId != request.SiteId || snapshot.Target.SiteId != request.SiteId
+            || !string.Equals(snapshot.Source.ContentTypeAlias, snapshot.ContentType.Alias, StringComparison.Ordinal)
+            || !string.Equals(snapshot.Target.ContentTypeAlias, snapshot.ContentType.Alias, StringComparison.Ordinal)
+            || snapshot.Source.TranslationGroupId <= 0 || snapshot.Source.TranslationGroupId != snapshot.Target.TranslationGroupId
             || snapshot.Source.ContentItemId != request.SourceItemId || snapshot.Source.VersionNumber != request.SourceVersionNumber
             || snapshot.Target.ContentItemId != request.TargetItemId || snapshot.Target.VersionNumber != request.ExpectedTargetVersionNumber)
         {
@@ -145,7 +150,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
     internal static bool PreservesMarkup(string source, string translated)
     {
         if (!IsSafeMarkup(source) || !IsSafeMarkup(translated)) return false;
-        return Tags(source).SequenceEqual(Tags(translated), StringComparer.Ordinal);
+        return StructureTokens(source).SequenceEqual(StructureTokens(translated), StringComparer.Ordinal);
     }
 
     private static bool IsSafeMarkup(string value)
@@ -168,6 +173,18 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
 
     private static IEnumerable<string> Tags(string value) => System.Text.RegularExpressions.Regex.Matches(value, "<\\/?[a-zA-Z][^>]*>")
         .Select(match => System.Text.RegularExpressions.Regex.Replace(match.Value, "\\s+", " ").Trim());
+    private static IEnumerable<string> StructureTokens(string value)
+    {
+        foreach (var tag in Tags(value)) yield return $"html:{tag}";
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "(?m)^(#{1,6}\\s+|[-*+]\\s+|\\d+\\.\\s+|```[^\\r\\n]*|---\\s*$)", System.Text.RegularExpressions.RegexOptions.Multiline))
+        {
+            yield return $"md:{match.Value}";
+        }
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "\\[[^]]*\\]\\(([^)]*)\\)"))
+            yield return $"link:{match.Groups[1].Value}";
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "(?m)^\\s*\\[([^]]+)\\]:\\s*(\\S+)"))
+            yield return $"reference:{match.Groups[1].Value}:{match.Groups[2].Value}";
+    }
     private static string TagName(string tag) => tag.Trim('<', '>', '/', ' ').Split(' ', 2)[0];
     private static bool IsVoidTag(string tag) => TagName(tag).ToLowerInvariant() is "br" or "hr" or "img" or "meta" or "link" or "input";
 }
