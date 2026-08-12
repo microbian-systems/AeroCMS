@@ -1,4 +1,5 @@
 using Aero.Core.Data;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Abstractions.Content;
 
@@ -7,6 +8,7 @@ namespace Aero.Cms.Abstractions.Content;
 /// </summary>
 public sealed class ContentTypeDefinition : IAuditable
 {
+    private ContentLocalizationSettings localization = new();
     /// <summary>
     /// Gets or sets the persisted content-type identifier. A value of zero represents a new definition.
     /// </summary>
@@ -90,4 +92,13 @@ public string? Icon { get; set; }
     /// Optional scheduling configuration.
     /// </summary>
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
+
+    /// <summary>
+    /// Gets or sets the culture-resolution and AI-review rules for entries of this type.
+    /// </summary>
+    public ContentLocalizationSettings Localization
+    {
+        get => localization;
+        set => localization = value ?? new();
+    }
 }

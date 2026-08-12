@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Core.Data;
 using AeroDB.Sable;
 
@@ -9,6 +10,7 @@ namespace Aero.Cms.Abstractions.Content;
 /// </summary>
 public sealed class ContentItem : SableDocument, IAuditable
 {
+    private ContentTranslationReview translationReview = new();
         /// <summary>
     /// Gets or sets the Site Id.
     /// </summary>
@@ -37,6 +39,22 @@ public string Culture { get; set; } = string.Empty;
     /// Gets or sets the Source Item Id.
     /// </summary>
 public long? SourceItemId { get; set; }
+
+    /// <summary>
+    /// Gets or sets immutable-at-creation information about how this localized variant was made.
+    /// The source item, when applicable, remains represented by <see cref="SourceItemId"/>.
+    /// </summary>
+    public ContentTranslationProvenance? TranslationProvenance { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current review state for a translation generated or assisted by AI.
+    /// Manual and copied variants do not require review unless an implementing policy says otherwise.
+    /// </summary>
+    public ContentTranslationReview TranslationReview
+    {
+        get => translationReview;
+        set => translationReview = value ?? new();
+    }
 
     /// <summary>
     /// Gets or sets the source-of-truth parent item identifier for hierarchical content.
