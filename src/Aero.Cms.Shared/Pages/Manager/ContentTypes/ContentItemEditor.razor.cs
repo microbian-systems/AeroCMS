@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -79,6 +80,18 @@ public partial class ContentItemEditor
     private long? _parentId;
     private int _sortOrder;
     private IReadOnlyList<ContentParentOption> _parentOptions = [];
+    private ContentTranslationProvenance? _translationProvenance;
+    private ContentTranslationReview? _translationReview;
+    private bool _hasTranslationReviewMetadata;
+
+    private ContentTranslationPublishDecision PublishReviewDecision =>
+        ContentLocalizationManagerUi.EvaluatePublishDecision(
+            _hasTranslationReviewMetadata,
+            _translationProvenance,
+            _translationReview,
+            ContentAiTranslationReviewPolicy.RequireHumanReview,
+            _sourceItemId,
+            _versionNumber);
 
     private static bool IsHierarchyReference(ContentFieldDefinition field) =>
         field.FieldType == ContentFieldTypes.Reference
@@ -231,7 +244,11 @@ public partial class ContentItemEditor
         string.Equals(_publicationState, "Published", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(_slug);
 
-    private string PublicPath => $"/content/{Alias}/{_slug}";
+    private string PublicPath =>
+        ContentLocalizationManagerUi.BuildCultureAwareContentPath(Alias, _slug, _culture);
+
+    private string PreviewDirection =>
+        ContentLocalizationManagerUi.ResolveTextDirection(_culture);
 
     private string? FrameUrl => CanPreviewPublishedPage
         ? new Uri(new Uri(Navigation.BaseUri), PublicPath.TrimStart('/')).ToString()
@@ -867,6 +884,13 @@ protected override async Task OnInitializedAsync()
 
         foreach (var field in _typeDefinition.Fields)
         {
+            if (field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+            {
+                // Shared values are owned by the translation group and must not be written
+                // through the culture-variant item endpoint.
+                continue;
+            }
+
             if (IsCmsDocumentReference(field))
             {
                 dict[field.Name] = JsonSerializer.SerializeToElement(
@@ -1157,6 +1181,12 @@ protected override async Task OnInitializedAsync()
 
     private static string FieldLabel(ContentFieldDefinition field)
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
+
+    private static bool IsSharedField(ContentFieldDefinition field) =>
+        field.LocalizationMode == ContentFieldLocalizationMode.Shared;
+
+    private static string SharedFieldDescriptionId(ContentFieldDefinition field) =>
+        $"shared-field-{field.Name}-description";
 
     private int? ActiveGalleryMaximumSelections =>
         _activeGalleryField is not null

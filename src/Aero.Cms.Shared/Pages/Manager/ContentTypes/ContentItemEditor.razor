@@ -1,5 +1,6 @@
 @page "/manager/content/{alias}/editor/{id:long?}"
 @using Aero.Cms.Abstractions.Content
+@using Aero.Cms.Abstractions.Content.Localization
 @using Aero.Cms.Shared.Layout
 @using Aero.Cms.Shared.Components
 @using Microsoft.Extensions.Localization
@@ -59,6 +60,10 @@
     .ci-empty-composite { border: 1px dashed var(--pe-border); border-radius: var(--pe-radius-md); padding: 1rem; text-align: center; color: var(--pe-text-muted); background: var(--pe-bg-primary); }
     .ci-key-value-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
     .ci-color-control { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .ci-field-editor { min-width: 0; margin: 0; padding: 0; border: 0; }
+    .ci-field-editor[disabled] { opacity: .72; }
+    .ci-localization-warning { border: 1px solid var(--rz-warning); border-radius: var(--pe-radius-md); padding: .75rem; color: var(--pe-text-primary); background: color-mix(in srgb, var(--rz-warning) 10%, var(--pe-bg-primary)); }
+    .ci-review-card { border: 1px solid var(--pe-border); border-radius: var(--pe-radius-md); padding: 1rem; background: var(--pe-bg-primary); }
 
     @@media (max-width: 1024px) {
         .ci-editor-shell {
@@ -99,7 +104,7 @@
             }
             else
             {
-                <RadzenButton Icon="publish" Text="@L["Publish"]" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@_isSaving" />
+                <RadzenButton Icon="publish" Text="@L["Publish"]" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@(_isSaving || !PublishReviewDecision.CanPublish)" />
             }
         </div>
     </div>
@@ -144,6 +149,8 @@
                                     {
                                         <span style="color: var(--rz-danger);">*</span>
                                     }
+                                    <RadzenBadge BadgeStyle="@(IsSharedField(field) ? BadgeStyle.Info : BadgeStyle.Light)"
+                                                 Text="@(IsSharedField(field) ? L["Shared"] : field.LocalizationMode == ContentFieldLocalizationMode.Localized ? L["Localized"] : L["Copy on fork"])" />
                                 </label>
                                 @if (!string.IsNullOrWhiteSpace(field.Placeholder))
                                 {
@@ -155,8 +162,16 @@
                                 }
                             </div>
 
-                            @switch (field.FieldType)
+                            @if (IsSharedField(field))
                             {
+                                <p id="@SharedFieldDescriptionId(field)" class="ci-localization-warning text-sm" role="status">
+                                    @L["This value belongs to the translation group and is shared by every culture. Editing is unavailable through the culture-variant form, so this draft will not overwrite it."]
+                                </p>
+                            }
+
+                            <fieldset class="ci-field-editor" disabled="@IsSharedField(field)" aria-describedby="@(IsSharedField(field) ? SharedFieldDescriptionId(field) : null)">
+                                @switch (field.FieldType)
+                                {
                                 case "richtext":
                                     <RadzenTextArea Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="10" Class="w-full" />
                                     break;
@@ -338,7 +353,8 @@
                                 default:
                                     <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
                                     break;
-                            }
+                                }
+                            </fieldset>
                         </div>
                     }
                 }
@@ -464,6 +480,34 @@
                     </div>
                 </div>
 
+                <div class="ci-review-card space-y-3" aria-labelledby="translation-review-heading">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h3 id="translation-review-heading" class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Translation provenance and review"]</h3>
+                        <RadzenBadge BadgeStyle="@(PublishReviewDecision.MetadataAvailable ? BadgeStyle.Info : BadgeStyle.Warning)"
+                                     Text="@PublishReviewDecision.Label" />
+                    </div>
+                    @if (!PublishReviewDecision.MetadataAvailable)
+                    {
+                        <p class="ci-localization-warning text-sm" role="status">
+                            @L["The current manager contract does not expose translation provenance or revision-bound review data. Publication remains subject to server-side policy; this screen does not infer approval."]
+                        </p>
+                    }
+                    else
+                    {
+                        <dl class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <dt class="ci-muted">@L["Origin"]</dt>
+                                <dd style="color: var(--pe-text-primary);">@_translationProvenance?.Origin</dd>
+                            </div>
+                            <div>
+                                <dt class="ci-muted">@L["Review"]</dt>
+                                <dd style="color: var(--pe-text-primary);">@_translationReview?.Status</dd>
+                            </div>
+                        </dl>
+                        <p class="ci-help">@PublishReviewDecision.Detail</p>
+                    }
+                </div>
+
                 @if (_translationGroupId.HasValue || Id.HasValue)
                 {
                     <div class="text-xs font-mono px-2 py-1 rounded inline-flex"
@@ -544,6 +588,8 @@
                 FrameUrl="@FrameUrl"
                 UrlBarText="@PublicPath"
                 SuppressBrowserLinkErrors="true"
+                FrameLanguage="@_culture"
+                FrameDirection="@PreviewDirection"
                 Title="@L["Content preview"]" />
 
 <MediaSelectorModal Show="@_showMediaSelector"

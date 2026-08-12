@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Globalization;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -1174,12 +1175,27 @@ protected override async Task OnInitializedAsync()
             Required = field.Required,
             DefaultValue = field.DefaultValue,
             Placeholder = field.Placeholder,
+            LocalizationMode = field.LocalizationMode,
             Indexed = field.Indexed,
             FullTextSearchable = field.FullTextSearchable,
             SemanticSearchable = field.SemanticSearchable,
             AiExposure = field.AiExposure,
             Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value.Clone())
         };
+
+    private string LocalizationModeLabel(ContentFieldLocalizationMode mode) => mode switch
+    {
+        ContentFieldLocalizationMode.Shared => L["Shared"],
+        ContentFieldLocalizationMode.Localized => L["Localized"],
+        _ => L["Copy on fork"]
+    };
+
+    private static BadgeStyle LocalizationBadgeStyle(ContentFieldLocalizationMode mode) => mode switch
+    {
+        ContentFieldLocalizationMode.Shared => BadgeStyle.Info,
+        ContentFieldLocalizationMode.Localized => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
 
     private static string GenerateHandle(string value)
     {

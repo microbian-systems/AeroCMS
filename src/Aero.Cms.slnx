@@ -107,6 +107,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="../tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj" />
+    <Project Path="../tests/Aero.Cms.Shared.Tests/Aero.Cms.Shared.Tests.csproj" />
     <Project Path="../tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj" />
     <Project Path="../tests/Aero.Cms.Rendering.Interop.Tests/Aero.Cms.Rendering.Interop.Tests.csproj" />
     <Project Path="../tests/Aero.Cms.Web.Tests/Aero.Cms.Web.Tests.csproj" />

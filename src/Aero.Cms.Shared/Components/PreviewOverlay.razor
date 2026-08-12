@@ -72,7 +72,9 @@
             @* Preview frame *@
             <div class="pe-preview-overlay-frame">
                 <div class="pe-preview-device-viewport @("device-" + Device)"
-                     data-preview-device="@Device">
+                     data-preview-device="@Device"
+                     lang="@FrameLanguage"
+                     dir="@FrameDirection">
                     @if (IsLoading)
                     {
                         <div class="pe-preview-status">
@@ -95,6 +97,8 @@
                                 src="@FrameUrl"
                                 sandbox="@FrameUrlSandbox"
                                 data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
+                                lang="@FrameLanguage"
+                                dir="@FrameDirection"
                                 title="@Title"
                                 @key="FrameUrl"></iframe>
                     }
@@ -104,6 +108,8 @@
                                 srcdoc="@FrameDocument"
                                 sandbox="@FrameDocumentSandbox"
                                 data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
+                                lang="@FrameLanguage"
+                                dir="@FrameDirection"
                                 title="@Title"
                                 @key="FrameDocument"></iframe>
                     }
@@ -130,6 +136,8 @@
     [Parameter] public string Title { get; set; } = "Preview";
     [Parameter] public bool AllowFrameScripts { get; set; } = true;
     [Parameter] public bool SuppressBrowserLinkErrors { get; set; }
+    [Parameter] public string? FrameLanguage { get; set; }
+    [Parameter] public string FrameDirection { get; set; } = "ltr";
 
     private Microsoft.JSInterop.IJSObjectReference? _previewFrameModule;
 

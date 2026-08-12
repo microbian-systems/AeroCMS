@@ -1,5 +1,6 @@
 @using Aero.Cms.Abstractions.Ai.Knowledge
 @using Aero.Cms.Abstractions.Content
+@using Aero.Cms.Abstractions.Content.Localization
 
 <div class="space-y-4">
     <div>
@@ -24,6 +25,32 @@
         </label>
         <p class="ct-help mt-1 ml-7">@L["Drafts can be saved without this field. A value is required before publishing."]</p>
     </div>
+
+    <fieldset class="rounded-md p-3 space-y-3" style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary);">
+        <legend class="px-1 text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Localization"]</legend>
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Value across cultures"]</span>
+            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                    value="@Field.LocalizationMode"
+                    @onchange="SetLocalizationModeAsync"
+                    aria-describedby="field-localization-help">
+                <option value="@ContentFieldLocalizationMode.Shared">@L["Shared — one value for every culture"]</option>
+                <option value="@ContentFieldLocalizationMode.Localized">@L["Localized — each culture has its own value"]</option>
+                <option value="@ContentFieldLocalizationMode.CopyOnFork">@L["Copy on fork — start with a copy, then edit independently"]</option>
+            </select>
+        </label>
+        <p id="field-localization-help" class="ct-help">
+            @LocalizationModeHelp
+        </p>
+        @if (Field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+        {
+            <p class="rounded-md p-3 text-sm" role="status"
+               style="border: 1px solid var(--rz-warning); color: var(--pe-text-primary); background: color-mix(in srgb, var(--rz-warning) 10%, var(--pe-bg-primary));">
+                @L["Shared values belong to the translation group. Changing the value affects every culture variant, so entry editors must use the shared-value workflow when it is available."]
+            </p>
+        }
+    </fieldset>
 
     @if (Field.FieldType is ContentFieldTypes.Text or ContentFieldTypes.RichText)
     {

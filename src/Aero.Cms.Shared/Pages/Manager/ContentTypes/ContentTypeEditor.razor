@@ -1,5 +1,6 @@
 @page "/manager/content-type/editor/{alias?}"
 @using Aero.Cms.Abstractions.Content
+@using Aero.Cms.Abstractions.Content.Localization
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
 @using BlazorMonaco.Editor
@@ -217,6 +218,33 @@
                 </div>
             </div>
 
+            <div class="ct-panel space-y-4" style="background: var(--pe-bg-primary);" aria-labelledby="localization-policy-heading">
+                <div>
+                    <h2 id="localization-policy-heading" class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Localization policy"]</h2>
+                    <p class="ct-help mt-1">@L["Control culture fallback and the review required before an AI-assisted translation can be published."]</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">@L["Missing culture fallback"]</span>
+                        <select class="w-full rounded-md shadow-sm sm:text-sm" disabled aria-describedby="localization-policy-unavailable"
+                                style="background: var(--pe-bg-secondary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                            <option>@L["Unavailable in this manager contract"]</option>
+                        </select>
+                    </label>
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">@L["AI translation review"]</span>
+                        <select class="w-full rounded-md shadow-sm sm:text-sm" disabled aria-describedby="localization-policy-unavailable"
+                                style="background: var(--pe-bg-secondary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                            <option>@L["Unavailable in this manager contract"]</option>
+                        </select>
+                    </label>
+                </div>
+                <p id="localization-policy-unavailable" class="rounded-md p-3 text-sm" role="status"
+                   style="border: 1px solid var(--rz-warning); color: var(--pe-text-primary); background: color-mix(in srgb, var(--rz-warning) 10%, var(--pe-bg-primary));">
+                    @L["The public manager contract does not expose these type-level settings yet. They are shown disabled so an editor cannot mistake an unsaved choice for active policy."]
+                </p>
+            </div>
+
             <div class="ct-panel" style="background: var(--pe-bg-primary);">
                 <div class="flex items-start justify-between gap-6">
                     <div>
@@ -294,6 +322,8 @@
                                             {
                                                 <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@L["Required"]" />
                                             }
+                                            <RadzenBadge BadgeStyle="@LocalizationBadgeStyle(field.LocalizationMode)"
+                                                         Text="@LocalizationModeLabel(field.LocalizationMode)" />
                                         </div>
                                         <p class="text-sm mt-1 ct-muted">@option.Label field · @field.Name</p>
                                     </div>

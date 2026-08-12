@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -90,6 +91,16 @@ public partial class ContentFieldSettingsEditor
         GetBoolSetting(RangeContentFieldSettings.AllowNegative)
             ? int.MinValue
             : 0;
+
+    private string LocalizationModeHelp => Field.LocalizationMode switch
+    {
+        ContentFieldLocalizationMode.Shared =>
+            L["Use for invariant values such as identifiers or source references. One translation-group value is shown in every culture."],
+        ContentFieldLocalizationMode.Localized =>
+            L["Use when every culture must supply its own value. A new translation starts empty."],
+        _ =>
+            L["Use when a new translation should start from the source value but become independent after the fork."]
+    };
 
     private IEnumerable<ContentTypeSummary> AvailableReferenceContentTypes =>
         ContentTypes.Where(contentType =>
@@ -188,6 +199,18 @@ public partial class ContentFieldSettingsEditor
     {
         Field.Required = value;
         await NotifyChangedAsync();
+    }
+
+    private async Task SetLocalizationModeAsync(ChangeEventArgs args)
+    {
+        if (Enum.TryParse<ContentFieldLocalizationMode>(
+                args.Value?.ToString(),
+                ignoreCase: true,
+                out var mode))
+        {
+            Field.LocalizationMode = mode;
+            await NotifyChangedAsync();
+        }
     }
 
     private async Task SetNameAsync(string? value)
