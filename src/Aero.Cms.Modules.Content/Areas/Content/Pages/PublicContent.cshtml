@@ -5,4 +5,18 @@
     ViewBag.Title = Model.Title;
 }
 
+@if (!string.IsNullOrWhiteSpace(Model.CanonicalUrl))
+{
+    <link rel="canonical" href="@Model.CanonicalUrl" />
+}
+@foreach (var link in Model.AlternateLinks)
+{
+    <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+}
+
+@if (!string.Equals(Model.RequestedCulture, Model.RenderedCulture, StringComparison.OrdinalIgnoreCase))
+{
+    <p role="status">This content is displayed in @Model.RenderedCulture because @Model.RequestedCulture is unavailable.</p>
+}
+
 @Html.Raw(Model.RenderedHtml)

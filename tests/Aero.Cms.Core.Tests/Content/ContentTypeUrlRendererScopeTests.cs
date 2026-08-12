@@ -8,6 +8,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Authorization;
 using NSubstitute;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Core.Tests.Content;
 
@@ -148,6 +149,30 @@ public sealed class ContentTypeUrlRendererScopeTests
             Arg.Any<string>(),
             Arg.Any<CancellationToken>());
         await itemRenderer.DidNotReceiveWithAnyArgs().RenderAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task Renderer_uses_parent_then_default_fallback_and_exposes_requested_and_rendered_cultures()
+    {
+        var typeService = Substitute.For<IContentTypeService>();
+        var contentService = Substitute.For<IContentService>();
+        var itemRenderer = Substitute.For<IContentItemRenderer>();
+        typeService.GetByAliasAsync(1, "article", Arg.Any<CancellationToken>()).Returns(Ok(new ContentTypeDefinition
+        {
+            Id = 10, SiteId = 1, Alias = "article", Name = "Article", AllowPublicUrl = true,
+            Localization = new() { CultureFallbackPolicy = ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture }
+        }));
+        contentService.GetBySlugAndTypeAsync(1, "article", "fr-CA", "entry", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentItem, AeroError>>(AeroError.NotFoundError("missing")));
+        contentService.GetBySlugAndTypeAsync(1, "article", "fr", "entry", Arg.Any<CancellationToken>())
+            .Returns(Ok(new ContentItem { Id = 20, SiteId = 1, ContentTypeAlias = "article", Slug = "entry", Culture = "fr", PublicationState = ContentPublicationState.Published }));
+        itemRenderer.RenderAsync(Arg.Any<ContentTypeDefinition>(), Arg.Any<ContentItem>(), Arg.Any<CancellationToken>()).Returns(Ok("<p>bonjour</p>"));
+
+        var result = await new ContentTypeUrlRenderer(typeService, contentService, itemRenderer).RenderAsync(1, "article", "fr-CA", "entry", default, "en-US");
+
+        var ok = (Result<PublicContentRenderResult, AeroError>.Ok)result;
+        await Assert.That(ok.Value.RequestedCulture).IsEqualTo("fr-CA");
+        await Assert.That(ok.Value.RenderedCulture).IsEqualTo("fr");
     }
 
     private static Task<Result<T, AeroError>> Ok<T>(T value) =>

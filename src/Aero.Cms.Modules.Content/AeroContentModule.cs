@@ -87,10 +87,16 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddRazorPages()
             .AddApplicationPart(typeof(ContentModule).Assembly);
         services.Configure<RazorPagesOptions>(options =>
+        {
             options.Conventions.AddAreaPageRoute(
                 "Content",
                 "/PublicContent",
-                "/content/{typeAlias}/{entrySlug}"));
+                "/{culture}/{typeAlias}/{entrySlug}");
+            options.Conventions.AddAreaPageRoute(
+                "Content",
+                "/PublicContent",
+                "/content/{typeAlias}/{entrySlug}");
+        });
 
         // Grain-backed actors — direct injection for thin API controllers
         services.AddSingleton<IAeroContentItemActor>(sp =>

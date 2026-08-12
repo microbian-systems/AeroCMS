@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using System.Globalization;
@@ -29,6 +30,7 @@ public sealed class ContentTypeUrlRenderer(
     /// <param name="culture">The culture name normalized through <see cref="CultureInfo"/>.</param>
     /// <param name="entrySlug">The public item slug.</param>
     /// <param name="ct">The token propagated through lookup and rendering.</param>
+    /// <param name="defaultCulture">The site's default culture used only by an opted-in fallback policy.</param>
     /// <returns>Rendered HTML and cache metadata, or a failure describing lookup, policy, or rendering.</returns>
     /// <exception cref="CultureNotFoundException">Thrown when <paramref name="culture"/> is invalid.</exception>
     /// <remarks>
@@ -40,7 +42,8 @@ public sealed class ContentTypeUrlRenderer(
         string typeAlias,
         string culture,
         string entrySlug,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? defaultCulture = null)
     {
         // 1. Look up the content type definition
         var typeResult = await typeService.GetByAliasAsync(siteId, typeAlias, ct);
@@ -59,6 +62,15 @@ public sealed class ContentTypeUrlRenderer(
             normalizedCulture,
             entrySlug,
             ct);
+        if (itemResult is Result<ContentItem, AeroError>.Failure &&
+            type.Localization.CultureFallbackPolicy == ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture)
+        {
+            foreach (var fallbackCulture in GetFallbackCultures(normalizedCulture, defaultCulture))
+            {
+                itemResult = await contentService.GetBySlugAndTypeAsync(siteId, typeAlias, fallbackCulture, entrySlug, ct);
+                if (itemResult is Result<ContentItem, AeroError>.Ok) break;
+            }
+        }
         if (itemResult is Result<ContentItem, AeroError>.Failure)
             return AeroError.CreateError($"Entry '{entrySlug}' was not found in '{typeAlias}'.");
 
@@ -70,10 +82,22 @@ public sealed class ContentTypeUrlRenderer(
         return htmlResult switch
         {
             Result<string, AeroError>.Ok html => Prelude.Ok<PublicContentRenderResult, AeroError>(
-                new PublicContentRenderResult(html.Value, item.Id, item.Culture)),
+                new PublicContentRenderResult(html.Value, item.Id, item.TranslationGroupId ?? item.Id, normalizedCulture, item.Culture, typeAlias, entrySlug)),
             Result<string, AeroError>.Failure failure => failure.Error,
             _ => AeroError.CreateError("Content rendering failed.")
         };
+    }
+
+    /// <summary>Returns parent then default cultures without duplicating the exact request.</summary>
+    private static IEnumerable<string> GetFallbackCultures(string requestedCulture, string? defaultCulture)
+    {
+        var parent = CultureInfo.GetCultureInfo(requestedCulture).Parent.Name;
+        if (!string.IsNullOrWhiteSpace(parent) && !string.Equals(parent, requestedCulture, StringComparison.OrdinalIgnoreCase)) yield return parent;
+        if (!string.IsNullOrWhiteSpace(defaultCulture))
+        {
+            var normalizedDefault = CultureInfo.GetCultureInfo(defaultCulture).Name;
+            if (!string.Equals(normalizedDefault, requestedCulture, StringComparison.OrdinalIgnoreCase) && !string.Equals(normalizedDefault, parent, StringComparison.OrdinalIgnoreCase)) yield return normalizedDefault;
+        }
     }
 }
 
@@ -82,5 +106,9 @@ public sealed class ContentTypeUrlRenderer(
 /// </summary>
 /// <param name="Html">The renderer-produced HTML, which is not sanitized by this record.</param>
 /// <param name="ItemId">The globally unique item identifier used for cache tagging.</param>
-/// <param name="Culture">The stored item culture used for culture-specific tags.</param>
-public sealed record PublicContentRenderResult(string Html, long ItemId, string Culture);
+/// <param name="TranslationGroupId">The translation group used to enumerate alternate published variants.</param>
+/// <param name="RequestedCulture">The canonical culture requested by the route.</param>
+/// <param name="RenderedCulture">The persisted culture rendered after any allowed fallback.</param>
+/// <param name="TypeAlias">The resolved public content type alias.</param>
+/// <param name="Slug">The resolved public item slug.</param>
+public sealed record PublicContentRenderResult(string Html, long ItemId, long TranslationGroupId, string RequestedCulture, string RenderedCulture, string TypeAlias, string Slug);

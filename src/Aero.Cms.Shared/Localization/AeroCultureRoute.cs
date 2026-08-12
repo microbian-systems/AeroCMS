@@ -21,6 +21,25 @@ public const string CulturePrefixItemKey = "AeroCms.CulturePrefix";
     /// </summary>
 public const string IsFallbackCultureItemKey = "AeroCms.IsFallbackCulture";
 
+    /// <summary>Gets a value indicating whether a path segment is a supported culture alias.</summary>
+    public static bool TryResolveSupportedCultureAlias(string? alias, IEnumerable<string>? supportedCultures, out string culture)
+    {
+        culture = string.Empty;
+        if (string.IsNullOrWhiteSpace(alias)) return false;
+
+        var supported = NormalizeSupportedCultures(supportedCultures, "en-US");
+        var exact = supported.FirstOrDefault(x => string.Equals(x, alias.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (exact is not null) { culture = exact; return true; }
+
+        // A neutral alias is accepted only when exactly one configured specific culture owns it.
+        // This prevents /en from silently selecting between en-US and en-GB.
+        if (alias.IndexOf('-') >= 0) return false;
+        var matches = supported.Where(x => string.Equals(CultureInfo.GetCultureInfo(x).TwoLetterISOLanguageName, alias.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (matches.Length != 1) return false;
+        culture = matches[0];
+        return true;
+    }
+
         /// <summary>
     /// NormalizeCultureOrDefault method.
     /// </summary>
@@ -64,13 +83,7 @@ public static string? GetLeadingSupportedCulture(PathString path, IEnumerable<st
         if (segment is null)
             return null;
 
-        var normalizedSegment = NormalizeCultureOrDefault(segment, fallback: string.Empty);
-        if (string.IsNullOrWhiteSpace(normalizedSegment))
-            return null;
-
-        return supportedCultures.Contains(normalizedSegment, StringComparer.OrdinalIgnoreCase)
-            ? normalizedSegment
-            : null;
+        return TryResolveSupportedCultureAlias(segment, supportedCultures, out var culture) ? culture : null;
     }
 
         /// <summary>
@@ -118,7 +131,7 @@ public static string StripLeadingCulture(string? slug, IEnumerable<string>? supp
     /// </summary>
 public static string BuildCulturePath(string culture, string? slug)
     {
-        var normalizedCulture = NormalizeCultureOrDefault(culture).ToLowerInvariant();
+        var normalizedCulture = NormalizeCultureOrDefault(culture);
         var normalizedSlug = (slug ?? string.Empty).Trim().Trim('/');
 
         return string.IsNullOrWhiteSpace(normalizedSlug)

@@ -55,6 +55,10 @@ public override Task<ProviderCultureResult?> DetermineProviderCultureResult(Http
             return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(selectedCulture, selectedCulture));
         }
 
+        // A culture-looking leading segment on a public request is intentionally not allowed to
+        // fall back to the default culture. The public endpoint will return 404 fail-closed.
+        // Manager/API paths remain available to their own endpoint routing.
+
         if (site is not null)
         {
             SetCultureItems(httpContext, selectedCulture, pathCulture);
