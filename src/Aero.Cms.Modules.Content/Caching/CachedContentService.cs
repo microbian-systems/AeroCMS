@@ -174,6 +174,7 @@ internal sealed class CachedContentService(
                 ContentCacheKeys.ContentItemsTag(item.SiteId),
                 ContentCacheKeys.ContentItemsByTypeTag(item.SiteId, item.ContentTypeAlias),
                 ContentCacheKeys.ContentItemTag(item.SiteId, item.Id),
+                ContentCacheKeys.ContentTranslationGroupTag(item.SiteId, item.TranslationGroupId ?? item.Id),
                 ContentCacheKeys.ContentItemSlugTag(
                     item.SiteId,
                     item.ContentTypeAlias,
@@ -220,5 +221,5 @@ internal sealed class CachedContentService(
     /// Captures the fields needed to invalidate every cache identity for an item.
     /// </summary>
     private static ContentItemCacheIdentity ToIdentity(ContentItem item) =>
-        new(item.SiteId, item.Id, item.ContentTypeAlias, item.Culture, item.Slug);
+        new(item.SiteId, item.Id, item.ContentTypeAlias, item.Culture, item.Slug, item.TranslationGroupId ?? item.Id);
 }

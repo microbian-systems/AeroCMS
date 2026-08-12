@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aero.Core.Railway;
+using Aero.Core;
 
 namespace Aero.Cms.Abstractions.Content.Localization;
 
@@ -258,6 +259,15 @@ public sealed record ApplyContentAiTranslationCommand(
     string ProviderId,
     string Model);
 
+/// <summary>Records a human review decision against the exact current source and target revisions.</summary>
+public sealed record ReviewContentTranslationCommand(
+    long SourceItemId,
+    int SourceVersionNumber,
+    long TargetItemId,
+    int TargetVersionNumber,
+    bool Approved,
+    string? Notes = null);
+
 /// <summary>Reports the persisted item and group affected by a localization operation.</summary>
 public sealed record ContentLocalizationOperationResult(
     long ContentItemId,
@@ -269,14 +279,20 @@ public sealed record ContentLocalizationOperationResult(
 public interface IContentLocalizationHandler
 {
     /// <summary>Creates or replaces a culture fork according to the supplied context.</summary>
-    Task<Result<ContentLocalizationOperationResult>> ForkAsync(
+    Task<Result<ContentLocalizationOperationResult, AeroError>> ForkAsync(
         ContentLocalizationContext context,
         ContentCultureForkCommand command,
         CancellationToken cancellationToken = default);
 
     /// <summary>Applies AI-translated values and establishes the required review state.</summary>
-    Task<Result<ContentLocalizationOperationResult>> ApplyAiTranslationAsync(
+    Task<Result<ContentLocalizationOperationResult, AeroError>> ApplyAiTranslationAsync(
         ContentLocalizationContext context,
         ApplyContentAiTranslationCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Records a revision-bound human review for an AI-assisted variant.</summary>
+    Task<Result<ContentLocalizationOperationResult, AeroError>> ReviewAsync(
+        ContentLocalizationContext context,
+        ReviewContentTranslationCommand command,
         CancellationToken cancellationToken = default);
 }

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
@@ -78,6 +79,12 @@ public static class ContentItemsApi
         group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture)
             .RequireAuthorization("site:create")
             .WithName("ForkContentItemToCulture");
+        group.MapPost("/{alias}/{id:long}/translations/ai-apply", ApplyAiTranslation)
+            .RequireAuthorization("site:update")
+            .WithName("ApplyContentItemAiTranslation");
+        group.MapPost("/{alias}/{id:long}/translations/review", ReviewTranslation)
+            .RequireAuthorization("site:update")
+            .WithName("ReviewContentItemTranslation");
     }
 
     /// <summary>
@@ -432,7 +439,7 @@ public static class ContentItemsApi
         long id,
         [FromBody] ForkContentItemCultureRequest request,
         [FromServices] IAeroContentItemActor contentActor,
-        [FromServices] IContentQueryService queryService,
+        [FromServices] IContentLocalizationHandler localization,
         [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -448,50 +455,14 @@ public static class ContentItemsApi
             if (!IsCurrentSiteItem(source, siteId, alias, id))
                 return TypedResults.NotFound();
 
-            var culture = NormalizeCulture(request.Culture);
-            if (string.IsNullOrWhiteSpace(culture))
-            {
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Missing culture",
-                    Detail = "Select a target culture for the translation.",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            var groupId = source.data.TranslationGroupId ?? source.data.Id;
-            var variants = await queryService.ListCultureVariantsAsync(siteId, alias, groupId, ct);
-            if (variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok variantsOk &&
-                variantsOk.Value.Any(item => string.Equals(NormalizeCulture(item.Culture), culture, StringComparison.OrdinalIgnoreCase)))
-            {
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Translation already exists",
-                    Detail = $"A '{culture}' translation already exists for this entry.",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            var fork = new ContentItemViewModel
-            {
-                Id = 0,
-                SiteId = siteId,
-                ContentTypeAlias = alias,
-                Title = source.data.Title,
-                Slug = request.Slug.Trim().Trim('/'),
-                FieldsJson = source.data.FieldsJson,
-                TranslationGroupId = groupId,
-                Culture = culture,
-                SourceItemId = source.data.Id,
-                ParentId = null,
-                SortOrder = source.data.SortOrder,
-                PublicationState = ContentPublicationState.Draft
-            };
-
-            var result = await contentActor.SaveDraftAsync(fork, siteId, ct);
-            return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure(logger, "Failed to create content item translation", result.error.Message, siteId, alias, id)
-                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
+            var result = await localization.ForkAsync(CreateLocalizationContext(siteId),
+                new ContentCultureForkCommand(id, request.Culture, request.Slug), ct);
+            if (result is not Result<ContentLocalizationOperationResult, AeroError>.Ok ok)
+                return ContentMutationFailure(logger, "Failed to create content item translation", "The variant could not be created.", siteId, alias, id);
+            var created = await contentActor.GetByIdAsync(ok.Value.ContentItemId, siteId, ct);
+            return !IsCurrentSiteItem(created, siteId, alias, ok.Value.ContentItemId)
+                ? TypedResults.Problem("The created content translation could not be loaded.")
+                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{created.data.Id}", MapToDetail(created.data));
         }
         catch (Exception ex)
         {
@@ -499,6 +470,42 @@ public static class ContentItemsApi
             return TypedResults.Problem(ex.Message);
         }
     }
+
+    private static async Task<IResult> ApplyAiTranslation(
+        string alias, long id,
+        [FromBody] ApplyContentItemAiTranslationRequest request,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (siteContext.SiteId <= 0) return MissingSite();
+        var result = await localization.ApplyAiTranslationAsync(CreateLocalizationContext(siteContext.SiteId), new(
+            id, request.SourceVersionNumber, request.TargetItemId, request.ExpectedTargetVersionNumber,
+            request.SourceCulture, request.TargetCulture, request.TranslatedFields,
+            request.ProviderId, request.Model), ct);
+        return result is Result<ContentLocalizationOperationResult, AeroError>.Ok ok
+            ? TypedResults.Ok(ok.Value)
+            : TypedResults.BadRequest(new ProblemDetails { Title = "AI translation could not be applied." });
+    }
+
+    private static async Task<IResult> ReviewTranslation(
+        string alias, long id,
+        [FromBody] ReviewContentItemTranslationRequest request,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (siteContext.SiteId <= 0) return MissingSite();
+        var result = await localization.ReviewAsync(CreateLocalizationContext(siteContext.SiteId), new(
+            id, request.SourceVersionNumber, request.TargetItemId, request.TargetVersionNumber,
+            request.Approved, request.Notes), ct);
+        return result is Result<ContentLocalizationOperationResult, AeroError>.Ok ok
+            ? TypedResults.Ok(ok.Value)
+            : TypedResults.BadRequest(new ProblemDetails { Title = "Translation review could not be recorded." });
+    }
+
+    private static ContentLocalizationContext CreateLocalizationContext(long siteId) =>
+        new(siteId, CultureInfo.CurrentUICulture.Name, [], ContentCultureFallbackPolicy.ExactOnly);
 
     /// <summary>
     /// Deserializes a view model's field JSON and projects the detailed HTTP contract.

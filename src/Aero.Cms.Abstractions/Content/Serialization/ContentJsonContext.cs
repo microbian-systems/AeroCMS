@@ -23,6 +23,7 @@ namespace Aero.Cms.Abstractions.Content.Serialization;
 [JsonSerializable(typeof(ContentLocalizationContext))]
 [JsonSerializable(typeof(ContentCultureForkCommand))]
 [JsonSerializable(typeof(ApplyContentAiTranslationCommand))]
+[JsonSerializable(typeof(ReviewContentTranslationCommand))]
 [JsonSerializable(typeof(ContentLocalizationOperationResult))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]

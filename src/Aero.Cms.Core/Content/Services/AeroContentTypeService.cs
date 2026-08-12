@@ -133,7 +133,8 @@ public sealed class AeroContentTypeService(
             IncludeInPublicAi = definition.IncludeInPublicAi,
             Fields = definition.Fields,
             ScribanTemplate = definition.ScribanTemplate,
-            ScheduleConfig = definition.ScheduleConfig
+            ScheduleConfig = definition.ScheduleConfig,
+            Localization = definition.Localization
         };
 
         session.Store(doc);
@@ -177,7 +178,8 @@ public sealed class AeroContentTypeService(
         Category = doc.Category, Icon = doc.Icon, Cardinality = doc.Cardinality, Structure = doc.Structure,
         HierarchyRules = doc.HierarchyRules, AllowPublicUrl = doc.AllowPublicUrl,
         IncludeInSearch = doc.IncludeInSearch, IncludeInPublicAi = doc.IncludeInPublicAi, Fields = doc.Fields,
-        ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig
+        ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig,
+        Localization = doc.Localization
     };
 
     private Result<NoneType, AeroError> PrepareTemplate(ContentTypeDefinition definition)

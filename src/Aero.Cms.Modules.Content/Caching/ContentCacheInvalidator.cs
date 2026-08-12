@@ -72,6 +72,7 @@ internal sealed class ContentCacheInvalidator(
                 ContentCacheKeys.ContentItemsTag(identity.SiteId),
                 ContentCacheKeys.ContentItemsByTypeTag(identity.SiteId, identity.TypeAlias),
                 ContentCacheKeys.ContentItemTag(identity.SiteId, identity.ItemId),
+                ContentCacheKeys.ContentTranslationGroupTag(identity.SiteId, identity.TranslationGroupId),
                 ContentCacheKeys.ContentItemSlugTag(
                     identity.SiteId,
                     identity.TypeAlias,
@@ -138,4 +139,5 @@ internal sealed record ContentItemCacheIdentity(
     long ItemId,
     string TypeAlias,
     string Culture,
-    string Slug);
+    string Slug,
+    long TranslationGroupId);

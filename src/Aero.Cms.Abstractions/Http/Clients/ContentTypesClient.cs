@@ -541,6 +541,25 @@ public record CreateContentItemRequest(
 /// </summary>
 public record ForkContentItemCultureRequest(string Culture, string Slug);
 
+/// <summary>Applies AI-translated fields to an existing culture variant with revision fencing.</summary>
+public sealed record ApplyContentItemAiTranslationRequest(
+    long TargetItemId,
+    int SourceVersionNumber,
+    int ExpectedTargetVersionNumber,
+    string SourceCulture,
+    string TargetCulture,
+    IReadOnlyDictionary<string, JsonElement> TranslatedFields,
+    string ProviderId,
+    string Model);
+
+/// <summary>Records a human translation review against current source and target versions.</summary>
+public sealed record ReviewContentItemTranslationRequest(
+    long TargetItemId,
+    int SourceVersionNumber,
+    int TargetVersionNumber,
+    bool Approved,
+    string? Notes = null);
+
 /// <summary>One immutable manager-facing node in a bounded content hierarchy.</summary>
 public sealed record ContentHierarchyTreeNode(
     long Id,

@@ -15,7 +15,7 @@ namespace Aero.Cms.Core.Content.Services;
 /// Checks whether a site's slug is already assigned to a different content item.
 /// </summary>
 /// <remarks>
-/// The check is site-wide and does not include content type or culture. It is an application-time
+/// The check is scoped to site, content type, and culture. It is an application-time
 /// lookup and does not guarantee race-free uniqueness. Lookup failures represented as
 /// <see cref="AeroError"/> values are treated as no conflict.
 /// </remarks>
@@ -27,7 +27,8 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
         if (string.IsNullOrWhiteSpace(item.Slug))
             return [];
 
-        var existingResult = await contentService.GetBySlugAsync(item.SiteId, item.Slug, ct);
+        var existingResult = await contentService.GetBySlugAndTypeAsync(
+            item.SiteId, item.ContentTypeAlias, item.Culture, item.Slug, ct);
         if (existingResult is Result<ContentItem, AeroError>.Ok ok && ok.Value.Id != item.Id)
             return [new ValidationFailure(nameof(item.Slug), $"Slug '{item.Slug}' is already in use.")];
 

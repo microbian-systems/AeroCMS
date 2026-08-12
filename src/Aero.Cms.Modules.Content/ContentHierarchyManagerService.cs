@@ -349,7 +349,8 @@ internal sealed class ContentHierarchyManagerService(
                 item.Id,
                 item.ContentTypeAlias,
                 item.Culture,
-                item.Slug);
+                item.Slug,
+                item.TranslationGroupId ?? item.Id);
             await cacheInvalidator.InvalidateItemAsync(identity, identity);
         }
     }

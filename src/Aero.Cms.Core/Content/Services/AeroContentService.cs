@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -75,12 +76,19 @@ public sealed class AeroContentService(
         if (type is null)
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
+        item.Culture = NormalizeCulture(item.Culture);
+
         if (item.SourceItemId is { } sourceId && !await BelongsToSiteAsync(item.SiteId, sourceId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
-        if (item.TranslationGroupId is { } groupId && groupId != item.Id &&
-            !await TranslationGroupBelongsToSiteAsync(item.SiteId, groupId, ct))
-            return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+        ContentTranslationGroupDocument? group = null;
+        if (item.TranslationGroupId is { } groupId)
+        {
+            group = await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct);
+            if (group is null || group.SiteId != item.SiteId ||
+                !string.Equals(group.ContentTypeAlias, item.ContentTypeAlias, StringComparison.OrdinalIgnoreCase))
+                return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+        }
 
         if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
@@ -109,7 +117,38 @@ public sealed class AeroContentService(
 
         if (item.Id == 0)
             item.Id = Snowflake.NewId();
-        item.TranslationGroupId ??= item.Id;
+
+        group ??= new ContentTranslationGroupDocument
+        {
+            Id = item.TranslationGroupId ?? item.Id,
+            SiteId = item.SiteId,
+            ContentTypeAlias = item.ContentTypeAlias,
+            SourceItemId = item.SourceItemId ?? item.Id,
+            SourceCulture = item.Culture
+        };
+        item.TranslationGroupId = group.Id;
+
+        // A shared field is authoritative only in the group document. Split it before
+        // persistence so callers cannot accidentally leave a second durable copy on an item.
+        var sharedNames = type.Fields
+            .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+            .Select(field => field.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var changedShared = false;
+        foreach (var name in sharedNames)
+        {
+            if (item.Fields.Remove(name, out var value))
+            {
+                group.SharedFields[name] = value;
+                changedShared = true;
+            }
+        }
+        if (changedShared)
+        {
+            group.Revision++;
+            group.ModifiedOn = DateTimeOffset.UtcNow;
+        }
+        session.Store(group);
         session.Store(item);
         if (searchProjectionService is not null)
         {
@@ -143,6 +182,15 @@ public sealed class AeroContentService(
                     "This content item has children. Move or delete its children before deleting it."));
         }
 
+        var group = item.TranslationGroupId is { } groupId
+            ? await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct)
+            : null;
+        if (group?.SourceItemId == id)
+        {
+            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                "The source item of a translation group cannot be deleted."));
+        }
+
         session.Delete(item);
         if (searchProjectionService is not null)
         {
@@ -160,11 +208,6 @@ public sealed class AeroContentService(
     private async Task<bool> BelongsToSiteAsync(long siteId, long id, CancellationToken ct)
         => await session.LoadAsync<ContentItem>(id, ct) is { } item && item.SiteId == siteId;
 
-    private async Task<bool> TranslationGroupBelongsToSiteAsync(long siteId, long groupId, CancellationToken ct)
-        => await session.Query<ContentItem>()
-            .FirstOrDefaultAsync(x => x.SiteId == siteId && (x.Id == groupId || x.TranslationGroupId == groupId), ct)
-            is not null;
-
     private static ContentTypeDefinition MapDefinition(ContentTypeDocument document)
         => new()
         {
@@ -174,6 +217,7 @@ public sealed class AeroContentService(
             Name = document.Name,
             IncludeInSearch = document.IncludeInSearch,
             IncludeInPublicAi = document.IncludeInPublicAi,
+            Localization = document.Localization,
             Fields = document.Fields
         };
 }

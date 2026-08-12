@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Jobs;
@@ -73,6 +74,7 @@ public static class ContentServiceExtensions
         services.AddScoped<ContentHierarchyValidator>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
+        services.AddScoped<IContentLocalizationHandler, ContentLocalizationHandler>();
         services.AddScoped<ContentIndexService>();
         services.AddScoped<ContentSearchProjectionService>();
         services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();

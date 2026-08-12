@@ -157,7 +157,15 @@ public void Configure(StoreOptions opts)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias)
-            .Index(x => x.ParentId);
+            .Index(x => x.ParentId)
+            .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.TranslationGroupId, x.Culture })
+            .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.Culture, x.Slug });
+
+        opts.Schema.For<ContentTranslationGroupDocument>()
+            .TableName("content_translation_groups")
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.Id });
 
         opts.Schema.For<ContentItemVersion>()
             .TableName(Schemas.Tables.ContentItemVersions)
