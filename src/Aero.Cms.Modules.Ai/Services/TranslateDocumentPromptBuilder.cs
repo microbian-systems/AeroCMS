@@ -30,7 +30,8 @@ public string Build(TranslateDocumentRequest request)
                 Hint = field.Hint.ToString(),
                 IsMarkdown = field.Hint.IsMarkdown(),
                 field.SourceText
-            })
+            }),
+            Context = request.Context?.Select(item => new { item.Key, item.Value })
         }, JsonOptions);
 
         return $$"""

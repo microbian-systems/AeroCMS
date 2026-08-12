@@ -18,6 +18,7 @@ using Microsoft.Extensions.Hosting;
 using Aero.Cms.Modules.RateLimiting;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Ai.Memory;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Core.Content.Search;
 using AeroDB.Sable;
 
@@ -135,6 +136,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IAiChatClientFactory, TornadoAiChatClientFactory>();
         services.AddScoped<IAiContentEnhancementService, AiContentEnhancementService>();
         services.AddScoped<IAiContentTranslationService, AiContentTranslationService>();
+        services.AddScoped<IContentAiTranslationGenerationService, SchemaAwareContentAiTranslationGenerationService>();
+        services.AddSingleton<IContentTranslationFieldHandler, TextContentTranslationFieldHandler>();
+        services.AddSingleton<IContentTranslationFieldHandler, RichTextContentTranslationFieldHandler>();
+        services.TryAddScoped<IContentTranslationSiteAuthorizer, DenyContentTranslationSiteAuthorizer>();
         services.AddScoped<IEnhanceContentPromptBuilder, EnhanceContentPromptBuilder>();
         services.AddScoped<ITranslateDocumentPromptBuilder, TranslateDocumentPromptBuilder>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();

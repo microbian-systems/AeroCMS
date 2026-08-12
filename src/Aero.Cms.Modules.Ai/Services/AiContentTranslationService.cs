@@ -72,7 +72,6 @@ public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
         if (settingsResult is Result<AiRuntimeSettings>.Failure settingsFailure)
         {
             log.LogError("AI settings error while translating document: {Error}", settingsFailure.Error);
-            log.LogDebug("Translation request: {Request}", request.ToJson());
             return settingsFailure.Error;
         }
 

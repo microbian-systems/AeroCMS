@@ -1,6 +1,7 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Ai;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 using System.Net;
@@ -50,6 +51,10 @@ public interface IAiHttpClient
     /// </summary>
     Task<Result<TranslateDocumentResponse, AeroError>> TranslateContentAsync(
         TranslateDocumentRequest request,
+        CancellationToken ct = default);
+
+    Task<Result<GenerateContentAiTranslationResponse, AeroError>> GenerateContentTranslationAsync(
+        GenerateContentAiTranslationRequest request,
         CancellationToken ct = default);
 }
 
@@ -155,6 +160,12 @@ public sealed class AiHttpClient(HttpClient httpClient, ILogger<AiHttpClient> lo
     {
         return PostAsync<TranslateDocumentRequest, TranslateDocumentResponse>("content/translate", request, ct);
     }
+
+    /// <inheritdoc />
+    public Task<Result<GenerateContentAiTranslationResponse, AeroError>> GenerateContentTranslationAsync(
+        GenerateContentAiTranslationRequest request,
+        CancellationToken ct = default)
+        => PostAsync<GenerateContentAiTranslationRequest, GenerateContentAiTranslationResponse>("content/localization/generate", request, ct);
 
     private static bool ShouldUseEnhancementFallback(HttpStatusCode statusCode)
         => statusCode is HttpStatusCode.NotFound

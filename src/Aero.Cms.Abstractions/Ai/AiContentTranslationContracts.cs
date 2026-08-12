@@ -57,7 +57,11 @@ public sealed record TranslateDocumentRequest(
     IReadOnlyList<TranslateDocumentField> Fields,
     string SourceCulture,
     string TargetCulture,
-    string? ProviderId = null);
+    string? ProviderId = null,
+    IReadOnlyList<ContentTranslationPromptContext>? Context = null);
+
+/// <summary>A bounded, non-content context entry supplied by a consuming host to improve translation terminology.</summary>
+public sealed record ContentTranslationPromptContext(string Key, string Value);
 
 /// <summary>
 /// Represents a record for TranslateDocumentResponse.
