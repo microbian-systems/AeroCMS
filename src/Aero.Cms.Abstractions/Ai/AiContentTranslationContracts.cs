@@ -69,5 +69,6 @@ public sealed record ContentTranslationPromptContext(string Key, string Value);
 public sealed record TranslateDocumentResponse(
     IReadOnlyDictionary<string, string> TranslatedFields,
     IReadOnlyList<string> Warnings,
-    string Provider,
+    string ProviderId,
+    string ProviderLabel,
     string Model);

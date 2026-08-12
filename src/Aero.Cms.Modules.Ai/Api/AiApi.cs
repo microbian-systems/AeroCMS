@@ -173,7 +173,7 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
     {
         logger.LogInformation(
             "AI translation completed. Provider={Provider} Model={Model} ElapsedMs={ElapsedMs} FieldCount={FieldCount}",
-            response.Provider,
+            response.ProviderId,
             response.Model,
             elapsed.TotalMilliseconds,
             response.TranslatedFields.Count);

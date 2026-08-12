@@ -159,6 +159,7 @@ public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
             return new TranslateDocumentResponse(
                 translated,
                 warnings,
+                settings.ProviderId,
                 settings.DisplayName,
                 settings.Model ?? string.Empty);
         }

@@ -140,6 +140,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddSingleton<IContentTranslationFieldHandler, TextContentTranslationFieldHandler>();
         services.AddSingleton<IContentTranslationFieldHandler, RichTextContentTranslationFieldHandler>();
         services.TryAddScoped<IContentTranslationSiteAuthorizer, DenyContentTranslationSiteAuthorizer>();
+        services.TryAddScoped<IContentAiTranslationSnapshotResolver, DenyContentAiTranslationSnapshotResolver>();
         services.AddScoped<IEnhanceContentPromptBuilder, EnhanceContentPromptBuilder>();
         services.AddScoped<ITranslateDocumentPromptBuilder, TranslateDocumentPromptBuilder>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();

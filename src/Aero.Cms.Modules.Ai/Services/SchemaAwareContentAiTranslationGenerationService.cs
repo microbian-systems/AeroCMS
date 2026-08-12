@@ -15,11 +15,19 @@ public sealed class DenyContentTranslationSiteAuthorizer : IContentTranslationSi
         => Task.FromResult<Result<NoneType, AeroError>>(AeroError.InvalidRequestError("No site authorization policy is registered for AI translation."));
 }
 
+/// <summary>Fails closed until the persistence lane supplies a site-scoped snapshot resolver.</summary>
+public sealed class DenyContentAiTranslationSnapshotResolver : IContentAiTranslationSnapshotResolver
+{
+    public Task<Result<ContentAiTranslationGenerationSnapshot>> ResolveAsync(long siteId, long sourceItemId, long targetItemId, CancellationToken cancellationToken = default)
+        => Task.FromResult<Result<ContentAiTranslationGenerationSnapshot>>(AeroError.InvalidRequestError("No trusted content translation snapshot resolver is registered."));
+}
+
 /// <summary>Whitelists localized textual fields and produces a non-persisting translation application command.</summary>
 public sealed class SchemaAwareContentAiTranslationGenerationService(
     IAiContentTranslationService translationService,
     IEnumerable<IContentTranslationContextContributor> contextContributors,
-    IEnumerable<IContentTranslationFieldHandler> fieldHandlers)
+    IEnumerable<IContentTranslationFieldHandler> fieldHandlers,
+    IContentAiTranslationSnapshotResolver snapshotResolver)
     : IContentAiTranslationGenerationService
 {
     private const int MaxFields = 40;
@@ -30,16 +38,22 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         GenerateContentAiTranslationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var cultures = CanonicalCultures(request.Localization);
-        if (cultures is null || !cultures.Contains(request.SourceCulture) || !cultures.Contains(request.TargetCulture)
-            || string.Equals(request.SourceCulture, request.TargetCulture, StringComparison.OrdinalIgnoreCase))
+        var snapshotResult = await snapshotResolver.ResolveAsync(request.SiteId, request.SourceItemId, request.TargetItemId, cancellationToken);
+        if (snapshotResult is Result<ContentAiTranslationGenerationSnapshot>.Failure snapshotFailure)
+        {
+            return snapshotFailure.Error;
+        }
+        var snapshot = ((Result<ContentAiTranslationGenerationSnapshot>.Ok)snapshotResult).Value;
+        var cultures = CanonicalCultures(snapshot.Localization);
+        if (cultures is null || !cultures.Contains(snapshot.Source.Culture) || !cultures.Contains(request.TargetCulture)
+            || string.Equals(snapshot.Source.Culture, request.TargetCulture, StringComparison.OrdinalIgnoreCase))
         {
             return AeroError.ValidationError(["Source and target cultures must be distinct canonical supported cultures."]);
         }
 
-        if (request.SiteId <= 0 || request.ContentType.SiteId != request.SiteId || request.Localization.SiteId != request.SiteId
-            || request.Source.ContentItemId <= 0 || request.Source.VersionNumber <= 0
-            || request.Target.ContentItemId <= 0 || request.Target.ExpectedVersionNumber <= 0)
+        if (request.SiteId <= 0 || snapshot.ContentType.SiteId != request.SiteId || snapshot.Localization.SiteId != request.SiteId
+            || snapshot.Source.ContentItemId != request.SourceItemId || snapshot.Source.VersionNumber != request.SourceVersionNumber
+            || snapshot.Target.ContentItemId != request.TargetItemId || snapshot.Target.VersionNumber != request.ExpectedTargetVersionNumber)
         {
             return AeroError.ValidationError(["Site, item, and version metadata must be positive and site-scoped."]);
         }
@@ -48,9 +62,9 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         var fields = new List<TranslateDocumentField>();
         var handlers = fieldHandlers.ToDictionary(handler => handler.FieldType, StringComparer.OrdinalIgnoreCase);
         var selectedHandlers = new Dictionary<string, IContentTranslationFieldHandler>(StringComparer.OrdinalIgnoreCase);
-        foreach (var field in request.ContentType.Fields)
+        foreach (var field in snapshot.ContentType.Fields)
         {
-            if (field.LocalizationMode != ContentFieldLocalizationMode.Localized || !request.Source.Fields.TryGetValue(field.Name, out var value))
+            if (field.LocalizationMode != ContentFieldLocalizationMode.Localized || !snapshot.Source.Fields.TryGetValue(field.Name, out var value))
             {
                 continue;
             }
@@ -62,7 +76,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
             }
             else
             {
-                warnings.Add($"Localized field '{field.Name}' of type '{field.FieldType}' is unsupported and was not sent to AI.");
+                warnings.Add($"Localized field '{field.Name}' of type '{field.FieldType}' is unsupported or non-textual and was not sent to AI.");
             }
         }
 
@@ -79,7 +93,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         var context = new List<ContentTranslationPromptContext>();
         foreach (var contributor in contextContributors)
         {
-            var contribution = await contributor.ContributeAsync(request.SiteId, request.ContentType.Alias, request.SourceCulture, request.TargetCulture, cancellationToken);
+            var contribution = await contributor.ContributeAsync(request.SiteId, snapshot.ContentType.Alias, snapshot.Source.Culture, request.TargetCulture, cancellationToken);
             if (contribution is Result<IReadOnlyList<ContentTranslationContextContribution>>.Failure failure)
             {
                 return failure.Error;
@@ -93,7 +107,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
             context.AddRange(items.Select(item => new ContentTranslationPromptContext(item.Key, item.Value)));
         }
 
-        var translated = await translationService.TranslateAsync(new TranslateDocumentRequest(fields, request.SourceCulture, request.TargetCulture, request.ProviderId, context), cancellationToken);
+        var translated = await translationService.TranslateAsync(new TranslateDocumentRequest(fields, snapshot.Source.Culture, request.TargetCulture, request.ProviderId, context), cancellationToken);
         if (translated is Result<TranslateDocumentResponse>.Failure providerFailure)
         {
             return providerFailure.Error;
@@ -113,9 +127,9 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         }
 
         return new GenerateContentAiTranslationResponse(
-            new ApplyContentAiTranslationCommand(request.Source.ContentItemId, request.Source.VersionNumber,
-                request.Target.ContentItemId, request.Target.ExpectedVersionNumber, request.SourceCulture,
-                request.TargetCulture, output, providerResponse.Provider, providerResponse.Model), warnings);
+            new ApplyContentAiTranslationCommand(snapshot.Source.ContentItemId, snapshot.Source.VersionNumber,
+                snapshot.Target.ContentItemId, snapshot.Target.VersionNumber, snapshot.Source.Culture,
+                request.TargetCulture, output, providerResponse.ProviderId, providerResponse.Model), warnings);
     }
 
     private static HashSet<string>? CanonicalCultures(ContentLocalizationContext context)
@@ -129,8 +143,31 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
     }
 
     internal static bool PreservesMarkup(string source, string translated)
-        => Tags(source).SequenceEqual(Tags(translated), StringComparer.OrdinalIgnoreCase);
+    {
+        if (!IsSafeMarkup(source) || !IsSafeMarkup(translated)) return false;
+        return Tags(source).SequenceEqual(Tags(translated), StringComparer.Ordinal);
+    }
+
+    private static bool IsSafeMarkup(string value)
+    {
+        if (value.Contains("<script", StringComparison.OrdinalIgnoreCase)
+            || System.Text.RegularExpressions.Regex.IsMatch(value, "\\son[a-z]+\\s*=", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            || System.Text.RegularExpressions.Regex.IsMatch(value, "(?:href|src)\\s*=\\s*['\"]?\\s*(?:javascript|data|vbscript):", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            || System.Text.RegularExpressions.Regex.IsMatch(value, "\\[[^]]*\\]\\(\\s*(?:javascript|data|vbscript):", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
+        var stack = new Stack<string>();
+        foreach (var tag in Tags(value))
+        {
+            if (tag.StartsWith("</", StringComparison.Ordinal))
+            {
+                if (stack.Count == 0 || !string.Equals(stack.Pop(), tag[2..^1], StringComparison.OrdinalIgnoreCase)) return false;
+            }
+            else if (!tag.EndsWith("/>", StringComparison.Ordinal) && !IsVoidTag(tag)) stack.Push(TagName(tag));
+        }
+        return stack.Count == 0;
+    }
 
     private static IEnumerable<string> Tags(string value) => System.Text.RegularExpressions.Regex.Matches(value, "<\\/?[a-zA-Z][^>]*>")
-        .Select(match => System.Text.RegularExpressions.Regex.Replace(match.Value, "\\s+[^>]*", string.Empty));
+        .Select(match => System.Text.RegularExpressions.Regex.Replace(match.Value, "\\s+", " ").Trim());
+    private static string TagName(string tag) => tag.Trim('<', '>', '/', ' ').Split(' ', 2)[0];
+    private static bool IsVoidTag(string tag) => TagName(tag).ToLowerInvariant() is "br" or "hr" or "img" or "meta" or "link" or "input";
 }

@@ -17,8 +17,13 @@ public sealed class TextContentTranslationFieldHandler : IContentTranslationFiel
     public string FieldType => ContentFieldTypes.Text;
     public bool TryCreate(ContentFieldDefinition definition, JsonElement source, out TranslateDocumentField field)
     {
+        if (source.ValueKind != JsonValueKind.String)
+        {
+            field = default!;
+            return false;
+        }
         field = new(definition.Name, ContentFieldHint.BlockText, source.GetString() ?? string.Empty);
-        return source.ValueKind == JsonValueKind.String;
+        return true;
     }
     public bool IsSafeResult(string source, string translated) => true;
 }
@@ -28,8 +33,13 @@ public sealed class RichTextContentTranslationFieldHandler : IContentTranslation
     public string FieldType => ContentFieldTypes.RichText;
     public bool TryCreate(ContentFieldDefinition definition, JsonElement source, out TranslateDocumentField field)
     {
+        if (source.ValueKind != JsonValueKind.String)
+        {
+            field = default!;
+            return false;
+        }
         field = new(definition.Name, ContentFieldHint.MarkdownContent, source.GetString() ?? string.Empty);
-        return source.ValueKind == JsonValueKind.String;
+        return true;
     }
     public bool IsSafeResult(string source, string translated) => SchemaAwareContentAiTranslationGenerationService.PreservesMarkup(source, translated);
 }
