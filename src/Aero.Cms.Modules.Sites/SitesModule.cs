@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Sites;
@@ -79,6 +80,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ISiteLookupService, SiteLookupService>();
         services.AddScoped<IPublicSiteRouteResolver, PublicSiteRouteResolver>();
         services.AddScoped<ISelectedSiteScopeResolver, SelectedSiteScopeResolver>();
+        services.AddScoped<IContentLocalizationContextResolver, ContentLocalizationContextResolver>();
+        services.Replace(ServiceDescriptor.Scoped<IContentTranslationSiteAuthorizer, SelectedSiteContentTranslationAuthorizer>());
+        services.Replace(ServiceDescriptor.Scoped<IContentAiTranslationSnapshotResolver, ContentAiTranslationSnapshotResolver>());
         services.AddScoped<IUserSiteService, UserSiteService>();
         services.AddScoped<ISiteStyleProfileResolver, SiteStyleProfileResolver>();
         services.AddScoped<ISiteStyleProfileService, SiteStyleProfileService>();
