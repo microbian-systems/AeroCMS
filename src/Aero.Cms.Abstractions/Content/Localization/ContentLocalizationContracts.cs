@@ -247,7 +247,8 @@ public sealed record ContentCultureForkCommand(
     string TargetSlug,
     bool OverwriteExisting = false,
     long? ExpectedGroupStorageVersion = null,
-    long? ExpectedTargetStorageVersion = null);
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedSourceStorageVersion = null);
 
 /// <summary>Applies bounded AI-translated field values to a target culture variant.</summary>
 public sealed record ApplyContentAiTranslationCommand(
@@ -291,7 +292,8 @@ public sealed record ContentLocalizationOperationResult(
     ContentTranslationReviewStatus ReviewStatus,
     long ContentItemStorageVersion,
     long TranslationGroupStorageVersion,
-    int TranslationGroupRevision);
+    int TranslationGroupRevision,
+    long SourceItemStorageVersion = 0);
 
 /// <summary>Executes site-scoped localization operations without exposing storage implementation details.</summary>
 public interface IContentLocalizationHandler

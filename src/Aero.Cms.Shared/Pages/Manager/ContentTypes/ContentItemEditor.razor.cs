@@ -858,15 +858,16 @@ protected override async Task OnInitializedAsync()
         _isSaving = true;
         try
         {
-            if (_translationGroupStorageVersion is not > 0)
+            if (_storageVersion <= 0)
             {
-                Notify(NotificationSeverity.Warning, "Reload required", "A current translation-group token is required before adding a culture.");
+                Notify(NotificationSeverity.Warning, "Reload required", "A current source token is required before adding a culture.");
                 return;
             }
             var request = new ForkContentItemCultureRequest(
                 decision.Culture,
                 decision.Slug,
-                _translationGroupStorageVersion);
+                _translationGroupStorageVersion,
+                ExpectedSourceStorageVersion: _storageVersion);
             var result = await ContentItemsApi.ForkToCultureAsync(Alias, Id.Value, request);
             if (result is Result<ContentItemDetail, AeroError>.Ok ok)
             {

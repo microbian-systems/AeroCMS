@@ -116,10 +116,33 @@ public sealed class AeroContentService(
         if (item.TranslationGroupId is { } groupId)
         {
             group = await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct);
-            if (group is null || group.SiteId != item.SiteId ||
+            if (group is not null && (group.SiteId != item.SiteId ||
                 !string.Equals(group.ContentTypeAlias, item.ContentTypeAlias, StringComparison.OrdinalIgnoreCase))
+            )
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
-            group = Clone(group);
+            if (group is not null)
+                group = Clone(group);
+            else if (preserveLocalizationMetadata || item.SourceItemId is not { } sourceItemId)
+                return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+            else
+            {
+                var source = await session.LoadAsync<ContentItem>(sourceItemId, ct);
+                if (source is null || source.SiteId != item.SiteId
+                    || !string.Equals(source.ContentTypeAlias, item.ContentTypeAlias, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+                }
+
+                group = new ContentTranslationGroupDocument
+                {
+                    Id = groupId,
+                    SiteId = item.SiteId,
+                    ContentTypeAlias = item.ContentTypeAlias,
+                    SourceItemId = source.Id,
+                    SourceCulture = source.Culture
+                };
+                isNewGroup = true;
+            }
         }
 
         if (existing is not null && preserveLocalizationMetadata && HasTranslationRelevantChange(item, existing, type.Fields))
@@ -195,6 +218,8 @@ public sealed class AeroContentService(
             // later save in the same scope may advance the tracked storage version,
             // which would silently turn a caller's stale CAS token into a current one.
             var result = Clone(item);
+            if (existing is not null)
+                result.Version = checked(existing.Version + 1);
             foreach (var (name, value) in group.SharedFields)
                 result.Fields[name] = value.Clone();
             return Prelude.Ok<ContentItem, AeroError>(result);

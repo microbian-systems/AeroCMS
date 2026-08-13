@@ -86,6 +86,38 @@ public sealed class ContentLocalizationContractsTests
     }
 
     [Test]
+    public void Culture_fork_requires_an_explicit_source_storage_token_when_a_current_source_is_fenced()
+    {
+        var command = new ContentCultureForkCommand(
+            SourceItemId: 101,
+            TargetCulture: "fr-FR",
+            TargetSlug: "entree",
+            ExpectedGroupStorageVersion: null,
+            ExpectedSourceStorageVersion: 17);
+
+        command.ExpectedGroupStorageVersion.ShouldBeNull();
+        command.ExpectedSourceStorageVersion.ShouldBe(17);
+    }
+
+    [Test]
+    public void Localization_result_returns_all_advanced_storage_tokens()
+    {
+        var result = new ContentLocalizationOperationResult(
+            ContentItemId: 202,
+            TranslationGroupId: 303,
+            Culture: "fr-FR",
+            ReviewStatus: ContentTranslationReviewStatus.Pending,
+            ContentItemStorageVersion: 19,
+            TranslationGroupStorageVersion: 23,
+            TranslationGroupRevision: 4,
+            SourceItemStorageVersion: 17);
+
+        result.SourceItemStorageVersion.ShouldBe(17);
+        result.ContentItemStorageVersion.ShouldBe(19);
+        result.TranslationGroupStorageVersion.ShouldBe(23);
+    }
+
+    [Test]
     public void Translation_review_binds_approved_content_to_source_and_target_versions()
     {
         var review = ContentTranslationReview.Approve(

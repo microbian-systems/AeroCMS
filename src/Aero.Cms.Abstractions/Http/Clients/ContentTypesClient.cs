@@ -566,7 +566,8 @@ public record ForkContentItemCultureRequest(
     string Culture,
     string Slug,
     long? ExpectedGroupStorageVersion = null,
-    long? ExpectedTargetStorageVersion = null);
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedSourceStorageVersion = null);
 
 /// <summary>Applies AI-translated fields to an existing culture variant with revision fencing.</summary>
 public sealed record ApplyContentItemAiTranslationRequest(
