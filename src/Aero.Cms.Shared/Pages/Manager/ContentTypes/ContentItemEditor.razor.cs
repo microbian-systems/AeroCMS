@@ -83,15 +83,30 @@ public partial class ContentItemEditor
     private ContentTranslationProvenance? _translationProvenance;
     private ContentTranslationReview? _translationReview;
     private bool _hasTranslationReviewMetadata;
+    private ContentAiTranslationReviewPolicy _aiTranslationReviewPolicy = ContentAiTranslationReviewPolicy.RequireHumanReview;
+    private int? _currentSourceVersionNumber;
+    private int? _translationGroupRevision;
+    private ContentItemEditSnapshot? _loadedEditSnapshot;
 
     private ContentTranslationPublishDecision PublishReviewDecision =>
         ContentLocalizationManagerUi.EvaluatePublishDecision(
             _hasTranslationReviewMetadata,
             _translationProvenance,
             _translationReview,
-            ContentAiTranslationReviewPolicy.RequireHumanReview,
+            _aiTranslationReviewPolicy,
             _sourceItemId,
-            _versionNumber);
+            _currentSourceVersionNumber,
+            _versionNumber,
+            IsEditorDirty);
+
+    private bool IsEditorDirty =>
+        _loadedEditSnapshot is null
+        || !_loadedEditSnapshot.Matches(
+            _title,
+            _slug,
+            _parentId,
+            _sortOrder,
+            BuildFieldsDictionary());
 
     private static bool IsHierarchyReference(ContentFieldDefinition field) =>
         field.FieldType == ContentFieldTypes.Reference
@@ -380,6 +395,35 @@ protected override async Task OnInitializedAsync()
         _parentId = detail.ParentId;
         _sortOrder = detail.SortOrder;
         PopulateFieldValues(detail.Fields);
+        _loadedEditSnapshot = ContentItemEditSnapshot.Create(
+            _title,
+            _slug,
+            _parentId,
+            _sortOrder,
+            BuildFieldsDictionary());
+
+        // The manager DTO owner wires these values here once the public detail contracts expose
+        // provenance, review, current source version, group revision, and type review policy.
+        // Until then metadata remains unavailable and the server is authoritative.
+    }
+
+    private void LoadTranslationReviewMetadata(
+        bool metadataAvailable,
+        ContentTranslationProvenance? provenance,
+        ContentTranslationReview? review,
+        int? currentSourceVersionNumber,
+        int? translationGroupRevision,
+        ContentAiTranslationReviewPolicy reviewPolicy)
+    {
+        _translationProvenance = provenance;
+        _translationReview = review;
+        _currentSourceVersionNumber = currentSourceVersionNumber;
+        _translationGroupRevision = translationGroupRevision;
+        _aiTranslationReviewPolicy = reviewPolicy;
+        _hasTranslationReviewMetadata = metadataAvailable
+                                        && review is not null
+                                        && (provenance?.Origin != ContentTranslationOrigin.AiAssisted
+                                            || currentSourceVersionNumber is > 0);
     }
 
     private async Task LoadParentOptionsAsync()
@@ -618,8 +662,18 @@ protected override async Task OnInitializedAsync()
     {
         if (!ValidateForPublish()) return;
 
-        var saved = await SaveAsync(navigateAfterSave: false);
-        if (saved is null || !Id.HasValue) return;
+        var publishDecision = PublishReviewDecision;
+        if (!publishDecision.CanPublish)
+        {
+            Notify(NotificationSeverity.Warning, "Publication blocked", publishDecision.Detail);
+            return;
+        }
+
+        if (!Id.HasValue || IsEditorDirty)
+        {
+            var saved = await SaveAsync(navigateAfterSave: false);
+            if (saved is null || !Id.HasValue) return;
+        }
 
         _isSaving = true;
         try
@@ -1241,4 +1295,40 @@ protected override async Task OnInitializedAsync()
         string ContentTypeAlias,
         string Breadcrumb,
         bool CanAcceptChildren);
+
+    private sealed record ContentItemEditSnapshot(
+        string Title,
+        string Slug,
+        long? ParentId,
+        int SortOrder,
+        IReadOnlyDictionary<string, JsonElement> Fields)
+    {
+        public static ContentItemEditSnapshot Create(
+            string title,
+            string slug,
+            long? parentId,
+            int sortOrder,
+            IReadOnlyDictionary<string, JsonElement> fields) =>
+            new(
+                title,
+                slug,
+                parentId,
+                sortOrder,
+                fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal));
+
+        public bool Matches(
+            string title,
+            string slug,
+            long? parentId,
+            int sortOrder,
+            IReadOnlyDictionary<string, JsonElement> fields) =>
+            string.Equals(Title, title, StringComparison.Ordinal)
+            && string.Equals(Slug, slug, StringComparison.Ordinal)
+            && ParentId == parentId
+            && SortOrder == sortOrder
+            && Fields.Count == fields.Count
+            && Fields.All(pair =>
+                fields.TryGetValue(pair.Key, out var current)
+                && JsonElement.DeepEquals(pair.Value, current));
+    }
 }

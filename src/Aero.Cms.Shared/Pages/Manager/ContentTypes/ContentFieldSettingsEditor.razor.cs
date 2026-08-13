@@ -42,6 +42,12 @@ public partial class ContentFieldSettingsEditor
     [Parameter]
     public EventCallback<ContentFieldDefinition> FieldChanged { get; set; }
 
+    [Parameter]
+    public bool LocalizationModeLocked { get; set; }
+
+    [Parameter]
+    public string? LocalizationModeLockedReason { get; set; }
+
     [Inject]
     private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
 
@@ -203,6 +209,11 @@ public partial class ContentFieldSettingsEditor
 
     private async Task SetLocalizationModeAsync(ChangeEventArgs args)
     {
+        if (LocalizationModeLocked)
+        {
+            return;
+        }
+
         if (Enum.TryParse<ContentFieldLocalizationMode>(
                 args.Value?.ToString(),
                 ignoreCase: true,

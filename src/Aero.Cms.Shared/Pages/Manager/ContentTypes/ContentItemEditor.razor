@@ -104,7 +104,12 @@
             }
             else
             {
-                <RadzenButton Icon="publish" Text="@L["Publish"]" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@(_isSaving || !PublishReviewDecision.CanPublish)" />
+                <RadzenButton Icon="publish"
+                              Text="@L["Publish"]"
+                              ButtonStyle="ButtonStyle.Success"
+                              Click="@PublishAsync"
+                              Disabled="@(_isSaving || !PublishReviewDecision.CanPublish)"
+                              title="@(!PublishReviewDecision.CanPublish ? PublishReviewDecision.Detail : null)" />
             }
         </div>
     </div>
@@ -165,7 +170,7 @@
                             @if (IsSharedField(field))
                             {
                                 <p id="@SharedFieldDescriptionId(field)" class="ci-localization-warning text-sm" role="status">
-                                    @L["This value belongs to the translation group and is shared by every culture. Editing is unavailable through the culture-variant form, so this draft will not overwrite it."]
+                                    @L["This value belongs to the translation group and is shared by every culture. Editing remains unavailable until the manager has an explicit concurrency-checked shared-value command, so this draft will not overwrite it."]
                                 </p>
                             }
 
@@ -503,6 +508,13 @@
                                 <dt class="ci-muted">@L["Review"]</dt>
                                 <dd style="color: var(--pe-text-primary);">@_translationReview?.Status</dd>
                             </div>
+                            @if (_translationGroupRevision.HasValue)
+                            {
+                                <div>
+                                    <dt class="ci-muted">@L["Translation group revision"]</dt>
+                                    <dd style="color: var(--pe-text-primary);">@_translationGroupRevision</dd>
+                                </div>
+                            }
                         </dl>
                         <p class="ci-help">@PublishReviewDecision.Detail</p>
                     }

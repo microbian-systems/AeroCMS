@@ -34,6 +34,7 @@
                     style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
                     value="@Field.LocalizationMode"
                     @onchange="SetLocalizationModeAsync"
+                    disabled="@LocalizationModeLocked"
                     aria-describedby="field-localization-help">
                 <option value="@ContentFieldLocalizationMode.Shared">@L["Shared — one value for every culture"]</option>
                 <option value="@ContentFieldLocalizationMode.Localized">@L["Localized — each culture has its own value"]</option>
@@ -43,6 +44,13 @@
         <p id="field-localization-help" class="ct-help">
             @LocalizationModeHelp
         </p>
+        @if (LocalizationModeLocked)
+        {
+            <p class="rounded-md p-3 text-sm" role="status"
+               style="border: 1px solid var(--rz-warning); color: var(--pe-text-primary); background: color-mix(in srgb, var(--rz-warning) 10%, var(--pe-bg-primary));">
+                @LocalizationModeLockedReason
+            </p>
+        }
         @if (Field.LocalizationMode == ContentFieldLocalizationMode.Shared)
         {
             <p class="rounded-md p-3 text-sm" role="status"

@@ -126,6 +126,21 @@ public partial class ContentTypeEditor
             ? Fields[index]
             : null;
 
+    private ContentTypeSummary? CurrentContentTypeSummary =>
+        IsNew
+            ? null
+            : _availableParentContentTypes.FirstOrDefault(contentType =>
+                string.Equals(contentType.Alias, Alias, StringComparison.OrdinalIgnoreCase));
+
+    private bool LocalizationModeLocked =>
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(
+            isExistingType: !IsNew,
+            CurrentContentTypeSummary?.ItemCount);
+
+    private string LocalizationModeLockedReason => CurrentContentTypeSummary is null
+        ? L["Field localization cannot be changed because this existing type's entry count is unavailable. Aero fails closed until a server migration workflow exists."]
+        : L["Field localization cannot be changed after entries exist. Moving values between culture variants and translation groups requires a server migration workflow."];
+
         /// <summary>
     /// OnInitializedAsync method.
     /// </summary>
@@ -304,7 +319,9 @@ protected override async Task OnInitializedAsync()
                 [nameof(ContentFieldSettingsDialog.OwnerFields)] = ownerFields,
                 [nameof(ContentFieldSettingsDialog.ContentTypes)] = _availableParentContentTypes,
                 [nameof(ContentFieldSettingsDialog.CurrentContentTypeAlias)] = AliasValue,
-                [nameof(ContentFieldSettingsDialog.FieldTypeLabel)] = option.Label
+                [nameof(ContentFieldSettingsDialog.FieldTypeLabel)] = option.Label,
+                [nameof(ContentFieldSettingsDialog.LocalizationModeLocked)] = LocalizationModeLocked,
+                [nameof(ContentFieldSettingsDialog.LocalizationModeLockedReason)] = LocalizationModeLockedReason
             },
             new DialogOptions
             {

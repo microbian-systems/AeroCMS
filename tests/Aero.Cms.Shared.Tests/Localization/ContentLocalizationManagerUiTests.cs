@@ -14,7 +14,7 @@ public sealed class ContentLocalizationManagerUiTests
             "river otter",
             "fr-CA");
 
-        path.ShouldBe("/fr-ca/content/animal%20profile/river%20otter");
+        path.ShouldBe("/fr-CA/animal%20profile/river%20otter");
     }
 
     [Test]
@@ -26,7 +26,21 @@ public sealed class ContentLocalizationManagerUiTests
     }
 
     [Test]
-    public void Ai_assisted_translation_requires_revision_bound_approval()
+    public void Existing_type_with_entries_locks_field_localization()
+    {
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(true, 3).ShouldBeTrue();
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(true, 0).ShouldBeFalse();
+    }
+
+    [Test]
+    public void Existing_type_with_unknown_entry_count_fails_closed()
+    {
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(true, null).ShouldBeTrue();
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(false, null).ShouldBeFalse();
+    }
+
+    [Test]
+    public void Approved_clean_translation_can_publish()
     {
         var provenance = new ContentTranslationProvenance(
             ContentTranslationOrigin.AiAssisted,
@@ -48,18 +62,66 @@ public sealed class ContentLocalizationManagerUiTests
             matchingReview,
             ContentAiTranslationReviewPolicy.RequireHumanReview,
             101,
-            8);
+            4,
+            8,
+            isDirty: false);
+
+        approved.CanPublish.ShouldBeTrue();
+        approved.Label.ShouldBe("Approved");
+    }
+
+    [Test]
+    public void Dirty_approved_translation_requires_save_and_re_review()
+    {
+        var (provenance, review) = ApprovedTranslation();
+        var dirty = ContentLocalizationManagerUi.EvaluatePublishDecision(
+            true,
+            provenance,
+            review,
+            ContentAiTranslationReviewPolicy.RequireHumanReview,
+            101,
+            4,
+            8,
+            isDirty: true);
+
+        dirty.CanPublish.ShouldBeFalse();
+        dirty.Label.ShouldBe("Save and re-review required");
+    }
+
+    [Test]
+    public void Changed_source_makes_approval_stale()
+    {
+        var (provenance, review) = ApprovedTranslation();
         var stale = ContentLocalizationManagerUi.EvaluatePublishDecision(
             true,
             provenance,
-            matchingReview,
+            review,
             ContentAiTranslationReviewPolicy.RequireHumanReview,
             101,
-            9);
+            currentSourceVersionNumber: 5,
+            targetVersionNumber: 8,
+            isDirty: false);
 
-        approved.CanPublish.ShouldBeTrue();
         stale.CanPublish.ShouldBeFalse();
-        stale.Label.ShouldBe("Approval is stale");
+        stale.Label.ShouldBe("Source approval is stale");
+    }
+
+    [Test]
+    public void Changed_target_makes_approval_stale()
+    {
+        var (provenance, review) = ApprovedTranslation();
+        var stale = ContentLocalizationManagerUi.EvaluatePublishDecision(
+            true,
+            provenance,
+            review,
+            ContentAiTranslationReviewPolicy.RequireHumanReview,
+            101,
+            currentSourceVersionNumber: 4,
+            targetVersionNumber: 9,
+            isDirty: false);
+
+        stale.CanPublish.ShouldBeFalse();
+        stale.Label.ShouldBe("Target approval is stale");
     }
 
     [Test]
@@ -71,10 +133,30 @@ public sealed class ContentLocalizationManagerUiTests
             null,
             ContentAiTranslationReviewPolicy.RequireHumanReview,
             null,
-            0);
+            null,
+            0,
+            isDirty: false);
 
         decision.MetadataAvailable.ShouldBeFalse();
         decision.CanPublish.ShouldBeTrue();
         decision.Label.ShouldBe("Review metadata unavailable");
+    }
+
+    private static (ContentTranslationProvenance Provenance, ContentTranslationReview Review) ApprovedTranslation()
+    {
+        var provenance = new ContentTranslationProvenance(
+            ContentTranslationOrigin.AiAssisted,
+            "en-US",
+            4,
+            DateTimeOffset.UnixEpoch,
+            "provider",
+            "model");
+        var review = ContentTranslationReview.Approve(
+            sourceItemId: 101,
+            sourceVersionNumber: 4,
+            targetVersionNumber: 8,
+            reviewedOn: DateTimeOffset.UnixEpoch,
+            reviewedBy: "reviewer");
+        return (provenance, review);
     }
 }

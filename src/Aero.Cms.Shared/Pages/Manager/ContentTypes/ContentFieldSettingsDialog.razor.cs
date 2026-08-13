@@ -26,6 +26,12 @@ public partial class ContentFieldSettingsDialog
     [Parameter]
     public string FieldTypeLabel { get; set; } = string.Empty;
 
+    [Parameter]
+    public bool LocalizationModeLocked { get; set; }
+
+    [Parameter]
+    public string? LocalizationModeLockedReason { get; set; }
+
     [Inject]
     private DialogService DialogService { get; set; } = default!;
 
