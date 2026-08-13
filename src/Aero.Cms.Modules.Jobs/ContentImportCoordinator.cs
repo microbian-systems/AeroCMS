@@ -150,11 +150,30 @@ internal sealed class ContentImportCoordinator(
             {
                 field.Name, field.FieldType, field.Label, field.Required, field.DefaultValue, field.Placeholder,
                 Indexed = string.Equals(field.FieldType, "reference", StringComparison.OrdinalIgnoreCase) || field.Indexed,
-                field.FullTextSearchable, field.SemanticSearchable, field.AiExposure, field.LocalizationMode, field.Settings
+                field.FullTextSearchable, field.SemanticSearchable, field.AiExposure, field.LocalizationMode,
+                Settings = field.Settings
+                    .OrderBy(setting => setting.Key, StringComparer.Ordinal)
+                    .Select(setting => new { setting.Key, Value = CanonicalJson(setting.Value) })
             }),
             ScribanTemplate = generatedTemplate ? null : definition.ScribanTemplate,
             definition.ScheduleConfig
         });
+
+    private static object? CanonicalJson(JsonElement value)
+        => value.ValueKind switch
+        {
+            JsonValueKind.Object => value.EnumerateObject()
+                .OrderBy(property => property.Name, StringComparer.Ordinal)
+                .ToDictionary(property => property.Name, property => CanonicalJson(property.Value), StringComparer.Ordinal),
+            JsonValueKind.Array => value.EnumerateArray().Select(CanonicalJson).ToArray(),
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number when value.TryGetInt64(out var integer) => integer,
+            JsonValueKind.Number when value.TryGetDecimal(out var number) => number,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null or JsonValueKind.Undefined => null,
+            _ => value.GetRawText()
+        };
     private static bool Equivalent(ContentSurrealViewRevision actual, ContentSurrealViewRevision expected)
         => actual.Scope == expected.Scope && actual.Alias == expected.Alias && actual.ShapeAlias == expected.ShapeAlias
            && actual.ShapeFingerprint == expected.ShapeFingerprint && actual.SelectStatement == expected.SelectStatement

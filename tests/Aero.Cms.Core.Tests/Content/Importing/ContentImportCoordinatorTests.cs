@@ -8,6 +8,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using NSubstitute;
 using Shouldly;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Content.Importing;
 
@@ -94,6 +95,50 @@ public sealed class ContentImportCoordinatorTests
         fixture.Types.SaveCalls.ShouldBe(0);
         fixture.Provider.ImportCalls.ShouldBe(1);
         await fixture.Views.Received(1).InvalidateAsync(new ContentViewScope(3, 7), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Reordered_json_setting_properties_replay_without_false_drift()
+    {
+        var fixture = new Fixture();
+        var expected = Type("species");
+        expected.Fields =
+        [
+            new ContentFieldDefinition
+            {
+                Name = "source",
+                FieldType = "reference",
+                Settings = new Dictionary<string, JsonElement>
+                {
+                    ["targetKind"] = JsonSerializer.SerializeToElement("contentEntry"),
+                    ["preview"] = JsonSerializer.SerializeToElement(new { title = "scientificName", details = new { rank = true, lineage = true } })
+                }
+            }
+        ];
+        var actual = Type("species");
+        actual.ScribanTemplate = "server-generated";
+        actual.Fields =
+        [
+            new ContentFieldDefinition
+            {
+                Name = "source",
+                FieldType = "reference",
+                Indexed = true,
+                Settings = new Dictionary<string, JsonElement>
+                {
+                    ["preview"] = JsonSerializer.SerializeToElement(new { details = new { lineage = true, rank = true }, title = "scientificName" }),
+                    ["targetKind"] = JsonSerializer.SerializeToElement("contentEntry")
+                }
+            }
+        ];
+        fixture.Provider.Plan = new ContentImportProvisioningPlan([expected], []);
+        fixture.Types.Existing = actual;
+
+        var result = await fixture.Coordinator.ExecuteAsync(fixture.Lease);
+
+        result.Succeeded.ShouldBeTrue();
+        fixture.Types.SaveCalls.ShouldBe(0);
+        fixture.Provider.ImportCalls.ShouldBe(1);
     }
 
     [Test]
