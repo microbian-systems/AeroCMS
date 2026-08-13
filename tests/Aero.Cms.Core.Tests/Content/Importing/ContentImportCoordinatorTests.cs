@@ -126,6 +126,21 @@ public sealed class ContentImportCoordinatorTests
     }
 
     [Test]
+    public async Task Replay_without_progress_preserves_durable_progress_and_accepts_its_checkpoint()
+    {
+        var fixture = new Fixture(progressCurrent: 109);
+        fixture.Provider.Import = ContentImportProviderResult.Success("catalogue-of-life:completed");
+
+        var result = await fixture.Coordinator.ExecuteAsync(fixture.Lease);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Checkpoint.ShouldBe("catalogue-of-life:completed");
+        result.ProgressCurrent.ShouldBe(109);
+        result.ProgressTotal.ShouldBeNull();
+        await fixture.Jobs.Received(1).ReportAsync(fixture.Lease, "catalogue-of-life:completed", 109, null, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task Activation_without_progress_preserves_imported_progress_and_uses_its_checkpoint()
     {
         var fixture = new Fixture(activate: true);
@@ -176,9 +191,9 @@ public sealed class ContentImportCoordinatorTests
         public TestImporter Provider { get; } = new();
         public IContentImportCoordinator Coordinator { get; }
 
-        public Fixture(bool activate = false)
+        public Fixture(bool activate = false, long progressCurrent = 0, long? progressTotal = null)
         {
-            Job = new ContentImportJob(5, "identity", 3, Request(activate), ContentImportJobState.Running, 1, null, 0, null, null, "lease", 2, DateTimeOffset.UtcNow.AddMinutes(1), null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+            Job = new ContentImportJob(5, "identity", 3, Request(activate), ContentImportJobState.Running, 1, null, progressCurrent, progressTotal, null, "lease", 2, DateTimeOffset.UtcNow.AddMinutes(1), null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
             Jobs.LoadAsync(5, Arg.Any<CancellationToken>()).Returns(Job);
             Jobs.ReportAsync(Arg.Any<ContentImportLease>(), Arg.Any<string?>(), Arg.Any<long>(), Arg.Any<long?>(), Arg.Any<CancellationToken>()).Returns(true);
             var sites = Substitute.For<ISelectedSiteScopeResolver>();

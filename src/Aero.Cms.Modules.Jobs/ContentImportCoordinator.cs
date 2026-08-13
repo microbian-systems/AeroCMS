@@ -37,18 +37,21 @@ internal sealed class ContentImportCoordinator(
         var execution = new ContentImportExecutionContext(context, new LeaseProgressSink(jobs, lease));
         var imported = await provider[0].ImportAsync(execution, ct);
         if (!imported.Succeeded) return imported;
-        if (!await execution.Progress.ReportAsync(imported.Checkpoint, imported.ProgressCurrent, imported.ProgressTotal, ct))
-            return ContentImportProviderResult.Failure("The import lease was lost while recording progress.", imported.Checkpoint);
-        var completed = imported;
+        var importReportedProgress = imported.ProgressCurrent != 0 || imported.ProgressTotal.HasValue;
+        var completed = !importReportedProgress && (job.ProgressCurrent != 0 || job.ProgressTotal.HasValue)
+            ? ContentImportProviderResult.Success(imported.Checkpoint, job.ProgressCurrent, job.ProgressTotal)
+            : imported;
+        if (!await execution.Progress.ReportAsync(completed.Checkpoint, completed.ProgressCurrent, completed.ProgressTotal, ct))
+            return ContentImportProviderResult.Failure("The import lease was lost while recording progress.", completed.Checkpoint);
         if (job.Request.Activate)
         {
             var activated = await provider[0].ActivateAsync(execution, ct);
             if (!activated.Succeeded) return activated;
             var activationReportedProgress = activated.ProgressCurrent != 0 || activated.ProgressTotal.HasValue;
             completed = ContentImportProviderResult.Success(
-                activated.Checkpoint ?? imported.Checkpoint,
-                activationReportedProgress ? activated.ProgressCurrent : imported.ProgressCurrent,
-                activationReportedProgress ? activated.ProgressTotal : imported.ProgressTotal);
+                activated.Checkpoint ?? completed.Checkpoint,
+                activationReportedProgress ? activated.ProgressCurrent : completed.ProgressCurrent,
+                activationReportedProgress ? activated.ProgressTotal : completed.ProgressTotal);
             if (!await execution.Progress.ReportAsync(completed.Checkpoint, completed.ProgressCurrent, completed.ProgressTotal, ct))
                 return ContentImportProviderResult.Failure("The import lease was lost while recording activation progress.", completed.Checkpoint);
         }
