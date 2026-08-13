@@ -16,6 +16,8 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentFieldSettingsEditor
 {
+    private const string ContentEntryPreviewFieldsSetting = "previewFields";
+
     private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
         Enum.GetValues<AeroAiFieldExposure>();
 
@@ -163,6 +165,12 @@ public partial class ContentFieldSettingsEditor
         }
     }
 
+    private string PreviewFieldsText => string.Join(
+        Environment.NewLine,
+        ContentEntryReferencePreviewUi.ReadPreviewFields(
+            Field.Settings,
+            ContentEntryPreviewFieldsSetting));
+
     protected override async Task OnParametersSetAsync()
     {
         await LoadReferenceTargetDefinitionAsync();
@@ -186,6 +194,22 @@ public partial class ContentFieldSettingsEditor
         if (selected) values.Add(provider); else values.Remove(provider);
         Field.Settings[ReferenceContentFieldSettings.AllowedProviders] =
             JsonSerializer.SerializeToElement(values.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(), ContentJsonContext.Default.ListString);
+        await NotifyChangedAsync();
+    }
+
+    private async Task SetPreviewFieldsTextAsync(string? value)
+    {
+        var fields = ContentEntryReferencePreviewUi.ParsePreviewFields(value);
+        if (fields.Count == 0)
+        {
+            Field.Settings.Remove(ContentEntryPreviewFieldsSetting);
+        }
+        else
+        {
+            Field.Settings[ContentEntryPreviewFieldsSetting] =
+                JsonSerializer.SerializeToElement(fields.ToList(), ContentJsonContext.Default.ListString);
+        }
+
         await NotifyChangedAsync();
     }
 

@@ -150,6 +150,16 @@
                         </label>
                     }
                 }
+
+                <label class="pe-property-group mt-4">
+                    <span class="pe-property-label">@L["Entry preview fields"]</span>
+                    <RadzenTextArea Value="@PreviewFieldsText"
+                                    ValueChanged="SetPreviewFieldsTextAsync"
+                                    Placeholder="@L["One top-level field name per line"]"
+                                    Rows="5"
+                                    Class="w-full" />
+                    <span class="text-xs ct-muted">@L["Optional. Use exact top-level field names. Their order controls the read-only preview shown after an entry is selected; nested paths are not followed."]</span>
+                </label>
             </div>
         }
         else

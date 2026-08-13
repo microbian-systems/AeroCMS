@@ -252,6 +252,7 @@
                                         <ContentEntryReferencePicker
                                             Culture="@_culture"
                                             AllowedProviders="@GetAllowedContentEntryProviders(field)"
+                                            PreviewFields="@GetContentEntryPreviewFields(field)"
                                             Value="@_contentEntryReferenceValues[field.Name]"
                                             ValueChanged="@(value => _contentEntryReferenceValues[field.Name] = value)" />
                                     }
@@ -566,6 +567,7 @@
                                             {
                                                 <ContentEntryReferencePicker Culture="@_culture"
                                                                              AllowedProviders="@GetAllowedContentEntryProviders(field)"
+                                                                             PreviewFields="@GetContentEntryPreviewFields(field)"
                                                                              Value="@_contentEntryReferenceValues[field.Name]"
                                                                              ValueChanged="@(value => _contentEntryReferenceValues[field.Name] = value)" />
                                             }

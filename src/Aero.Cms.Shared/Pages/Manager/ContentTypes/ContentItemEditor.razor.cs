@@ -22,6 +22,8 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentItemEditor
 {
+    private const string ContentEntryPreviewFieldsSetting = "previewFields";
+
         /// <summary>
     /// Gets or sets the Alias.
     /// </summary>
@@ -175,6 +177,11 @@ public partial class ContentItemEditor
                 .Select(value => value.GetString()?.Trim()).Where(value => !string.IsNullOrWhiteSpace(value))
                 .Select(value => value!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
             : [];
+
+    private static IReadOnlyList<string> GetContentEntryPreviewFields(ContentFieldDefinition field) =>
+        ContentEntryReferencePreviewUi.ReadPreviewFields(
+            field.Settings,
+            ContentEntryPreviewFieldsSetting);
 
     private static bool GetBoolSetting(
         ContentFieldDefinition field,
