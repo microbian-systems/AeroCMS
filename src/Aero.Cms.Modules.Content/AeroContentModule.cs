@@ -99,6 +99,25 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 "Content",
                 "/PublicContent",
                 "/content/{typeAlias}/{entrySlug}");
+            options.Conventions.AddAreaPageRouteModelConvention("Content", "/PublicContent", model =>
+            {
+                var dynamicTargets = model.Selectors
+                    .Where(selector => !string.Equals(
+                        selector.AttributeRouteModel?.Template?.TrimStart('/'),
+                        "content/{typeAlias}/{entrySlug}",
+                        StringComparison.OrdinalIgnoreCase))
+                    .Take(2)
+                    .ToArray();
+                if (dynamicTargets is [{ AttributeRouteModel: not null } dynamicTarget])
+                {
+                    // A successful culture-aware dynamic route targets this Page.
+                    // Prefer it over the legacy direct route (order 0) and the
+                    // generic Pages catch-all (order 1); a declined transform
+                    // remains eligible for the latter.
+                    dynamicTarget.AttributeRouteModel.Order = -1;
+                    dynamicTarget.EndpointMetadata.Add(PublicContentDynamicTargetMetadata.Instance);
+                }
+            });
         });
 
         // Grain-backed actors — direct injection for thin API controllers
@@ -263,7 +282,10 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
         builder.MapContentItemsApi();
         builder.MapContentHierarchyManagerApi();
         builder.MapContentViewsApi();
-        builder.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}");
+        // A successful transform is explicitly more specific than the generic
+        // public Pages catch-all, while a declined transform leaves that fallback
+        // untouched. This remains local to the optional public-content route.
+        builder.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}", state: null!, order: -1);
 
         return Task.CompletedTask;
     }

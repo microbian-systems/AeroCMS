@@ -5,13 +5,16 @@ using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
+using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.Content.Routing;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Hosting.Defaults;
 using Aero.Cms.Web.Bootstrap;
@@ -27,6 +30,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -564,32 +568,28 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public async Task WarmUpBlazorAsync(int timeoutMs = 60000)
     {
         if (_warmedUp) return;
-        _warmedUp = true;
 
         if (Page is null) throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
 
         // Ensure authenticated before warming up Blazor
         await LoginAsync();
 
-        // Navigate to the pages grid to establish the SignalR circuit
+        // Navigate to the pages grid and wait for the browser application to finish
+        // starting. Server-rendered manager markup can exist before the WebAssembly
+        // client is interactive, so it is not a safe readiness signal.
         await Page.GotoAsync($"{BaseUrl}/manager/pages", new()
         {
-            WaitUntil = WaitUntilState.NetworkIdle,
+            WaitUntil = WaitUntilState.DOMContentLoaded,
             Timeout = timeoutMs
         });
 
-        // Wait for a known page element to confirm circuit is active
-        try
+        await Page.Locator("#app-splash").WaitForAsync(new()
         {
-            await Page.WaitForSelectorAsync("a[href*='manager']", new() { Timeout = 30000, State = WaitForSelectorState.Attached });
-            Console.WriteLine("[Warmup] Blazor circuit warmup complete");
-        }
-        catch
-        {
-            // Fallback: wait fixed time and hope
-            Console.WriteLine("[Warmup] Blazor warmup fallback — waiting 10s");
-            await Task.Delay(10000);
-        }
+            Timeout = timeoutMs,
+            State = WaitForSelectorState.Detached
+        });
+        _warmedUp = true;
+        Console.WriteLine("[Warmup] Blazor WebAssembly startup complete");
     }
 
     private static Cookie? ParseSetCookie(string setCookie)
@@ -1020,6 +1020,38 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 throw new InvalidOperationException(failure.Error.ToString());
         }
 
+        // The public dynamic route resolves its tenant scope before middleware from
+        // the request host. Verify the fixture's persisted site/type contract here
+        // so a routing failure cannot be mistaken for an editor-preview problem.
+        var publicSites = scope.ServiceProvider.GetRequiredService<IPublicSiteRouteResolver>();
+        var publicSite = await publicSites.ResolveAsync("localhost");
+        if (publicSite is null || publicSite.SiteId != SiteId ||
+            !publicSite.SupportedCultures.Contains("ar-SA", StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("E2E public route scope did not resolve localhost with the seeded ar-SA culture.");
+        }
+
+        var publicType = await contentTypes.GetByAliasAsync(SiteId, alias);
+        if (publicType is not Result<ContentTypeDefinition, AeroError>.Ok { Value.AllowPublicUrl: true })
+        {
+            throw new InvalidOperationException("E2E localized content type is not eligible for public URLs.");
+        }
+
+        var publicRoute = await scope.ServiceProvider
+            .GetRequiredService<PublicContentRouteTransformer>()
+            .TransformAsync(
+                new DefaultHttpContext { Request = { Host = new HostString("localhost") } },
+                new RouteValueDictionary
+                {
+                    ["culture"] = "ar-SA",
+                    ["typeAlias"] = alias,
+                    ["entrySlug"] = "rtl-localized-reference"
+                });
+        if (publicRoute["page"]?.ToString() != "/PublicContent")
+        {
+            throw new InvalidOperationException("E2E public route transformer declined the seeded localized content URL.");
+        }
+
         if (await views.LoadAsync(viewScope, viewAlias, ContentViewPublicationState.Published) is null)
         {
             var draft = await views.SaveDraftAsync(new ContentSurrealViewRevision(
@@ -1060,6 +1092,20 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             if (published is Result<ContentItem, AeroError>.Failure publishFailure)
                 throw new InvalidOperationException(DescribeError(publishFailure.Error));
             itemId = savedOk.Value.Id;
+        }
+
+        var publicItem = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", slug);
+        if (publicItem is not Result<ContentItem, AeroError>.Ok { Value.PublicationState: ContentPublicationState.Published })
+        {
+            throw new InvalidOperationException("E2E localized content item was not durably published.");
+        }
+
+        var publicRender = await scope.ServiceProvider
+            .GetRequiredService<ContentTypeUrlRenderer>()
+            .RenderAsync(SiteId, alias, "ar-SA", slug, defaultCulture: "en-US", supportedCultures: ["en-US", "ar-SA"]);
+        if (publicRender is Result<PublicContentRenderResult, AeroError>.Failure renderFailure)
+        {
+            throw new InvalidOperationException($"E2E localized content item failed direct public rendering: {DescribeError(renderFailure.Error)}");
         }
 
         var aiBlockedSlug = "ai-review-blocked";

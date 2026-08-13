@@ -19,7 +19,8 @@ namespace Aero.Cms.Modules.Content.Routing;
 /// </remarks>
 public sealed class PublicContentRouteTransformer(
     IPublicSiteRouteResolver sites,
-    IContentTypeService contentTypes) : DynamicRouteValueTransformer
+    IContentTypeService contentTypes,
+    ILogger<PublicContentRouteTransformer>? logger = null) : DynamicRouteValueTransformer
 {
     /// <inheritdoc />
     public override async ValueTask<RouteValueDictionary> TransformAsync(
@@ -60,6 +61,38 @@ public sealed class PublicContentRouteTransformer(
             ["typeAlias"] = typeAlias,
             ["entrySlug"] = entrySlug
         };
+    }
+
+    /// <inheritdoc />
+    public override ValueTask<IReadOnlyList<Endpoint>> FilterAsync(
+        HttpContext httpContext,
+        RouteValueDictionary values,
+        IReadOnlyList<Endpoint> endpoints)
+    {
+        var targets = endpoints
+            .Where(endpoint => endpoint.Metadata.GetMetadata<PublicContentDynamicTargetMetadata>() is not null)
+            .ToArray();
+
+        if (targets.Length != 1)
+        {
+            logger?.LogWarning(
+                "Culture-aware public content routing expected one marked target but found {TargetCount} among {CandidateCount} candidates.",
+                targets.Length,
+                endpoints.Count);
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<Endpoint>>(
+            targets.Length == 1 ? targets : Array.Empty<Endpoint>());
+    }
+}
+
+/// <summary>Marks the one Razor Page selector accepted by the dynamic public-content route.</summary>
+internal sealed class PublicContentDynamicTargetMetadata
+{
+    internal static PublicContentDynamicTargetMetadata Instance { get; } = new();
+
+    private PublicContentDynamicTargetMetadata()
+    {
     }
 }
 

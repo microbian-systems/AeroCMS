@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Modules.Content;
 using Aero.Cms.Modules.Content.Routing;
+using Aero.Cms.Modules.Pages;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
@@ -13,6 +14,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using Shouldly;
 
@@ -20,6 +23,32 @@ namespace Aero.Cms.Core.Tests.Content;
 
 public sealed class PublicContentRouteTransformerTests
 {
+    [Test]
+    public async Task Content_module_prioritizes_its_dynamic_public_content_selector()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddLogging();
+        new ContentModule().ConfigureServices(builder.Services);
+
+        await using var app = builder.Build();
+        app.MapRazorPages();
+
+        var selectors = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint =>
+            {
+                var page = endpoint.Metadata.GetMetadata<PageActionDescriptor>();
+                return string.Equals(page?.AreaName, "Content", StringComparison.Ordinal)
+                       && string.Equals(page.ViewEnginePath, "/PublicContent", StringComparison.Ordinal);
+            })
+            .ToArray();
+
+        selectors.Length.ShouldBeGreaterThan(1);
+        selectors.Count(endpoint => endpoint.Order == -1).ShouldBe(1);
+    }
+
     [Test]
     public async Task Selector_rejects_unsupported_cultures_and_non_public_or_unknown_type_aliases()
     {
@@ -96,10 +125,11 @@ public sealed class PublicContentRouteTransformerTests
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        new ContentModule().ConfigureServices(builder.Services);
+        new PagesModule().ConfigureServices(builder.Services);
+        builder.Services.RemoveAll<IHostedService>();
         builder.Services.AddSingleton(types);
         builder.Services.AddSingleton(sites);
-        builder.Services.AddTransient<PublicContentRouteTransformer>();
-        builder.Services.AddRazorPages().AddApplicationPart(typeof(ContentModule).Assembly);
 
         var app = builder.Build();
         app.UseRouting();
@@ -110,11 +140,11 @@ public sealed class PublicContentRouteTransformerTests
             context.Response.StatusCode = StatusCodes.Status204NoContent;
             return Task.CompletedTask;
         });
-        app.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}");
         app.MapGet("/{culture}/pages/{slug}", () => Results.NoContent());
         app.MapGet("/{culture}/posts/{slug}", () => Results.NoContent());
         app.MapGet("/{culture}/docs/{slug}", () => Results.NoContent());
         app.MapRazorPages();
+        app.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}", state: null!, order: -1);
         await app.StartAsync();
         return app;
     }
@@ -126,4 +156,5 @@ public sealed class PublicContentRouteTransformerTests
 
     private static Task<Result<T, AeroError>> Ok<T>(T value) =>
         Task.FromResult<Result<T, AeroError>>(new Result<T, AeroError>.Ok(value));
+
 }

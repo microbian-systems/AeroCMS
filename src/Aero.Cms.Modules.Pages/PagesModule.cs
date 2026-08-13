@@ -180,6 +180,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 foreach (var selector in model.Selectors)
                 {
                     var template = selector.AttributeRouteModel?.Template;
+                    if (string.Equals(template?.TrimStart('/'), "{**slug}", StringComparison.Ordinal))
+                    {
+                        // A content dynamic route must first explicitly accept a
+                        // public type/culture. Keep this general fallback below
+                        // that accepted route without removing it when declined.
+                        selector.AttributeRouteModel!.Order = 1;
+                    }
+
                     if (string.Equals(
                             template?.TrimStart('/'),
                             "_cms/preview/pages/drafts/{draftId:long}",
