@@ -209,6 +209,7 @@ public sealed class AeroContentService(
             await searchProjectionService.StageUpsertAsync(
                 item,
                 MapDefinition(type),
+                group.SharedFields,
                 ct);
         }
         try

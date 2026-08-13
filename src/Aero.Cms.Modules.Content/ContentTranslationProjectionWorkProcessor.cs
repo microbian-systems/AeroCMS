@@ -54,15 +54,16 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
 
         var take = Math.Clamp(maximumItems, 1, 100);
         var variants = await session.Query<ContentItem>()
-            .Where(item => item.SiteId == work.SiteId && item.TranslationGroupId == group.Id
+            .Where(item => item.SiteId == work.SiteId
+                && item.ContentTypeAlias == group.ContentTypeAlias
+                && item.TranslationGroupId == group.Id
                 && (work.LastProcessedItemId == null || item.Id > work.LastProcessedItemId))
             .OrderBy(item => item.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
         foreach (var variant in variants)
         {
-            foreach (var (name, value) in group.SharedFields) variant.Fields[name] = value.Clone();
-            await projections.StageUpsertAsync(variant, typeOk.Value, cancellationToken);
+            await projections.StageUpsertAsync(variant, typeOk.Value, group.SharedFields, cancellationToken);
             work.LastProcessedItemId = variant.Id;
         }
         // Projection rows and durable progress are committed before cache eviction. If the

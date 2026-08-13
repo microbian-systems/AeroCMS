@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Search;
@@ -21,8 +22,14 @@ public sealed class ContentSearchProjectionLifecycleTests
             .WithSchema<ContentSearchDocument>(SchemaMode.Flexible)
             .WithSchema<ContentSearchFacet>(SchemaMode.Flexible)
             .WithSchema<ContentSemanticDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible)
             .WithConfiguration(options =>
-                options.Schema.For<ContentItem>().UseOptimisticConcurrency = true);
+            {
+                options.Schema.For<ContentItem>().UseOptimisticConcurrency = true;
+                options.Schema.Analyzers.DefineAnalyzer(ContentSearchConstants.AnalyzerName);
+                options.Schema.For<ContentSearchDocument>()
+                    .FullTextIndex(document => document.FullText, ContentSearchConstants.AnalyzerName);
+            });
         await harness.InitializeAsync();
         harness.Session.Store(new ContentTypeDocument
         {
@@ -36,6 +43,14 @@ public sealed class ContentSearchProjectionLifecycleTests
                 {
                     Name = "common-name",
                     FieldType = ContentFieldTypes.Text,
+                    Indexed = true,
+                    FullTextSearchable = true
+                },
+                new ContentFieldDefinition
+                {
+                    Name = "species",
+                    FieldType = ContentFieldTypes.Text,
+                    LocalizationMode = ContentFieldLocalizationMode.Shared,
                     Indexed = true,
                     FullTextSearchable = true
                 }
@@ -58,7 +73,8 @@ public sealed class ContentSearchProjectionLifecycleTests
             Slug = "wolf",
             Fields = new Dictionary<string, JsonElement>
             {
-                ["common-name"] = JsonSerializer.SerializeToElement("Grey wolf")
+                ["common-name"] = JsonSerializer.SerializeToElement("Grey wolf"),
+                ["species"] = JsonSerializer.SerializeToElement("Canis lupus")
             }
         };
 
@@ -73,14 +89,37 @@ public sealed class ContentSearchProjectionLifecycleTests
         await using (var verifyCreate = await harness.Store.QuerySessionAsync())
         {
             var search = await verifyCreate.LoadAsync<ContentSearchDocument>(item.Id);
+            var raw = await verifyCreate.LoadAsync<ContentItem>(item.Id);
+            var group = await verifyCreate.LoadAsync<ContentTranslationGroupDocument>(item.TranslationGroupId!.Value);
             var facets = await verifyCreate.Query<ContentSearchFacet>()
                 .Where(facet => facet.ContentItemId == item.Id)
                 .ToListAsync();
             await Assert.That(search).IsNotNull();
             await Assert.That(search!.FullText).Contains("Grey wolf");
+            await Assert.That(search.FullText).Contains("Canis lupus");
+            await Assert.That(raw!.Fields.ContainsKey("species")).IsFalse();
+            await Assert.That(group!.SharedFields["species"].GetString()).IsEqualTo("Canis lupus");
             await Assert.That(facets.Select(facet => facet.NormalizedValue))
-                .IsEquivalentTo(["GREY WOLF"]);
+                .IsEquivalentTo(["GREY WOLF", "CANIS LUPUS"]);
         }
+
+        var query = new AeroContentQueryService(harness.Session);
+        var exact = await query.SearchIndexAsync(new ContentSearchRequest(
+            1, "animal", string.Empty, "en-US", ContentSearchMode.FullText,
+            PublishedOnly: false, Skip: 0, Take: 10,
+            new Dictionary<string, string> { ["species"] = "Canis lupus" }));
+        var exactSuccess = exact as Result<ContentSearchResult>.Ok;
+        await Assert.That(exactSuccess).IsNotNull();
+        await Assert.That(exactSuccess!.Value.Items).HasCount(1);
+        await Assert.That(exactSuccess.Value.Items[0].Fields["species"].GetString()).IsEqualTo("Canis lupus");
+
+        var fullText = await query.SearchIndexAsync(new ContentSearchRequest(
+            1, "animal", "Canis", "en-US", ContentSearchMode.FullText,
+            PublishedOnly: false, Skip: 0, Take: 10,
+            new Dictionary<string, string>()));
+        var fullTextSuccess = fullText as Result<ContentSearchResult>.Ok;
+        await Assert.That(fullTextSuccess).IsNotNull();
+        await Assert.That(fullTextSuccess!.Value.Items[0].Fields["species"].GetString()).IsEqualTo("Canis lupus");
 
         var updated = await service.SaveAsync(new ContentItem
         {
@@ -104,7 +143,7 @@ public sealed class ContentSearchProjectionLifecycleTests
                 .Where(facet => facet.ContentItemId == item.Id)
                 .ToListAsync();
             await Assert.That(facets.Select(facet => facet.NormalizedValue))
-                .IsEquivalentTo(["TIMBER WOLF"]);
+                .IsEquivalentTo(["TIMBER WOLF", "CANIS LUPUS"]);
         }
 
         var staleUpdate = await service.SaveAsync(new ContentItem
