@@ -120,6 +120,26 @@ public sealed class SchemaAwareContentAiTranslationGenerationServiceTests
     }
 
     [Test]
+    public async Task Preserves_source_when_inline_structure_moves_between_paragraphs()
+    {
+        const string source = "First *important* paragraph.\n\nSecond <span>HTML</span> paragraph.";
+        const string moved = "First <span>HTML</span> paragraph.\n\nSecond *important* paragraph.";
+        var result = await Create(new RecordingTranslator(new Dictionary<string, string> { ["body"] = moved }), Snapshot(("body", "richtext", ContentFieldLocalizationMode.Localized, source))).GenerateAsync(Request());
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+    }
+
+    [Test]
+    public async Task Preserves_source_when_table_column_alignment_changes()
+    {
+        const string source = "| Left | Right |\n| :--- | ---: |\n| one | two |";
+        const string changedAlignment = "| Gauche | Droite |\n| ---: | :--- |\n| un | deux |";
+        var result = await Create(new RecordingTranslator(new Dictionary<string, string> { ["body"] = changedAlignment }), Snapshot(("body", "richtext", ContentFieldLocalizationMode.Localized, source))).GenerateAsync(Request());
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+    }
+
+    [Test]
     public async Task Contributor_receives_only_authoritative_snapshot_source_context()
     {
         var snapshot = Snapshot(("title", "text", ContentFieldLocalizationMode.Localized, "Trusted"));

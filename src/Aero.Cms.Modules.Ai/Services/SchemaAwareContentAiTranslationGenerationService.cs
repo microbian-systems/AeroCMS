@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using Markdig;
+using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
@@ -191,14 +192,6 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         {
             yield return token;
         }
-        foreach (var inline in document.Descendants<Inline>())
-        {
-            yield return $"inline:{inline.GetType().FullName}";
-            if (inline is LinkInline link) yield return $"link:{link.Url}:{link.Title}:{link.IsImage}";
-            if (inline is CodeInline code) yield return $"inlinecode:{code.Content}";
-            if (inline is EmphasisInline emphasis) yield return $"emphasis:{emphasis.DelimiterChar}:{emphasis.DelimiterCount}";
-            if (inline is HtmlInline html) yield return $"htmlinline:{html.Tag}";
-        }
     }
 
     private static IEnumerable<string> MarkdownBlockTokens(ContainerBlock container)
@@ -210,9 +203,35 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
             {
                 foreach (var token in MarkdownBlockTokens(childContainer)) yield return token;
             }
+            if (block is LeafBlock { Inline: { } inline })
+            {
+                foreach (var token in MarkdownInlineTokens(inline)) yield return token;
+            }
             yield return $"block-close:{block.GetType().FullName}";
         }
     }
+
+    private static IEnumerable<string> MarkdownInlineTokens(ContainerInline container)
+    {
+        for (var inline = container.FirstChild; inline is not null; inline = inline.NextSibling)
+        {
+            yield return $"inline-open:{inline.GetType().FullName}:{InlineMetadata(inline)}";
+            if (inline is ContainerInline childContainer)
+            {
+                foreach (var token in MarkdownInlineTokens(childContainer)) yield return token;
+            }
+            yield return $"inline-close:{inline.GetType().FullName}";
+        }
+    }
+
+    private static string InlineMetadata(Inline inline) => inline switch
+    {
+        LinkInline link => $"link:{link.Url}:{link.Title}:{link.IsImage}",
+        CodeInline code => $"inlinecode:{code.Content}",
+        EmphasisInline emphasis => $"emphasis:{emphasis.DelimiterChar}:{emphasis.DelimiterCount}",
+        HtmlInline html => $"htmlinline:{html.Tag}",
+        _ => string.Empty
+    };
 
     private static string BlockMetadata(Block block) => block switch
     {
@@ -220,6 +239,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         ListBlock list => $"list:{list.IsOrdered}:{list.BulletType}:{list.OrderedStart}:{list.OrderedDelimiter}",
         FencedCodeBlock fenced => $"fence:{fenced.Info}:{fenced.Lines}",
         CodeBlock code => $"code:{code.Lines}",
+        Table table => $"table:{string.Join(',', table.ColumnDefinitions?.Select(column => $"{column.Alignment}:{column.Width}") ?? [])}",
         HtmlBlock html => $"htmlblock:{html.Lines}",
         _ => string.Empty
     };
