@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Core.Http;
@@ -54,7 +55,8 @@ public sealed class ReferenceExistenceValidator(
     IContentTypeService? contentTypeService = null,
     IEnumerable<IContentEntrySourceProvider>? entryProviders = null,
     IContentEntrySourceProviderCatalog? entryProviderCatalog = null,
-    ISiteContext? siteContext = null) : IAsyncContentValidator
+    ISiteContext? siteContext = null,
+    ISelectedSiteScopeResolver? selectedSiteScopeResolver = null) : IAsyncContentValidator
 {
     private readonly IReadOnlyDictionary<string, IContentReferenceSourceProvider>
         cmsSourceProviders = (sourceProviders ?? [])
@@ -130,12 +132,23 @@ public sealed class ReferenceExistenceValidator(
             return;
         }
 
-        var scope = new ContentViewScope(siteContext?.TenantId ?? 0, item.SiteId);
-        if (!scope.IsValid)
+        var resolvedScope = selectedSiteScopeResolver is null
+            ? null
+            : await selectedSiteScopeResolver.ResolveAsync(item.SiteId, ct);
+        if (resolvedScope is not { IsValid: true } || resolvedScope.Value.SiteId != item.SiteId)
         {
-            failures.Add(new ValidationFailure(field.Name, "Content-entry references require a tenant and site scope."));
+            failures.Add(new ValidationFailure(field.Name, "Content-entry references require an authoritative tenant and site scope."));
             return;
         }
+
+        if (siteContext is { TenantId: > 0, SiteId: > 0 }
+            && (siteContext.TenantId != resolvedScope.Value.TenantId || siteContext.SiteId != item.SiteId))
+        {
+            failures.Add(new ValidationFailure(field.Name, "Content-entry references do not match the selected tenant and site scope."));
+            return;
+        }
+
+        var scope = new ContentViewScope(resolvedScope.Value.TenantId, resolvedScope.Value.SiteId);
 
         var provider = entryProvidersByKey.TryGetValue(key.Value.Provider, out var registered)
             ? registered

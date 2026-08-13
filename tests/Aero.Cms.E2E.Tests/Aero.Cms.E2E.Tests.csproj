@@ -29,9 +29,16 @@
         <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.9" />
         <PackageReference Include="NSubstitute" Version="5.3.0" />
         <PackageReference Include="MysticMind.PostgresEmbed" Version="4.0.0" />
+        <!-- The Aero source graph also brings this package transitively. Suppress its
+             package assets so the direct source ProjectReference below is the runtime
+             Sable implementation exercised by this browser harness. -->
+        <PackageReference Include="AeroDB.Sable" Version="0.0.9.7-alpha" ExcludeAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Exercise the source Sable dependency used by the CMS projects, rather than
+             retaining the older transitive package copy in the browser-test host. -->
+        <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
         <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.InMemory\SurrealDb.Embedded.InMemory.csproj" />
         <ProjectReference Include="..\..\src\Aero.Cms.Hosting.Defaults\Aero.Cms.Hosting.Defaults.csproj" />
         <ProjectReference Include="..\..\src\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />

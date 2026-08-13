@@ -1,6 +1,8 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
@@ -57,6 +59,8 @@ public static class SharedPlaywrightE2EFixture
     public static PlaywrightE2EFixture Instance { get; } = new();
 }
 
+public sealed record LocalizationContentEntrySeed(long ItemId, long AiBlockedItemId, string Alias, string Slug, string ViewAlias);
+
 /// <summary>
 /// E2E test fixture that starts a real Kestrel-hosted WebApplication (not Alba/TestServer).
 ///
@@ -77,6 +81,9 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     private const string E2EAuthenticationScheme = "E2E";
     private static readonly long E2EUserId = Snowflake.NewId();
     private static readonly SemaphoreSlim Lock = new(1, 1);
+    // Session-scoped E2E classes share one browser page. TUnit scheduling may still
+    // overlap individual tests, so serialize a complete navigation journey here.
+    private static readonly SemaphoreSlim BrowserJourneyLock = new(1, 1);
 
     private PgServer? _postgres;
     private int _pgPort;
@@ -94,6 +101,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public long HomePageId { get; private set; }
     public long BlockPageId { get; private set; }
     public long SiteId { get; private set; }
+    public long TenantId { get; private set; }
 
     public async Task InitializeAsync()
     {
@@ -533,6 +541,19 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
+    public async Task RunBrowserJourneyAsync(Func<Task> journey)
+    {
+        await BrowserJourneyLock.WaitAsync();
+        try
+        {
+            await journey();
+        }
+        finally
+        {
+            BrowserJourneyLock.Release();
+        }
+    }
+
     /// <summary>
     /// Navigates to the login page and waits for Blazor WASM to download/cache.
     /// Call this once before any browser-based page navigation tests.
@@ -645,6 +666,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             session.Store(site);
         }
         SiteId = site.Id;
+        TenantId = site.TenantId;
 
         // ── Site host ───────────────────────────────────────────────────
         var hostEntry = await session.Query<SiteHost>()
@@ -952,6 +974,131 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             throw new InvalidOperationException(failure.Error.ToString());
     }
 
+    /// <summary>Seeds a generic localized entry and its published query-backed reference provider.</summary>
+    public async Task<LocalizationContentEntrySeed> SeedLocalizedContentEntryAsync(string alias)
+    {
+        if (_app is null) throw new InvalidOperationException("The E2E application has not been initialized.");
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var contentTypes = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+        var contentItems = scope.ServiceProvider.GetRequiredService<IContentService>();
+        var commands = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
+        var views = scope.ServiceProvider.GetRequiredService<IContentSurrealViewStore>();
+        var shape = scope.ServiceProvider.GetServices<IContentShape>()
+            .Single(candidate => candidate.Definition.Alias == "e2e-record").Definition;
+        var viewScope = new ContentViewScope(TenantId, SiteId);
+        var viewAlias = $"{alias}-records";
+
+        if (await contentTypes.GetByAliasAsync(SiteId, alias) is Result<ContentTypeDefinition, AeroError>.Failure)
+        {
+            var typeResult = await contentTypes.SaveAsync(new ContentTypeDefinition
+            {
+                SiteId = SiteId,
+                Alias = alias,
+                Name = "Localized reference records",
+                Description = "Disposable browser fixture for generic content localization.",
+                AllowPublicUrl = true,
+                Fields =
+                [
+                    new ContentFieldDefinition { Name = "shared-code", Label = "Shared code", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.Shared },
+                    new ContentFieldDefinition { Name = "localized-name", Label = "Localized name", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.Localized, Required = true },
+                    new ContentFieldDefinition { Name = "fork-note", Label = "Fork note", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.CopyOnFork },
+                    new ContentFieldDefinition
+                    {
+                        Name = "related-entry", Label = "Related entry", FieldType = ContentFieldTypes.Reference,
+                        LocalizationMode = ContentFieldLocalizationMode.Localized,
+                        Settings = new Dictionary<string, JsonElement>
+                        {
+                            [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindContentEntry),
+                            [ReferenceContentFieldSettings.AllowedProviders] = JsonSerializer.SerializeToElement(new[] { $"view:{viewAlias}" }),
+                            ["previewFields"] = JsonSerializer.SerializeToElement(new[] { "title", "kind" })
+                        }
+                    }
+                ]
+            });
+            if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure failure)
+                throw new InvalidOperationException(failure.Error.ToString());
+        }
+
+        if (await views.LoadAsync(viewScope, viewAlias, ContentViewPublicationState.Published) is null)
+        {
+            var draft = await views.SaveDraftAsync(new ContentSurrealViewRevision(
+                0, viewScope, viewAlias, shape.Alias, shape.SchemaFingerprint,
+                "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId LIMIT 20",
+                "id", "title", 0, ContentViewPublicationState.Draft, DateTimeOffset.UtcNow,
+                EntrySelectStatement: "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId AND id = $entryId LIMIT 1",
+                SearchSelectStatement: "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId AND title CONTAINS $search LIMIT 20"));
+            _ = await views.PublishAsync(viewScope, viewAlias, draft.Version);
+        }
+
+        var slug = "rtl-localized-reference";
+        var item = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", slug);
+        long itemId;
+        if (item is Result<ContentItem, AeroError>.Ok existing)
+        {
+            itemId = existing.Value.Id;
+        }
+        else
+        {
+            var created = new ContentItem
+            {
+                Id = 0, SiteId = SiteId, ContentTypeAlias = alias, Culture = "ar-SA", Slug = slug,
+                Title = "سجل مرجعي", VersionNumber = 0,
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["shared-code"] = JsonSerializer.SerializeToElement("shared-e2e"),
+                    ["localized-name"] = JsonSerializer.SerializeToElement("سجل مرجعي"),
+                    ["fork-note"] = JsonSerializer.SerializeToElement("Copied only when a culture is forked."),
+                    ["related-entry"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey($"view:{viewAlias}", "e2e-entry"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }
+            };
+            var saved = await commands.SaveDraftAsync(created);
+            if (saved is not Result<ContentItem, AeroError>.Ok savedOk) throw new InvalidOperationException(saved.ToString());
+            var published = await commands.PublishAsync(savedOk.Value);
+            if (published is Result<ContentItem, AeroError>.Failure publishFailure)
+                throw new InvalidOperationException(DescribeError(publishFailure.Error));
+            itemId = savedOk.Value.Id;
+        }
+
+        var aiBlockedSlug = "ai-review-blocked";
+        var aiBlocked = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", aiBlockedSlug);
+        long aiBlockedItemId;
+        if (aiBlocked is Result<ContentItem, AeroError>.Ok existingAiBlocked)
+        {
+            aiBlockedItemId = existingAiBlocked.Value.Id;
+        }
+        else
+        {
+            var draft = new ContentItem
+            {
+                Id = 0, SiteId = SiteId, ContentTypeAlias = alias, Culture = "ar-SA", Slug = aiBlockedSlug,
+                Title = "مراجعة مطلوبة", VersionNumber = 1,
+                TranslationProvenance = new ContentTranslationProvenance(
+                    ContentTranslationOrigin.AiAssisted, "en-US", 1, DateTimeOffset.UtcNow),
+                TranslationReview = new ContentTranslationReview(),
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["localized-name"] = JsonSerializer.SerializeToElement("مراجعة مطلوبة"),
+                    ["related-entry"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey($"view:{viewAlias}", "e2e-entry"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }
+            };
+            var saved = await contentItems.SaveAsync(draft);
+            if (saved is Result<ContentItem, AeroError>.Failure aiFailure) throw new InvalidOperationException(aiFailure.Error.ToString());
+            aiBlockedItemId = draft.Id;
+        }
+
+        return new LocalizationContentEntrySeed(itemId, aiBlockedItemId, alias, slug, viewAlias);
+    }
+
+    private static string DescribeError(AeroError error) =>
+        error is AeroError.Validation validation
+            ? string.Join(Environment.NewLine, validation.Errors)
+            : error.ToString();
+
     private static HtmlPageContent CreateTestPageContent(
         string title,
         string summary)
@@ -1079,10 +1226,19 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
 
     private static string AllocateLoopbackBaseUrl()
     {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-        return $"http://localhost:{port}";
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+            // Chromium rejects historical service ports such as 6667 before
+            // issuing a request. Avoid the observed unsafe port without
+            // assuming a particular OS ephemeral-port range.
+            if (port != 6667)
+                return $"http://localhost:{port}";
+        }
+
+        throw new InvalidOperationException("Unable to allocate a browser-safe loopback port for the E2E host.");
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────

@@ -87,12 +87,16 @@ public sealed class StrictCamelCaseEnumConverter<TEnum> : JsonStringEnumConverte
 }
 
 /// <summary>Content-type-level localization behavior. Defaults are deliberately fail closed.</summary>
+[GenerateSerializer]
+[Alias("ContentLocalizationSettings")]
 public sealed class ContentLocalizationSettings
 {
     /// <summary>Gets or sets the lookup behavior when an exact culture variant is absent.</summary>
+    [Id(0)]
     public ContentCultureFallbackPolicy CultureFallbackPolicy { get; set; } = ContentCultureFallbackPolicy.ExactOnly;
 
     /// <summary>Gets or sets the review behavior for AI-assisted translations.</summary>
+    [Id(1)]
     public ContentAiTranslationReviewPolicy AiTranslationReviewPolicy { get; set; } = ContentAiTranslationReviewPolicy.RequireHumanReview;
 }
 
@@ -138,15 +142,19 @@ public sealed class ContentTranslationGroup
 }
 
 /// <summary>Records the non-content source details used to create a localized variant.</summary>
+[GenerateSerializer]
+[Alias("ContentTranslationProvenance")]
 public sealed record ContentTranslationProvenance(
-    ContentTranslationOrigin Origin,
-    string SourceCulture,
-    int SourceVersionNumber,
-    DateTimeOffset CreatedOn,
-    string? ProviderId = null,
-    string? Model = null);
+    [property: Id(0)] ContentTranslationOrigin Origin,
+    [property: Id(1)] string SourceCulture,
+    [property: Id(2)] int SourceVersionNumber,
+    [property: Id(3)] DateTimeOffset CreatedOn,
+    [property: Id(4)] string? ProviderId = null,
+    [property: Id(5)] string? Model = null);
 
 /// <summary>Records a translation-specific editorial review decision and its exact revision basis.</summary>
+[GenerateSerializer]
+[Alias("ContentTranslationReview")]
 public sealed class ContentTranslationReview
 {
     /// <summary>Creates a review state that requires no translation-specific approval.</summary>
@@ -188,24 +196,31 @@ public sealed class ContentTranslationReview
     }
 
     /// <summary>Gets the current review status.</summary>
+    [Id(0)]
     public ContentTranslationReviewStatus Status { get; } = ContentTranslationReviewStatus.NotRequired;
 
     /// <summary>Gets when the review decision was made.</summary>
+    [Id(1)]
     public DateTimeOffset? ReviewedOn { get; }
 
     /// <summary>Gets the identity of the reviewer, when available.</summary>
+    [Id(2)]
     public string? ReviewedBy { get; }
 
     /// <summary>Gets optional reviewer notes.</summary>
+    [Id(3)]
     public string? Notes { get; }
 
     /// <summary>Gets the source item reviewed as the translation basis.</summary>
+    [Id(4)]
     public long? ReviewedSourceItemId { get; }
 
     /// <summary>Gets the source version reviewed as the translation basis.</summary>
+    [Id(5)]
     public int? ReviewedSourceVersionNumber { get; }
 
     /// <summary>Gets the target variant version that was reviewed.</summary>
+    [Id(6)]
     public int? ReviewedTargetVersionNumber { get; }
 
     /// <summary>Creates a pending review state.</summary>

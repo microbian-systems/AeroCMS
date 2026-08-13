@@ -15,7 +15,7 @@ internal sealed class ContentTranslationProjectionWorkHostedService(
         {
             try
             {
-                using var scope = scopes.CreateScope();
+                await using var scope = scopes.CreateAsyncScope();
                 var processor = scope.ServiceProvider.GetRequiredService<IContentTranslationProjectionWorkProcessor>();
                 if (await processor.ProcessNextBatchAsync(100, stoppingToken))
                     continue;
