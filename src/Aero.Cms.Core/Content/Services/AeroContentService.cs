@@ -89,7 +89,11 @@ public sealed class AeroContentService(
             if (existing is null || existing.SiteId != item.SiteId)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError($"Content item '{item.Id}' not found."));
 
-            if (item.Version <= 0 || item.Version != existing.Version)
+            // A persisted record can legitimately have storage version zero when it
+            // predates version-initializing writes or was seeded outside this service.
+            // Equality is the CAS invariant; requiring a positive value would reject
+            // an otherwise current token without making concurrent writes safer.
+            if (item.Version != existing.Version)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item changed. Reload and try again."));
             // UpdateExpectedVersion queues the tracked document.  Build a detached
             // candidate instead of overlaying a hydrated caller copy on it.

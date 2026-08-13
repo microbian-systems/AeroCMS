@@ -4,6 +4,8 @@ using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
+using Aero.Core;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Tests.Content;
@@ -60,6 +62,11 @@ public sealed class ContentSearchProjectionLifecycleTests
 
         var created = await service.SaveAsync(item);
         await Assert.That(created.IsSuccess).IsTrue().Because(created.ToString());
+        var createdItem = created switch
+        {
+            Result<ContentItem, AeroError>.Ok success => success.Value,
+            _ => throw new InvalidOperationException("The successful save did not return its persisted item.")
+        };
         await using (var verifyCreate = await harness.Store.QuerySessionAsync())
         {
             var search = await verifyCreate.LoadAsync<ContentSearchDocument>(item.Id);
@@ -75,6 +82,7 @@ public sealed class ContentSearchProjectionLifecycleTests
         var updated = await service.SaveAsync(new ContentItem
         {
             Id = item.Id,
+            Version = createdItem.Version,
             SiteId = 1,
             ContentTypeAlias = "animal",
             Culture = "en-US",
@@ -94,6 +102,23 @@ public sealed class ContentSearchProjectionLifecycleTests
             await Assert.That(facets.Select(facet => facet.NormalizedValue))
                 .IsEquivalentTo(["TIMBER WOLF"]);
         }
+
+        var staleUpdate = await service.SaveAsync(new ContentItem
+        {
+            Id = item.Id,
+            Version = createdItem.Version,
+            SiteId = 1,
+            ContentTypeAlias = "animal",
+            Culture = "en-US",
+            Title = "Wolf",
+            Slug = "wolf",
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["common-name"] = JsonSerializer.SerializeToElement("Stale wolf")
+            }
+        });
+        await Assert.That(staleUpdate.IsFailure).IsTrue();
+        await Assert.That(staleUpdate.ToString()).Contains("Content item changed");
 
         var deleted = await service.DeleteAsync(1, item.Id);
         await Assert.That(deleted.IsSuccess).IsTrue().Because(deleted.ToString());
