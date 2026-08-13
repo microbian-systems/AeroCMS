@@ -17,7 +17,7 @@ public sealed class ContentApiAuthorizationTests
         app.MapContentTypesApi();
         app.MapContentItemsApi();
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>().ToList();
-        endpoints.Count.ShouldBe(20);
+        endpoints.Count.ShouldBe(23);
         var expected = new (string Method, string Route, string Policy)[]
         {
             ("GET", "/api/v1/admin/content-types/", "site:read"),
@@ -39,7 +39,10 @@ public sealed class ContentApiAuthorizationTests
             ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/publish", "site:update"),
             ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/unpublish", "site:update"),
             ("GET", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:read"),
-            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:create")
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:update"),
+            ("PUT", "/api/v1/admin/content-items/{alias}/{id:long}/translations/shared-fields", "site:update"),
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations/ai-apply", "site:update"),
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations/review", "site:update")
         };
         foreach (var item in expected)
         {
