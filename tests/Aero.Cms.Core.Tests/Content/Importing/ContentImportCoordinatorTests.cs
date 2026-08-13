@@ -125,6 +125,38 @@ public sealed class ContentImportCoordinatorTests
         await fixture.Jobs.Received(1).ReportAsync(fixture.Lease, "done", 1, 1, Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task Activation_without_progress_preserves_imported_progress_and_uses_its_checkpoint()
+    {
+        var fixture = new Fixture(activate: true);
+        fixture.Provider.Import = ContentImportProviderResult.Success("catalogue-of-life:completed", 109, 200);
+        fixture.Provider.Activation = ContentImportProviderResult.Success("catalogue-of-life:active");
+
+        var result = await fixture.Coordinator.ExecuteAsync(fixture.Lease);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Checkpoint.ShouldBe("catalogue-of-life:active");
+        result.ProgressCurrent.ShouldBe(109);
+        result.ProgressTotal.ShouldBe(200);
+        await fixture.Jobs.Received(1).ReportAsync(fixture.Lease, "catalogue-of-life:active", 109, 200, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Activation_with_explicit_progress_supersedes_imported_progress()
+    {
+        var fixture = new Fixture(activate: true);
+        fixture.Provider.Import = ContentImportProviderResult.Success("catalogue-of-life:completed", 109, 200);
+        fixture.Provider.Activation = ContentImportProviderResult.Success("catalogue-of-life:active", 110, 200);
+
+        var result = await fixture.Coordinator.ExecuteAsync(fixture.Lease);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Checkpoint.ShouldBe("catalogue-of-life:active");
+        result.ProgressCurrent.ShouldBe(110);
+        result.ProgressTotal.ShouldBe(200);
+        await fixture.Jobs.Received(1).ReportAsync(fixture.Lease, "catalogue-of-life:active", 110, 200, Arg.Any<CancellationToken>());
+    }
+
     private static ContentTypeDefinition Type(string alias) => new() { SiteId = 7, Alias = alias, Name = "Catalog item", ScribanTemplate = null };
 
     private static ContentSurrealViewRevision View(string alias) => new(
@@ -137,15 +169,16 @@ public sealed class ContentImportCoordinatorTests
     private sealed class Fixture
     {
         public ContentImportLease Lease { get; } = new(5, "lease", 2, DateTimeOffset.UtcNow.AddMinutes(1));
-        public ContentImportJob Job { get; } = new(5, "identity", 3, Request(), ContentImportJobState.Running, 1, null, 0, null, null, "lease", 2, DateTimeOffset.UtcNow.AddMinutes(1), null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        public ContentImportJob Job { get; }
         public IContentImportJobStore Jobs { get; } = Substitute.For<IContentImportJobStore>();
         public FakeContentTypes Types { get; } = new();
         public IContentSurrealViewService Views { get; } = Substitute.For<IContentSurrealViewService>();
         public TestImporter Provider { get; } = new();
         public IContentImportCoordinator Coordinator { get; }
 
-        public Fixture()
+        public Fixture(bool activate = false)
         {
+            Job = new ContentImportJob(5, "identity", 3, Request(activate), ContentImportJobState.Running, 1, null, 0, null, null, "lease", 2, DateTimeOffset.UtcNow.AddMinutes(1), null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
             Jobs.LoadAsync(5, Arg.Any<CancellationToken>()).Returns(Job);
             Jobs.ReportAsync(Arg.Any<ContentImportLease>(), Arg.Any<string?>(), Arg.Any<long>(), Arg.Any<long?>(), Arg.Any<CancellationToken>()).Returns(true);
             var sites = Substitute.For<ISelectedSiteScopeResolver>();
@@ -153,7 +186,7 @@ public sealed class ContentImportCoordinatorTests
             Coordinator = new ContentImportCoordinator([Provider], Jobs, sites, Types, Views);
         }
 
-        private static ContentImportRequest Request() => new(7, "test", "1", "source", "selection", "{}", "system:test", false);
+        private static ContentImportRequest Request(bool activate) => new(7, "test", "1", "source", "selection", "{}", "system:test", activate);
     }
 
     private sealed class FakeContentTypes : IContentTypeService
@@ -185,10 +218,11 @@ public sealed class ContentImportCoordinatorTests
         public ContentTypeImporterDescriptor Descriptor { get; } = new("test", "Test", "1");
         public ContentImportProvisioningPlan Plan { get; set; } = ContentImportProvisioningPlan.Empty;
         public ContentImportProviderResult Import { get; set; } = ContentImportProviderResult.Success("done", 1, 1);
+        public ContentImportProviderResult Activation { get; set; } = ContentImportProviderResult.Success();
         public int PlanCalls { get; private set; }
         public int ImportCalls { get; private set; }
         public Task<ContentImportProvisioningPlan> PlanAsync(ContentImportContext context, CancellationToken ct = default) { PlanCalls++; return Task.FromResult(Plan); }
         public Task<ContentImportProviderResult> ImportAsync(ContentImportExecutionContext context, CancellationToken ct = default) { ImportCalls++; return Task.FromResult(Import); }
-        public Task<ContentImportProviderResult> ActivateAsync(ContentImportExecutionContext context, CancellationToken ct = default) => Task.FromResult(ContentImportProviderResult.Success());
+        public Task<ContentImportProviderResult> ActivateAsync(ContentImportExecutionContext context, CancellationToken ct = default) => Task.FromResult(Activation);
     }
 }

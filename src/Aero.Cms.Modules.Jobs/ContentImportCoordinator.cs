@@ -39,18 +39,24 @@ internal sealed class ContentImportCoordinator(
         if (!imported.Succeeded) return imported;
         if (!await execution.Progress.ReportAsync(imported.Checkpoint, imported.ProgressCurrent, imported.ProgressTotal, ct))
             return ContentImportProviderResult.Failure("The import lease was lost while recording progress.", imported.Checkpoint);
+        var completed = imported;
         if (job.Request.Activate)
         {
             var activated = await provider[0].ActivateAsync(execution, ct);
             if (!activated.Succeeded) return activated;
-            if (!await execution.Progress.ReportAsync(activated.Checkpoint, activated.ProgressCurrent, activated.ProgressTotal, ct))
-                return ContentImportProviderResult.Failure("The import lease was lost while recording activation progress.", activated.Checkpoint);
+            var activationReportedProgress = activated.ProgressCurrent != 0 || activated.ProgressTotal.HasValue;
+            completed = ContentImportProviderResult.Success(
+                activated.Checkpoint ?? imported.Checkpoint,
+                activationReportedProgress ? activated.ProgressCurrent : imported.ProgressCurrent,
+                activationReportedProgress ? activated.ProgressTotal : imported.ProgressTotal);
+            if (!await execution.Progress.ReportAsync(completed.Checkpoint, completed.ProgressCurrent, completed.ProgressTotal, ct))
+                return ContentImportProviderResult.Failure("The import lease was lost while recording activation progress.", completed.Checkpoint);
         }
         // Importers mutate the physical source behind virtual views.  Invalidation is
         // site-scoped, so this covers both views declared in this plan and already
         // provisioned views that intentionally remain outside a later replayed plan.
         await views.InvalidateAsync(context.Scope, ct);
-        return ContentImportProviderResult.Success(imported.Checkpoint, imported.ProgressCurrent, imported.ProgressTotal);
+        return completed;
     }
 
     private async Task<ContentImportJob?> LoadCurrentAsync(ContentImportLease lease, CancellationToken ct)
