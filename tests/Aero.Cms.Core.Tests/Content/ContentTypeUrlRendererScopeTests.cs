@@ -5,6 +5,7 @@ using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Modules.Content.Areas.Content.Pages;
 using Aero.Cms.Modules.Content.Rendering;
 using Aero.Core;
+using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Authorization;
 using NSubstitute;
@@ -13,6 +14,7 @@ using Aero.Cms.Abstractions.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging.Abstractions;
+using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Content;
 
@@ -195,19 +197,19 @@ public sealed class ContentTypeUrlRendererScopeTests
         }));
         contentService.GetBySlugAndTypeAsync(7, "animal", "fr-CA", "loup", Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<Result<ContentItem, AeroError>>(AeroError.NotFoundError("missing")));
-        contentService.GetBySlugAndTypeAsync(7, "animal", "fr-FR", "loup", Arg.Any<CancellationToken>())
-            .Returns(Ok(new ContentItem { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr-FR", PublicationState = ContentPublicationState.Published }));
+        contentService.GetBySlugAndTypeAsync(7, "animal", "fr", "loup", Arg.Any<CancellationToken>())
+            .Returns(Ok(new ContentItem { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr", PublicationState = ContentPublicationState.Published }));
         itemRenderer.RenderAsync(Arg.Any<ContentTypeDefinition>(), Arg.Any<ContentItem>(), Arg.Any<CancellationToken>()).Returns(Ok("<p>loup</p>"));
         queryService.ListCultureVariantsAsync(7, "animal", 20, Arg.Any<CancellationToken>()).Returns(Ok<IReadOnlyList<ContentItem>>([
             new() { Id = 21, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "wolf", Culture = "en-US", PublicationState = ContentPublicationState.Published },
-            new() { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr-FR", PublicationState = ContentPublicationState.Published }
+            new() { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr", PublicationState = ContentPublicationState.Published }
         ]));
         var context = new DefaultHttpContext();
         context.Request.Scheme = "https";
         context.Request.Host = new HostString("example.test", 8443);
         context.Request.PathBase = "/cms";
         context.Request.Path = "/fr-CA/animal/loup";
-        context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice { SiteId = 7, DefaultCulture = "en-US", SupportedCultures = ["en-US", "fr-FR", "fr-CA"] });
+        context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice { SiteId = 7, DefaultCulture = "en-US", SupportedCultures = ["en-US", "fr", "fr-CA"] });
         var model = new PublicContentModel(siteContext, new ContentTypeUrlRenderer(typeService, contentService, itemRenderer), queryService, NullLogger<PublicContentModel>.Instance)
         {
             PageContext = new PageContext { HttpContext = context }
@@ -216,12 +218,12 @@ public sealed class ContentTypeUrlRendererScopeTests
         var result = await model.OnGetAsync("fr-ca", "animal", "loup", CancellationToken.None);
 
         result.ShouldBeOfType<PageResult>();
-        model.CanonicalUrl.ShouldBe("https://example.test:8443/cms/fr-FR/animal/loup");
+        model.CanonicalUrl.ShouldBe("https://example.test:8443/cms/fr/animal/loup");
         model.AlternateLinks.ShouldContain(link => link.Hreflang == "en-US" && link.Href == "https://example.test:8443/cms/en-US/animal/wolf");
-        model.AlternateLinks.ShouldContain(link => link.Hreflang == "fr-FR" && link.Href == "https://example.test:8443/cms/fr-FR/animal/loup");
+        model.AlternateLinks.ShouldContain(link => link.Hreflang == "fr" && link.Href == "https://example.test:8443/cms/fr/animal/loup");
         model.AlternateLinks.ShouldContain(link => link.Hreflang == "x-default" && link.Href == "https://example.test:8443/cms/en-US/animal/wolf");
         model.ViewData["IsCultureFallback"].ShouldBe(true);
-        model.ViewData["DocumentCulture"].ShouldBe("fr-FR");
+        model.ViewData["DocumentCulture"].ShouldBe("fr");
         model.ViewData["DocumentDirection"].ShouldBe("ltr");
     }
 
