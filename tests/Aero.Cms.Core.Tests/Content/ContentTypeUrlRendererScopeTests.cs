@@ -190,8 +190,9 @@ public sealed class ContentTypeUrlRendererScopeTests
         var contentService = Substitute.For<IContentService>();
         var itemRenderer = Substitute.For<IContentItemRenderer>();
         var queryService = Substitute.For<IContentQueryService>();
-        var siteContext = Substitute.For<ISiteContext>();
-        siteContext.SiteId.Returns(7);
+        var publicSites = Substitute.For<IPublicSiteRouteResolver>();
+        publicSites.ResolveAsync("example.test", Arg.Any<CancellationToken>())
+            .Returns(new PublicSiteRouteScope(7, "en-US", ["en-US", "fr", "fr-CA"]));
         typeService.GetByAliasAsync(7, "animal", Arg.Any<CancellationToken>()).Returns(Ok(new ContentTypeDefinition
         {
             Id = 10, SiteId = 7, Alias = "animal", Name = "Animal", AllowPublicUrl = true,
@@ -211,8 +212,7 @@ public sealed class ContentTypeUrlRendererScopeTests
         context.Request.Host = new HostString("example.test", 8443);
         context.Request.PathBase = "/cms";
         context.Request.Path = "/fr-CA/animal/loup";
-        context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice { SiteId = 7, DefaultCulture = "en-US", SupportedCultures = ["en-US", "fr", "fr-CA"] });
-        var model = new PublicContentModel(siteContext, new ContentTypeUrlRenderer(typeService, contentService, itemRenderer), queryService, NullLogger<PublicContentModel>.Instance)
+        var model = new PublicContentModel(publicSites, new ContentTypeUrlRenderer(typeService, contentService, itemRenderer), queryService, NullLogger<PublicContentModel>.Instance)
         {
             PageContext = new PageContext
             {

@@ -19,7 +19,7 @@ namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 /// <summary>
 /// Resolves and renders a public runtime-defined content item for the current site and UI culture.
 /// </summary>
-/// <param name="siteContext">The current site boundary used for content lookup and cache metadata.</param>
+/// <param name="sites">The authoritative host-to-site resolver used by public routes.</param>
 /// <param name="renderer">The service that resolves and renders published content.</param>
 /// <param name="queryService">The service that enumerates published translation variants for alternate links.</param>
 /// <param name="logger">The logger for not-found diagnostics and rendering failures.</param>
@@ -30,7 +30,7 @@ namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 [OutputCache(PolicyName = "ContentPublicPolicy")]
 [AllowAnonymous]
 public sealed class PublicContentModel(
-    ISiteContext siteContext,
+    IPublicSiteRouteResolver sites,
     ContentTypeUrlRenderer renderer,
     IContentQueryService queryService,
     ILogger<PublicContentModel> logger) : PageModel
@@ -79,9 +79,10 @@ public async Task<IActionResult> OnGetAsync(
         if (ReservedPrefixes.Contains(culture ?? string.Empty) || ReservedPrefixes.Contains(typeAlias))
             return NotFound();
 
-        var slice = HttpContext.Features.Get<IAeroSiteSlice>();
-        var requestedAlias = culture ?? Request.Query["lang"].FirstOrDefault() ?? slice?.DefaultCulture;
-        if (slice is null || !AeroCultureRoute.TryResolveSupportedCultureAlias(requestedAlias, slice.SupportedCultures, out var requestedCulture))
+        var site = await sites.ResolveAsync(Request.Host.Host, cancellationToken);
+        var requestedAlias = culture ?? Request.Query["lang"].FirstOrDefault() ?? site?.DefaultCulture;
+        if (site is null ||
+            !AeroCultureRoute.TryResolveSupportedCultureAlias(requestedAlias, site.SupportedCultures, out var requestedCulture))
             return NotFound();
         var normalizedType = typeAlias.Trim().Trim('/');
         var normalizedSlug = entrySlug.Trim().Trim('/').TrimEnd('.');
@@ -95,13 +96,13 @@ public async Task<IActionResult> OnGetAsync(
         try
         {
             var result = await renderer.RenderAsync(
-                siteContext.SiteId,
+                site.SiteId,
                 normalizedType,
                 requestedCulture,
                 normalizedSlug,
                 cancellationToken,
-                slice.DefaultCulture,
-                slice.SupportedCultures);
+                site.DefaultCulture,
+                site.SupportedCultures);
 
             if (result is not Result<PublicContentRenderResult, AeroError>.Ok ok)
             {
@@ -117,14 +118,14 @@ public async Task<IActionResult> OnGetAsync(
             RequestedCulture = ok.Value.RequestedCulture;
             RenderedCulture = ok.Value.RenderedCulture;
             CanonicalUrl = BuildAbsoluteContentUrl(RenderedCulture, normalizedType, normalizedSlug);
-            var variants = await queryService.ListCultureVariantsAsync(siteContext.SiteId, normalizedType, ok.Value.TranslationGroupId, cancellationToken);
+            var variants = await queryService.ListCultureVariantsAsync(site.SiteId, normalizedType, ok.Value.TranslationGroupId, cancellationToken);
             if (variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok variantResult)
             {
                 var publishedVariants = variantResult.Value
                     .Where(item => item.PublicationState == ContentPublicationState.Published)
                     .ToArray();
                 var defaultVariant = publishedVariants.FirstOrDefault(item =>
-                    string.Equals(item.Culture, slice.DefaultCulture, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(item.Culture, site.DefaultCulture, StringComparison.OrdinalIgnoreCase));
                 var defaultHref = BuildAbsoluteContentUrl(
                     defaultVariant?.Culture ?? RenderedCulture,
                     normalizedType,
@@ -146,7 +147,7 @@ public async Task<IActionResult> OnGetAsync(
                 ViewData["RequestedCulture"] = RequestedCulture;
                 ViewData["RenderedCulture"] = RenderedCulture;
             }
-            HttpContext.Items["AeroCms.SiteId"] = siteContext.SiteId;
+            HttpContext.Items["AeroCms.SiteId"] = site.SiteId;
             HttpContext.Items["AeroCms.ContentItemId"] = ok.Value.ItemId;
             HttpContext.Items["AeroCms.ContentTypeAlias"] = normalizedType;
             HttpContext.Items["AeroCms.ContentItemSlug"] = normalizedSlug;
@@ -158,7 +159,7 @@ public async Task<IActionResult> OnGetAsync(
             logger.LogError(
                 exception,
                 "Unhandled error rendering content type page for site {SiteId}, type {Type}, slug {Slug}.",
-                siteContext.SiteId,
+                site.SiteId,
                 normalizedType,
                 normalizedSlug);
             return StatusCode(StatusCodes.Status500InternalServerError);

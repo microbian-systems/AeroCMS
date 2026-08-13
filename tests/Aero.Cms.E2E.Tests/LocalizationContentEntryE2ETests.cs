@@ -75,7 +75,11 @@ public sealed class LocalizationContentEntryE2ETests
             (await preview.GetAttributeAsync("lang")).ShouldBe("ar-SA");
             (await preview.GetAttributeAsync("dir")).ShouldBe("rtl");
 
-            consoleErrors.ShouldBeEmpty();
+            var blockedPreviewScripts = consoleErrors
+                .Where(IsExpectedSandboxScriptBlock)
+                .ToArray();
+            blockedPreviewScripts.ShouldNotBeEmpty();
+            consoleErrors.Except(blockedPreviewScripts).ShouldBeEmpty();
             failedRequests.ShouldBeEmpty();
         });
     }
@@ -135,6 +139,11 @@ public sealed class LocalizationContentEntryE2ETests
             response.Status.ShouldBe(400);
         });
     }
+
+    private static bool IsExpectedSandboxScriptBlock(string message) =>
+        message.Contains("Blocked script execution", StringComparison.Ordinal) &&
+        message.Contains("document's frame is sandboxed", StringComparison.Ordinal) &&
+        message.Contains("'allow-scripts' permission is not set", StringComparison.Ordinal);
 
     private static async Task NavigateToEditorAsync(IPage page, LocalizationContentEntrySeed seed)
     {
