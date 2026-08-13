@@ -35,14 +35,14 @@ public sealed class ContentLocalizationHttpRequestTests
             ["species"] = JsonSerializer.SerializeToElement("view:species:abc")
         };
         var shared = new UpdateContentItemTranslationSharedFieldsRequest(55, 12, 3, fields);
-        var fork = new ForkContentItemCultureRequest("fr-CA", "loup", 12);
+        var fork = new ForkContentItemCultureRequest("fr-CA", "loup", 12, 19);
 
         shared.TranslationGroupId.ShouldBe(55);
         shared.ExpectedGroupStorageVersion.ShouldBe(12);
         shared.ExpectedGroupRevision.ShouldBe(3);
         shared.SharedFields.Keys.ShouldBe(["species"]);
         fork.ExpectedGroupStorageVersion.ShouldBe(12);
-        fork.ExpectedTargetStorageVersion.ShouldBeNull();
+        fork.ExpectedTargetStorageVersion.ShouldBe(19);
     }
 
     [Test]

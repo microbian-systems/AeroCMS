@@ -26,6 +26,7 @@ public sealed class AeroContentQueryService(
             .Skip(skip)
             .Take(take)
             .ToListAsync(ct);
+        await HydrateSharedFieldsAsync(items, ct);
         return Prelude.Ok<(IReadOnlyList<ContentItem>, long), AeroError>((items, total));
     }
 
@@ -148,6 +149,7 @@ public sealed class AeroContentQueryService(
                 && (x.TranslationGroupId == translationGroupId || x.Id == translationGroupId))
             .OrderBy(x => x.Culture)
             .ToListAsync(ct);
+        await HydrateSharedFieldsAsync(items, ct);
         return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>(items);
     }
 
@@ -301,9 +303,30 @@ public sealed class AeroContentQueryService(
             .Skip(request.Skip)
             .Take(request.Take + 1)
             .ToListAsync(ct);
+        await HydrateSharedFieldsAsync(items, ct);
         return new ContentSearchResult(
             items.Take(request.Take).ToArray(),
             items.Count > request.Take);
+    }
+
+    private async Task HydrateSharedFieldsAsync(IEnumerable<ContentItem> items, CancellationToken ct)
+    {
+        var materialized = items.ToArray();
+        var groupIds = materialized
+            .Where(item => item.TranslationGroupId is not null)
+            .Select(item => item.TranslationGroupId!.Value)
+            .Distinct()
+            .ToArray();
+        if (groupIds.Length == 0) return;
+
+        var groups = await session.LoadManyAsync<ContentTranslationGroupDocument>(groupIds, ct);
+        var byId = groups.ToDictionary(group => group.Id);
+        foreach (var item in materialized)
+        {
+            if (item.TranslationGroupId is not { } groupId || !byId.TryGetValue(groupId, out var group)) continue;
+            foreach (var (name, value) in group.SharedFields)
+                item.Fields[name] = value.Clone();
+        }
     }
 
     private static AeroError.Validation? Validate(ContentSearchRequest request)

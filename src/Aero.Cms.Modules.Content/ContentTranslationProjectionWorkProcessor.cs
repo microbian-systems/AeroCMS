@@ -21,21 +21,24 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
 {
     public async Task<bool> ProcessNextBatchAsync(int maximumItems = 100, CancellationToken cancellationToken = default)
     {
+        var now = DateTimeOffset.UtcNow;
         var work = await session.Query<ContentTranslationProjectionWorkDocument>()
-            .Where(candidate => !candidate.Completed)
+            .Where(candidate => !candidate.Completed
+                && (candidate.NextAttemptOn == null || candidate.NextAttemptOn <= now))
             .OrderBy(candidate => candidate.Id)
             .FirstOrDefaultAsync(cancellationToken);
         if (work is null) return false;
 
         session.UpdateExpectedVersion(work, work.Version);
         work.AttemptCount++;
-        work.LastAttemptOn = DateTimeOffset.UtcNow;
+        work.LastAttemptOn = now;
 
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(work.TranslationGroupId, cancellationToken);
         if (group is null || group.SiteId != work.SiteId || group.Version != work.GroupStorageVersion || group.Revision != work.GroupRevision)
         {
             work.Completed = true; // Superseded/deleted generations must never overwrite newer projections.
             work.LastFailure = null;
+            work.NextAttemptOn = null;
             await session.SaveChangesAsync(cancellationToken);
             return true;
         }
@@ -44,6 +47,7 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
         if (type is not Aero.Core.Railway.Result<ContentTypeDefinition, Aero.Core.AeroError>.Ok typeOk)
         {
             work.LastFailure = "The content type is unavailable.";
+            work.NextAttemptOn = RetryAt(now, work.AttemptCount);
             await session.SaveChangesAsync(cancellationToken);
             return true; // Keep durable work pending until its type becomes available.
         }
@@ -61,18 +65,26 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
             await projections.StageUpsertAsync(variant, typeOk.Value, cancellationToken);
             work.LastProcessedItemId = variant.Id;
         }
+        // Projection rows and durable progress are committed before cache eviction. If the
+        // process stops after this commit, the remaining work is replayed safely.
+        await session.SaveChangesAsync(cancellationToken);
+
         // Never mark work complete until cache invalidation has succeeded.  A retry is
         // preferable to serving a completed generation with stale hydrated variants.
         if (!await cacheInvalidator.TryInvalidateTranslationGroupAsync(
                 work.SiteId, group.Id, group.ContentTypeAlias, cancellationToken))
         {
             work.LastFailure = "Cache invalidation did not complete.";
+            work.NextAttemptOn = RetryAt(now, work.AttemptCount);
+            session.UpdateExpectedVersion(work, work.Version);
             await session.SaveChangesAsync(cancellationToken);
             return true;
         }
 
         work.LastFailure = null;
+        work.NextAttemptOn = null;
         if (variants.Count < take) work.Completed = true;
+        session.UpdateExpectedVersion(work, work.Version);
         try
         {
             await session.SaveChangesAsync(cancellationToken);
@@ -83,4 +95,7 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
         }
         return true;
     }
+
+    private static DateTimeOffset RetryAt(DateTimeOffset now, int attemptCount) =>
+        now.AddSeconds(Math.Min(60, Math.Pow(2, Math.Min(attemptCount, 6))));
 }

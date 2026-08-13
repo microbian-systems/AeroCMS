@@ -16,6 +16,7 @@ public sealed class ContentTranslationProjectionWorkDocument : SableDocument, IV
     /// <summary>Number of durable processing attempts, including cache retry attempts.</summary>
     public int AttemptCount { get; set; }
     public DateTimeOffset? LastAttemptOn { get; set; }
+    public DateTimeOffset? NextAttemptOn { get; set; }
     public string? LastFailure { get; set; }
     public long Version { get; set; }
 }

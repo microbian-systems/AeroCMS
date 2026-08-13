@@ -76,7 +76,7 @@ public sealed class ContentLocalizationHandler(
         if (draftValidation is Result<ContentItem, AeroError>.Failure validationFailure)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
 
-        var saved = await writableContentService.SaveLocalizationAsync(fork, cancellationToken);
+        var saved = await contentService.SaveLocalizationAsync(fork, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The culture variant could not be saved."));
@@ -139,7 +139,7 @@ public sealed class ContentLocalizationHandler(
         if (draftValidation is Result<ContentItem, AeroError>.Failure validationFailure)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
 
-        var saved = await writableContentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
+        var saved = await contentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The AI translation could not be saved."));
@@ -167,7 +167,7 @@ public sealed class ContentLocalizationHandler(
         targetOk.Value.TranslationReview = command.Approved
             ? ContentTranslationReview.Approve(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes)
             : ContentTranslationReview.Reject(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes);
-        var saved = await writableContentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
+        var saved = await contentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review could not be saved."));
@@ -208,7 +208,7 @@ public sealed class ContentLocalizationHandler(
             var candidate = Clone(variant);
             foreach (var (name, value) in candidateShared)
                 candidate.Fields[name] = value.Clone();
-            var validationResult = await validation.ValidateAsync(candidate, ContentValidationMode.Draft, cancellationToken);
+            var validationResult = await validation.ValidateAsync(candidate, ContentValidationMode.Publish, cancellationToken);
             if (validationResult is Result<ContentItem, AeroError>.Failure validationFailure)
                 return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
             var referenceResult = await writableContentService.ValidateReferenceFieldsAsync(candidate, typeOk.Value.Fields, cancellationToken);

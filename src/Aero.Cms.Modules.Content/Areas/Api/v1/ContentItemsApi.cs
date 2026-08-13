@@ -464,7 +464,12 @@ public static class ContentItemsApi
                 return TypedResults.NotFound();
 
             var result = await localization.ForkAsync(context,
-                new ContentCultureForkCommand(id, request.Culture, request.Slug), ct);
+                new ContentCultureForkCommand(
+                    id,
+                    request.Culture,
+                    request.Slug,
+                    ExpectedGroupStorageVersion: request.ExpectedGroupStorageVersion,
+                    ExpectedTargetStorageVersion: request.ExpectedTargetStorageVersion), ct);
             if (result is not Result<ContentLocalizationOperationResult, AeroError>.Ok ok)
                 return ContentMutationFailure(logger, "Failed to create content item translation", "The variant could not be created.", siteId, alias, id);
             var created = await contentActor.GetByIdAsync(ok.Value.ContentItemId, siteId, ct);

@@ -130,6 +130,29 @@ internal sealed class CachedContentService(
     }
 
     /// <inheritdoc />
+    public async Task<Result<ContentItem, AeroError>> SaveLocalizationAsync(
+        ContentItem item,
+        CancellationToken ct = default)
+    {
+        ContentItemCacheIdentity? oldIdentity = null;
+        if (item.Id > 0)
+        {
+            var existing = await inner.LoadAsync(item.SiteId, item.Id, ct);
+            if (existing is Result<ContentItem, AeroError>.Ok ok)
+                oldIdentity = ToIdentity(ok.Value);
+        }
+
+        var result = await inner.SaveLocalizationAsync(item, ct);
+        if (result is Result<ContentItem, AeroError>.Ok saved)
+        {
+            await invalidator.InvalidateItemAsync(oldIdentity, ToIdentity(saved.Value));
+            await SetAsync(saved.Value, ct);
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
     public async Task<bool> ExistsAsync(long siteId, long id, CancellationToken ct = default)
     {
         var cached = await cache.TryGetAsync<ContentItem>(

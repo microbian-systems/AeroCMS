@@ -101,6 +101,23 @@ public sealed class AeroContentTypeService(
                     AeroError.ConflictError(
                         "Changing a content-type alias requires an explicit conversion workflow."));
             }
+
+            var priorModes = stored.Fields.ToDictionary(field => field.Name, field => field.LocalizationMode, StringComparer.Ordinal);
+            var modeChanged = definition.Fields.Any(field =>
+                priorModes.TryGetValue(field.Name, out var previous)
+                && previous != field.LocalizationMode);
+            if (modeChanged)
+            {
+                var hasItems = await session.Query<ContentItem>()
+                    .Where(item => item.SiteId == definition.SiteId && item.ContentTypeAlias == definition.Alias)
+                    .AnyAsync(ct);
+                var hasGroups = await session.Query<ContentTranslationGroupDocument>()
+                    .Where(group => group.SiteId == definition.SiteId && group.ContentTypeAlias == definition.Alias)
+                    .AnyAsync(ct);
+                if (hasItems || hasGroups)
+                    return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.ConflictError(
+                        "Changing a field localization mode requires an explicit content conversion workflow."));
+            }
         }
 
         var existing = await session.Query<ContentTypeDocument>()
