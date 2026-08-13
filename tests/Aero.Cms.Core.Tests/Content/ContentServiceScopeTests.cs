@@ -105,6 +105,54 @@ public sealed class ContentServiceScopeTests
     }
 
     [Test]
+    public async Task Create_defers_cms_document_references_to_the_authoritative_async_validator()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 37,
+            SiteId = 1,
+            Alias = "article",
+            Name = "Article",
+            Fields =
+            [
+                new ContentFieldDefinition
+                {
+                    Name = "related",
+                    FieldType = ContentFieldTypes.Reference,
+                    Settings = new Dictionary<string, JsonElement>
+                    {
+                        [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindCmsDocument),
+                        [ReferenceContentFieldSettings.AllowedSources] = JsonSerializer.SerializeToElement(new[] { CmsContentReferenceSources.Pages })
+                    }
+                }
+            ]
+        });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentService(harness.Session);
+        var item = new ContentItem
+        {
+            Id = 0,
+            SiteId = 1,
+            ContentTypeAlias = "article",
+            Culture = "en-US",
+            Slug = "cms-reference",
+            Fields = new()
+            {
+                ["related"] = JsonSerializer.SerializeToElement(
+                    new CmsContentReferenceValue(CmsContentReferenceSources.Pages, "42"))
+            }
+        };
+
+        var result = await service.SaveAsync(item);
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+    }
+
+    [Test]
     public async Task Create_persists_hyphenated_dynamic_field_names()
     {
         await using var harness = new SableTestHarness()

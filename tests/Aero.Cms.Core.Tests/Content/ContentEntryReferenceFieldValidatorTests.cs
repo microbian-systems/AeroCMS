@@ -2,6 +2,7 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Http;
@@ -14,6 +15,73 @@ namespace Aero.Cms.Core.Tests.Content;
 
 public sealed class ContentEntryReferenceFieldValidatorTests
 {
+    [Test]
+    public async Task Query_backed_reference_accepts_ordered_preview_fields()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var service = new AeroContentTypeService(
+            harness.Session,
+            [],
+            new Aero.Cms.Core.Content.Templating.ScribanTemplateValidator());
+        var field = ContentEntryReference("view:catalog");
+        field.Settings[ReferenceContentFieldSettings.PreviewFields] =
+            JsonSerializer.SerializeToElement(new[] { "commonName", "scientificName" });
+
+        var result = await service.SaveAsync(new ContentTypeDefinition
+        {
+            SiteId = 1,
+            Alias = "animal",
+            Name = "Animal",
+            Fields = [field]
+        });
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task Preview_fields_reject_invalid_shape_duplicates_and_non_query_references()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var service = new AeroContentTypeService(
+            harness.Session,
+            [],
+            new Aero.Cms.Core.Content.Templating.ScribanTemplateValidator());
+
+        var duplicate = ContentEntryReference();
+        duplicate.Settings[ReferenceContentFieldSettings.PreviewFields] =
+            JsonSerializer.SerializeToElement(new[] { "name", "name" });
+        var tooMany = ContentEntryReference();
+        tooMany.Settings[ReferenceContentFieldSettings.PreviewFields] =
+            JsonSerializer.SerializeToElement(Enumerable.Range(0, 17).Select(index => $"field{index}").ToArray());
+        var invalidValues = ContentEntryReference();
+        invalidValues.Settings[ReferenceContentFieldSettings.PreviewFields] =
+            JsonSerializer.SerializeToElement(new object?[] { " ", new string('a', 129), 7 });
+        var cmsDocument = new ContentFieldDefinition
+        {
+            Name = "related",
+            FieldType = ContentFieldTypes.Reference,
+            Settings = new Dictionary<string, JsonElement>
+            {
+                [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindCmsDocument),
+                [ReferenceContentFieldSettings.AllowedSources] = JsonSerializer.SerializeToElement(new[] { CmsContentReferenceSources.Pages }),
+                [ReferenceContentFieldSettings.PreviewFields] = JsonSerializer.SerializeToElement(new[] { "title" })
+            }
+        };
+
+        var duplicateResult = await service.SaveAsync(Definition("duplicate", duplicate));
+        var tooManyResult = await service.SaveAsync(Definition("too-many", tooMany));
+        var invalidValuesResult = await service.SaveAsync(Definition("invalid-values", invalidValues));
+        var cmsDocumentResult = await service.SaveAsync(Definition("cms-document", cmsDocument));
+
+        duplicateResult.IsFailure.ShouldBeTrue();
+        tooManyResult.IsFailure.ShouldBeTrue();
+        invalidValuesResult.IsFailure.ShouldBeTrue();
+        cmsDocumentResult.IsFailure.ShouldBeTrue();
+    }
     [Test]
     public void Valid_provider_qualified_entry_is_accepted()
     {
@@ -105,6 +173,16 @@ public sealed class ContentEntryReferenceFieldValidatorTests
                     ReferenceContentFieldSettings.TargetKindContentEntry),
                 [ReferenceContentFieldSettings.AllowedProviders] = JsonSerializer.SerializeToElement(providers)
             }
+        };
+
+    private static ContentTypeDefinition Definition(
+        string alias,
+        ContentFieldDefinition field) => new()
+        {
+            SiteId = 1,
+            Alias = alias,
+            Name = alias,
+            Fields = [field]
         };
 
     private static FluentValidation.Results.ValidationResult Validate(

@@ -51,6 +51,10 @@ public static class ReferenceContentFieldSettings
     public const string ShowAncestors = "showAncestors";
     public const string DependsOnField = "dependsOnField";
     public const string TargetFilterField = "targetFilterField";
+    /// <summary>
+    /// Ordered field names to display when previewing a query-backed content entry.
+    /// </summary>
+    public const string PreviewFields = "previewFields";
 }
 
 /// <summary>Stable source keys for first-class CMS document references.</summary>

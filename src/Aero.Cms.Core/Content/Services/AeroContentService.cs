@@ -120,7 +120,10 @@ public sealed class AeroContentService(
         if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
-        foreach (var field in type.Fields.Where(x => x.FieldType == "reference" && !ReferenceFieldValidator.IsContentEntryReference(x)))
+        foreach (var field in type.Fields.Where(x =>
+                     x.FieldType == ContentFieldTypes.Reference
+                     && !ReferenceFieldValidator.IsContentEntryReference(x)
+                     && !ReferenceFieldValidator.IsCmsDocumentReference(x)))
         {
             if (!item.Fields.TryGetValue(field.Name, out var value) || value.ValueKind is System.Text.Json.JsonValueKind.Null)
                 continue;

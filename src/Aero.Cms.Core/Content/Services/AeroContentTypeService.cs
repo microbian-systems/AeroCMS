@@ -300,6 +300,8 @@ public sealed class AeroContentTypeService(
                 continue;
             }
 
+            ValidatePreviewFields(field, label, errors);
+
             if (!TryGetTargetContentTypeId(field, out var targetId))
             {
                 errors.Add(
@@ -419,6 +421,8 @@ public sealed class AeroContentTypeService(
         string label,
         List<string> errors)
     {
+        ValidatePreviewFields(field, label, errors);
+
         var sources = ReferenceFieldValidator.GetAllowedSources(field);
         if (sources.Count == 0)
         {
@@ -459,6 +463,8 @@ public sealed class AeroContentTypeService(
         string label,
         List<string> errors)
     {
+        ValidatePreviewFields(field, label, errors, allowPreviewFields: true);
+
         var providers = ReferenceFieldValidator.GetAllowedProviders(field);
         if (providers.Any(provider => provider.Length > 200 || provider.Any(char.IsWhiteSpace)))
         {
@@ -471,6 +477,55 @@ public sealed class AeroContentTypeService(
             || field.Settings.ContainsKey(ReferenceContentFieldSettings.TargetContentTypeId))
         {
             errors.Add($"Reference field '{label}' cannot combine virtual entries with content-type, hierarchy, or cascading settings.");
+        }
+    }
+
+    private static void ValidatePreviewFields(
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors,
+        bool allowPreviewFields = false)
+    {
+        if (!field.Settings.TryGetValue(
+                ReferenceContentFieldSettings.PreviewFields,
+                out var previewFields))
+        {
+            return;
+        }
+
+        if (!allowPreviewFields)
+        {
+            errors.Add($"Reference field '{label}' can use preview fields only with query-backed content entries.");
+            return;
+        }
+
+        if (previewFields.ValueKind != System.Text.Json.JsonValueKind.Array)
+        {
+            errors.Add($"Reference field '{label}' preview fields must be an ordered array of field names.");
+            return;
+        }
+
+        var values = previewFields.EnumerateArray().ToArray();
+        if (values.Length > 16)
+        {
+            errors.Add($"Reference field '{label}' can specify at most 16 preview fields.");
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var value in values)
+        {
+            if (value.ValueKind != System.Text.Json.JsonValueKind.String
+                || string.IsNullOrWhiteSpace(value.GetString())
+                || value.GetString()!.Length > 128)
+            {
+                errors.Add($"Reference field '{label}' preview fields must be nonblank strings no longer than 128 characters.");
+                continue;
+            }
+
+            if (!names.Add(value.GetString()!))
+            {
+                errors.Add($"Reference field '{label}' preview fields must be unique.");
+            }
         }
     }
 
