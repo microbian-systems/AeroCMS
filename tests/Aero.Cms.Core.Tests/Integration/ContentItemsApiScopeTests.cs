@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Services;
@@ -94,6 +95,23 @@ public sealed class ContentItemsApiScopeTests
         await Assert.That(body.ToLowerInvariant()).DoesNotContain(ActorFailure.ToLowerInvariant());
     }
 
+    [Test]
+    public async Task Missing_authoritative_localization_context_rejects_fork_before_handler()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(SuccessfulItem(ItemId));
+        var query = Substitute.For<IContentQueryService>();
+        var localization = Substitute.For<IContentLocalizationHandler>();
+        var contextResolver = Substitute.For<IContentLocalizationContextResolver>();
+        contextResolver.ResolveAsync(SiteId, "article", Arg.Any<CancellationToken>()).Returns((ContentLocalizationContext?)null);
+        await using var app = await CreateAppAsync(actor, query, localization, contextResolver);
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("fork"));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await localization.DidNotReceiveWithAnyArgs().ForkAsync(default!, default!, default);
+    }
+
     private static AeroRequestResponse<ContentItemViewModel> SuccessfulItem(long id) =>
         new(
             new ContentItemViewModel
@@ -164,7 +182,9 @@ public sealed class ContentItemsApiScopeTests
 
     private static async Task<WebApplication> CreateAppAsync(
         IAeroContentItemActor actor,
-        IContentQueryService query)
+        IContentQueryService query,
+        IContentLocalizationHandler? localization = null,
+        IContentLocalizationContextResolver? contextResolver = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -172,6 +192,21 @@ public sealed class ContentItemsApiScopeTests
         builder.Services.AddTestAuthentication();
         builder.Services.AddSingleton(actor);
         builder.Services.AddSingleton(query);
+        localization ??= Substitute.For<IContentLocalizationHandler>();
+        localization.ForkAsync(
+                Arg.Any<ContentLocalizationContext>(),
+                Arg.Any<ContentCultureForkCommand>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentLocalizationOperationResult, AeroError>>(
+                AeroError.InvalidRequestError("rejected")));
+        builder.Services.AddSingleton(localization);
+        if (contextResolver is null)
+        {
+            contextResolver = Substitute.For<IContentLocalizationContextResolver>();
+            contextResolver.ResolveAsync(SiteId, "article", Arg.Any<CancellationToken>())
+                .Returns(new ContentLocalizationContext(SiteId, "en-US", ["en-US", "fr-FR"], ContentCultureFallbackPolicy.ExactOnly));
+        }
+        builder.Services.AddSingleton(contextResolver);
         var site = Substitute.For<ISiteContext>();
         site.SiteId.Returns(SiteId);
         builder.Services.AddSingleton(site);
