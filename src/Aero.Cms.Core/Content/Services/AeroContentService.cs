@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Core;
 using Aero.Core.Railway;
