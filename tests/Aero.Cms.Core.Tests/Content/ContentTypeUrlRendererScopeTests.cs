@@ -13,6 +13,8 @@ using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
@@ -212,10 +214,14 @@ public sealed class ContentTypeUrlRendererScopeTests
         context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice { SiteId = 7, DefaultCulture = "en-US", SupportedCultures = ["en-US", "fr", "fr-CA"] });
         var model = new PublicContentModel(siteContext, new ContentTypeUrlRenderer(typeService, contentService, itemRenderer), queryService, NullLogger<PublicContentModel>.Instance)
         {
-            PageContext = new PageContext { HttpContext = context }
+            PageContext = new PageContext
+            {
+                HttpContext = context,
+                ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary())
+            }
         };
 
-        var result = await model.OnGetAsync("fr-ca", "animal", "loup", CancellationToken.None);
+        var result = await model.OnGetAsync("fr-CA", "animal", "loup", CancellationToken.None);
 
         result.ShouldBeOfType<PageResult>();
         model.CanonicalUrl.ShouldBe("https://example.test:8443/cms/fr/animal/loup");

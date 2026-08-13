@@ -54,12 +54,20 @@ public sealed class PublicContentRouteTransformerTests
                      "/de-DE/animal/wolf"
                  })
         {
-            using var response = await client.GetAsync(path);
+            using var request = new HttpRequestMessage(HttpMethod.Get, path)
+            {
+                Headers = { Host = "example.test" }
+            };
+            using var response = await client.SendAsync(request);
             response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
             response.Headers.GetValues("X-Endpoint").Single().ShouldNotContain("PublicContent");
         }
 
-        using var content = await client.GetAsync("/fr-fr/animal/wolf");
+        using var contentRequest = new HttpRequestMessage(HttpMethod.Get, "/fr-fr/animal/wolf")
+        {
+            Headers = { Host = "example.test" }
+        };
+        using var content = await client.SendAsync(contentRequest);
         content.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         content.Headers.GetValues("X-Endpoint").Single().ShouldContain("PublicContent");
         content.Headers.GetValues("X-Culture").Single().ShouldBe("fr-FR");

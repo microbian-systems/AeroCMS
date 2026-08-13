@@ -64,7 +64,7 @@ public sealed class ContentTypeUrlRenderer(
             normalizedCulture,
             entrySlug,
             ct);
-        if (itemResult is Result<ContentItem, AeroError>.Failure &&
+        if (itemResult is not Result<ContentItem, AeroError>.Ok &&
             type.Localization.CultureFallbackPolicy == ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture)
         {
             foreach (var fallbackCulture in GetFallbackCultures(normalizedCulture, defaultCulture, supportedCultures))
@@ -73,7 +73,7 @@ public sealed class ContentTypeUrlRenderer(
                 if (itemResult is Result<ContentItem, AeroError>.Ok) break;
             }
         }
-        if (itemResult is Result<ContentItem, AeroError>.Failure)
+        if (itemResult is not Result<ContentItem, AeroError>.Ok)
             return AeroError.CreateError($"Entry '{entrySlug}' was not found in '{typeAlias}'.");
 
         var item = ((Result<ContentItem, AeroError>.Ok)itemResult).Value;

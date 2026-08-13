@@ -275,7 +275,7 @@ public sealed class SitePipelineChainTests
         var response = await host.GetTestClient().SendAsync(request);
 
         await Assert.That((int)response.StatusCode).IsEqualTo(301);
-        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/en-us/new-page?foo=bar");
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/en-US/new-page?foo=bar");
     }
 
     [Test]
