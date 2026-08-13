@@ -112,6 +112,27 @@ public sealed class ContentItemsApiScopeTests
         await localization.DidNotReceiveWithAnyArgs().ForkAsync(default!, default!, default);
     }
 
+    [Test]
+    public async Task Get_returns_the_actor_item_and_translation_group_storage_tokens()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var stored = SuccessfulItem(ItemId);
+        stored.data.StorageVersion = 17;
+        stored.data.TranslationGroupRevision = 5;
+        stored.data.TranslationGroupStorageVersion = 23;
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(stored);
+        await using var app = await CreateAppAsync(actor, Substitute.For<IContentQueryService>());
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("get"));
+        var detail = await response.Content.ReadFromJsonAsync<ContentItemDetail>();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(detail).IsNotNull();
+        await Assert.That(detail!.StorageVersion).IsEqualTo(17);
+        await Assert.That(detail.TranslationGroupRevision).IsEqualTo(5);
+        await Assert.That(detail.TranslationGroupStorageVersion).IsEqualTo(23);
+    }
+
     private static AeroRequestResponse<ContentItemViewModel> SuccessfulItem(long id) =>
         new(
             new ContentItemViewModel

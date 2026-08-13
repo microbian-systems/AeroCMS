@@ -584,7 +584,9 @@ public static class ContentItemsApi
             vm.ParentId, vm.SortOrder,
             string.IsNullOrWhiteSpace(vm.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(vm.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
             string.IsNullOrWhiteSpace(vm.TranslationReviewJson) ? null : JsonSerializer.Deserialize(vm.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview),
-            vm.TranslationGroupRevision);
+            vm.TranslationGroupRevision,
+            vm.StorageVersion,
+            vm.TranslationGroupStorageVersion);
     }
 
     /// <summary>
