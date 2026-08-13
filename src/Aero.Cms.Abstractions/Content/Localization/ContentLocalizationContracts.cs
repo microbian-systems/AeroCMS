@@ -245,7 +245,8 @@ public sealed record ContentCultureForkCommand(
     long SourceItemId,
     string TargetCulture,
     string TargetSlug,
-    bool OverwriteExisting = false);
+    bool OverwriteExisting = false,
+    long? ExpectedGroupStorageVersion = null);
 
 /// <summary>Applies bounded AI-translated field values to a target culture variant.</summary>
 public sealed record ApplyContentAiTranslationCommand(
@@ -257,7 +258,10 @@ public sealed record ApplyContentAiTranslationCommand(
     string TargetCulture,
     IReadOnlyDictionary<string, JsonElement> TranslatedFields,
     string ProviderId,
-    string Model);
+    string Model,
+    long? ExpectedSourceStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedGroupStorageVersion = null);
 
 /// <summary>Records a human review decision against the exact current source and target revisions.</summary>
 public sealed record ReviewContentTranslationCommand(
@@ -266,14 +270,20 @@ public sealed record ReviewContentTranslationCommand(
     long TargetItemId,
     int TargetVersionNumber,
     bool Approved,
-    string? Notes = null);
+    string? Notes = null,
+    long? ExpectedSourceStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedGroupStorageVersion = null);
 
 /// <summary>Reports the persisted item and group affected by a localization operation.</summary>
 public sealed record ContentLocalizationOperationResult(
     long ContentItemId,
     long TranslationGroupId,
     string Culture,
-    ContentTranslationReviewStatus ReviewStatus);
+    ContentTranslationReviewStatus ReviewStatus,
+    long ContentItemStorageVersion,
+    long TranslationGroupStorageVersion,
+    int TranslationGroupRevision);
 
 /// <summary>Executes site-scoped localization operations without exposing storage implementation details.</summary>
 public interface IContentLocalizationHandler

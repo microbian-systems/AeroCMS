@@ -8,7 +8,7 @@ namespace Aero.Cms.Abstractions.Content;
 /// <summary>
 /// Represents a class for ContentItem.
 /// </summary>
-public sealed class ContentItem : SableDocument, IAuditable
+public sealed class ContentItem : SableDocument, IAuditable, IVersioned
 {
     private ContentTranslationReview translationReview = new();
         /// <summary>
@@ -79,7 +79,10 @@ public ContentPublicationState PublicationState { get; set; } = ContentPublicati
 public DateTimeOffset? PublishedOn { get; set; }
 
     /// <summary>Monotonically incremented on each save. 0 = unsaved.</summary>
-    public int VersionNumber { get; set; }
+public int VersionNumber { get; set; }
+
+    /// <summary>Storage concurrency token; distinct from the editorial version number.</summary>
+    public long Version { get; set; }
 
     /// <summary>If set, schedule this item for publishing at the given time.</summary>
     public DateTimeOffset? SchedulePublishUtc { get; set; }

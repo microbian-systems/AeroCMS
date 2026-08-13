@@ -29,6 +29,13 @@ public sealed class ContentLocalizationHandler(
         var source = await contentService.LoadAsync(context.SiteId, command.SourceItemId, cancellationToken);
         if (source is not Result<ContentItem, AeroError>.Ok sourceOk)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.NotFoundError("The source content item was not found."));
+        if (command.ExpectedGroupStorageVersion is not null && sourceOk.Value.TranslationGroupId is { } existingGroupId)
+        {
+            var existingGroup = await session.LoadAsync<ContentTranslationGroupDocument>(existingGroupId, cancellationToken);
+            if (existingGroup?.Version != command.ExpectedGroupStorageVersion)
+                return Conflict();
+            session.UpdateExpectedVersion(existingGroup!, command.ExpectedGroupStorageVersion.Value);
+        }
 
         var type = await contentTypeService.GetByAliasAsync(context.SiteId, sourceOk.Value.ContentTypeAlias, cancellationToken);
         if (type is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
@@ -67,9 +74,7 @@ public sealed class ContentLocalizationHandler(
 
         var saved = await contentService.SaveAsync(fork, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
-            ? Prelude.Ok<ContentLocalizationOperationResult, AeroError>(new(
-                savedOk.Value.Id, savedOk.Value.TranslationGroupId!.Value, savedOk.Value.Culture,
-                savedOk.Value.TranslationReview.Status))
+            ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The culture variant could not be saved."));
     }
 
@@ -93,13 +98,20 @@ public sealed class ContentLocalizationHandler(
             || !string.Equals(sourceOk.Value.ContentTypeAlias, targetOk.Value.ContentTypeAlias, StringComparison.OrdinalIgnoreCase)
             || sourceOk.Value.TranslationGroupId != targetOk.Value.TranslationGroupId)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation source or target revision is stale or invalid."));
+        if (!Matches(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
+            || !Matches(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
+        session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
+        session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
+        if (group is null || !Matches(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
+        session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         var type = await contentTypeService.GetByAliasAsync(context.SiteId, targetOk.Value.ContentTypeAlias, cancellationToken);
         if (type is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.NotFoundError("The target content type was not found."));
 
         var allowed = typeOk.Value.Fields
-            .Where(field => field.LocalizationMode != ContentFieldLocalizationMode.Shared)
+            .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.Localized && field.FieldType != ContentFieldTypes.Reference)
             .Select(field => field.Name)
             .ToHashSet(StringComparer.Ordinal);
         if (command.TranslatedFields.Keys.Any(key => !allowed.Contains(key)))
@@ -123,9 +135,7 @@ public sealed class ContentLocalizationHandler(
 
         var saved = await contentService.SaveAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
-            ? Prelude.Ok<ContentLocalizationOperationResult, AeroError>(new(
-                savedOk.Value.Id, savedOk.Value.TranslationGroupId!.Value, savedOk.Value.Culture,
-                savedOk.Value.TranslationReview.Status))
+            ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The AI translation could not be saved."));
     }
 
@@ -143,13 +153,20 @@ public sealed class ContentLocalizationHandler(
             || targetOk.Value.TranslationProvenance.SourceVersionNumber != sourceOk.Value.VersionNumber
             || targetOk.Value.SourceItemId != sourceOk.Value.Id)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review is stale or does not match an AI-assisted variant."));
+        if (!Matches(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
+            || !Matches(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
+        session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
+        session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
+        if (group is null || !Matches(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
+        session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         targetOk.Value.TranslationReview = command.Approved
             ? ContentTranslationReview.Approve(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes)
             : ContentTranslationReview.Reject(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes);
         var saved = await contentService.SaveAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
-            ? Prelude.Ok<ContentLocalizationOperationResult, AeroError>(new(savedOk.Value.Id, savedOk.Value.TranslationGroupId!.Value, savedOk.Value.Culture, savedOk.Value.TranslationReview.Status))
+            ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review could not be saved."));
     }
 
@@ -169,5 +186,17 @@ public sealed class ContentLocalizationHandler(
                 .Contains(canonical, StringComparer.OrdinalIgnoreCase)
             ? canonical
             : null;
+    }
+
+    private static bool Matches(long? expected, long actual) => expected is null || expected == actual;
+    private static Result<ContentLocalizationOperationResult, AeroError> Conflict() =>
+        Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The content translation changed. Reload and try again."));
+
+    private async Task<Result<ContentLocalizationOperationResult, AeroError>> ToResultAsync(ContentItem item, CancellationToken ct)
+    {
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(item.TranslationGroupId!.Value, ct);
+        return group is null
+            ? Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation group changed. Reload and try again."))
+            : Prelude.Ok<ContentLocalizationOperationResult, AeroError>(new(item.Id, group.Id, item.Culture, item.TranslationReview.Status, item.Version, group.Version, group.Revision));
     }
 }

@@ -76,6 +76,9 @@ public sealed class AeroContentService(
             item.ContentTypeAlias = existing.ContentTypeAlias;
             item.TranslationGroupId = existing.TranslationGroupId;
             item.SourceItemId = existing.SourceItemId;
+            if (item.Version != 0 && item.Version != existing.Version)
+                return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item changed. Reload and try again."));
+            session.UpdateExpectedVersion(existing, item.Version == 0 ? existing.Version : item.Version);
         }
 
         var type = await session.Query<ContentTypeDocument>()
@@ -156,6 +159,8 @@ public sealed class AeroContentService(
             group.Revision++;
             group.ModifiedOn = DateTimeOffset.UtcNow;
         }
+        if (group.Version > 0)
+            session.UpdateExpectedVersion(group, group.Version);
         session.Store(group);
         session.Store(item);
         if (searchProjectionService is not null)
@@ -165,8 +170,16 @@ public sealed class AeroContentService(
                 MapDefinition(type),
                 ct);
         }
-        await session.SaveChangesAsync(ct);
-        return Prelude.Ok<ContentItem, AeroError>(item);
+        try
+        {
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<ContentItem, AeroError>(item);
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item or translation group changed. Reload and try again."));
+        }
     }
 
     /// <inheritdoc />

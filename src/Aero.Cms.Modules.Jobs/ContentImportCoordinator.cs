@@ -136,11 +136,12 @@ internal sealed class ContentImportCoordinator(
             definition.SiteId, definition.Alias, definition.Name, definition.Description, definition.Category, definition.Icon,
             definition.Cardinality, definition.Structure, definition.HierarchyRules, definition.AllowPublicUrl,
             definition.IncludeInSearch, definition.IncludeInPublicAi,
+            definition.Localization,
             Fields = definition.Fields.Select(field => new
             {
                 field.Name, field.FieldType, field.Label, field.Required, field.DefaultValue, field.Placeholder,
                 Indexed = string.Equals(field.FieldType, "reference", StringComparison.OrdinalIgnoreCase) || field.Indexed,
-                field.FullTextSearchable, field.SemanticSearchable, field.AiExposure, field.Settings
+                field.FullTextSearchable, field.SemanticSearchable, field.AiExposure, field.LocalizationMode, field.Settings
             }),
             ScribanTemplate = generatedTemplate ? null : definition.ScribanTemplate,
             definition.ScheduleConfig

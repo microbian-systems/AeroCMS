@@ -89,6 +89,9 @@ public sealed record ContentItemViewModel : AeroEntityViewModel
     /// <summary>Current revision of the owning translation group, when resolved.</summary>
     [Id(16)]
     public int? TranslationGroupRevision { get; set; }
+
+    [Id(17)] public long StorageVersion { get; set; }
+    [Id(18)] public long? TranslationGroupStorageVersion { get; set; }
 }
 
 /// <summary>
