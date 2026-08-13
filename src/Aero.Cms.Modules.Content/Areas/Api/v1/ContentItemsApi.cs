@@ -223,8 +223,9 @@ public static class ContentItemsApi
     /// </summary>
     /// <returns>HTTP 200, HTTP 404 for a boundary mismatch, HTTP 400 for actor failure, or HTTP 500.</returns>
     /// <remarks>
-    /// The submitted field dictionary replaces the stored field bag. Culture is retained only when
-    /// the request culture is blank; all other editable values are overwritten.
+    /// The submitted field dictionary replaces the stored field bag. Culture identifies the
+    /// persisted translation variant and is immutable through this endpoint; all other editable
+    /// values are overwritten.
     /// </remarks>
     private static async Task<IResult> UpdateContentItem(
         string alias, long id,
@@ -254,10 +255,6 @@ public static class ContentItemsApi
 
             existingVm.Title = request.Title;
             existingVm.Slug = request.Slug;
-            if (!string.IsNullOrWhiteSpace(request.Culture))
-            {
-                existingVm.Culture = ResolveRequestCulture(request.Culture);
-            }
             existingVm.FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options);
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;

@@ -23,7 +23,21 @@ public sealed class ContentItemEditorDirectionMarkupTests
         source.ShouldNotContain("<RadzenButton lang=\"@_culture\"");
     }
 
-    private static string FindEditorSource()
+    [Test]
+    public void Translation_navigation_reloads_the_editor_for_the_new_route_values()
+    {
+        var sourcePath = FindEditorSource("ContentItemEditor.razor.cs");
+        var source = File.ReadAllText(sourcePath).ReplaceLineEndings("\n");
+
+        source.ShouldContain(
+            "$\"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations\",\n" +
+            "                    forceLoad: true);");
+        source.ShouldContain(
+            "$\"/manager/content/{Alias}/editor/{id}?tab=translations\",\n" +
+            "            forceLoad: true);");
+    }
+
+    private static string FindEditorSource(string fileName = "ContentItemEditor.razor")
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
@@ -35,7 +49,7 @@ public sealed class ContentItemEditorDirectionMarkupTests
                 "Pages",
                 "Manager",
                 "ContentTypes",
-                "ContentItemEditor.razor");
+                fileName);
             if (File.Exists(candidate))
             {
                 return candidate;
@@ -44,6 +58,6 @@ public sealed class ContentItemEditorDirectionMarkupTests
             directory = directory.Parent;
         }
 
-        throw new FileNotFoundException("ContentItemEditor.razor could not be found from the test output path.");
+        throw new FileNotFoundException($"{fileName} could not be found from the test output path.");
     }
 }

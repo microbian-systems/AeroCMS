@@ -897,7 +897,9 @@ protected override async Task OnInitializedAsync()
             if (result is Result<ContentItemDetail, AeroError>.Ok ok)
             {
                 Notify(NotificationSeverity.Success, "Translation created", $"{FormatCulture(ok.Value.Culture)} draft created.");
-                Navigation.NavigateTo($"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations");
+                Navigation.NavigateTo(
+                    $"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations",
+                    forceLoad: true);
                 return;
             }
 
@@ -913,7 +915,9 @@ protected override async Task OnInitializedAsync()
     }
 
     private void OpenTranslation(long id)
-        => Navigation.NavigateTo($"/manager/content/{Alias}/editor/{id}?tab=translations");
+        => Navigation.NavigateTo(
+            $"/manager/content/{Alias}/editor/{id}?tab=translations",
+            forceLoad: true);
 
     private ContentItemDetail? ResolveSourceVariant(IEnumerable<ContentItemDetail> variants)
         => variants.FirstOrDefault(variant => variant.SourceItemId is null)

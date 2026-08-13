@@ -133,6 +133,31 @@ public sealed class ContentItemsApiScopeTests
         await Assert.That(detail.TranslationGroupStorageVersion).IsEqualTo(23);
     }
 
+    [Test]
+    public async Task Update_preserves_the_persisted_translation_culture()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var stored = SuccessfulItem(ItemId);
+        stored.data.Culture = "es-MX";
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(stored);
+        actor.SaveDraftAsync(
+                Arg.Any<ContentItemViewModel>(),
+                SiteId,
+                Arg.Any<CancellationToken>())
+            .Returns(call => new AeroRequestResponse<ContentItemViewModel>(
+                call.Arg<ContentItemViewModel>(),
+                new ContentItemErrorViewModel()));
+        await using var app = await CreateAppAsync(actor, Substitute.For<IContentQueryService>());
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("update"));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await actor.Received(1).SaveDraftAsync(
+            Arg.Is<ContentItemViewModel>(item => item.Culture == "es-MX"),
+            SiteId,
+            Arg.Any<CancellationToken>());
+    }
+
     private static AeroRequestResponse<ContentItemViewModel> SuccessfulItem(long id) =>
         new(
             new ContentItemViewModel
