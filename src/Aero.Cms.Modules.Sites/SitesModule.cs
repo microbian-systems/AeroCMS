@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Interfaces;
