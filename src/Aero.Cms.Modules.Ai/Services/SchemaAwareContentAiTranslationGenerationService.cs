@@ -5,6 +5,9 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
+using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
@@ -33,6 +36,9 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
     private const int MaxFields = 40;
     private const int MaxSourceBytes = 200_000;
     private const int MaxContextBytes = 8_000;
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
 
     public async Task<Result<GenerateContentAiTranslationResponse>> GenerateAsync(
         GenerateContentAiTranslationRequest request,
@@ -98,7 +104,10 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         var context = new List<ContentTranslationPromptContext>();
         foreach (var contributor in contextContributors)
         {
-            var contribution = await contributor.ContributeAsync(request.SiteId, snapshot.ContentType.Alias, snapshot.Source.Culture, request.TargetCulture, cancellationToken);
+            var contribution = await contributor.ContributeAsync(
+                new ContentTranslationContextRequest(request.SiteId, snapshot.Source.ContentItemId,
+                    snapshot.Source.TranslationGroupId, snapshot.ContentType.Alias, snapshot.Source.Culture,
+                    snapshot.Target.Culture, snapshot.Source.Fields), cancellationToken);
             if (contribution is Result<IReadOnlyList<ContentTranslationContextContribution>>.Failure failure)
             {
                 return failure.Error;
@@ -150,7 +159,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
     internal static bool PreservesMarkup(string source, string translated)
     {
         if (!IsSafeMarkup(source) || !IsSafeMarkup(translated)) return false;
-        return StructureTokens(source).SequenceEqual(StructureTokens(translated), StringComparer.Ordinal);
+        return MarkdownFingerprint(source).SequenceEqual(MarkdownFingerprint(translated), StringComparer.Ordinal);
     }
 
     private static bool IsSafeMarkup(string value)
@@ -173,17 +182,51 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
 
     private static IEnumerable<string> Tags(string value) => System.Text.RegularExpressions.Regex.Matches(value, "<\\/?[a-zA-Z][^>]*>")
         .Select(match => System.Text.RegularExpressions.Regex.Replace(match.Value, "\\s+", " ").Trim());
-    private static IEnumerable<string> StructureTokens(string value)
+    private static IEnumerable<string> MarkdownFingerprint(string value)
     {
-        foreach (var tag in Tags(value)) yield return $"html:{tag}";
-        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "(?m)^(#{1,6}\\s+|[-*+]\\s+|\\d+\\.\\s+|```[^\\r\\n]*|---\\s*$)", System.Text.RegularExpressions.RegexOptions.Multiline))
+        var frontMatter = FrontMatter(value);
+        if (frontMatter is not null) yield return $"frontmatter:{frontMatter}";
+        var document = Markdown.Parse(value, MarkdownPipeline);
+        foreach (var token in MarkdownBlockTokens(document))
         {
-            yield return $"md:{match.Value}";
+            yield return token;
         }
-        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "\\[[^]]*\\]\\(([^)]*)\\)"))
-            yield return $"link:{match.Groups[1].Value}";
-        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(value, "(?m)^\\s*\\[([^]]+)\\]:\\s*(\\S+)"))
-            yield return $"reference:{match.Groups[1].Value}:{match.Groups[2].Value}";
+        foreach (var inline in document.Descendants<Inline>())
+        {
+            yield return $"inline:{inline.GetType().FullName}";
+            if (inline is LinkInline link) yield return $"link:{link.Url}:{link.Title}:{link.IsImage}";
+            if (inline is CodeInline code) yield return $"inlinecode:{code.Content}";
+            if (inline is EmphasisInline emphasis) yield return $"emphasis:{emphasis.DelimiterChar}:{emphasis.DelimiterCount}";
+            if (inline is HtmlInline html) yield return $"htmlinline:{html.Tag}";
+        }
+    }
+
+    private static IEnumerable<string> MarkdownBlockTokens(ContainerBlock container)
+    {
+        foreach (var block in container)
+        {
+            yield return $"block-open:{block.GetType().FullName}:{BlockMetadata(block)}";
+            if (block is ContainerBlock childContainer)
+            {
+                foreach (var token in MarkdownBlockTokens(childContainer)) yield return token;
+            }
+            yield return $"block-close:{block.GetType().FullName}";
+        }
+    }
+
+    private static string BlockMetadata(Block block) => block switch
+    {
+        HeadingBlock heading => $"heading:{heading.Level}",
+        ListBlock list => $"list:{list.IsOrdered}:{list.BulletType}:{list.OrderedStart}:{list.OrderedDelimiter}",
+        FencedCodeBlock fenced => $"fence:{fenced.Info}:{fenced.Lines}",
+        CodeBlock code => $"code:{code.Lines}",
+        HtmlBlock html => $"htmlblock:{html.Lines}",
+        _ => string.Empty
+    };
+    private static string? FrontMatter(string value)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(value, "\\A---\\r?\\n(?<front>.*?)\\r?\\n---\\r?\\n", System.Text.RegularExpressions.RegexOptions.Singleline);
+        return match.Success ? match.Groups["front"].Value : null;
     }
     private static string TagName(string tag) => tag.Trim('<', '>', '/', ' ').Split(' ', 2)[0];
     private static bool IsVoidTag(string tag) => TagName(tag).ToLowerInvariant() is "br" or "hr" or "img" or "meta" or "link" or "input";

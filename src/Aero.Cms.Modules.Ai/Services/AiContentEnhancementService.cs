@@ -55,8 +55,7 @@ public sealed class AiContentEnhancementService(
     /// <remarks>
     /// The operation applies a linked timeout clamped to 1–300 seconds. Both caller cancellation and
     /// timeout cancellation observed during the provider call are returned as an AI timeout failure.
-    /// If settings resolution fails, the complete serialized request is written at debug level; it can
-    /// contain CMS content, metadata, and user instructions. Provider or parse failures do not persist content.
+    /// Settings-resolution diagnostics omit request content, metadata, and user instructions. Provider or parse failures do not persist content.
     /// Provider output is accepted only after structured parsing, but this does not establish factuality or safety.
     /// </remarks>
 public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
@@ -72,9 +71,7 @@ public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
         var settingsResult = await settingsProvider.GetAsync(request.ProviderId, cancellationToken);
         if (settingsResult is Result<AiRuntimeSettings>.Failure settingsFailure)
         {
-            var json = request.ToJson();
             log.LogError($"ai settings error: {settingsFailure.Error}");
-            log.LogDebug($"request: {json}");
 
             return settingsFailure.Error;
         }

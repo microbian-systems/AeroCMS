@@ -24,9 +24,19 @@ public sealed record GenerateContentAiTranslationResponse(ApplyContentAiTranslat
 /// <summary>Bounded, host-supplied context that may accompany an AI translation request.</summary>
 public sealed record ContentTranslationContextContribution(string Key, string Value);
 
+/// <summary>Server-only trusted source context supplied to a host translation contributor.</summary>
+public sealed record ContentTranslationContextRequest(
+    long SiteId,
+    long SourceItemId,
+    long TranslationGroupId,
+    string ContentTypeAlias,
+    string SourceCulture,
+    string TargetCulture,
+    IReadOnlyDictionary<string, JsonElement> SourceFields);
+
 public interface IContentTranslationContextContributor
 {
-    Task<Result<IReadOnlyList<ContentTranslationContextContribution>>> ContributeAsync(long siteId, string contentTypeAlias, string sourceCulture, string targetCulture, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<ContentTranslationContextContribution>>> ContributeAsync(ContentTranslationContextRequest request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Host-owned authorization boundary for site-scoped AI translation generation.</summary>

@@ -79,10 +79,57 @@ public sealed class SchemaAwareContentAiTranslationGenerationServiceTests
     public async Task Preserves_markdown_structure_and_rejects_hostile_reference_links()
     {
         const string source = "---\ntitle: Hello\n---\n# Heading\n- item\n```csharp\ncode\n```\n[read][ref]\n[ref]: https://safe.example/docs";
-        const string changedDestination = "---\ntitle: Bonjour\n---\n# Titre\n- élément\n```csharp\ncode\n```\n[lire][ref]\n[ref]: javascript:alert(1)";
+        const string changedDestination = "---\ntitle: Bonjour\n---\n# Titre\n- élément\n```csharp\ncode\n```\n[lire][ref]\n[ref]: https://other.example/docs";
         var result = await Create(new RecordingTranslator(new Dictionary<string, string> { ["body"] = changedDestination }), Snapshot(("body", "richtext", ContentFieldLocalizationMode.Localized, source))).GenerateAsync(Request());
         var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
         ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+    }
+
+    [Test]
+    public async Task Preserves_source_when_reference_link_destination_changes()
+    {
+        const string source = "[read][ref]\n\n[ref]: https://safe.example/docs \"reference title\"";
+        const string changedDestination = "[lire][ref]\n\n[ref]: https://other.example/docs \"reference title\"";
+        var result = await Create(new RecordingTranslator(new Dictionary<string, string> { ["body"] = changedDestination }), Snapshot(("body", "richtext", ContentFieldLocalizationMode.Localized, source))).GenerateAsync(Request());
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+    }
+
+    [Test]
+    public async Task Preserves_source_when_immutable_markdown_or_html_structure_changes()
+    {
+        const string source = "---\ntitle: Hello\n---\n> **Important** [link](https://safe.example \"title\") and `code`\n\n1. parent\n   - child\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n<div><p>Hello</p></div>\n\n    indented code";
+        var hostileOutputs = new[]
+        {
+            source.Replace("title: Hello", "title: Bonjour", StringComparison.Ordinal),
+            source.Replace("`code`", "`changed`", StringComparison.Ordinal),
+            source.Replace("   - child", "- child", StringComparison.Ordinal),
+            source.Replace("https://safe.example", "https://other.example", StringComparison.Ordinal),
+            source.Replace("**Important**", "Important", StringComparison.Ordinal),
+            source.Replace("> **Important**", "**Important**", StringComparison.Ordinal),
+            source.Replace("| A | B |\n| - | - |\n| 1 | 2 |\n\n", string.Empty, StringComparison.Ordinal),
+            source.Replace("<div><p>Hello</p></div>", "<p><div>Hello</div></p>", StringComparison.Ordinal),
+            source.Replace("indented code", "changed code", StringComparison.Ordinal)
+        };
+        foreach (var changed in hostileOutputs)
+        {
+            var result = await Create(new RecordingTranslator(new Dictionary<string, string> { ["body"] = changed }), Snapshot(("body", "richtext", ContentFieldLocalizationMode.Localized, source))).GenerateAsync(Request());
+            var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+            ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+        }
+    }
+
+    [Test]
+    public async Task Contributor_receives_only_authoritative_snapshot_source_context()
+    {
+        var snapshot = Snapshot(("title", "text", ContentFieldLocalizationMode.Localized, "Trusted"));
+        var contributor = new RecordingContributor();
+        var service = new SchemaAwareContentAiTranslationGenerationService(new RecordingTranslator(), [contributor], [new TextContentTranslationFieldHandler(), new RichTextContentTranslationFieldHandler()], new Resolver(snapshot));
+        (await service.GenerateAsync(Request())).ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>();
+        contributor.Request!.SourceItemId.ShouldBe(101);
+        contributor.Request.TranslationGroupId.ShouldBe(55);
+        contributor.Request.ContentTypeAlias.ShouldBe("article");
+        contributor.Request.SourceFields["title"].GetString().ShouldBe("Trusted");
     }
 
     private static SchemaAwareContentAiTranslationGenerationService Create(RecordingTranslator translator, ContentAiTranslationGenerationSnapshot? snapshot) => new(translator, [], [new TextContentTranslationFieldHandler(), new RichTextContentTranslationFieldHandler()], new Resolver(snapshot));
@@ -108,6 +155,16 @@ public sealed class SchemaAwareContentAiTranslationGenerationServiceTests
         {
             Fields.AddRange(request.Fields);
             return Task.FromResult<Result<TranslateDocumentResponse>>(new TranslateDocumentResponse(request.Fields.ToDictionary(x => x.Key, x => values?.GetValueOrDefault(x.Key) ?? $"translated {x.SourceText}"), [], "stable-provider-id", "Human label", "model"));
+        }
+    }
+
+    private sealed class RecordingContributor : IContentTranslationContextContributor
+    {
+        public ContentTranslationContextRequest? Request { get; private set; }
+        public Task<Result<IReadOnlyList<ContentTranslationContextContribution>>> ContributeAsync(ContentTranslationContextRequest request, CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult<Result<IReadOnlyList<ContentTranslationContextContribution>>>(Array.Empty<ContentTranslationContextContribution>());
         }
     }
 }
