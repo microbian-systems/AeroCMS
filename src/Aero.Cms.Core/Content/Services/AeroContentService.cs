@@ -63,7 +63,14 @@ public sealed class AeroContentService(
     }
 
     /// <inheritdoc />
-    public async Task<Result<ContentItem, AeroError>> SaveAsync(ContentItem item, CancellationToken ct = default)
+    public Task<Result<ContentItem, AeroError>> SaveAsync(ContentItem item, CancellationToken ct = default)
+        => SaveCoreAsync(item, preserveLocalizationMetadata: true, ct);
+
+    /// <summary>Persists a localization workflow mutation while preserving its server-issued metadata.</summary>
+    public Task<Result<ContentItem, AeroError>> SaveLocalizationAsync(ContentItem item, CancellationToken ct = default)
+        => SaveCoreAsync(item, preserveLocalizationMetadata: false, ct);
+
+    private async Task<Result<ContentItem, AeroError>> SaveCoreAsync(ContentItem item, bool preserveLocalizationMetadata, CancellationToken ct)
     {
         ContentItem? existing = null;
         if (item.Id != 0)
@@ -72,13 +79,11 @@ public sealed class AeroContentService(
             if (existing is null || existing.SiteId != item.SiteId)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError($"Content item '{item.Id}' not found."));
 
-            item.SiteId = existing.SiteId;
-            item.ContentTypeAlias = existing.ContentTypeAlias;
-            item.TranslationGroupId = existing.TranslationGroupId;
-            item.SourceItemId = existing.SourceItemId;
             if (item.Version != 0 && item.Version != existing.Version)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item changed. Reload and try again."));
             session.UpdateExpectedVersion(existing, item.Version == 0 ? existing.Version : item.Version);
+            CopyMutable(item, existing, preserveLocalizationMetadata);
+            item = existing;
         }
 
         var type = await session.Query<ContentTypeDocument>()
@@ -148,6 +153,7 @@ public sealed class AeroContentService(
         foreach (var name in sharedNames)
         {
             if (item.Fields.Remove(name, out var value)
+                && !preserveLocalizationMetadata
                 && (!group.SharedFields.TryGetValue(name, out var existingShared) || !JsonElement.DeepEquals(existingShared, value)))
             {
                 group.SharedFields[name] = value;
@@ -249,5 +255,27 @@ public sealed class AeroContentService(
             IncludeInPublicAi = document.IncludeInPublicAi,
             Localization = document.Localization,
             Fields = document.Fields
-        };
+    };
+
+    private static void CopyMutable(ContentItem inbound, ContentItem persisted, bool preserveLocalizationMetadata)
+    {
+        persisted.Title = inbound.Title;
+        persisted.Slug = inbound.Slug;
+        persisted.Culture = inbound.Culture;
+        persisted.ParentId = inbound.ParentId;
+        persisted.SortOrder = inbound.SortOrder;
+        persisted.Fields = inbound.Fields;
+        persisted.PublicationState = inbound.PublicationState;
+        persisted.PublishedOn = inbound.PublishedOn;
+        persisted.VersionNumber = inbound.VersionNumber;
+        persisted.SchedulePublishUtc = inbound.SchedulePublishUtc;
+        persisted.ScheduleUnpublishUtc = inbound.ScheduleUnpublishUtc;
+        persisted.ModifiedBy = inbound.ModifiedBy;
+        persisted.ModifiedOn = inbound.ModifiedOn;
+        if (!preserveLocalizationMetadata)
+        {
+            persisted.TranslationProvenance = inbound.TranslationProvenance;
+            persisted.TranslationReview = inbound.TranslationReview;
+        }
+    }
 }

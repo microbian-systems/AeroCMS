@@ -275,6 +275,13 @@ public sealed record ReviewContentTranslationCommand(
     long? ExpectedTargetStorageVersion = null,
     long? ExpectedGroupStorageVersion = null);
 
+/// <summary>Changes group-owned shared fields under both storage and semantic revision fences.</summary>
+public sealed record UpdateContentTranslationSharedFieldsCommand(
+    long TranslationGroupId,
+    long ExpectedGroupStorageVersion,
+    int ExpectedGroupRevision,
+    IReadOnlyDictionary<string, JsonElement> SharedFields);
+
 /// <summary>Reports the persisted item and group affected by a localization operation.</summary>
 public sealed record ContentLocalizationOperationResult(
     long ContentItemId,
@@ -304,5 +311,10 @@ public interface IContentLocalizationHandler
     Task<Result<ContentLocalizationOperationResult, AeroError>> ReviewAsync(
         ContentLocalizationContext context,
         ReviewContentTranslationCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<ContentLocalizationOperationResult, AeroError>> UpdateSharedFieldsAsync(
+        ContentLocalizationContext context,
+        UpdateContentTranslationSharedFieldsCommand command,
         CancellationToken cancellationToken = default);
 }

@@ -13,6 +13,7 @@ namespace Aero.Cms.Core.Content.Services;
 public sealed class ContentLocalizationHandler(
     IDocumentSession session,
     IContentService contentService,
+    AeroContentService writableContentService,
     IContentTypeService contentTypeService,
     ContentValidationService validation) : IContentLocalizationHandler
 {
@@ -72,7 +73,7 @@ public sealed class ContentLocalizationHandler(
         if (draftValidation is Result<ContentItem, AeroError>.Failure validationFailure)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
 
-        var saved = await contentService.SaveAsync(fork, cancellationToken);
+        var saved = await writableContentService.SaveLocalizationAsync(fork, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The culture variant could not be saved."));
@@ -133,7 +134,7 @@ public sealed class ContentLocalizationHandler(
         if (draftValidation is Result<ContentItem, AeroError>.Failure validationFailure)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
 
-        var saved = await contentService.SaveAsync(targetOk.Value, cancellationToken);
+        var saved = await writableContentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The AI translation could not be saved."));
@@ -164,10 +165,45 @@ public sealed class ContentLocalizationHandler(
         targetOk.Value.TranslationReview = command.Approved
             ? ContentTranslationReview.Approve(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes)
             : ContentTranslationReview.Reject(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes);
-        var saved = await contentService.SaveAsync(targetOk.Value, cancellationToken);
+        var saved = await writableContentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         return saved is Result<ContentItem, AeroError>.Ok savedOk
             ? await ToResultAsync(savedOk.Value, cancellationToken)
             : Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review could not be saved."));
+    }
+
+    public async Task<Result<ContentLocalizationOperationResult, AeroError>> UpdateSharedFieldsAsync(
+        ContentLocalizationContext context,
+        UpdateContentTranslationSharedFieldsCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(command.TranslationGroupId, cancellationToken);
+        if (group is null || group.SiteId != context.SiteId || group.Version != command.ExpectedGroupStorageVersion || group.Revision != command.ExpectedGroupRevision)
+            return Conflict();
+        var type = await contentTypeService.GetByAliasAsync(context.SiteId, group.ContentTypeAlias, cancellationToken);
+        if (type is not Result<ContentTypeDefinition, AeroError>.Ok typeOk
+            || command.SharedFields.Keys.Any(name => !typeOk.Value.Fields.Any(field => field.Name == name && field.LocalizationMode == ContentFieldLocalizationMode.Shared)))
+            return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ValidationError(["Only declared shared fields may be changed through the translation group."]));
+
+        session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion);
+        group.SharedFields = command.SharedFields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal);
+        group.Revision++;
+        group.ModifiedOn = DateTimeOffset.UtcNow;
+        session.Store(group);
+        session.Store(new ContentTranslationProjectionWorkDocument
+        {
+            Id = Snowflake.NewId(), SiteId = group.SiteId, TranslationGroupId = group.Id,
+            GroupStorageVersion = group.Version + 1, GroupRevision = group.Revision
+        });
+        try
+        {
+            await session.SaveChangesAsync(cancellationToken);
+            return Prelude.Ok<ContentLocalizationOperationResult, AeroError>(new(group.SourceItemId, group.Id, group.SourceCulture, ContentTranslationReviewStatus.NotRequired, group.SourceItemId, group.Version, group.Revision));
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return Conflict();
+        }
     }
 
     private static Dictionary<string, JsonElement> CopyForkableFields(

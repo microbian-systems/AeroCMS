@@ -169,6 +169,13 @@ public void Configure(StoreOptions opts)
             .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.Id });
         opts.Schema.For<ContentTranslationGroupDocument>().UseOptimisticConcurrency = true;
 
+        opts.Schema.For<ContentTranslationProjectionWorkDocument>()
+            .TableName("content_translation_projection_work")
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.SiteId, x.TranslationGroupId, x.GroupStorageVersion });
+        opts.Schema.For<ContentTranslationProjectionWorkDocument>().UseOptimisticConcurrency = true;
+
         opts.Schema.For<ContentItemVersion>()
             .TableName(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
