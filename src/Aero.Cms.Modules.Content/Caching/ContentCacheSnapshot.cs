@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Modules.Content.Caching;
 
