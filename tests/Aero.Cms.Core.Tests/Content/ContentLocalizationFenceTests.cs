@@ -7,7 +7,6 @@ using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using NSubstitute;
-using SurrealDb.Net.Exceptions.Rpc;
 using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Content;
@@ -99,11 +98,11 @@ public sealed class ContentLocalizationFenceTests
     }
 
     [Test]
-    public async Task Fork_maps_a_typed_transaction_conflict_to_a_retryable_content_conflict()
+    public async Task Fork_maps_a_sable_concurrency_conflict_to_a_content_conflict()
     {
-        var listener = new TypedConflictListener();
+        var listener = new ConcurrencyConflictListener();
         await using var fixture = await CreateFixtureAsync(sourceTranslationGroupId: null, listener: listener);
-        listener.Exception = new SurrealDbTransactionConflictException("retryable conflict");
+        listener.Exception = new ConcurrencyException(typeof(ContentItem), fixture.SourceId, 0, 1);
 
         var result = await fixture.Handler.ForkAsync(
             fixture.Context,
@@ -207,7 +206,7 @@ public sealed class ContentLocalizationFenceTests
     private static async Task<Fixture> CreateFixtureAsync(
         long? sourceTranslationGroupId,
         long sourceSiteId = 1,
-        TypedConflictListener? listener = null,
+        ConcurrencyConflictListener? listener = null,
         bool includeTarget = false,
         int sourceVersionNumber = 0,
         int targetVersionNumber = 0,
@@ -311,9 +310,9 @@ public sealed class ContentLocalizationFenceTests
         public ValueTask DisposeAsync() => Harness.DisposeAsync();
     }
 
-    private sealed class TypedConflictListener : IDocumentSessionListener
+    private sealed class ConcurrencyConflictListener : IDocumentSessionListener
     {
-        public SurrealDbTransactionConflictException? Exception { get; set; }
+        public ConcurrencyException? Exception { get; set; }
 
         public Task BeforeSaveChangesAsync(IDocumentSession session, CancellationToken ct) => Task.CompletedTask;
 

@@ -6,7 +6,6 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
-using SurrealDb.Net.Exceptions.Rpc;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -97,7 +96,7 @@ public sealed class ContentLocalizationHandler(
         {
             saved = await contentService.SaveLocalizationAsync(fork, cancellationToken);
         }
-        catch (SurrealDbTransactionConflictException)
+        catch (ConcurrencyException)
         {
             session.ClearChanges();
             return Conflict();
@@ -173,7 +172,7 @@ public sealed class ContentLocalizationHandler(
         {
             saved = await contentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         }
-        catch (SurrealDbTransactionConflictException)
+        catch (ConcurrencyException)
         {
             session.ClearChanges();
             return Conflict();
@@ -212,7 +211,7 @@ public sealed class ContentLocalizationHandler(
         {
             saved = await contentService.SaveLocalizationAsync(targetOk.Value, cancellationToken);
         }
-        catch (SurrealDbTransactionConflictException)
+        catch (ConcurrencyException)
         {
             session.ClearChanges();
             return Conflict();
@@ -302,11 +301,6 @@ public sealed class ContentLocalizationHandler(
                 sourceVersion));
         }
         catch (ConcurrencyException)
-        {
-            session.ClearChanges();
-            return Conflict();
-        }
-        catch (SurrealDbTransactionConflictException)
         {
             session.ClearChanges();
             return Conflict();
