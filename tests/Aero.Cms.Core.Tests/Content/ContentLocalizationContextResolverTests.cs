@@ -18,13 +18,13 @@ public sealed class ContentLocalizationContextResolverTests
     {
         var session = Substitute.For<IQuerySession>();
         var types = Substitute.For<IContentTypeService>();
-        session.LoadAsync<SitesModel>(7, Arg.Any<CancellationToken>()).Returns((SitesModel?)null);
+        session.LoadAsync<SitesModel>(7L, Arg.Any<CancellationToken>()).Returns((SitesModel?)null);
         var resolver = new ContentLocalizationContextResolver(session, types);
 
         (await resolver.ResolveAsync(7, "article")).ShouldBeNull();
         await types.DidNotReceiveWithAnyArgs().GetByAliasAsync(default, default!, default);
 
-        session.LoadAsync<SitesModel>(7, Arg.Any<CancellationToken>()).Returns(new SitesModel { Id = 7, IsEnabled = false });
+        session.LoadAsync<SitesModel>(7L, Arg.Any<CancellationToken>()).Returns(new SitesModel { Id = 7, IsEnabled = false });
         (await resolver.ResolveAsync(7, "article")).ShouldBeNull();
         await types.DidNotReceiveWithAnyArgs().GetByAliasAsync(default, default!, default);
     }
@@ -34,14 +34,15 @@ public sealed class ContentLocalizationContextResolverTests
     {
         var session = Substitute.For<IQuerySession>();
         var types = Substitute.For<IContentTypeService>();
-        session.LoadAsync<SitesModel>(7, Arg.Any<CancellationToken>()).Returns(new SitesModel
+        session.LoadAsync<SitesModel>(7L, Arg.Any<CancellationToken>()).Returns(new SitesModel
         {
             Id = 7, IsEnabled = true, DefaultCulture = "en-us", SupportedCultures = ["en-us", "fr-fr"]
         });
         var type = new ContentTypeDefinition { Id = 9, SiteId = 7, Alias = "article" };
         type.Localization.CultureFallbackPolicy = ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture;
         types.GetByAliasAsync(7, "article", Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(type));
+            .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
+                new Result<ContentTypeDefinition, AeroError>.Ok(type)));
 
         var context = await new ContentLocalizationContextResolver(session, types).ResolveAsync(7, "article");
 
