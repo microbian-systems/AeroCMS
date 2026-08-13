@@ -53,11 +53,20 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
             await projections.StageUpsertAsync(variant, typeOk.Value, cancellationToken);
             work.LastProcessedItemId = variant.Id;
         }
-        if (variants.Count < take) work.Completed = true;
-        session.Store(work);
-        await session.SaveChangesAsync(cancellationToken);
+        // Never mark work complete until cache invalidation has succeeded.  A retry is
+        // preferable to serving a completed generation with stale hydrated variants.
         await cacheInvalidator.InvalidateItemAsync(null,
             new ContentItemCacheIdentity(work.SiteId, group.SourceItemId, group.ContentTypeAlias, group.SourceCulture, string.Empty, group.Id));
+        if (variants.Count < take) work.Completed = true;
+        session.Store(work);
+        try
+        {
+            await session.SaveChangesAsync(cancellationToken);
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+        }
         return true;
     }
 }

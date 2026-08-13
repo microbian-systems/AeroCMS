@@ -37,7 +37,6 @@ public sealed class ContentLocalizationHandler(
             var existingGroup = await session.LoadAsync<ContentTranslationGroupDocument>(existingGroupId, cancellationToken);
             if (existingGroup?.Version != command.ExpectedGroupStorageVersion)
                 return Conflict();
-            session.UpdateExpectedVersion(existingGroup!, command.ExpectedGroupStorageVersion.Value);
         }
 
         var type = await contentTypeService.GetByAliasAsync(context.SiteId, sourceOk.Value.ContentTypeAlias, cancellationToken);
@@ -105,11 +104,8 @@ public sealed class ContentLocalizationHandler(
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation source or target revision is stale or invalid."));
         if (!RequiredMatch(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
             || !RequiredMatch(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
-        session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
-        session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
         if (group is null || !RequiredMatch(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
-        session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         var type = await contentTypeService.GetByAliasAsync(context.SiteId, targetOk.Value.ContentTypeAlias, cancellationToken);
         if (type is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
@@ -160,11 +156,8 @@ public sealed class ContentLocalizationHandler(
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review is stale or does not match an AI-assisted variant."));
         if (!RequiredMatch(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
             || !RequiredMatch(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
-        session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
-        session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
         if (group is null || !RequiredMatch(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
-        session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         targetOk.Value.TranslationReview = command.Approved
             ? ContentTranslationReview.Approve(sourceOk.Value.Id, sourceOk.Value.VersionNumber, targetOk.Value.VersionNumber, DateTimeOffset.UtcNow, notes: command.Notes)
@@ -192,7 +185,6 @@ public sealed class ContentLocalizationHandler(
         group.SharedFields = command.SharedFields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal);
         group.Revision++;
         group.ModifiedOn = DateTimeOffset.UtcNow;
-        session.Store(group);
         session.Store(new ContentTranslationProjectionWorkDocument
         {
             Id = group.Id ^ ((long)group.Revision << 32), SiteId = group.SiteId, TranslationGroupId = group.Id,

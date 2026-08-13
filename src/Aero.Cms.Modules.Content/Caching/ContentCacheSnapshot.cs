@@ -38,7 +38,10 @@ internal static class ContentCacheSnapshot
             CreatedOn = source.CreatedOn,
             ModifiedOn = source.ModifiedOn,
             CreatedBy = source.CreatedBy,
-            ModifiedBy = source.ModifiedBy
+            ModifiedBy = source.ModifiedBy,
+            Version = source.Version,
+            TranslationProvenance = source.TranslationProvenance,
+            TranslationReview = Clone(source.TranslationReview)
         };
 
     /// <summary>
@@ -64,6 +67,11 @@ internal static class ContentCacheSnapshot
             AllowPublicUrl = source.AllowPublicUrl,
             IncludeInSearch = source.IncludeInSearch,
             IncludeInPublicAi = source.IncludeInPublicAi,
+            Localization = new()
+            {
+                CultureFallbackPolicy = source.Localization.CultureFallbackPolicy,
+                AiTranslationReviewPolicy = source.Localization.AiTranslationReviewPolicy
+            },
             Fields = source.Fields.Select(Clone).ToList(),
             ScribanTemplate = source.ScribanTemplate,
             ScheduleConfig = source.ScheduleConfig is null
@@ -91,9 +99,14 @@ internal static class ContentCacheSnapshot
             FullTextSearchable = source.FullTextSearchable,
             SemanticSearchable = source.SemanticSearchable,
             AiExposure = source.AiExposure,
+            LocalizationMode = source.LocalizationMode,
             Settings = source.Settings.ToDictionary(
                 static pair => pair.Key,
                 static pair => pair.Value.Clone(),
                 source.Settings.Comparer)
         };
+
+    private static ContentTranslationReview Clone(ContentTranslationReview source) =>
+        new(source.Status, source.ReviewedOn, source.ReviewedBy, source.Notes,
+            source.ReviewedSourceItemId, source.ReviewedSourceVersionNumber, source.ReviewedTargetVersionNumber);
 }

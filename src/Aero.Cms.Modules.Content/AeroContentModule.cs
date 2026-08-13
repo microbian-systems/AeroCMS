@@ -85,6 +85,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ContentHierarchyManagerService>();
         services.AddScoped<IContentCompositionReferenceValidator, ContentCompositionReferenceValidator>();
         services.AddScoped<IContentTranslationProjectionWorkProcessor, ContentTranslationProjectionWorkProcessor>();
+        services.AddHostedService<ContentTranslationProjectionWorkHostedService>();
         services.AddScoped<IContentCompositionResolver, ContentCompositionResolver>();
 
         // Public URL rendering for content types

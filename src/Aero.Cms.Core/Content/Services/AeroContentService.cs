@@ -23,6 +23,7 @@ public sealed class AeroContentService(
         if (item is null || item.SiteId != siteId)
             return Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item '{id}' not found."));
 
+        item = Clone(item);
         await HydrateSharedFieldsAsync(item, ct);
         return item is null || item.SiteId != siteId
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item '{id}' not found."))
@@ -33,7 +34,11 @@ public sealed class AeroContentService(
     public async Task<Result<ContentItem, AeroError>> GetBySlugAsync(long siteId, string slug, CancellationToken ct = default)
     {
         var item = await session.Query<ContentItem>().FirstOrDefaultAsync(x => x.SiteId == siteId && x.Slug == slug, ct);
-        if (item is not null) await HydrateSharedFieldsAsync(item, ct);
+        if (item is not null)
+        {
+            item = Clone(item);
+            await HydrateSharedFieldsAsync(item, ct);
+        }
         return item is null
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item with slug '{slug}' not found."))
             : Prelude.Ok<ContentItem, AeroError>(item);
@@ -55,7 +60,11 @@ public sealed class AeroContentService(
                 x.Culture == normalizedCulture &&
                 x.Slug == slug,
                 ct);
-        if (item is not null) await HydrateSharedFieldsAsync(item, ct);
+        if (item is not null)
+        {
+            item = Clone(item);
+            await HydrateSharedFieldsAsync(item, ct);
+        }
         return item is null
             ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError(
                 $"Content item with slug '{slug}' and culture '{normalizedCulture}' not found in type '{contentTypeAlias}'."))
@@ -81,9 +90,10 @@ public sealed class AeroContentService(
 
             if (item.Version <= 0 || item.Version != existing.Version)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item changed. Reload and try again."));
-            session.UpdateExpectedVersion(existing, item.Version == 0 ? existing.Version : item.Version);
-            CopyMutable(item, existing, preserveLocalizationMetadata);
-            item = existing;
+            // UpdateExpectedVersion queues the tracked document.  Build a detached
+            // candidate instead of overlaying a hydrated caller copy on it.
+            item = CopyMutable(item, existing, preserveLocalizationMetadata);
+            session.UpdateExpectedVersion(item, item.Version);
         }
 
         var type = await session.Query<ContentTypeDocument>()
@@ -97,12 +107,14 @@ public sealed class AeroContentService(
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
         ContentTranslationGroupDocument? group = null;
+        var isNewGroup = false;
         if (item.TranslationGroupId is { } groupId)
         {
             group = await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct);
             if (group is null || group.SiteId != item.SiteId ||
                 !string.Equals(group.ContentTypeAlias, item.ContentTypeAlias, StringComparison.OrdinalIgnoreCase))
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+            group = Clone(group);
         }
 
         if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
@@ -133,14 +145,18 @@ public sealed class AeroContentService(
         if (item.Id == 0)
             item.Id = Snowflake.NewId();
 
-        group ??= new ContentTranslationGroupDocument
+        if (group is null)
         {
-            Id = item.TranslationGroupId ?? item.Id,
-            SiteId = item.SiteId,
-            ContentTypeAlias = item.ContentTypeAlias,
-            SourceItemId = item.SourceItemId ?? item.Id,
-            SourceCulture = item.Culture
-        };
+            group = new ContentTranslationGroupDocument
+            {
+                Id = item.TranslationGroupId ?? item.Id,
+                SiteId = item.SiteId,
+                ContentTypeAlias = item.ContentTypeAlias,
+                SourceItemId = item.SourceItemId ?? item.Id,
+                SourceCulture = item.Culture
+            };
+            isNewGroup = true;
+        }
         item.TranslationGroupId = group.Id;
 
         // A shared field is authoritative only in the group document. Split it before
@@ -165,10 +181,12 @@ public sealed class AeroContentService(
             group.Revision++;
             group.ModifiedOn = DateTimeOffset.UtcNow;
         }
-        if (group.Version > 0)
+        if (changedShared && group.Version > 0)
             session.UpdateExpectedVersion(group, group.Version);
-        session.Store(group);
-        session.Store(item);
+        if (isNewGroup)
+            session.Store(group);
+        if (existing is null)
+            session.Store(item);
         if (searchProjectionService is not null)
         {
             await searchProjectionService.StageUpsertAsync(
@@ -257,25 +275,53 @@ public sealed class AeroContentService(
             Fields = document.Fields
     };
 
-    private static void CopyMutable(ContentItem inbound, ContentItem persisted, bool preserveLocalizationMetadata)
+    private static ContentItem CopyMutable(ContentItem inbound, ContentItem persisted, bool preserveLocalizationMetadata)
     {
-        persisted.Title = inbound.Title;
-        persisted.Slug = inbound.Slug;
-        persisted.Culture = inbound.Culture;
-        persisted.ParentId = inbound.ParentId;
-        persisted.SortOrder = inbound.SortOrder;
-        persisted.Fields = inbound.Fields;
-        persisted.PublicationState = inbound.PublicationState;
-        persisted.PublishedOn = inbound.PublishedOn;
-        persisted.VersionNumber = inbound.VersionNumber;
-        persisted.SchedulePublishUtc = inbound.SchedulePublishUtc;
-        persisted.ScheduleUnpublishUtc = inbound.ScheduleUnpublishUtc;
-        persisted.ModifiedBy = inbound.ModifiedBy;
-        persisted.ModifiedOn = inbound.ModifiedOn;
+        var copy = Clone(persisted);
+        copy.Title = inbound.Title;
+        copy.Slug = inbound.Slug;
+        copy.Culture = inbound.Culture;
+        copy.ParentId = inbound.ParentId;
+        copy.SortOrder = inbound.SortOrder;
+        copy.Fields = inbound.Fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), inbound.Fields.Comparer);
+        copy.PublicationState = inbound.PublicationState;
+        copy.PublishedOn = inbound.PublishedOn;
+        copy.VersionNumber = inbound.VersionNumber;
+        copy.SchedulePublishUtc = inbound.SchedulePublishUtc;
+        copy.ScheduleUnpublishUtc = inbound.ScheduleUnpublishUtc;
+        copy.ModifiedBy = inbound.ModifiedBy;
+        copy.ModifiedOn = inbound.ModifiedOn;
         if (!preserveLocalizationMetadata)
         {
-            persisted.TranslationProvenance = inbound.TranslationProvenance;
-            persisted.TranslationReview = inbound.TranslationReview;
+            copy.TranslationProvenance = inbound.TranslationProvenance;
+            copy.TranslationReview = inbound.TranslationReview;
         }
+        return copy;
     }
+
+    private static ContentItem Clone(ContentItem source) => new()
+    {
+        Id = source.Id, Version = source.Version, SiteId = source.SiteId,
+        ContentTypeAlias = source.ContentTypeAlias, Slug = source.Slug, Title = source.Title,
+        TranslationGroupId = source.TranslationGroupId, Culture = source.Culture, SourceItemId = source.SourceItemId,
+        ParentId = source.ParentId, SortOrder = source.SortOrder,
+        Fields = source.Fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), source.Fields.Comparer),
+        PublicationState = source.PublicationState, PublishedOn = source.PublishedOn, VersionNumber = source.VersionNumber,
+        SchedulePublishUtc = source.SchedulePublishUtc, ScheduleUnpublishUtc = source.ScheduleUnpublishUtc,
+        CreatedOn = source.CreatedOn, ModifiedOn = source.ModifiedOn, CreatedBy = source.CreatedBy, ModifiedBy = source.ModifiedBy,
+        TranslationProvenance = source.TranslationProvenance,
+        TranslationReview = new(source.TranslationReview.Status, source.TranslationReview.ReviewedOn,
+            source.TranslationReview.ReviewedBy, source.TranslationReview.Notes,
+            source.TranslationReview.ReviewedSourceItemId, source.TranslationReview.ReviewedSourceVersionNumber,
+            source.TranslationReview.ReviewedTargetVersionNumber)
+    };
+
+    private static ContentTranslationGroupDocument Clone(ContentTranslationGroupDocument source) => new()
+    {
+        Id = source.Id, Version = source.Version, SiteId = source.SiteId,
+        ContentTypeAlias = source.ContentTypeAlias, SourceItemId = source.SourceItemId,
+        SourceCulture = source.SourceCulture, Revision = source.Revision,
+        SharedFields = source.SharedFields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), source.SharedFields.Comparer),
+        CreatedOn = source.CreatedOn, ModifiedOn = source.ModifiedOn, CreatedBy = source.CreatedBy, ModifiedBy = source.ModifiedBy
+    };
 }
