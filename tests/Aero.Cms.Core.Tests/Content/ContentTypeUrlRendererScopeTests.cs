@@ -9,6 +9,10 @@ using Aero.Core.Railway;
 using Microsoft.AspNetCore.Authorization;
 using NSubstitute;
 using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Interfaces;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aero.Cms.Core.Tests.Content;
 
@@ -173,6 +177,52 @@ public sealed class ContentTypeUrlRendererScopeTests
         var ok = (Result<PublicContentRenderResult, AeroError>.Ok)result;
         await Assert.That(ok.Value.RequestedCulture).IsEqualTo("fr-CA");
         await Assert.That(ok.Value.RenderedCulture).IsEqualTo("fr");
+    }
+
+    [Test]
+    public async Task Public_page_builds_absolute_canonical_and_hreflang_urls_from_rendered_variants()
+    {
+        var typeService = Substitute.For<IContentTypeService>();
+        var contentService = Substitute.For<IContentService>();
+        var itemRenderer = Substitute.For<IContentItemRenderer>();
+        var queryService = Substitute.For<IContentQueryService>();
+        var siteContext = Substitute.For<ISiteContext>();
+        siteContext.SiteId.Returns(7);
+        typeService.GetByAliasAsync(7, "animal", Arg.Any<CancellationToken>()).Returns(Ok(new ContentTypeDefinition
+        {
+            Id = 10, SiteId = 7, Alias = "animal", Name = "Animal", AllowPublicUrl = true,
+            Localization = new() { CultureFallbackPolicy = ContentCultureFallbackPolicy.ParentCultureThenDefaultCulture }
+        }));
+        contentService.GetBySlugAndTypeAsync(7, "animal", "fr-CA", "loup", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentItem, AeroError>>(AeroError.NotFoundError("missing")));
+        contentService.GetBySlugAndTypeAsync(7, "animal", "fr-FR", "loup", Arg.Any<CancellationToken>())
+            .Returns(Ok(new ContentItem { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr-FR", PublicationState = ContentPublicationState.Published }));
+        itemRenderer.RenderAsync(Arg.Any<ContentTypeDefinition>(), Arg.Any<ContentItem>(), Arg.Any<CancellationToken>()).Returns(Ok("<p>loup</p>"));
+        queryService.ListCultureVariantsAsync(7, "animal", 20, Arg.Any<CancellationToken>()).Returns(Ok<IReadOnlyList<ContentItem>>([
+            new() { Id = 21, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "wolf", Culture = "en-US", PublicationState = ContentPublicationState.Published },
+            new() { Id = 20, TranslationGroupId = 20, SiteId = 7, ContentTypeAlias = "animal", Slug = "loup", Culture = "fr-FR", PublicationState = ContentPublicationState.Published }
+        ]));
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("example.test", 8443);
+        context.Request.PathBase = "/cms";
+        context.Request.Path = "/fr-CA/animal/loup";
+        context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice { SiteId = 7, DefaultCulture = "en-US", SupportedCultures = ["en-US", "fr-FR", "fr-CA"] });
+        var model = new PublicContentModel(siteContext, new ContentTypeUrlRenderer(typeService, contentService, itemRenderer), queryService, NullLogger<PublicContentModel>.Instance)
+        {
+            PageContext = new PageContext { HttpContext = context }
+        };
+
+        var result = await model.OnGetAsync("fr-ca", "animal", "loup", CancellationToken.None);
+
+        result.ShouldBeOfType<PageResult>();
+        model.CanonicalUrl.ShouldBe("https://example.test:8443/cms/fr-FR/animal/loup");
+        model.AlternateLinks.ShouldContain(link => link.Hreflang == "en-US" && link.Href == "https://example.test:8443/cms/en-US/animal/wolf");
+        model.AlternateLinks.ShouldContain(link => link.Hreflang == "fr-FR" && link.Href == "https://example.test:8443/cms/fr-FR/animal/loup");
+        model.AlternateLinks.ShouldContain(link => link.Hreflang == "x-default" && link.Href == "https://example.test:8443/cms/en-US/animal/wolf");
+        model.ViewData["IsCultureFallback"].ShouldBe(true);
+        model.ViewData["DocumentCulture"].ShouldBe("fr-FR");
+        model.ViewData["DocumentDirection"].ShouldBe("ltr");
     }
 
     [Test]

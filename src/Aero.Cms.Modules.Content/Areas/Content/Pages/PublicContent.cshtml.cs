@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Extensions;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Content.Services;
@@ -115,7 +116,7 @@ public async Task<IActionResult> OnGetAsync(
             RenderedHtml = ok.Value.Html;
             RequestedCulture = ok.Value.RequestedCulture;
             RenderedCulture = ok.Value.RenderedCulture;
-            CanonicalUrl = AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, RenderedCulture, $"{normalizedType}/{normalizedSlug}");
+            CanonicalUrl = BuildAbsoluteContentUrl(RenderedCulture, normalizedType, normalizedSlug);
             var variants = await queryService.ListCultureVariantsAsync(siteContext.SiteId, normalizedType, ok.Value.TranslationGroupId, cancellationToken);
             if (variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok variantResult)
             {
@@ -124,12 +125,12 @@ public async Task<IActionResult> OnGetAsync(
                     .ToArray();
                 var defaultVariant = publishedVariants.FirstOrDefault(item =>
                     string.Equals(item.Culture, slice.DefaultCulture, StringComparison.OrdinalIgnoreCase));
-                var defaultHref = AeroCultureRoute.BuildCulturePathForCurrentRequest(
-                    HttpContext,
+                var defaultHref = BuildAbsoluteContentUrl(
                     defaultVariant?.Culture ?? RenderedCulture,
-                    $"{normalizedType}/{defaultVariant?.Slug ?? normalizedSlug}");
+                    normalizedType,
+                    defaultVariant?.Slug ?? normalizedSlug);
                 AlternateLinks = publishedVariants
-                    .Select(item => new AlternateContentLink(item.Culture, AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, item.Culture, $"{normalizedType}/{item.Slug}")))
+                    .Select(item => new AlternateContentLink(item.Culture, BuildAbsoluteContentUrl(item.Culture, normalizedType, item.Slug)))
                     .Append(new AlternateContentLink("x-default", defaultHref))
                     .GroupBy(link => link.Hreflang, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
@@ -163,6 +164,13 @@ public async Task<IActionResult> OnGetAsync(
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
+
+    private string BuildAbsoluteContentUrl(string culture, string typeAlias, string slug) =>
+        UriHelper.BuildAbsolute(
+            Request.Scheme,
+            Request.Host,
+            Request.PathBase,
+            AeroCultureRoute.BuildCulturePath(culture, $"{typeAlias}/{slug}"));
 }
 
 public sealed record AlternateContentLink(string Hreflang, string Href);

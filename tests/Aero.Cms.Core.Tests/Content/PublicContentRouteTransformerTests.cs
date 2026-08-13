@@ -95,7 +95,7 @@ public sealed class PublicContentRouteTransformerTests
 
         var app = builder.Build();
         app.UseRouting();
-        app.Use((context, _) =>
+        app.Use((HttpContext context, RequestDelegate _) =>
         {
             context.Response.Headers["X-Endpoint"] = context.GetEndpoint()?.DisplayName ?? string.Empty;
             context.Response.Headers["X-Culture"] = context.Request.RouteValues["culture"]?.ToString() ?? string.Empty;
