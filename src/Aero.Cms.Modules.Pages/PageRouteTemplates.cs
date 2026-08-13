@@ -30,6 +30,15 @@ public interface IPageRouteTemplateResolver
 public interface IPageRouteTemplateValidator
 {
     Task<Result<bool, AeroError>> ValidateDraftAsync(PageDocument page, CancellationToken ct = default);
+
+    /// <summary>
+    /// Validates a draft after an administrative caller has already authorized the
+    /// positive site identifier. This overload does not depend on request site state.
+    /// </summary>
+    Task<Result<bool, AeroError>> ValidateDraftForSiteAsync(
+        PageDocument page,
+        long authorizedSiteId,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -196,8 +205,14 @@ public sealed class PageRouteTemplateService(
     public async Task<Result<bool, AeroError>> ValidateDraftAsync(
         PageDocument page,
         CancellationToken ct = default)
+        => await ValidateDraftForSiteAsync(page, siteContext.SiteId, ct);
+
+    public async Task<Result<bool, AeroError>> ValidateDraftForSiteAsync(
+        PageDocument page,
+        long authorizedSiteId,
+        CancellationToken ct = default)
     {
-        if (page.SiteId <= 0 || page.SiteId != siteContext.SiteId)
+        if (authorizedSiteId <= 0 || page.SiteId <= 0 || page.SiteId != authorizedSiteId)
             return AeroError.NotFoundError("The requested page route was not found.");
         if (string.IsNullOrWhiteSpace(page.DraftRouteTemplate)) return true;
         var parsed = PageRouteTemplate.Parse(page.DraftRouteTemplate);

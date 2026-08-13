@@ -146,6 +146,67 @@ public sealed class PagePublishingWorkflowHtmlTests
     }
 
     [Test]
+    public async Task PublishNowAsync_WithAuthorizedSite_Uses_explicit_route_scope()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var page = CreatePage(9_212, CreateValidContent("Bootstrap publish"));
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var routeValidator = Substitute.For<IPageRouteTemplateValidator>();
+        routeValidator.ValidateDraftAsync(Arg.Any<PageDocument>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Failure(
+                    AeroError.NotFoundError("No request site is selected."))));
+        routeValidator.ValidateDraftForSiteAsync(
+                Arg.Is<PageDocument>(candidate => candidate.Id == page.Id && candidate.SiteId == page.SiteId),
+                page.SiteId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Ok(true)));
+        var service = CreateService(harness.Session, routeTemplateValidator: routeValidator);
+
+        var result = await service.PublishNowAsync(page.Id, authorizedSiteId: page.SiteId);
+
+        result.IsSuccess.ShouldBeTrue();
+        await routeValidator.Received(1).ValidateDraftForSiteAsync(
+            Arg.Is<PageDocument>(candidate => candidate.Id == page.Id && candidate.SiteId == page.SiteId),
+            page.SiteId,
+            Arg.Any<CancellationToken>());
+        await routeValidator.DidNotReceive().ValidateDraftAsync(
+            Arg.Any<PageDocument>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task PublishBatchAsync_WithAuthorizedSite_Uses_explicit_route_scope()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var page = CreatePage(9_213, CreateValidContent("Bootstrap batch"));
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var routeValidator = Substitute.For<IPageRouteTemplateValidator>();
+        routeValidator.ValidateDraftForSiteAsync(
+                Arg.Is<PageDocument>(candidate => candidate.Id == page.Id && candidate.SiteId == page.SiteId),
+                page.SiteId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<bool, AeroError>>(
+                new Result<bool, AeroError>.Ok(true)));
+        var service = CreateService(harness.Session, routeTemplateValidator: routeValidator);
+
+        var result = await service.PublishBatchAsync([page.Id], page.SiteId);
+
+        result.IsSuccess.ShouldBeTrue();
+        await routeValidator.Received(1).ValidateDraftForSiteAsync(
+            Arg.Is<PageDocument>(candidate => candidate.Id == page.Id && candidate.SiteId == page.SiteId),
+            page.SiteId,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task SubmitForReviewAsync_validates_the_draft_and_saves_state_directly()
     {
         await using var harness = new SableTestHarness()
@@ -468,7 +529,8 @@ public sealed class PagePublishingWorkflowHtmlTests
 
     private static PagePublishingWorkflowService CreateService(
         IDocumentSession session,
-        IContentCompositionReferenceValidator? referenceValidator = null)
+        IContentCompositionReferenceValidator? referenceValidator = null,
+        IPageRouteTemplateValidator? routeTemplateValidator = null)
     {
         var renderer = Substitute.For<IPageRenderer>();
         renderer.Descriptor.Returns(new PageRendererDescriptor(
@@ -491,7 +553,8 @@ public sealed class PagePublishingWorkflowHtmlTests
             CreateStyleProfileResolver(),
             NullLogger<PagePublishingWorkflowService>.Instance,
             referenceValidator,
-            pageRendererRegistry: registry);
+            pageRendererRegistry: registry,
+            routeTemplateValidator: routeTemplateValidator);
     }
 
     private static PagePublishingWorkflowService CreateSourceService(

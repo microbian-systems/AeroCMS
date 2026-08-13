@@ -249,7 +249,11 @@ public sealed class PagePublishingWorkflowService(
             var page = await session.LoadAsync<PageDocument>(pageId, ct);
             return page is null || page.SiteId != authorizedSiteId
                 ? AeroError.NotFoundError($"Page {pageId} not found.")
-                : await PublishAsync(page, new ContentViewScope(authorizedTenantId, authorizedSiteId), ct);
+                : await PublishAsync(
+                    page,
+                    new ContentViewScope(authorizedTenantId, authorizedSiteId),
+                    authorizedSiteId,
+                    ct);
         }
         catch (Exception ex)
         {
@@ -299,7 +303,11 @@ public sealed class PagePublishingWorkflowService(
 
             foreach (var page in pages)
             {
-                var validation = await ValidateDraftAsync(page, ct);
+                var validation = await ValidateDraftAsync(
+                    page,
+                    new ContentViewScope(0, authorizedSiteId),
+                    authorizedSiteId,
+                    ct);
                 if (validation is Result<CompiledPageStyles>.Failure failure)
                 {
                     return failure.Error;
@@ -360,14 +368,15 @@ public sealed class PagePublishingWorkflowService(
     }
 
     private async Task<Result<bool, AeroError>> PublishAsync(PageDocument page, CancellationToken ct)
-        => await PublishAsync(page, new ContentViewScope(0, page.SiteId), ct);
+        => await PublishAsync(page, new ContentViewScope(0, page.SiteId), null, ct);
 
     private async Task<Result<bool, AeroError>> PublishAsync(
         PageDocument page,
         ContentViewScope scope,
+        long? authorizedRouteSiteId,
         CancellationToken ct)
     {
-        var validation = await ValidateDraftAsync(page, scope, ct);
+        var validation = await ValidateDraftAsync(page, scope, authorizedRouteSiteId, ct);
         if (validation is Result<CompiledPageStyles>.Failure failure) return failure.Error;
 
         page.PublishDraftContent(DateTimeOffset.UtcNow);
@@ -381,16 +390,19 @@ public sealed class PagePublishingWorkflowService(
     private async Task<Result<CompiledPageStyles>> ValidateDraftAsync(
         PageDocument page,
         CancellationToken cancellationToken)
-        => await ValidateDraftAsync(page, new ContentViewScope(0, page.SiteId), cancellationToken);
+        => await ValidateDraftAsync(page, new ContentViewScope(0, page.SiteId), null, cancellationToken);
 
     private async Task<Result<CompiledPageStyles>> ValidateDraftAsync(
         PageDocument page,
         ContentViewScope scope,
+        long? authorizedRouteSiteId,
         CancellationToken cancellationToken)
     {
         if (routeTemplateValidator is not null)
         {
-            var routeValidation = await routeTemplateValidator.ValidateDraftAsync(page, cancellationToken);
+            var routeValidation = authorizedRouteSiteId is { } siteId
+                ? await routeTemplateValidator.ValidateDraftForSiteAsync(page, siteId, cancellationToken)
+                : await routeTemplateValidator.ValidateDraftAsync(page, cancellationToken);
             if (routeValidation is Result<bool, AeroError>.Failure routeFailure)
                 return routeFailure.Error;
         }

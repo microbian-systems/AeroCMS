@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
@@ -10,6 +11,8 @@ using Aero.Core.Railway;
 using Shouldly;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
+using NSubstitute;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Tests.Services;
 
@@ -185,6 +188,29 @@ public sealed class PageRouteTemplateTests
 
         page.PublishedRouteTemplate.ShouldBe("/catalog/{entryId}");
         page.ToViewModel().PublishedRouteTemplate.ShouldBe("/catalog/{entryId}");
+    }
+
+    [Test]
+    public async Task Explicit_site_validation_does_not_depend_on_request_site_context()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        var requestSite = Substitute.For<ISiteContext>();
+        requestSite.SiteId.Returns(0L);
+        var service = new PageRouteTemplateService(harness.Session, requestSite);
+        var page = Page(43, 7, "en-US", string.Empty);
+        page.DraftRouteTemplate = null;
+
+        (await service.ValidateDraftForSiteAsync(page, 7)).IsSuccess.ShouldBeTrue();
+
+        var crossSite = await service.ValidateDraftForSiteAsync(page, 8);
+        crossSite.IsFailure.ShouldBeTrue();
+        ((Result<bool, AeroError>.Failure)crossSite).Error.ShouldBeOfType<AeroError.NotFound>();
+
+        var ambient = await service.ValidateDraftAsync(page);
+        ambient.IsFailure.ShouldBeTrue();
+        ((Result<bool, AeroError>.Failure)ambient).Error.ShouldBeOfType<AeroError.NotFound>();
     }
 
     private static PageRouteTemplate Parse(string input)
