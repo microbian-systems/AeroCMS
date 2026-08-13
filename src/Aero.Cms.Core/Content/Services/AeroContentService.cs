@@ -79,7 +79,7 @@ public sealed class AeroContentService(
             if (existing is null || existing.SiteId != item.SiteId)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError($"Content item '{item.Id}' not found."));
 
-            if (item.Version != 0 && item.Version != existing.Version)
+            if (item.Version <= 0 || item.Version != existing.Version)
                 return Prelude.Fail<ContentItem, AeroError>(AeroError.ConflictError("Content item changed. Reload and try again."));
             session.UpdateExpectedVersion(existing, item.Version == 0 ? existing.Version : item.Version);
             CopyMutable(item, existing, preserveLocalizationMetadata);
@@ -153,7 +153,7 @@ public sealed class AeroContentService(
         foreach (var name in sharedNames)
         {
             if (item.Fields.Remove(name, out var value)
-                && !preserveLocalizationMetadata
+                && (!preserveLocalizationMetadata || existing is null)
                 && (!group.SharedFields.TryGetValue(name, out var existingShared) || !JsonElement.DeepEquals(existingShared, value)))
             {
                 group.SharedFields[name] = value;

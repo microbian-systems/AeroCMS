@@ -30,7 +30,9 @@ public sealed class ContentLocalizationHandler(
         var source = await contentService.LoadAsync(context.SiteId, command.SourceItemId, cancellationToken);
         if (source is not Result<ContentItem, AeroError>.Ok sourceOk)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.NotFoundError("The source content item was not found."));
-        if (command.ExpectedGroupStorageVersion is not null && sourceOk.Value.TranslationGroupId is { } existingGroupId)
+        if (command.ExpectedGroupStorageVersion is null || command.ExpectedGroupStorageVersion <= 0)
+            return Conflict();
+        if (sourceOk.Value.TranslationGroupId is { } existingGroupId)
         {
             var existingGroup = await session.LoadAsync<ContentTranslationGroupDocument>(existingGroupId, cancellationToken);
             if (existingGroup?.Version != command.ExpectedGroupStorageVersion)
@@ -51,6 +53,8 @@ public sealed class ContentLocalizationHandler(
         if (existing is not null && !command.OverwriteExisting)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(
                 AeroError.ConflictError("A variant already exists for the requested culture."));
+        if (existing is not null && (command.ExpectedTargetStorageVersion is null || command.ExpectedTargetStorageVersion <= 0 || existing.Version != command.ExpectedTargetStorageVersion))
+            return Conflict();
 
         var fork = existing ?? new ContentItem
         {
@@ -99,12 +103,12 @@ public sealed class ContentLocalizationHandler(
             || !string.Equals(sourceOk.Value.ContentTypeAlias, targetOk.Value.ContentTypeAlias, StringComparison.OrdinalIgnoreCase)
             || sourceOk.Value.TranslationGroupId != targetOk.Value.TranslationGroupId)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation source or target revision is stale or invalid."));
-        if (!Matches(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
-            || !Matches(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
+        if (!RequiredMatch(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
+            || !RequiredMatch(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
         session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
         session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
-        if (group is null || !Matches(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
+        if (group is null || !RequiredMatch(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
         session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         var type = await contentTypeService.GetByAliasAsync(context.SiteId, targetOk.Value.ContentTypeAlias, cancellationToken);
@@ -154,12 +158,12 @@ public sealed class ContentLocalizationHandler(
             || targetOk.Value.TranslationProvenance.SourceVersionNumber != sourceOk.Value.VersionNumber
             || targetOk.Value.SourceItemId != sourceOk.Value.Id)
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The translation review is stale or does not match an AI-assisted variant."));
-        if (!Matches(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
-            || !Matches(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
+        if (!RequiredMatch(command.ExpectedSourceStorageVersion, sourceOk.Value.Version)
+            || !RequiredMatch(command.ExpectedTargetStorageVersion, targetOk.Value.Version)) return Conflict();
         session.UpdateExpectedVersion(sourceOk.Value, command.ExpectedSourceStorageVersion ?? sourceOk.Value.Version);
         session.UpdateExpectedVersion(targetOk.Value, command.ExpectedTargetStorageVersion ?? targetOk.Value.Version);
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(targetOk.Value.TranslationGroupId!.Value, cancellationToken);
-        if (group is null || !Matches(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
+        if (group is null || !RequiredMatch(command.ExpectedGroupStorageVersion, group.Version)) return Conflict();
         session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion ?? group.Version);
 
         targetOk.Value.TranslationReview = command.Approved
@@ -191,7 +195,7 @@ public sealed class ContentLocalizationHandler(
         session.Store(group);
         session.Store(new ContentTranslationProjectionWorkDocument
         {
-            Id = Snowflake.NewId(), SiteId = group.SiteId, TranslationGroupId = group.Id,
+            Id = group.Id ^ ((long)group.Revision << 32), SiteId = group.SiteId, TranslationGroupId = group.Id,
             GroupStorageVersion = group.Version + 1, GroupRevision = group.Revision
         });
         try
@@ -215,16 +219,15 @@ public sealed class ContentLocalizationHandler(
 
     private static string? ValidateContextCulture(ContentLocalizationContext context, string? culture)
     {
-        if (context.SiteId <= 0 || string.IsNullOrWhiteSpace(culture)) return null;
+        if (context.SiteId <= 0 || context.SupportedCultures.Count == 0 || string.IsNullOrWhiteSpace(culture)) return null;
         var canonical = CultureInfo.GetCultureInfo(culture.Trim()).Name;
-        return context.SupportedCultures.Count == 0
-            || context.SupportedCultures.Select(value => CultureInfo.GetCultureInfo(value).Name)
+        return context.SupportedCultures.Select(value => CultureInfo.GetCultureInfo(value).Name)
                 .Contains(canonical, StringComparer.OrdinalIgnoreCase)
             ? canonical
             : null;
     }
 
-    private static bool Matches(long? expected, long actual) => expected is null || expected == actual;
+    private static bool RequiredMatch(long? expected, long actual) => expected is > 0 && expected == actual;
     private static Result<ContentLocalizationOperationResult, AeroError> Conflict() =>
         Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ConflictError("The content translation changed. Reload and try again."));
 

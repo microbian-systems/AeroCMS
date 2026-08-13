@@ -246,7 +246,8 @@ public sealed record ContentCultureForkCommand(
     string TargetCulture,
     string TargetSlug,
     bool OverwriteExisting = false,
-    long? ExpectedGroupStorageVersion = null);
+    long? ExpectedGroupStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null);
 
 /// <summary>Applies bounded AI-translated field values to a target culture variant.</summary>
 public sealed record ApplyContentAiTranslationCommand(
