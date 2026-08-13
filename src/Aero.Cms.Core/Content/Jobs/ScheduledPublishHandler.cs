@@ -18,7 +18,8 @@ namespace Aero.Cms.Core.Content.Jobs;
 /// </remarks>
 public sealed class ScheduledPublishHandler(
     IDocumentSession session,
-    IContentService contentService)
+    IContentService contentService,
+    ContentCommandService commands)
 {
     /// <summary>
     /// Processes all content items that are due for scheduled publish or unpublish.
@@ -42,10 +43,16 @@ public sealed class ScheduledPublishHandler(
 
         foreach (var item in dueItems)
         {
-            item.PublicationState = ContentPublicationState.Published;
-            item.PublishedOn = DateTimeOffset.UtcNow;
+            // Scheduled publication uses the identical validation and AI-review gate as an
+            // interactive publish. A rejected result leaves the schedule intact for editorial
+            // correction instead of silently publishing an unreviewed translation.
+            var scheduledAt = item.SchedulePublishUtc;
             item.SchedulePublishUtc = null;
-            await contentService.SaveAsync(item, ct);
+            var result = await commands.PublishAsync(item, ct);
+            if (result is not Aero.Core.Railway.Result<ContentItem, Aero.Core.AeroError>.Ok)
+            {
+                item.SchedulePublishUtc = scheduledAt;
+            }
         }
 
         // Find items due for unpublish

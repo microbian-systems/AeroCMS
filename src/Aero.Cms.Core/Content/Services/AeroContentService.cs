@@ -117,33 +117,19 @@ public sealed class AeroContentService(
             group = Clone(group);
         }
 
+        if (existing is not null && preserveLocalizationMetadata && HasTranslationRelevantChange(item, existing, type.Fields))
+        {
+            InvalidateAiTranslationRevision(item);
+            if (group?.SourceItemId == existing.Id)
+                await InvalidateAiTranslationVariantsForChangedSourceAsync(item.SiteId, existing.Id, ct);
+        }
+
         if (item.ParentId is { } parentId && !await BelongsToSiteAsync(item.SiteId, parentId, ct))
             return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
 
-        foreach (var field in type.Fields.Where(x =>
-                     x.FieldType == ContentFieldTypes.Reference
-                     && !ReferenceFieldValidator.IsContentEntryReference(x)
-                     && !ReferenceFieldValidator.IsCmsDocumentReference(x)))
-        {
-            if (!item.Fields.TryGetValue(field.Name, out var value) || value.ValueKind is System.Text.Json.JsonValueKind.Null)
-                continue;
-            var multiple = field.Settings.TryGetValue("allowMultiple", out var setting) &&
-                           setting.ValueKind == System.Text.Json.JsonValueKind.True;
-            if (!multiple
-                && value.ValueKind == System.Text.Json.JsonValueKind.String
-                && string.IsNullOrWhiteSpace(value.GetString()))
-            {
-                continue;
-            }
-            var values = multiple ? value.EnumerateArray().ToArray() : [value];
-            foreach (var reference in values)
-            {
-                if (reference.ValueKind != System.Text.Json.JsonValueKind.String ||
-                    !long.TryParse(reference.GetString(), out var referenceId) ||
-                    !await BelongsToSiteAsync(item.SiteId, referenceId, ct))
-                    return Prelude.Fail<ContentItem, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
-            }
-        }
+        var referenceValidation = await ValidateReferenceFieldsAsync(item, type.Fields, ct);
+        if (referenceValidation is Result<NoneType, AeroError>.Failure referenceFailure)
+            return Prelude.Fail<ContentItem, AeroError>(referenceFailure.Error);
 
         if (item.Id == 0)
             item.Id = Snowflake.NewId();
@@ -248,6 +234,41 @@ public sealed class AeroContentService(
         return Prelude.Ok<bool, AeroError>(true);
     }
 
+    /// <summary>
+    /// Validates that ordinary content-item reference fields resolve within the item's site.
+    /// Content-entry references are structurally validated by the regular field validator and
+    /// intentionally are not interpreted as content item identifiers.
+    /// </summary>
+    public async Task<Result<NoneType, AeroError>> ValidateReferenceFieldsAsync(
+        ContentItem item,
+        IReadOnlyList<ContentFieldDefinition> fields,
+        CancellationToken ct = default)
+    {
+        foreach (var field in fields.Where(x =>
+                     x.FieldType == ContentFieldTypes.Reference
+                     && !ReferenceFieldValidator.IsContentEntryReference(x)
+                     && !ReferenceFieldValidator.IsCmsDocumentReference(x)))
+        {
+            if (!item.Fields.TryGetValue(field.Name, out var value) || value.ValueKind is System.Text.Json.JsonValueKind.Null)
+                continue;
+            var multiple = field.Settings.TryGetValue("allowMultiple", out var setting) &&
+                           setting.ValueKind == System.Text.Json.JsonValueKind.True;
+            if (!multiple && value.ValueKind == System.Text.Json.JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString()))
+                continue;
+
+            var values = multiple ? value.EnumerateArray().ToArray() : [value];
+            foreach (var reference in values)
+            {
+                if (reference.ValueKind != System.Text.Json.JsonValueKind.String ||
+                    !long.TryParse(reference.GetString(), out var referenceId) ||
+                    !await BelongsToSiteAsync(item.SiteId, referenceId, ct))
+                    return Prelude.Fail<NoneType, AeroError>(AeroError.NotFoundError("Content type or related content was not found."));
+            }
+        }
+
+        return Prelude.Ok<NoneType, AeroError>(default);
+    }
+
     private static string NormalizeCulture(string? culture) =>
         string.IsNullOrWhiteSpace(culture)
             ? "en-US"
@@ -264,6 +285,59 @@ public sealed class AeroContentService(
         foreach (var (name, value) in group.SharedFields)
             item.Fields[name] = value.Clone();
     }
+
+    private async Task InvalidateAiTranslationVariantsForChangedSourceAsync(long siteId, long sourceItemId, CancellationToken ct)
+    {
+        var variants = await session.Query<ContentItem>()
+            .Where(candidate => candidate.SiteId == siteId
+                && candidate.SourceItemId == sourceItemId)
+            .ToListAsync(ct);
+
+        foreach (var variant in variants.Where(candidate => candidate.TranslationProvenance?.Origin == ContentTranslationOrigin.AiAssisted))
+        {
+            if (variant.Id == sourceItemId) continue;
+            session.UpdateExpectedVersion(variant, variant.Version);
+            InvalidateAiTranslationRevision(variant);
+        }
+    }
+
+    private static void InvalidateAiTranslationRevision(ContentItem item)
+    {
+        if (item.TranslationProvenance?.Origin != ContentTranslationOrigin.AiAssisted) return;
+        item.TranslationReview = ContentTranslationReview.Pending("The source or translation content changed.");
+        item.PublicationState = ContentPublicationState.Draft;
+        item.PublishedOn = null;
+        item.SchedulePublishUtc = null;
+    }
+
+    private static bool HasTranslationRelevantChange(
+        ContentItem candidate,
+        ContentItem persisted,
+        IReadOnlyList<ContentFieldDefinition> fields) =>
+        !string.Equals(candidate.Title, persisted.Title, StringComparison.Ordinal)
+        || !string.Equals(candidate.Slug, persisted.Slug, StringComparison.Ordinal)
+        || !FieldsEqual(
+            ExcludingShared(candidate.Fields, fields),
+            ExcludingShared(persisted.Fields, fields));
+
+    private static IReadOnlyDictionary<string, JsonElement> ExcludingShared(
+        IReadOnlyDictionary<string, JsonElement> fields,
+        IReadOnlyList<ContentFieldDefinition> definitions)
+    {
+        var shared = definitions
+            .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+            .Select(field => field.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        return fields
+            .Where(pair => !shared.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
+
+    private static bool FieldsEqual(
+        IReadOnlyDictionary<string, JsonElement> left,
+        IReadOnlyDictionary<string, JsonElement> right) =>
+        left.Count == right.Count
+        && left.All(pair => right.TryGetValue(pair.Key, out var value) && JsonElement.DeepEquals(pair.Value, value));
 
     private static ContentTypeDefinition MapDefinition(ContentTypeDocument document)
         => new()

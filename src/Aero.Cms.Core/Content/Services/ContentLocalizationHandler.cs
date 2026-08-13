@@ -128,6 +128,11 @@ public sealed class ContentLocalizationHandler(
             == ContentAiTranslationReviewPolicy.RequireHumanReview
             ? ContentTranslationReview.Pending()
             : new ContentTranslationReview();
+        // An AI application creates a new editorial revision. It must never leave an
+        // already-published variant visible while review metadata has changed.
+        targetOk.Value.PublicationState = ContentPublicationState.Draft;
+        targetOk.Value.PublishedOn = null;
+        targetOk.Value.SchedulePublishUtc = null;
         targetOk.Value.VersionNumber++;
 
         var draftValidation = await validation.ValidateAsync(targetOk.Value, ContentValidationMode.Draft, cancellationToken);
@@ -181,14 +186,48 @@ public sealed class ContentLocalizationHandler(
             || command.SharedFields.Keys.Any(name => !typeOk.Value.Fields.Any(field => field.Name == name && field.LocalizationMode == ContentFieldLocalizationMode.Shared)))
             return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ValidationError(["Only declared shared fields may be changed through the translation group."]));
 
+        // Treat a shared update as a patch. A caller cannot accidentally erase an
+        // omitted required value, and every persisted variant is validated using the
+        // same field/reference rules as a normal content save before the group changes.
+        var candidateShared = group.SharedFields
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal);
+        foreach (var (name, value) in command.SharedFields)
+            candidateShared[name] = value.Clone();
+
+        var requiredSharedMissing = typeOk.Value.Fields
+            .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.Shared && field.Required)
+            .Any(field => !candidateShared.TryGetValue(field.Name, out var value) || value.ValueKind == JsonValueKind.Null);
+        if (requiredSharedMissing)
+            return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(AeroError.ValidationError(["Required shared fields cannot be removed."]));
+
+        var variants = await session.Query<ContentItem>()
+            .Where(item => item.SiteId == context.SiteId && item.TranslationGroupId == group.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var variant in variants)
+        {
+            var candidate = Clone(variant);
+            foreach (var (name, value) in candidateShared)
+                candidate.Fields[name] = value.Clone();
+            var validationResult = await validation.ValidateAsync(candidate, ContentValidationMode.Draft, cancellationToken);
+            if (validationResult is Result<ContentItem, AeroError>.Failure validationFailure)
+                return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
+            var referenceResult = await writableContentService.ValidateReferenceFieldsAsync(candidate, typeOk.Value.Fields, cancellationToken);
+            if (referenceResult is Result<NoneType, AeroError>.Failure referenceFailure)
+                return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(referenceFailure.Error);
+        }
+
         session.UpdateExpectedVersion(group, command.ExpectedGroupStorageVersion);
-        group.SharedFields = command.SharedFields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal);
+        group.SharedFields = candidateShared;
         group.Revision++;
         group.ModifiedOn = DateTimeOffset.UtcNow;
         session.Store(new ContentTranslationProjectionWorkDocument
         {
-            Id = group.Id ^ ((long)group.Revision << 32), SiteId = group.SiteId, TranslationGroupId = group.Id,
-            GroupStorageVersion = group.Version + 1, GroupRevision = group.Revision
+            Id = Snowflake.NewId(),
+            WorkKey = $"{group.Id}:{group.Version + 1}:{group.Revision}",
+            SiteId = group.SiteId,
+            TranslationGroupId = group.Id,
+            GroupStorageVersion = group.Version + 1,
+            GroupRevision = group.Revision
         });
         try
         {
@@ -208,6 +247,33 @@ public sealed class ContentLocalizationHandler(
         .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.CopyOnFork)
         .Where(field => source.ContainsKey(field.Name))
         .ToDictionary(field => field.Name, field => source[field.Name].Clone(), StringComparer.Ordinal);
+
+    private static ContentItem Clone(ContentItem source) => new()
+    {
+        Id = source.Id,
+        Version = source.Version,
+        SiteId = source.SiteId,
+        ContentTypeAlias = source.ContentTypeAlias,
+        Slug = source.Slug,
+        Title = source.Title,
+        TranslationGroupId = source.TranslationGroupId,
+        Culture = source.Culture,
+        SourceItemId = source.SourceItemId,
+        ParentId = source.ParentId,
+        SortOrder = source.SortOrder,
+        Fields = source.Fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), source.Fields.Comparer),
+        PublicationState = source.PublicationState,
+        PublishedOn = source.PublishedOn,
+        VersionNumber = source.VersionNumber,
+        SchedulePublishUtc = source.SchedulePublishUtc,
+        ScheduleUnpublishUtc = source.ScheduleUnpublishUtc,
+        CreatedOn = source.CreatedOn,
+        ModifiedOn = source.ModifiedOn,
+        CreatedBy = source.CreatedBy,
+        ModifiedBy = source.ModifiedBy,
+        TranslationProvenance = source.TranslationProvenance,
+        TranslationReview = source.TranslationReview
+    };
 
     private static string? ValidateContextCulture(ContentLocalizationContext context, string? culture)
     {

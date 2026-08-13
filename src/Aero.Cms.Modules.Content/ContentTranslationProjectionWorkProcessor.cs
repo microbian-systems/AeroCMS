@@ -27,18 +27,26 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
             .FirstOrDefaultAsync(cancellationToken);
         if (work is null) return false;
 
+        session.UpdateExpectedVersion(work, work.Version);
+        work.AttemptCount++;
+        work.LastAttemptOn = DateTimeOffset.UtcNow;
+
         var group = await session.LoadAsync<ContentTranslationGroupDocument>(work.TranslationGroupId, cancellationToken);
         if (group is null || group.SiteId != work.SiteId || group.Version != work.GroupStorageVersion || group.Revision != work.GroupRevision)
         {
             work.Completed = true; // Superseded/deleted generations must never overwrite newer projections.
-            session.Store(work);
+            work.LastFailure = null;
             await session.SaveChangesAsync(cancellationToken);
             return true;
         }
 
         var type = await contentTypes.GetByAliasAsync(work.SiteId, group.ContentTypeAlias, cancellationToken);
         if (type is not Aero.Core.Railway.Result<ContentTypeDefinition, Aero.Core.AeroError>.Ok typeOk)
-            return false; // Keep durable work pending until its type becomes available.
+        {
+            work.LastFailure = "The content type is unavailable.";
+            await session.SaveChangesAsync(cancellationToken);
+            return true; // Keep durable work pending until its type becomes available.
+        }
 
         var take = Math.Clamp(maximumItems, 1, 100);
         var variants = await session.Query<ContentItem>()
@@ -55,10 +63,16 @@ internal sealed class ContentTranslationProjectionWorkProcessor(
         }
         // Never mark work complete until cache invalidation has succeeded.  A retry is
         // preferable to serving a completed generation with stale hydrated variants.
-        await cacheInvalidator.InvalidateItemAsync(null,
-            new ContentItemCacheIdentity(work.SiteId, group.SourceItemId, group.ContentTypeAlias, group.SourceCulture, string.Empty, group.Id));
+        if (!await cacheInvalidator.TryInvalidateTranslationGroupAsync(
+                work.SiteId, group.Id, group.ContentTypeAlias, cancellationToken))
+        {
+            work.LastFailure = "Cache invalidation did not complete.";
+            await session.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        work.LastFailure = null;
         if (variants.Count < take) work.Completed = true;
-        session.Store(work);
         try
         {
             await session.SaveChangesAsync(cancellationToken);

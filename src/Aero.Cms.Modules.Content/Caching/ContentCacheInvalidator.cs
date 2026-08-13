@@ -110,6 +110,36 @@ internal sealed class ContentCacheInvalidator(
     }
 
     /// <summary>
+    /// Reliably invalidates the tags affected by a shared-field generation. Unlike ordinary
+    /// post-commit invalidation, the caller receives failure so durable repair work can retry.
+    /// </summary>
+    public async Task<bool> TryInvalidateTranslationGroupAsync(
+        long siteId,
+        long translationGroupId,
+        string typeAlias,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(OperationTimeout);
+            await cache.RemoveByTagAsync(
+                ContentCacheKeys.ContentTranslationGroupTag(siteId, translationGroupId),
+                token: timeout.Token);
+            await outputCache.EvictByTagAsync(
+                ContentCacheKeys.ContentTypeTag(siteId, typeAlias),
+                timeout.Token);
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(exception,
+                "Localized content projection cache invalidation did not complete and will be retried.");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Executes one cache operation with an independent timeout and suppresses every exception.
     /// </summary>
     private async Task BestEffortAsync(
