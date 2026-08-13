@@ -214,4 +214,54 @@ public sealed class ContentServiceScopeTests
         await Assert.That(source.IsFailure).IsTrue();
         await Assert.That(group.IsFailure).IsTrue();
     }
+
+    [Test]
+    public async Task Delete_blocks_a_translation_group_source_until_its_variants_are_removed()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTranslationGroupDocument
+        {
+            Id = 50,
+            SiteId = 1,
+            ContentTypeAlias = "animal",
+            SourceItemId = 51,
+            SourceCulture = "en-US"
+        });
+        harness.Session.Store(
+            new ContentItem
+            {
+                Id = 51,
+                SiteId = 1,
+                ContentTypeAlias = "animal",
+                Culture = "en-US",
+                Slug = "wolf",
+                TranslationGroupId = 50
+            },
+            new ContentItem
+            {
+                Id = 52,
+                SiteId = 1,
+                ContentTypeAlias = "animal",
+                Culture = "fr-FR",
+                Slug = "loup",
+                TranslationGroupId = 50,
+                SourceItemId = 51
+            });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentService(harness.Session);
+
+        var sourceDelete = await service.DeleteAsync(1, 51);
+        await Assert.That(sourceDelete.IsFailure).IsTrue();
+        await Assert.That(sourceDelete.ToString()).Contains("while translations exist");
+
+        var variantDelete = await service.DeleteAsync(1, 52);
+        await Assert.That(variantDelete.IsSuccess).IsTrue().Because(variantDelete.ToString());
+        await Assert.That((await service.DeleteAsync(1, 51)).IsSuccess).IsTrue();
+
+        await using var verify = await harness.Store.QuerySessionAsync();
+        await Assert.That(await verify.LoadAsync<ContentTranslationGroupDocument>(50)).IsNull();
+    }
 }

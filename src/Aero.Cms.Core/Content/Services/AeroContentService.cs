@@ -191,7 +191,13 @@ public sealed class AeroContentService(
         try
         {
             await session.SaveChangesAsync(ct);
-            return Prelude.Ok<ContentItem, AeroError>(item);
+            // Never leak a session-tracked instance across the service boundary. A
+            // later save in the same scope may advance the tracked storage version,
+            // which would silently turn a caller's stale CAS token into a current one.
+            var result = Clone(item);
+            foreach (var (name, value) in group.SharedFields)
+                result.Fields[name] = value.Clone();
+            return Prelude.Ok<ContentItem, AeroError>(result);
         }
         catch (ConcurrencyException)
         {
@@ -226,8 +232,18 @@ public sealed class AeroContentService(
             : null;
         if (group?.SourceItemId == id)
         {
-            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
-                "The source item of a translation group cannot be deleted."));
+            var hasTranslations = await session.Query<ContentItem>()
+                .Where(candidate => candidate.SiteId == siteId
+                    && candidate.TranslationGroupId == group.Id
+                    && candidate.Id != id)
+                .AnyAsync(ct);
+            if (hasTranslations)
+            {
+                return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                    "The source item of a translation group cannot be deleted while translations exist."));
+            }
+
+            session.Delete(group);
         }
 
         session.Delete(item);

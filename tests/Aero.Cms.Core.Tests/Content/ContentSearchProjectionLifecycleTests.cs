@@ -20,7 +20,9 @@ public sealed class ContentSearchProjectionLifecycleTests
             .WithSchema<ContentTypeDocument>(SchemaMode.Flexible)
             .WithSchema<ContentSearchDocument>(SchemaMode.Flexible)
             .WithSchema<ContentSearchFacet>(SchemaMode.Flexible)
-            .WithSchema<ContentSemanticDocument>(SchemaMode.Flexible);
+            .WithSchema<ContentSemanticDocument>(SchemaMode.Flexible)
+            .WithConfiguration(options =>
+                options.Schema.For<ContentItem>().UseOptimisticConcurrency = true);
         await harness.InitializeAsync();
         harness.Session.Store(new ContentTypeDocument
         {
@@ -67,6 +69,7 @@ public sealed class ContentSearchProjectionLifecycleTests
             Result<ContentItem, AeroError>.Ok success => success.Value,
             _ => throw new InvalidOperationException("The successful save did not return its persisted item.")
         };
+        var createdStorageVersion = createdItem.Version;
         await using (var verifyCreate = await harness.Store.QuerySessionAsync())
         {
             var search = await verifyCreate.LoadAsync<ContentSearchDocument>(item.Id);
@@ -82,7 +85,7 @@ public sealed class ContentSearchProjectionLifecycleTests
         var updated = await service.SaveAsync(new ContentItem
         {
             Id = item.Id,
-            Version = createdItem.Version,
+            Version = createdStorageVersion,
             SiteId = 1,
             ContentTypeAlias = "animal",
             Culture = "en-US",
@@ -94,6 +97,7 @@ public sealed class ContentSearchProjectionLifecycleTests
             }
         });
         await Assert.That(updated.IsSuccess).IsTrue().Because(updated.ToString());
+        await Assert.That(createdItem.Version).IsEqualTo(createdStorageVersion);
         await using (var verifyUpdate = await harness.Store.QuerySessionAsync())
         {
             var facets = await verifyUpdate.Query<ContentSearchFacet>()
@@ -106,7 +110,7 @@ public sealed class ContentSearchProjectionLifecycleTests
         var staleUpdate = await service.SaveAsync(new ContentItem
         {
             Id = item.Id,
-            Version = createdItem.Version,
+            Version = createdStorageVersion,
             SiteId = 1,
             ContentTypeAlias = "animal",
             Culture = "en-US",
