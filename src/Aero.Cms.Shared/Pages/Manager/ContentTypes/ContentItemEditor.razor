@@ -174,11 +174,15 @@
                                 </p>
                             }
 
-                            <fieldset class="ci-field-editor" disabled="@IsSharedField(field)" aria-describedby="@(IsSharedField(field) ? SharedFieldDescriptionId(field) : null)">
+                            <fieldset class="ci-field-editor"
+                                      disabled="@IsSharedField(field)"
+                                      aria-describedby="@(IsSharedField(field) ? SharedFieldDescriptionId(field) : null)">
                                 @switch (field.FieldType)
                                 {
                                 case "richtext":
-                                    <RadzenTextArea Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="10" Class="w-full" />
+                                    <div class="ci-localized-value" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
+                                        <RadzenTextArea Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="10" Class="w-full" />
+                                    </div>
                                     break;
                                 case "image":
                                     <div class="space-y-3">
@@ -188,7 +192,9 @@
                                         }
                                         <div class="flex gap-2">
                                             <RadzenButton Icon="image" Text="@L["Choose image"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenMediaSelector(field.Name))" />
-                                            <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Image URL"]" Class="w-full" />
+                                            <div class="ci-localized-value w-full" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
+                                                <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Image URL"]" Class="w-full" />
+                                            </div>
                                         </div>
                                     </div>
                                     break;
@@ -342,14 +348,18 @@
                                         var currentRowIndex = rowIndex;
                                         var row = dictionaryRows[currentRowIndex];
                                         <div class="ci-key-value-row">
-                                            <RadzenTextBox @bind-Value="row.Key" Placeholder="@L["Key"]" Class="w-full" />
+                                            <div class="ci-localized-value" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
+                                                <RadzenTextBox @bind-Value="row.Key" Placeholder="@L["Key"]" Class="w-full" />
+                                            </div>
                                             @if (numericValues)
                                             {
                                                 <input type="number" step="any" inputmode="decimal" class="w-full rounded-md shadow-sm sm:text-sm" style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);" @bind="row.Value" placeholder="@L["Number"]" />
                                             }
                                             else
                                             {
-                                                <RadzenTextBox @bind-Value="row.Value" Placeholder="@L["Value"]" Class="w-full" />
+                                                <div class="ci-localized-value" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
+                                                    <RadzenTextBox @bind-Value="row.Value" Placeholder="@L["Value"]" Class="w-full" />
+                                                </div>
                                             }
                                             <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Size="ButtonSize.Small" title="@L["Remove value"]" Click="@(() => RemoveDictionaryRow(field.Name, currentRowIndex))" />
                                         </div>
@@ -357,7 +367,9 @@
                                     <RadzenButton Icon="add" Text="@L["Add value"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => AddDictionaryRow(field.Name))" />
                                     break;
                                 default:
-                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
+                                    <div class="ci-localized-value" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
+                                        <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
+                                    </div>
                                     break;
                                 }
                             </fieldset>
@@ -374,7 +386,9 @@
                     </div>
                     <label class="pe-property-group">
                         <span class="pe-property-label">@L["Title"]</span>
-                        <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@L["Untitled {0}", _typeName]" Class="w-full" />
+                        <div class="ci-localized-value" lang="@_culture" dir="@PreviewDirection">
+                            <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@L["Untitled {0}", _typeName]" Class="w-full" />
+                        </div>
                     </label>
                     @if (_typeDefinition.Structure == ContentStructure.Hierarchical)
                     {

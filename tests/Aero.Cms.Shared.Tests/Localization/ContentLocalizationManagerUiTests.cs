@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Shared.Pages.Manager.ContentTypes;
 using Shouldly;
 
@@ -69,6 +70,76 @@ public sealed class ContentLocalizationManagerUiTests
     {
         ContentLocalizationManagerUi.ShouldLockFieldLocalization(true, null).ShouldBeTrue();
         ContentLocalizationManagerUi.ShouldLockFieldLocalization(false, null).ShouldBeFalse();
+    }
+
+    [Test]
+    public void Localized_current_variant_forks_from_authoritative_canonical_source_with_exact_tokens()
+    {
+        var sourceReference = ContentItem(
+            id: 101,
+            groupId: 55,
+            sourceItemId: null,
+            storageVersion: 0,
+            groupStorageVersion: null);
+        var authoritativeSource = sourceReference with
+        {
+            StorageVersion = 19,
+            TranslationGroupStorageVersion = 23
+        };
+
+        var preparation = ContentTranslationForkUi.Prepare(
+            currentItemId: 202,
+            currentTranslationGroupId: 55,
+            sourceReference,
+            authoritativeSource,
+            culture: "ar-SA",
+            slug: "ثعلب");
+
+        preparation.CanFork.ShouldBeTrue();
+        preparation.SourceItemId.ShouldBe(101);
+        preparation.Request.ShouldNotBeNull();
+        preparation.Request.Culture.ShouldBe("ar-SA");
+        preparation.Request.Slug.ShouldBe("ثعلب");
+        preparation.Request.ExpectedGroupStorageVersion.ShouldBe(23);
+        preparation.Request.ExpectedSourceStorageVersion.ShouldBe(19);
+        preparation.Request.ExpectedTargetStorageVersion.ShouldBeNull();
+    }
+
+    [Test]
+    [Arguments(false, false, 19, 23)]
+    [Arguments(true, true, 19, 23)]
+    [Arguments(true, false, 0, 23)]
+    [Arguments(true, false, 19, 0)]
+    public void Missing_cross_group_or_zero_token_source_fails_closed(
+        bool includeSource,
+        bool useDifferentGroup,
+        long storageVersion,
+        long groupStorageVersion)
+    {
+        var sourceReference = includeSource
+            ? ContentItem(101, 55, null, 0, null)
+            : null;
+        var authoritativeSource = includeSource
+            ? ContentItem(
+                101,
+                useDifferentGroup ? 77 : 55,
+                null,
+                storageVersion,
+                groupStorageVersion)
+            : null;
+
+        var preparation = ContentTranslationForkUi.Prepare(
+            currentItemId: 202,
+            currentTranslationGroupId: 55,
+            sourceReference,
+            authoritativeSource,
+            culture: "ar-SA",
+            slug: "ثعلب");
+
+        preparation.CanFork.ShouldBeFalse();
+        preparation.SourceItemId.ShouldBe(0);
+        preparation.Request.ShouldBeNull();
+        preparation.ReloadMessage.ShouldContain("Reload translations");
     }
 
     [Test]
@@ -191,4 +262,27 @@ public sealed class ContentLocalizationManagerUiTests
             reviewedBy: "reviewer");
         return (provenance, review);
     }
+
+    private static ContentItemDetail ContentItem(
+        long id,
+        long? groupId,
+        long? sourceItemId,
+        long storageVersion,
+        long? groupStorageVersion) =>
+        new(
+            id,
+            $"Item {id}",
+            $"item-{id}",
+            "animal",
+            new Dictionary<string, System.Text.Json.JsonElement>(),
+            "Draft",
+            null,
+            1,
+            null,
+            null,
+            "en-US",
+            groupId,
+            sourceItemId,
+            StorageVersion: storageVersion,
+            TranslationGroupStorageVersion: groupStorageVersion);
 }

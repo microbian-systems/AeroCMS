@@ -858,17 +858,42 @@ protected override async Task OnInitializedAsync()
         _isSaving = true;
         try
         {
-            if (_storageVersion <= 0)
+            if (_sourceVariant is not { Id: > 0 } sourceVariant)
             {
-                Notify(NotificationSeverity.Warning, "Reload required", "A current source token is required before adding a culture.");
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Reload required",
+                    "The canonical source could not be identified. Reload translations before adding a culture.");
                 return;
             }
-            var request = new ForkContentItemCultureRequest(
+
+            var sourceResult = await ContentItemsApi.GetByIdAsync(Alias, sourceVariant.Id);
+            if (sourceResult is not Result<ContentItemDetail, AeroError>.Ok sourceOk)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Reload required",
+                    "The canonical source could not be reloaded. Reload translations before adding a culture.");
+                return;
+            }
+
+            var preparation = ContentTranslationForkUi.Prepare(
+                Id.Value,
+                _translationGroupId,
+                sourceVariant,
+                sourceOk.Value,
                 decision.Culture,
-                decision.Slug,
-                _translationGroupStorageVersion,
-                ExpectedSourceStorageVersion: _storageVersion);
-            var result = await ContentItemsApi.ForkToCultureAsync(Alias, Id.Value, request);
+                decision.Slug);
+            if (!preparation.CanFork || preparation.Request is null)
+            {
+                Notify(NotificationSeverity.Warning, "Reload required", preparation.ReloadMessage);
+                return;
+            }
+
+            var result = await ContentItemsApi.ForkToCultureAsync(
+                Alias,
+                preparation.SourceItemId,
+                preparation.Request);
             if (result is Result<ContentItemDetail, AeroError>.Ok ok)
             {
                 Notify(NotificationSeverity.Success, "Translation created", $"{FormatCulture(ok.Value.Culture)} draft created.");
@@ -1577,4 +1602,65 @@ protected override async Task OnInitializedAsync()
                 fields.TryGetValue(pair.Key, out var current)
                 && JsonElement.DeepEquals(pair.Value, current));
     }
+}
+
+/// <summary>
+/// Fail-closed preparation for a manager translation fork from the authoritative canonical item.
+/// </summary>
+public static class ContentTranslationForkUi
+{
+    private const string ReloadMessage =
+        "The canonical source or its concurrency tokens changed. Reload translations before adding a culture.";
+
+    /// <summary>
+    /// Validates that the freshly loaded item is the canonical source for the current translation group
+    /// and builds the exact source and group concurrency fence required by the server.
+    /// </summary>
+    public static ContentTranslationForkPreparation Prepare(
+        long currentItemId,
+        long? currentTranslationGroupId,
+        ContentItemDetail? sourceReference,
+        ContentItemDetail? authoritativeSource,
+        string culture,
+        string slug)
+    {
+        if (currentItemId <= 0
+            || currentTranslationGroupId is not > 0
+            || sourceReference is not { Id: > 0 }
+            || authoritativeSource is not { Id: > 0 }
+            || authoritativeSource.Id != sourceReference.Id
+            || authoritativeSource.SourceItemId is not null
+            || authoritativeSource.TranslationGroupId != currentTranslationGroupId
+            || authoritativeSource.StorageVersion <= 0
+            || authoritativeSource.TranslationGroupStorageVersion is not > 0)
+        {
+            return ContentTranslationForkPreparation.Reload(ReloadMessage);
+        }
+
+        return ContentTranslationForkPreparation.Ready(
+            authoritativeSource.Id,
+            new ForkContentItemCultureRequest(
+                culture,
+                slug,
+                authoritativeSource.TranslationGroupStorageVersion,
+                ExpectedSourceStorageVersion: authoritativeSource.StorageVersion));
+    }
+}
+
+/// <summary>Validated canonical source and request for a manager translation fork.</summary>
+public sealed record ContentTranslationForkPreparation(
+    bool CanFork,
+    long SourceItemId,
+    ForkContentItemCultureRequest? Request,
+    string ReloadMessage)
+{
+    /// <summary>Creates a successful fork preparation.</summary>
+    public static ContentTranslationForkPreparation Ready(
+        long sourceItemId,
+        ForkContentItemCultureRequest request) =>
+        new(true, sourceItemId, request, string.Empty);
+
+    /// <summary>Creates a fail-closed preparation requiring manager reload.</summary>
+    public static ContentTranslationForkPreparation Reload(string message) =>
+        new(false, 0, null, message);
 }
