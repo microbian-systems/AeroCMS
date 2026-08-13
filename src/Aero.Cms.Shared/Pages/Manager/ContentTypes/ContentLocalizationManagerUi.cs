@@ -16,6 +16,15 @@ public static class ContentLocalizationManagerUi
     public static bool ShouldLockFieldLocalization(bool isExistingType, long? itemCount) =>
         isExistingType && itemCount is null or > 0;
 
+    /// <summary>Requires all persisted optimistic-concurrency tokens for a group mutation.</summary>
+    public static bool HasExactLocalizationTokens(
+        long itemStorageVersion,
+        long? groupStorageVersion,
+        int? groupRevision) =>
+        itemStorageVersion > 0
+        && groupStorageVersion is > 0
+        && groupRevision is >= 0;
+
     /// <summary>Builds the culture-prefixed public route used by an embedded content preview.</summary>
     public static string BuildCultureAwareContentPath(
         string alias,
@@ -58,7 +67,9 @@ public static class ContentLocalizationManagerUi
     {
         if (!metadataAvailable)
         {
-            return new(true, false, "Review metadata unavailable", "Publication remains subject to server-side policy.");
+            return provenance?.Origin == ContentTranslationOrigin.AiAssisted
+                ? new(false, false, "Review metadata unavailable", "Reload current revision and review metadata before publishing this AI-assisted translation.")
+                : new(true, false, "Review metadata unavailable", "Publication remains subject to server-side policy.");
         }
 
         if (provenance?.Origin != ContentTranslationOrigin.AiAssisted)

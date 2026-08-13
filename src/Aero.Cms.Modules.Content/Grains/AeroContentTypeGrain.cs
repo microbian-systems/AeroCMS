@@ -204,6 +204,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias
         AllowPublicUrl = def.AllowPublicUrl,
         IncludeInSearch = def.IncludeInSearch,
         IncludeInPublicAi = def.IncludeInPublicAi,
+        Localization = def.Localization,
         FieldsJson = JsonSerializer.Serialize(
             def.Fields,
             ContentJsonContext.Default.ListContentFieldDefinition),
@@ -238,6 +239,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias
             AllowPublicUrl = vm.AllowPublicUrl,
             IncludeInSearch = vm.IncludeInSearch,
             IncludeInPublicAi = vm.IncludeInPublicAi,
+            Localization = vm.Localization,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
             ScheduleConfig = vm.ScheduleConfig

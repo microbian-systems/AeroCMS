@@ -83,6 +83,8 @@ public partial class ContentTypeEditor
     private bool AllowPublicUrl { get; set; }
     private bool IncludeInSearch { get; set; } = true;
     private bool IncludeInPublicAi { get; set; }
+    private ContentCultureFallbackPolicy CultureFallbackPolicy { get; set; } = ContentCultureFallbackPolicy.ExactOnly;
+    private ContentAiTranslationReviewPolicy AiTranslationReviewPolicy { get; set; } = ContentAiTranslationReviewPolicy.RequireHumanReview;
     private ContentCardinality _cardinality = ContentCardinality.Collection;
     private ContentStructure _structure = ContentStructure.Flat;
     private ContentCardinality Cardinality
@@ -165,6 +167,8 @@ protected override async Task OnInitializedAsync()
             AllowPublicUrl = detail.AllowPublicUrl;
             IncludeInSearch = detail.IncludeInSearch;
             IncludeInPublicAi = detail.IncludeInPublicAi;
+            CultureFallbackPolicy = detail.Localization?.CultureFallbackPolicy ?? ContentCultureFallbackPolicy.ExactOnly;
+            AiTranslationReviewPolicy = detail.Localization?.AiTranslationReviewPolicy ?? ContentAiTranslationReviewPolicy.RequireHumanReview;
             Cardinality = detail.Cardinality;
             Structure = detail.Structure;
             var hierarchyRules = detail.HierarchyRules ?? new ContentHierarchyRules();
@@ -784,6 +788,11 @@ protected override async Task OnInitializedAsync()
                     RequireSameTypeParent = RequireSameTypeParent,
                     AllowedParentContentTypeIds = AllowedParentContentTypeIds,
                     DefaultOrdering = HierarchyOrdering
+                },
+                new ContentLocalizationSettings
+                {
+                    CultureFallbackPolicy = CultureFallbackPolicy,
+                    AiTranslationReviewPolicy = AiTranslationReviewPolicy
                 });
 
             var result = IsNew

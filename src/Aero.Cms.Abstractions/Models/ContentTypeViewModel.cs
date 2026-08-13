@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Abstractions.Models;
 
@@ -77,6 +78,10 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     /// </summary>
     [Id(13)]
     public bool IncludeInPublicAi { get; set; }
+
+    /// <summary>Gets or sets culture fallback and AI review policy.</summary>
+    [Id(14)]
+    public ContentLocalizationSettings Localization { get; set; } = new();
 }
 
 /// <summary>

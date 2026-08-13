@@ -7,6 +7,38 @@ namespace Aero.Cms.Shared.Tests.Localization;
 public sealed class ContentLocalizationManagerUiTests
 {
     [Test]
+    public void Localization_mutations_require_exact_nonzero_storage_and_group_tokens()
+    {
+        ContentLocalizationManagerUi.HasExactLocalizationTokens(7, 11, 0).ShouldBeTrue();
+        ContentLocalizationManagerUi.HasExactLocalizationTokens(0, 11, 0).ShouldBeFalse();
+        ContentLocalizationManagerUi.HasExactLocalizationTokens(7, null, 0).ShouldBeFalse();
+        ContentLocalizationManagerUi.HasExactLocalizationTokens(7, 11, null).ShouldBeFalse();
+    }
+
+    [Test]
+    public void Ai_assisted_content_with_unavailable_revision_metadata_cannot_publish()
+    {
+        var provenance = new ContentTranslationProvenance(
+            ContentTranslationOrigin.AiAssisted,
+            "en-US",
+            4,
+            DateTimeOffset.UnixEpoch);
+
+        var decision = ContentLocalizationManagerUi.EvaluatePublishDecision(
+            false,
+            provenance,
+            ContentTranslationReview.Pending(),
+            ContentAiTranslationReviewPolicy.RequireHumanReview,
+            101,
+            null,
+            8,
+            false);
+
+        decision.CanPublish.ShouldBeFalse();
+        decision.Label.ShouldBe("Review metadata unavailable");
+    }
+
+    [Test]
     public void Culture_aware_preview_path_prefixes_the_variant_culture()
     {
         var path = ContentLocalizationManagerUi.BuildCultureAwareContentPath(

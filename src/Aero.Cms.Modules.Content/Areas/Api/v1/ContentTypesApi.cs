@@ -135,7 +135,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 ok.Value.Alias, ok.Value.Name, ok.Value.Description, ok.Value.Category,
                 ok.Value.Icon, ok.Value.AllowPublicUrl, ok.Value.IncludeInSearch, ok.Value.IncludeInPublicAi,
                 ok.Value.Fields, ok.Value.ScribanTemplate, ok.Value.ScheduleConfig, ok.Value.Id,
-                ok.Value.Cardinality, ok.Value.Structure, ok.Value.HierarchyRules))
+                ok.Value.Cardinality, ok.Value.Structure, ok.Value.HierarchyRules, ok.Value.Localization))
             : TypedResults.NotFound();
     }
 
@@ -171,6 +171,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 AllowPublicUrl = request.AllowPublicUrl,
                 IncludeInSearch = request.IncludeInSearch,
                 IncludeInPublicAi = request.IncludeInPublicAi,
+                Localization = request.Localization ?? new(),
                 FieldsJson = JsonSerializer.Serialize(
                     request.Fields.ToList(),
                     ContentJsonContext.Default.ListContentFieldDefinition),
@@ -234,6 +235,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.AllowPublicUrl = request.AllowPublicUrl;
             existing.IncludeInSearch = request.IncludeInSearch;
             existing.IncludeInPublicAi = request.IncludeInPublicAi;
+            existing.Localization = request.Localization ?? new();
             existing.FieldsJson = JsonSerializer.Serialize(
                 request.Fields.ToList(),
                 ContentJsonContext.Default.ListContentFieldDefinition);
@@ -320,7 +322,8 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             Id: vm.Id,
             Cardinality: vm.Cardinality,
             Structure: vm.Structure,
-            HierarchyRules: vm.HierarchyRules);
+            HierarchyRules: vm.HierarchyRules,
+            Localization: vm.Localization);
     }
 
     /// <summary>

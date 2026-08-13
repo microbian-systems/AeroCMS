@@ -520,6 +520,171 @@
                     }
                 </div>
 
+                @if (_typeDefinition.Fields.Any(IsSharedField))
+                {
+                    <section class="ci-review-card space-y-4" aria-labelledby="shared-fields-heading">
+                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <div>
+                                <h3 id="shared-fields-heading" class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Shared fields"]</h3>
+                                <p class="ci-help mt-1">@L["These values are owned once by the translation group. Saving here updates every culture and never sends them through the variant draft endpoint."]</p>
+                            </div>
+                            <RadzenButton Icon="save"
+                                          Text="@(_isSavingSharedFields ? L["Saving..."] : L["Save shared fields"])"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          Size="ButtonSize.Small"
+                                          Click="@SaveSharedFieldsAsync"
+                                          Disabled="@(_isSavingSharedFields || !HasExactLocalizationTokens)" />
+                        </div>
+                        @if (!HasExactLocalizationTokens)
+                        {
+                            <p class="ci-localization-warning text-sm" role="status">@L["Shared editing is unavailable until current group storage and revision tokens load. Reload before editing."]</p>
+                        }
+                        <fieldset disabled="@(!HasExactLocalizationTokens || _isSavingSharedFields)" class="space-y-4">
+                            @foreach (var field in _typeDefinition.Fields.Where(IsSharedField))
+                            {
+                                <div class="ci-field space-y-2">
+                                    <label class="pe-property-label" for="@($"shared-{field.Name}")">@FieldLabel(field) <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Shared"]" /></label>
+                                    @switch (field.FieldType)
+                                    {
+                                        case "richtext":
+                                            <RadzenTextArea id="@($"shared-{field.Name}")" Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="8" Class="w-full" />
+                                            break;
+                                        case "number":
+                                            <RadzenNumeric id="@($"shared-{field.Name}")" TValue="decimal?" Value="@_numberValues[field.Name]" ValueChanged="@(v => _numberValues[field.Name] = v)" Class="w-full" />
+                                            break;
+                                        case ContentFieldTypes.Range:
+                                            <RadzenNumeric id="@($"shared-{field.Name}")" TValue="int?" Min="@GetIntSetting(field, RangeContentFieldSettings.Start, 0)" Max="@GetIntSetting(field, RangeContentFieldSettings.End, 10)" Value="@_rangeValues[field.Name]" ValueChanged="@(v => _rangeValues[field.Name] = v)" Class="w-full" />
+                                            break;
+                                        case "boolean":
+                                            <label class="flex items-center gap-2 text-sm"><RadzenCheckBox TValue="bool" @bind-Value="_boolValues[field.Name]" /> @L["Yes"]</label>
+                                            break;
+                                        case "date":
+                                            <RadzenDatePicker id="@($"shared-{field.Name}")" TValue="DateTime?" Value="@_dateValues[field.Name]" Change="@(args => SetDateValue(field.Name, args))" Class="w-full" />
+                                            break;
+                                        case "reference":
+                                            @if (IsContentEntryReference(field))
+                                            {
+                                                <ContentEntryReferencePicker Culture="@_culture"
+                                                                             AllowedProviders="@GetAllowedContentEntryProviders(field)"
+                                                                             Value="@_contentEntryReferenceValues[field.Name]"
+                                                                             ValueChanged="@(value => _contentEntryReferenceValues[field.Name] = value)" />
+                                            }
+                                            else if (IsCmsDocumentReference(field))
+                                            {
+                                                <CmsContentReferencePicker Culture="@_culture" AllowedSources="@GetAllowedCmsReferenceSources(field)" Value="@_cmsReferenceValues[field.Name]" ValueChanged="@(value => _cmsReferenceValues[field.Name] = value)" />
+                                            }
+                                            else
+                                            {
+                                                <ContentReferencePicker TargetContentTypeId="@GetTargetContentTypeId(field)" Culture="@_culture" Value="@_fieldValues[field.Name]" ValueChanged="@(value => OnReferenceValueChangedAsync(field, value))" />
+                                            }
+                                            break;
+                                        case ContentFieldTypes.List:
+                                            <div class="ci-choice-list" role="group" aria-label="@FieldLabel(field)">
+                                                @foreach (var value in GetAllowedValues(field))
+                                                {
+                                                    <label class="flex items-center gap-3 text-sm"><input type="checkbox" checked="@IsListValueSelected(field.Name, value)" @onchange="@(args => ToggleListValue(field.Name, value, args.Value))" /> <span>@value</span></label>
+                                                }
+                                            </div>
+                                            break;
+                                        case ContentFieldTypes.Gallery:
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="text-sm">@L["{0} images selected", _galleryValues.GetValueOrDefault(field.Name, []).Count]</span>
+                                                <RadzenButton Icon="photo_library" Text="@L["Choose images"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenGallerySelector(field.Name))" />
+                                            </div>
+                                            break;
+                                        case ContentFieldTypes.Dictionary:
+                                            @foreach (var row in _dictionaryValues.GetValueOrDefault(field.Name, []))
+                                            {
+                                                <div class="ci-key-value-row"><RadzenTextBox @bind-Value="row.Key" Placeholder="@L["Key"]" /><RadzenTextBox @bind-Value="row.Value" Placeholder="@L["Value"]" /></div>
+                                            }
+                                            <RadzenButton Icon="add" Text="@L["Add value"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => AddDictionaryRow(field.Name))" />
+                                            break;
+                                        case "image":
+                                            <div class="flex gap-2"><RadzenButton Icon="image" Text="@L["Choose image"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenMediaSelector(field.Name))" /><RadzenTextBox id="@($"shared-{field.Name}")" Value="@_fieldValues.GetValueOrDefault(field.Name, string.Empty)" ValueChanged="@(v => _fieldValues[field.Name] = v)" Class="w-full" /></div>
+                                            break;
+                                        default:
+                                            <RadzenTextBox id="@($"shared-{field.Name}")" Value="@_fieldValues.GetValueOrDefault(field.Name, string.Empty)" ValueChanged="@(v => _fieldValues[field.Name] = v)" Class="w-full" />
+                                            break;
+                                    }
+                                </div>
+                            }
+                        </fieldset>
+                    </section>
+                }
+
+                @if (_sourceVariant is not null && _sourceVariant.Id != Id)
+                {
+                    <section class="ci-review-card space-y-4" aria-labelledby="ai-translation-heading">
+                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <div>
+                                <h3 id="ai-translation-heading" class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["AI translation suggestions"]</h3>
+                                <p class="ci-help mt-1">@L["Generate schema-aware suggestions from {0}. Nothing is published automatically.", FormatCulture(_sourceVariant.Culture)]</p>
+                            </div>
+                            <RadzenButton Icon="translate"
+                                          Text="@(_isGeneratingTranslation ? L["Generating..."] : L["Generate suggestions"])"
+                                          ButtonStyle="ButtonStyle.Secondary"
+                                          Size="ButtonSize.Small"
+                                          Click="@GenerateAiTranslationAsync"
+                                          Disabled="@(_isGeneratingTranslation || !CanGenerateAiTranslation)" />
+                        </div>
+                        @if (!CanGenerateAiTranslation && _aiSuggestion is null)
+                        {
+                            <p class="ci-localization-warning text-sm" role="status">@L["Save and reload an unchanged target draft with current source and group tokens before requesting AI suggestions."]</p>
+                        }
+                        @if (_aiSuggestion is not null)
+                        {
+                            <div class="space-y-3" aria-live="polite">
+                                @foreach (var suggestion in _aiSuggestion.Application.TranslatedFields)
+                                {
+                                    <article class="rounded-md border p-3" style="border-color: var(--pe-border);">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <strong>@SuggestionFieldLabel(suggestion.Key)</strong>
+                                            <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@L["Suggestion — not applied"]" />
+                                        </div>
+                                        <p class="mt-2 text-sm whitespace-pre-wrap" style="color: var(--pe-text-primary);">@FormatSuggestion(suggestion.Value)</p>
+                                    </article>
+                                }
+                                @foreach (var warning in _aiSuggestion.Warnings)
+                                {
+                                    <p class="ci-localization-warning text-sm" role="status">@warning</p>
+                                }
+                                <RadzenButton Icon="check"
+                                              Text="@(_isApplyingTranslation ? L["Applying..."] : L["Apply as draft"] )"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Click="@ApplyAiTranslationAsync"
+                                              Disabled="@_isApplyingTranslation" />
+                            </div>
+                        }
+                        @if (_translationProvenance?.Origin == ContentTranslationOrigin.AiAssisted)
+                        {
+                            <div class="space-y-3 border-t pt-4" style="border-color: var(--pe-border);">
+                                <div class="space-y-2" aria-live="polite">
+                                    @foreach (var field in _typeDefinition.Fields.Where(field => field.LocalizationMode != ContentFieldLocalizationMode.Shared && field.FieldType != ContentFieldTypes.Reference))
+                                    {
+                                        <div class="flex items-center justify-between gap-3 rounded-md border p-2" style="border-color: var(--pe-border);">
+                                            <span class="text-sm">@FieldLabel(field)</span>
+                                            <RadzenBadge BadgeStyle="@(_translationReview?.Status == ContentTranslationReviewStatus.Approved ? BadgeStyle.Success : _translationReview?.Status == ContentTranslationReviewStatus.Rejected ? BadgeStyle.Danger : BadgeStyle.Warning)"
+                                                         Text="@(_translationReview?.Status.ToString() ?? L["Pending review"])" />
+                                        </div>
+                                    }
+                                </div>
+                                <label class="pe-property-group">
+                                    <span class="pe-property-label">@L["Review notes"]</span>
+                                    <RadzenTextArea @bind-Value="_reviewNotes" Rows="3" Class="w-full" />
+                                </label>
+                                <div class="flex flex-wrap gap-2">
+                                    <RadzenButton Icon="verified" Text="@L["Approve exact revision"]" ButtonStyle="ButtonStyle.Success" Click="@(() => ReviewTranslationAsync(true))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty)" />
+                                    <RadzenButton Icon="block" Text="@L["Reject"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@(() => ReviewTranslationAsync(false))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty)" />
+                                </div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_translationActionError))
+                        {
+                            <p class="ci-localization-warning text-sm" role="alert">@_translationActionError</p>
+                        }
+                    </section>
+                }
+
                 @if (_translationGroupId.HasValue || Id.HasValue)
                 {
                     <div class="text-xs font-mono px-2 py-1 rounded inline-flex"
