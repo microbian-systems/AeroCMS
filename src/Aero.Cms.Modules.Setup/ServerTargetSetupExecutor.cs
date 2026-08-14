@@ -120,7 +120,7 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             rootServiceProvider.GetServices<IConfigureAeroDB>().Count());
 
         logger.LogInformation("Step 3/6: Creating session and services...");
-        await using var session = await store.LightweightSessionAsync();
+        await using var session = await InitializeSchemaAndOpenSessionAsync(store, cancellationToken);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
         var styleProfileResolver = new SiteStyleProfileResolver(store);
@@ -191,6 +191,19 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         logger.LogInformation("=== ServerTargetSetup COMPLETE (siteId={SiteId}, tenantId={TenantId}) ===",
             result.SiteId, result.TenantId);
         return result;
+    }
+
+    /// <summary>
+    /// Materializes the CMS schema before any setup seed operation can open a session.
+    /// The temporary setup store contains only the configurations applied above; consuming-host
+    /// schema that is owned by an external tool is therefore not created here.
+    /// </summary>
+    internal static async Task<IDocumentSession> InitializeSchemaAndOpenSessionAsync(
+        IDocumentStore store,
+        CancellationToken cancellationToken)
+    {
+        await store.InitializeAsync(cancellationToken);
+        return await store.LightweightSessionAsync(cancellationToken);
     }
 
     /// <summary>
