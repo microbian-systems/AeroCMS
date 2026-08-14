@@ -446,3 +446,6 @@ src/Aero.Cms.Web/App_Data/
 
 # Playwright MCP browser session artifacts
 .playwright-mcp/
+
+# Local SurrealDB CLI query history
+/history.txt
