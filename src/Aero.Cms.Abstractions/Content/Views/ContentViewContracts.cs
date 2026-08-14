@@ -197,7 +197,9 @@ public sealed record ContentSurrealViewRevision(
     string? PublicExecutionIneligibilityReason = null,
     string? PublicPlanAlias = null,
     string? PublicPlanFingerprint = null,
-    string? PublicPlanDialectFingerprint = null)
+    string? PublicPlanDialectFingerprint = null,
+    string? SourceAlias = null,
+    string? SourceSchemaFingerprint = null)
 {
     public bool IsPublished => PublicationState == ContentViewPublicationState.Published;
     public bool HasEntryIdentity => !string.IsNullOrWhiteSpace(IdentityField);
@@ -246,13 +248,26 @@ public sealed class DisabledContentViewRelationshipPlanDialectCapability : ICont
 /// source is deliberately single-table: joins, graph traversals, and arbitrary roots fail
 /// closed until a host provides a separate descriptor that can prove their complete scope.
 /// </summary>
+public enum ContentViewSourceKind
+{
+    Table = 0,
+    MaterializedView = 1
+}
+
 public sealed record ContentViewSourceDefinition(
     string Alias,
     string Table,
     string TenantField = "tenant_id",
     string SiteField = "site_id",
     IReadOnlyDictionary<string, string>? OutputFieldMappings = null,
-    IReadOnlyList<ContentViewRequiredBooleanPredicate>? RequiredBooleanPredicates = null)
+    IReadOnlyList<ContentViewRequiredBooleanPredicate>? RequiredBooleanPredicates = null,
+    ContentViewSourceKind Kind = ContentViewSourceKind.Table,
+    string? DisplayName = null,
+    string? Description = null,
+    string? SuggestedShapeAlias = null,
+    string? IdentityField = null,
+    string? TitleField = null,
+    string? SearchField = null)
 {
     public bool IsValid => IsIdentifier(Alias) && IsIdentifier(Table)
         && IsIdentifier(TenantField) && IsIdentifier(SiteField)
@@ -260,7 +275,37 @@ public sealed record ContentViewSourceDefinition(
             && OutputFieldMappings.Values.Distinct(StringComparer.Ordinal).Count() == OutputFieldMappings.Count)
         && (RequiredBooleanPredicates is null
             || RequiredBooleanPredicates.All(predicate => IsIdentifier(predicate.Field))
-            && RequiredBooleanPredicates.Select(predicate => predicate.Field).Distinct(StringComparer.Ordinal).Count() == RequiredBooleanPredicates.Count);
+            && RequiredBooleanPredicates.Select(predicate => predicate.Field).Distinct(StringComparer.Ordinal).Count() == RequiredBooleanPredicates.Count)
+        && IsOptionalAlias(SuggestedShapeAlias)
+        && IsOptionalIdentifier(IdentityField)
+        && IsOptionalIdentifier(TitleField)
+        && IsOptionalIdentifier(SearchField)
+        && (IdentityField is null || TryGetPhysicalField(IdentityField, out _))
+        && (TitleField is null || TryGetPhysicalField(TitleField, out _))
+        && (SearchField is null || TryGetPhysicalField(SearchField, out _));
+
+    public string EffectiveDisplayName => string.IsNullOrWhiteSpace(DisplayName) ? Alias : DisplayName.Trim();
+
+    public bool TryGetPhysicalField(string logicalField, out string physicalField)
+    {
+        physicalField = string.Empty;
+        if (!IsIdentifier(logicalField)) return false;
+        if (OutputFieldMappings is null)
+        {
+            physicalField = logicalField;
+            return true;
+        }
+
+        var mapping = OutputFieldMappings.FirstOrDefault(item => string.Equals(item.Value, logicalField, StringComparison.Ordinal));
+        if (string.IsNullOrWhiteSpace(mapping.Key)) return false;
+        physicalField = mapping.Key;
+        return true;
+    }
+
+    private static bool IsOptionalIdentifier(string? value) => value is null || IsIdentifier(value);
+    private static bool IsOptionalAlias(string? value)
+        => value is null || (!string.IsNullOrWhiteSpace(value)
+            && value.All(character => char.IsLetterOrDigit(character) || character is '_' or '-'));
 
     private static bool IsIdentifier(string? value)
         => !string.IsNullOrWhiteSpace(value)
@@ -286,7 +331,41 @@ public interface IContentViewSourceRegistry
     bool IsValid { get; }
     bool HasSources { get; }
     IReadOnlyList<string> Errors { get; }
+    IReadOnlyList<ContentViewSourceDefinition> Definitions => [];
+    bool TryGetByAlias(string alias, out ContentViewSourceDefinition? source)
+    {
+        source = null;
+        return false;
+    }
     bool TryGetByTable(string table, out ContentViewSourceDefinition? source);
+}
+
+/// <summary>
+/// Server-observed, code-registered source contract with canonical bounded statements.
+/// It is safe to persist as a Content View binding but does not grant schema ownership.
+/// </summary>
+public sealed record ContentViewSourceSnapshot(
+    string Alias,
+    string DisplayName,
+    string? Description,
+    ContentViewSourceKind Kind,
+    string Table,
+    string SchemaFingerprint,
+    string? SuggestedShapeAlias,
+    string IdentityField,
+    string? TitleField,
+    string ListSelectStatement,
+    string EntrySelectStatement,
+    string SearchSelectStatement);
+
+/// <summary>
+/// Resolves only host-registered physical sources after observing their current schema.
+/// Implementations fail closed when schema metadata or the source registry is unavailable.
+/// </summary>
+public interface IContentViewSourceSnapshotService
+{
+    Task<IReadOnlyList<ContentViewSourceSnapshot>> ListAsync(CancellationToken ct = default);
+    Task<ContentViewSourceSnapshot?> GetAsync(string alias, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -408,10 +487,14 @@ public sealed class ContentViewTrustedQueryPlanRegistry : IContentViewTrustedQue
 public sealed class ContentViewSourceRegistry : IContentViewSourceRegistry
 {
     private readonly Dictionary<string, ContentViewSourceDefinition> byTable = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ContentViewSourceDefinition> byAlias = new(StringComparer.OrdinalIgnoreCase);
     public List<string> ValidationErrors { get; } = [];
     public bool IsValid => ValidationErrors.Count == 0;
     public bool HasSources => byTable.Count > 0;
     public IReadOnlyList<string> Errors => ValidationErrors;
+    public IReadOnlyList<ContentViewSourceDefinition> Definitions => IsValid
+        ? byAlias.Values.OrderBy(source => source.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase).ToArray()
+        : [];
 
     public ContentViewSourceRegistry(IEnumerable<IContentViewSource> sources)
     {
@@ -423,9 +506,15 @@ public sealed class ContentViewSourceRegistry : IContentViewSourceRegistry
                 ValidationErrors.Add($"Content view source '{source.Alias}' is invalid.");
                 continue;
             }
-            if (!aliases.Add(source.Alias)) ValidationErrors.Add($"Duplicate content view source alias '{source.Alias}'.");
+            if (!aliases.Add(source.Alias) || !byAlias.TryAdd(source.Alias, source)) ValidationErrors.Add($"Duplicate content view source alias '{source.Alias}'.");
             if (!byTable.TryAdd(source.Table, source)) ValidationErrors.Add($"Duplicate content view source table '{source.Table}'.");
         }
+    }
+
+    public bool TryGetByAlias(string alias, out ContentViewSourceDefinition? source)
+    {
+        source = null;
+        return IsValid && byAlias.TryGetValue(alias, out source);
     }
 
     public bool TryGetByTable(string table, out ContentViewSourceDefinition? source)
@@ -775,21 +864,26 @@ public sealed class SurrealSelectStatementClassifier :
         var select = tokens.Count > 0 && IsWord(tokens[0], "SELECT");
         var from = FindClause(tokens, "FROM");
         var where = FindClause(tokens, "WHERE");
+        var order = FindClause(tokens, "ORDER");
         var limitIndex = FindClause(tokens, "LIMIT");
+        var predicateEnd = order >= 0 ? order : limitIndex;
         var hasSingleRootSource = from >= 0 && where == from + 2
             && tokens[from + 1].Kind == TokenKind.Word
             && !tokens[from + 1].Value.Contains('.', StringComparison.Ordinal);
         var singleClauses = hasSingleRootSource && from >= 0 && where > from && limitIndex > where
+            && (order < 0 || order > where && order < limitIndex)
             && FindClause(tokens, "SELECT", 1) < 0 && FindClause(tokens, "FROM", from + 1) < 0
-            && FindClause(tokens, "WHERE", where + 1) < 0 && FindClause(tokens, "LIMIT", limitIndex + 1) < 0;
+            && FindClause(tokens, "WHERE", where + 1) < 0 && FindClause(tokens, "LIMIT", limitIndex + 1) < 0
+            && (order < 0 || FindClause(tokens, "ORDER", order + 1) < 0);
         int? limit = limitIndex + 1 < tokens.Count && tokens[limitIndex + 1].Kind == TokenKind.Word
             && int.TryParse(tokens[limitIndex + 1].Value, out var parsed) && limitIndex + 2 == tokens.Count
             ? (int?)parsed : null;
         string? tenantField = null;
         string? siteField = null;
         var hasSafeProjection = HasSafeRootProjection(tokens, from);
-        var scoped = select && singleClauses && hasSafeProjection && !hasUnsafeStructure
-            && HasRequiredTopLevelScopeConjunction(tokens, where + 1, limitIndex, out tenantField, out siteField);
+        var hasSafeOrder = order < 0 || HasSafeRootOrder(tokens, order, limitIndex);
+        var scoped = select && singleClauses && hasSafeProjection && hasSafeOrder && !hasUnsafeStructure
+            && HasRequiredTopLevelScopeConjunction(tokens, where + 1, predicateEnd, out tenantField, out siteField);
         return new(select && singleClauses && hasSafeProjection && !hasMutation && !multiple && !hasUnsafeStructure && limit is not null,
             hasMutation, multiple, scoped, limit,
             hasSingleRootSource ? tokens[from + 1].Value : null,
@@ -903,9 +997,10 @@ public sealed class SurrealSelectStatementClassifier :
         end = 0;
         var where = FindClause(tokens, "WHERE");
         var limit = FindClause(tokens, "LIMIT");
-        if (where < 0 || limit <= where + 1) return false;
+        var order = FindClause(tokens, "ORDER");
+        if (where < 0 || limit <= where + 1 || order >= 0 && (order <= where || order >= limit)) return false;
         start = where + 1;
-        end = limit;
+        end = order >= 0 ? order : limit;
         return true;
     }
 
@@ -929,6 +1024,31 @@ public sealed class SurrealSelectStatementClassifier :
                 continue;
             }
             if (!expectField && tokens[index].Kind == TokenKind.Comma)
+            {
+                expectField = true;
+                continue;
+            }
+            return false;
+        }
+        return !expectField;
+    }
+
+    private static bool HasSafeRootOrder(IReadOnlyList<Token> tokens, int order, int limit)
+    {
+        if (order < 0 || limit <= order + 2 || !IsWord(tokens[order + 1], "BY")) return false;
+        var expectField = true;
+        for (var index = order + 2; index < limit; index++)
+        {
+            var token = tokens[index];
+            if (expectField && token.Kind == TokenKind.Word && IsSafeIdentifier(token.Value))
+            {
+                expectField = false;
+                continue;
+            }
+            if (!expectField && token.Kind == TokenKind.Word
+                && (IsWord(token, "ASC") || IsWord(token, "DESC")))
+                continue;
+            if (!expectField && token.Kind == TokenKind.Comma)
             {
                 expectField = true;
                 continue;

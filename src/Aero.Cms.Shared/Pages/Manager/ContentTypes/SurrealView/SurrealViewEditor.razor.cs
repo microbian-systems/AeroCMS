@@ -16,10 +16,13 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private CancellationTokenSource? _loadCts;
     private string? _loadedAlias;
     private IReadOnlyList<ContentViewShapeOption> _shapes = [];
+    private IReadOnlyList<ContentViewSourceOption> _sources = [];
     private IReadOnlyList<ContentRelationshipSummary> _relationships = [];
     private ContentViewPreviewResponse? _preview;
     private RelationshipDdlPreviewResponse? _relationshipPreview;
     private string _shapeAlias = string.Empty;
+    private string? _selectedSourceAlias;
+    private string? _sourceSchemaFingerprint;
     private string _selectStatement = string.Empty;
     private string _identityField = string.Empty;
     private string? _titleField;
@@ -106,6 +109,14 @@ public partial class SurrealViewEditor : IAsyncDisposable
                 return;
             }
 
+            var sources = await ViewsApi.GetSourcesAsync(ct);
+            if (sources is Result<IReadOnlyList<ContentViewSourceOption>, AeroError>.Failure sourceFailure)
+            {
+                _loadError = FormatError(sourceFailure.Error);
+                return;
+            }
+            _sources = ((Result<IReadOnlyList<ContentViewSourceOption>, AeroError>.Ok)sources).Value;
+
             var draft = await ViewsApi.GetAsync(ContentTypeAlias, ct);
             switch (draft)
             {
@@ -116,6 +127,9 @@ public partial class SurrealViewEditor : IAsyncDisposable
                 case Result<ContentViewEditorSnapshot, AeroError>.Failure failure when IsNotFound(failure.Error):
                     _isConfigured = false;
                     _shapeAlias = _shapes[0].Alias;
+                    _selectedSourceAlias = _sources.FirstOrDefault(source =>
+                        string.Equals(source.SuggestedShapeAlias, ContentTypeAlias, StringComparison.Ordinal))?.Alias;
+                    _sourceSchemaFingerprint = null;
                     _selectStatement = string.Empty;
                     _identityField = string.Empty;
                     _titleField = null;
@@ -161,7 +175,9 @@ public partial class SurrealViewEditor : IAsyncDisposable
                     _entrySelectStatement,
                     _searchSelectStatement,
                     _cacheEnabled,
-                    _cacheDurationSeconds));
+                    _cacheDurationSeconds,
+                    _selectedSourceAlias,
+                    _sourceSchemaFingerprint));
             switch (result)
             {
                 case Result<ContentViewEditorSnapshot, AeroError>.Ok ok:
@@ -400,6 +416,9 @@ public partial class SurrealViewEditor : IAsyncDisposable
         _cacheDurationSeconds = Math.Clamp(snapshot.CacheDurationSeconds, 1, 86_400);
         _publicExecutionEligible = snapshot.PublicExecutionEligible;
         _publicExecutionIneligibilityReason = snapshot.PublicExecutionIneligibilityReason;
+        _selectedSourceAlias = snapshot.SourceAlias
+            ?? _sources.FirstOrDefault(source => string.Equals(source.ListSelectStatement, snapshot.SelectStatement, StringComparison.Ordinal))?.Alias;
+        _sourceSchemaFingerprint = snapshot.SourceSchemaFingerprint;
         _isDirty = false;
         _editorKey = $"{ContentTypeAlias}-{snapshot.Version}-{snapshot.PublicationState}";
     }
@@ -407,13 +426,40 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private Task SetShapeAlias(string value)
     {
         _shapeAlias = value;
+        ClearSourceBinding();
         MarkDirty();
         return Task.CompletedTask;
+    }
+
+    private void SetSelectedSourceAlias(ChangeEventArgs args)
+    {
+        _selectedSourceAlias = string.IsNullOrWhiteSpace(args.Value?.ToString()) ? null : args.Value!.ToString();
+        _sourceSchemaFingerprint = null;
+        ClearPageMessage();
+    }
+
+    private void ApplySelectedSource()
+    {
+        var source = _sources.FirstOrDefault(item => string.Equals(item.Alias, _selectedSourceAlias, StringComparison.Ordinal));
+        if (source is null) return;
+        _shapeAlias = string.IsNullOrWhiteSpace(source.SuggestedShapeAlias) ? _shapeAlias : source.SuggestedShapeAlias;
+        _selectStatement = source.ListSelectStatement;
+        _identityField = source.IdentityField;
+        _titleField = source.TitleField;
+        _entrySelectStatement = source.EntrySelectStatement;
+        _searchSelectStatement = source.SearchSelectStatement;
+        _sourceSchemaFingerprint = source.SchemaFingerprint;
+        _isDirty = true;
+        _preview = null;
+        _previewError = null;
+        _editorKey = $"{ContentTypeAlias}-source-{source.Alias}-{source.SchemaFingerprint}";
+        SetPageMessage($"Generated scope-safe queries for {source.DisplayName}. Review the preview, then save this draft.", false);
     }
 
     private Task SetSelectStatement(string value)
     {
         _selectStatement = value;
+        ClearSourceBinding();
         MarkDirty();
         return Task.CompletedTask;
     }
@@ -421,6 +467,7 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private Task SetIdentityField(string value)
     {
         _identityField = value;
+        ClearSourceBinding();
         MarkDirty(clearPreview: false);
         return Task.CompletedTask;
     }
@@ -428,6 +475,7 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private Task SetTitleField(string? value)
     {
         _titleField = string.IsNullOrWhiteSpace(value) ? null : value;
+        ClearSourceBinding();
         MarkDirty(clearPreview: false);
         return Task.CompletedTask;
     }
@@ -435,6 +483,7 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private Task SetEntrySelectStatement(string value)
     {
         _entrySelectStatement = value;
+        ClearSourceBinding();
         MarkDirty(clearPreview: false);
         return Task.CompletedTask;
     }
@@ -442,6 +491,7 @@ public partial class SurrealViewEditor : IAsyncDisposable
     private Task SetSearchSelectStatement(string value)
     {
         _searchSelectStatement = value;
+        ClearSourceBinding();
         MarkDirty(clearPreview: false);
         return Task.CompletedTask;
     }
@@ -471,6 +521,12 @@ public partial class SurrealViewEditor : IAsyncDisposable
             _titleField = null;
         }
         ClearPageMessage();
+    }
+
+    private void ClearSourceBinding()
+    {
+        _selectedSourceAlias = null;
+        _sourceSchemaFingerprint = null;
     }
 
     private void SetPageMessage(string message, bool isError)

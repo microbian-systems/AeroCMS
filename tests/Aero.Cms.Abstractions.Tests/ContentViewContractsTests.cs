@@ -45,6 +45,19 @@ public sealed class ContentViewContractsTests
     }
 
     [Test]
+    public void Classifier_allows_only_flat_root_field_ordering_before_the_terminal_limit()
+    {
+        var classifier = new SurrealSelectStatementClassifier();
+        const string prefix = "SELECT id, title FROM item WHERE tenant_id = $tenantId AND site_id = $siteId";
+
+        classifier.IsSingleReadOnlySelect($"{prefix} ORDER BY title ASC, id DESC LIMIT 20").ShouldBeTrue();
+        classifier.HasBoundEquality($"{prefix} AND id = $entryId ORDER BY title ASC LIMIT 1", "id", "$entryId").ShouldBeTrue();
+        classifier.IsSingleReadOnlySelect($"{prefix} ORDER BY owner.title ASC LIMIT 20").ShouldBeFalse();
+        classifier.IsSingleReadOnlySelect($"{prefix} ORDER BY string::lowercase(title) ASC LIMIT 20").ShouldBeFalse();
+        classifier.IsSingleReadOnlySelect($"{prefix} ORDER BY title + id LIMIT 20").ShouldBeFalse();
+    }
+
+    [Test]
     public void Classifier_rewrites_only_the_terminal_numeric_limit_to_a_server_owned_bound()
     {
         var classifier = new SurrealSelectStatementClassifier();

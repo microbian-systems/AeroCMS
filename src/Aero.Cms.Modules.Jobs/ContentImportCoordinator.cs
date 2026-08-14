@@ -183,7 +183,9 @@ internal sealed class ContentImportCoordinator(
            && actual.RelationshipId == expected.RelationshipId
            && actual.RelationshipSchemaFingerprint == expected.RelationshipSchemaFingerprint
            && actual.PublicPlanAlias == expected.PublicPlanAlias && actual.PublicPlanFingerprint == expected.PublicPlanFingerprint
-           && actual.PublicPlanDialectFingerprint == expected.PublicPlanDialectFingerprint;
+           && actual.PublicPlanDialectFingerprint == expected.PublicPlanDialectFingerprint
+           && actual.SourceAlias == expected.SourceAlias
+           && actual.SourceSchemaFingerprint == expected.SourceSchemaFingerprint;
 
     private sealed class LeaseProgressSink(IContentImportJobStore jobs, ContentImportLease lease) : IContentImportProgressSink
     {

@@ -22,6 +22,7 @@ public sealed class ContentViewsApiAuthorizationTests
         var expected = new (string Method, string Route, string Policy, bool RequiresAdmin)[]
         {
             ("GET", "/api/v1/admin/content-views/shapes", "site:read", true),
+            ("GET", "/api/v1/admin/content-views/sources", "site:read", true),
             ("GET", "/api/v1/admin/content-views/{alias}", "site:read", true),
             ("PUT", "/api/v1/admin/content-views/{alias}/draft", "site:update", true),
             ("POST", "/api/v1/admin/content-views/{alias}/preview", "site:read", true),

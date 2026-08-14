@@ -243,7 +243,8 @@ public sealed class SableContentRelationshipSchemaDiscovery(
 /// <summary>Uses the current Sable query session only for INFO FOR DB metadata.</summary>
 public sealed class SableContentSchemaMetadataReader(
     IQuerySession session,
-    IContentPhysicalSchemaTargetRegistry? targets = null) : IContentSchemaMetadataReader
+    IContentPhysicalSchemaTargetRegistry? targets = null,
+    IContentViewSourceRegistry? sources = null) : IContentSchemaMetadataReader
 {
     private static readonly Regex Identifier = new(
         "^[A-Za-z][A-Za-z0-9_]{0,62}$",
@@ -257,11 +258,11 @@ public sealed class SableContentSchemaMetadataReader(
         if (response.HasErrors)
             throw new InvalidOperationException("SurrealDB rejected the schema metadata query.");
         var tableDefinitions = ReadDefinitionMap(response.GetValue<JsonElement>(0), "tables");
-        if (targets is null) return tableDefinitions;
+        if (targets is null && sources is null) return tableDefinitions;
 
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var table in targets.All
-                     .Select(target => target.TableName)
+        foreach (var table in (targets?.All.Select(target => target.TableName) ?? [])
+                     .Concat(sources?.Definitions.Select(source => source.Table) ?? [])
                      .Distinct(StringComparer.Ordinal)
                      .OrderBy(value => value, StringComparer.Ordinal))
         {
@@ -275,7 +276,10 @@ public sealed class SableContentSchemaMetadataReader(
             var fields = ReadDefinitionMap(tableResponse.GetValue<JsonElement>(0), "fields")
                 .OrderBy(field => field.Key, StringComparer.Ordinal)
                 .Select(field => EnsureTerminated(field.Value));
-            result[table] = string.Join('\n', [EnsureTerminated(tableDefinition), .. fields]);
+            var indexes = ReadDefinitionMap(tableResponse.GetValue<JsonElement>(0), "indexes")
+                .OrderBy(index => index.Key, StringComparer.Ordinal)
+                .Select(index => EnsureTerminated(index.Value));
+            result[table] = string.Join('\n', [EnsureTerminated(tableDefinition), .. fields, .. indexes]);
         }
 
         return result;

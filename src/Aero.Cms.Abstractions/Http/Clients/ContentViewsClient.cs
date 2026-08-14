@@ -9,6 +9,7 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 public interface IContentViewsHttpClient
 {
     Task<Result<IReadOnlyList<ContentViewShapeOption>, AeroError>> GetShapesAsync(CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ContentViewSourceOption>, AeroError>> GetSourcesAsync(CancellationToken ct = default);
     Task<Result<ContentViewEditorSnapshot, AeroError>> GetAsync(string alias, CancellationToken ct = default);
     Task<Result<ContentViewEditorSnapshot, AeroError>> SaveDraftAsync(string alias, SaveContentViewDraftRequest request, CancellationToken ct = default);
     Task<Result<ContentViewPreviewResponse, AeroError>> PreviewAsync(string alias, PreviewContentViewRequest request, CancellationToken ct = default);
@@ -32,6 +33,9 @@ public sealed class ContentViewsHttpClient(HttpClient httpClient, ILogger<Conten
 
     public Task<Result<IReadOnlyList<ContentViewShapeOption>, AeroError>> GetShapesAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<ContentViewShapeOption>>("shapes", ct);
+
+    public Task<Result<IReadOnlyList<ContentViewSourceOption>, AeroError>> GetSourcesAsync(CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<ContentViewSourceOption>>("sources", ct);
 
     public Task<Result<ContentViewEditorSnapshot, AeroError>> GetAsync(string alias, CancellationToken ct = default)
         => GetAsync<ContentViewEditorSnapshot>(Uri.EscapeDataString(alias), ct);
@@ -153,6 +157,24 @@ public sealed record ContentViewShapeOption(
     string SchemaFingerprint,
     IReadOnlyList<ContentShapeField> Fields);
 
+/// <summary>
+/// Code-owned table or materialized-view source with server-generated, scope-safe query templates.
+/// Physical schema remains owned by the consuming host; the manager may select but not discover or mutate it.
+/// </summary>
+public sealed record ContentViewSourceOption(
+    string Alias,
+    string DisplayName,
+    string? Description,
+    ContentViewSourceKind Kind,
+    string Table,
+    string SchemaFingerprint,
+    string? SuggestedShapeAlias,
+    string IdentityField,
+    string? TitleField,
+    string ListSelectStatement,
+    string EntrySelectStatement,
+    string SearchSelectStatement);
+
 /// <summary>Persisted editor projection. Scope is intentionally absent because the server owns it.</summary>
 public sealed record ContentViewEditorSnapshot(
     string Alias,
@@ -169,7 +191,9 @@ public sealed record ContentViewEditorSnapshot(
     int CacheDurationSeconds = 300,
     long CacheGeneration = 0,
     bool PublicExecutionEligible = false,
-    string? PublicExecutionIneligibilityReason = null);
+    string? PublicExecutionIneligibilityReason = null,
+    string? SourceAlias = null,
+    string? SourceSchemaFingerprint = null);
 
 /// <summary>Draft update. Tenant and site identifiers must never be accepted from the client.</summary>
 public sealed record SaveContentViewDraftRequest(
@@ -180,7 +204,9 @@ public sealed record SaveContentViewDraftRequest(
     string EntrySelectStatement,
     string SearchSelectStatement,
     bool CacheEnabled = true,
-    int CacheDurationSeconds = 300);
+    int CacheDurationSeconds = 300,
+    string? SourceAlias = null,
+    string? SourceSchemaFingerprint = null);
 
 /// <summary>Bounded preview request for an unsaved editor query.</summary>
 public sealed record PreviewContentViewRequest(

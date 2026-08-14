@@ -98,6 +98,28 @@ public sealed class ContentImportCoordinatorTests
     }
 
     [Test]
+    public async Task Registered_source_schema_drift_is_terminal_and_prevents_import()
+    {
+        var fixture = new Fixture();
+        var expected = View("species") with
+        {
+            SourceAlias = "taxonomy_species_active",
+            SourceSchemaFingerprint = "expected"
+        };
+        var actual = expected with { SourceSchemaFingerprint = "changed" };
+        fixture.Provider.Plan = new ContentImportProvisioningPlan([], [expected]);
+        fixture.Views.LoadPublishedAsync(new ContentViewScope(3, 7), "species", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ContentSurrealViewRevision?>(actual));
+
+        var result = await fixture.Coordinator.ExecuteAsync(fixture.Lease);
+
+        result.Succeeded.ShouldBeFalse();
+        result.FailureDisposition.ShouldBe(ContentImportFailureDisposition.Terminal);
+        fixture.Provider.ImportCalls.ShouldBe(0);
+        await fixture.Views.DidNotReceiveWithAnyArgs().SaveDraftAsync(default!, default, default);
+    }
+
+    [Test]
     public async Task Reordered_json_setting_properties_replay_without_false_drift()
     {
         var fixture = new Fixture();

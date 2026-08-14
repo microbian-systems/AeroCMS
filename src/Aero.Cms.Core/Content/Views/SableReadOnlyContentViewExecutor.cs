@@ -80,7 +80,8 @@ public static class SableReadOnlyContentViewServiceCollectionExtensions
                     Endpoint = options.Endpoint!, Namespace = options.Namespace!, Database = options.Database!,
                     Username = options.Username, Password = options.Password, Token = options.Token,
                     ServiceProvider = provider,
-                    LoggerFactory = provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
+                    LoggerFactory = provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
+                    Schema = { AutoCreate = false }
                 };
                 var store = new DocumentStore(storeOptions);
                 store.InitializeAsync().GetAwaiter().GetResult();

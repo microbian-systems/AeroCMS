@@ -94,6 +94,48 @@
         }
 
         <div class="surreal-view-editor__panel">
+            <section class="surreal-view-editor__source" aria-labelledby="surreal-view-source-title">
+                <div>
+                    <h2 id="surreal-view-source-title">Data source</h2>
+                    <p>Start from an approved table or materialized view registered by this application. AeroCMS generates tenant- and site-scoped queries; it does not discover or alter database schema.</p>
+                </div>
+                @if (_sources.Count == 0)
+                {
+                    <div class="surreal-view-editor__state">No selectable data sources are registered in the current host.</div>
+                }
+                else
+                {
+                    <div class="surreal-view-editor__source-controls">
+                        <label for="surreal-view-source">Approved source</label>
+                        <select id="surreal-view-source"
+                                class="form-select"
+                                value="@_selectedSourceAlias"
+                                disabled="@_isBusy"
+                                @onchange="SetSelectedSourceAlias">
+                            <option value="">Choose a table or materialized view</option>
+                            @foreach (var source in _sources)
+                            {
+                                <option value="@source.Alias">@source.DisplayName (@(source.Kind == ContentViewSourceKind.MaterializedView ? "materialized view" : "table"))</option>
+                            }
+                        </select>
+                        @if (_sources.FirstOrDefault(source => string.Equals(source.Alias, _selectedSourceAlias, StringComparison.Ordinal)) is { } selectedSource)
+                        {
+                            <div class="surreal-view-editor__source-summary">
+                                <strong>@selectedSource.DisplayName</strong>
+                                <span>@(selectedSource.Description ?? $"Registered physical source {selectedSource.Table}.")</span>
+                                <code>@selectedSource.Table</code>
+                            </div>
+                        }
+                        <button type="button"
+                                class="pe-btn pe-btn-secondary"
+                                disabled="@(_isBusy || string.IsNullOrWhiteSpace(_selectedSourceAlias))"
+                                @onclick="ApplySelectedSource">
+                            Generate safe queries
+                        </button>
+                    </div>
+                }
+            </section>
+
             <SurrealViewQueryPanel Shapes="@_shapes"
                                     SelectedShapeAlias="@_shapeAlias"
                                     SelectedShapeAliasChanged="SetShapeAlias"

@@ -87,6 +87,8 @@ public static class ContentServiceExtensions
         services.AddScoped<ContentSearchProjectionService>();
         services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();
         services.AddScoped<IContentItemRenderer, ContentItemRenderer>();
+        services.AddScoped<IContentRenderReferenceResolver, ContentRenderReferenceResolver>();
+        services.AddScoped<IContentViewSourceSnapshotService, RegisteredContentViewSourceSnapshotService>();
         services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         services.TryAddSingleton<SecureScribanTemplateOptions>();
         services.TryAddSingleton<ScribanTemplateValidator>();

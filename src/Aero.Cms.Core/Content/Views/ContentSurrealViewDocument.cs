@@ -29,4 +29,6 @@ public sealed class ContentSurrealViewDocument : SableDocument
     public string? PublicPlanAlias { get; set; }
     public string? PublicPlanFingerprint { get; set; }
     public string? PublicPlanDialectFingerprint { get; set; }
+    public string? SourceAlias { get; set; }
+    public string? SourceSchemaFingerprint { get; set; }
 }

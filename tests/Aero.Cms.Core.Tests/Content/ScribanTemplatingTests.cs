@@ -41,6 +41,27 @@ public sealed class ScribanTemplatingTests
     }
 
     [Test]
+    public async Task Renders_only_the_bounded_resolved_reference_scope()
+    {
+        using var fields = JsonDocument.Parse("""{"species":{"provider":"view:species","stableId":"492B3"}}""");
+        using var references = JsonDocument.Parse(
+            """{"species":{"provider":"view:species","stableId":"492B3","scientificName":"Okapia johnstoni","lineage":{"family":"Giraffidae"}}}""");
+        var model = CreateModel(fields.RootElement) with { References = references.RootElement.Clone() };
+
+        var result = await new SecureScribanRenderer().RenderAsync(
+            new ScribanRenderDefinition(
+                1001,
+                1,
+                "{{ references.species.scientificName }}|{{ references.species.lineage.family }}",
+                null),
+            model);
+
+        var ok = result as Result<string, AeroError>.Ok;
+        await Assert.That(ok).IsNotNull();
+        await Assert.That(ok!.Value).IsEqualTo("Okapia johnstoni|Giraffidae");
+    }
+
+    [Test]
     public async Task Rejects_missing_variables()
     {
         using var data = JsonDocument.Parse("""{"title":"Dynamic Title"}""");

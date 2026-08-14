@@ -69,6 +69,53 @@
     background: var(--pe-bg-secondary);
 }
 
+.surreal-view-editor__source,
+.surreal-view-editor__source-controls,
+.surreal-view-editor__source-summary {
+    display: grid;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.surreal-view-editor__source {
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    background: var(--pe-bg-primary);
+}
+
+.surreal-view-editor__source h2 {
+    margin: 0;
+    color: var(--pe-text-primary);
+    font-size: 1rem;
+}
+
+.surreal-view-editor__source-controls label {
+    color: var(--pe-text-secondary);
+    font-weight: 700;
+}
+
+.surreal-view-editor__source-controls select {
+    width: 100%;
+    min-height: 2.75rem;
+}
+
+.surreal-view-editor__source-summary {
+    border-left: .25rem solid var(--rz-info);
+    padding: .6rem .75rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-secondary);
+}
+
+.surreal-view-editor__source-summary code {
+    overflow-wrap: anywhere;
+    color: var(--pe-text-muted);
+}
+
+.surreal-view-editor__source-controls button {
+    justify-self: start;
+}
+
 .surreal-view-editor__state,
 .surreal-view-editor__message,
 .surreal-view-editor__unconfigured,
@@ -131,5 +178,9 @@
 
     .surreal-view-editor__panel {
         padding: .75rem;
+    }
+
+    .surreal-view-editor__source-controls button {
+        width: 100%;
     }
 }

@@ -25,6 +25,7 @@ public static class ContentViewsApi
             .AddEndpointFilter<SelectedSiteScopeEndpointFilter>();
 
         group.MapGet("/shapes", ListShapes).RequireAuthorization("site:read").RequireAuthorization("AeroAdmin");
+        group.MapGet("/sources", ListSources).RequireAuthorization("site:read").RequireAuthorization("AeroAdmin");
         group.MapGet("/{alias}", GetDraft).RequireAuthorization("site:read").RequireAuthorization("AeroAdmin");
         group.MapPut("/{alias}/draft", SaveDraft).RequireAuthorization("site:update").RequireAuthorization("AeroAdmin");
         group.MapPost("/{alias}/preview", Preview).RequireAuthorization("site:read").RequireAuthorization("AeroAdmin");
@@ -48,6 +49,27 @@ public static class ContentViewsApi
         group.MapGet("/entries/{provider}", SearchVirtualEntries).RequireAuthorization("site:read");
         group.MapGet("/entries/{provider}/{stableId}", GetVirtualEntry).RequireAuthorization("site:read");
         group.MapGet("/entries", ListVirtualEntryProviders).RequireAuthorization("site:read");
+    }
+
+
+    private static async Task<IResult> ListSources(
+        [FromServices] IContentViewSourceSnapshotService snapshots,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (!TryCreateScope(siteContext, out _, out var failure)) return failure!;
+        IReadOnlyList<ContentViewSourceSnapshot> registered;
+        try { registered = await snapshots.ListAsync(ct); }
+        catch (InvalidOperationException exception)
+        {
+            return TypedResults.Problem(
+                title: "Content view source metadata is unavailable",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var sources = registered.Select(Map).ToArray();
+        return TypedResults.Ok<IReadOnlyList<ContentViewSourceOption>>(sources);
     }
 
 
@@ -86,19 +108,57 @@ public static class ContentViewsApi
         [FromBody] SaveContentViewDraftRequest request,
         [FromServices] IContentSurrealViewService service,
         [FromServices] IContentShapeRegistry registry,
+        [FromServices] IContentViewSourceSnapshotService sourceSnapshots,
         [FromServices] ISiteContext siteContext,
         HttpContext httpContext,
         CancellationToken ct)
     {
         if (!TryCreateScope(siteContext, out var scope, out var failure)) return failure!;
+        var selectStatement = request.SelectStatement;
+        var identityField = request.IdentityField;
+        var titleField = request.TitleField;
+        var entrySelectStatement = request.EntrySelectStatement;
+        var searchSelectStatement = request.SearchSelectStatement;
+        string? sourceAlias = null;
+        string? sourceSchemaFingerprint = null;
+        if (!string.IsNullOrWhiteSpace(request.SourceAlias) || !string.IsNullOrWhiteSpace(request.SourceSchemaFingerprint))
+        {
+            if (string.IsNullOrWhiteSpace(request.SourceAlias)
+                || string.IsNullOrWhiteSpace(request.SourceSchemaFingerprint))
+                return InvalidSourceBinding("Choose a registered source and reload its current schema before saving.");
+            ContentViewSourceSnapshot? source;
+            try { source = await sourceSnapshots.GetAsync(request.SourceAlias, ct); }
+            catch (InvalidOperationException exception)
+            {
+                return TypedResults.Problem(
+                    title: "Content view source metadata is unavailable",
+                    detail: exception.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            if (source is null)
+                return InvalidSourceBinding("The registered source is not present in the current database schema.");
+            if (!string.Equals(source.SchemaFingerprint, request.SourceSchemaFingerprint, StringComparison.Ordinal))
+                return InvalidSourceBinding("The selected table or materialized view changed. Reload it before saving.");
+            if (!string.IsNullOrWhiteSpace(source.SuggestedShapeAlias)
+                && !string.Equals(source.SuggestedShapeAlias, request.ShapeAlias, StringComparison.Ordinal))
+                return InvalidSourceBinding("The selected source must use its registered content shape.");
+
+            selectStatement = source.ListSelectStatement;
+            identityField = source.IdentityField;
+            titleField = source.TitleField;
+            entrySelectStatement = source.EntrySelectStatement;
+            searchSelectStatement = source.SearchSelectStatement;
+            sourceAlias = source.Alias;
+            sourceSchemaFingerprint = source.SchemaFingerprint;
+        }
         if (!TryValidateDraftRequest(
                 alias,
                 request.ShapeAlias,
-                request.SelectStatement,
-                request.IdentityField,
-                request.TitleField,
-                request.EntrySelectStatement,
-                request.SearchSelectStatement,
+                selectStatement,
+                identityField,
+                titleField,
+                entrySelectStatement,
+                searchSelectStatement,
                 request.CacheDurationSeconds,
                 registry,
                 out var shape,
@@ -112,9 +172,9 @@ public static class ContentViewsApi
             alias.Trim(),
             shape!.Alias,
             shape.SchemaFingerprint,
-            request.SelectStatement.Trim(),
-            request.IdentityField.Trim(),
-            string.IsNullOrWhiteSpace(request.TitleField) ? null : request.TitleField.Trim(),
+            selectStatement.Trim(),
+            identityField.Trim(),
+            string.IsNullOrWhiteSpace(titleField) ? null : titleField.Trim(),
             existing?.Version ?? 0,
             ContentViewPublicationState.Draft,
             existing?.CreatedOn ?? DateTimeOffset.UtcNow,
@@ -122,8 +182,10 @@ public static class ContentViewsApi
             request.CacheEnabled,
             TimeSpan.FromSeconds(request.CacheDurationSeconds),
             existing?.CacheGeneration ?? 0,
-            request.EntrySelectStatement.Trim(),
-            request.SearchSelectStatement.Trim());
+            entrySelectStatement.Trim(),
+            searchSelectStatement.Trim(),
+            SourceAlias: sourceAlias,
+            SourceSchemaFingerprint: sourceSchemaFingerprint);
         var saved = await service.SaveDraftAsync(draft, MaximumPreviewTake, ct);
         return saved is null
             ? TypedResults.BadRequest(new ProblemDetails
@@ -204,10 +266,29 @@ public static class ContentViewsApi
         string alias,
         [FromBody] PublishContentViewRequest request,
         [FromServices] IContentSurrealViewService service,
+        [FromServices] IContentViewSourceSnapshotService sourceSnapshots,
         [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         if (!TryCreateScope(siteContext, out var scope, out var failure)) return failure!;
+        var draft = await service.LoadDraftAsync(scope, alias, ct);
+        if (draft is not null && !string.IsNullOrWhiteSpace(draft.SourceAlias))
+        {
+            if (string.IsNullOrWhiteSpace(draft.SourceSchemaFingerprint))
+                return InvalidSourceBinding("The saved source registration is no longer available.");
+            ContentViewSourceSnapshot? currentSource;
+            try { currentSource = await sourceSnapshots.GetAsync(draft.SourceAlias, ct); }
+            catch (InvalidOperationException exception)
+            {
+                return TypedResults.Problem(
+                    title: "Content view source metadata is unavailable",
+                    detail: exception.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            if (currentSource is null
+                || !string.Equals(currentSource.SchemaFingerprint, draft.SourceSchemaFingerprint, StringComparison.Ordinal))
+                return InvalidSourceBinding("The selected table or materialized view changed. Reload and save a new draft before publishing.");
+        }
         var published = await service.PublishAsync(scope, alias, request.DraftVersion, ct);
         return published is null
             ? TypedResults.Conflict(new ProblemDetails
@@ -732,6 +813,14 @@ public static class ContentViewsApi
         return scope.IsValid;
     }
 
+    private static IResult InvalidSourceBinding(string detail)
+        => TypedResults.Conflict(new ProblemDetails
+        {
+            Title = "The content view source changed",
+            Detail = detail,
+            Status = StatusCodes.Status409Conflict
+        });
+
     private static ContentViewEditorSnapshot Map(ContentSurrealViewRevision view) => new(
         view.Alias,
         view.ShapeAlias,
@@ -747,7 +836,23 @@ public static class ContentViewsApi
         (int)Math.Clamp((view.CacheDuration ?? TimeSpan.FromMinutes(5)).TotalSeconds, 1, MaximumCacheDurationSeconds),
         view.CacheGeneration,
         view.PublicExecutionEligible,
-        view.PublicExecutionIneligibilityReason);
+        view.PublicExecutionIneligibilityReason,
+        view.SourceAlias,
+        view.SourceSchemaFingerprint);
+
+    private static ContentViewSourceOption Map(ContentViewSourceSnapshot source) => new(
+        source.Alias,
+        source.DisplayName,
+        source.Description,
+        source.Kind,
+        source.Table,
+        source.SchemaFingerprint,
+        source.SuggestedShapeAlias,
+        source.IdentityField,
+        source.TitleField,
+        source.ListSelectStatement,
+        source.EntrySelectStatement,
+        source.SearchSelectStatement);
 
     private static ContentRelationshipSummary Map(
         ContentRelationshipDefinition relationship,

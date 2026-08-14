@@ -13,11 +13,13 @@ namespace Aero.Cms.Core.Content.Templating;
 /// <param name="Item">The metadata exposed as the <c>item</c> scope.</param>
 /// <param name="ContentType">The metadata exposed as the <c>content_type</c> scope.</param>
 /// <param name="Site">The metadata exposed as the <c>site</c> scope.</param>
+/// <param name="References">Resolved, bounded virtual entries exposed as the <c>references</c> scope.</param>
 public sealed record ScribanContentRenderModel(
     JsonElement Fields,
     ScribanContentItemRenderScope Item,
     ScribanContentTypeRenderScope ContentType,
-    ScribanSiteRenderScope Site)
+    ScribanSiteRenderScope Site,
+    JsonElement References = default)
 {
     /// <summary>
     /// Projects the current content item and its definition into the supported
@@ -28,12 +30,14 @@ public sealed record ScribanContentRenderModel(
     /// <param name="site">
     /// Optional site metadata. When omitted, only the item's site identifier and culture are populated.
     /// </param>
+    /// <param name="references">Optional bounded virtual-reference projections for the template.</param>
     /// <returns>A detached render model with cloned, ordinally ordered JSON objects.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="contentType"/> or <paramref name="item"/> is null.</exception>
     public static ScribanContentRenderModel Create(
         ContentTypeDefinition contentType,
         ContentItem item,
-        ScribanSiteRenderScope? site = null)
+        ScribanSiteRenderScope? site = null,
+        JsonElement? references = null)
     {
         ArgumentNullException.ThrowIfNull(contentType);
         ArgumentNullException.ThrowIfNull(item);
@@ -76,7 +80,8 @@ public sealed record ScribanContentRenderModel(
                 item.Culture,
                 Name: null,
                 DefaultCulture: null,
-                BaseUrl: null));
+                BaseUrl: null),
+            references ?? CreateJsonObject([]));
     }
 
     private static string FormatDate(DateTimeOffset value) =>

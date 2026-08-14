@@ -79,7 +79,8 @@ public sealed class SableContentSurrealViewStore(IDocumentSession session) : ICo
             RelationshipId = draft.RelationshipId, RelationshipSchemaFingerprint = draft.RelationshipSchemaFingerprint,
             PublicExecutionEligible = draft.PublicExecutionEligible, PublicExecutionIneligibilityReason = draft.PublicExecutionIneligibilityReason,
             PublicPlanAlias = draft.PublicPlanAlias, PublicPlanFingerprint = draft.PublicPlanFingerprint,
-            PublicPlanDialectFingerprint = draft.PublicPlanDialectFingerprint
+            PublicPlanDialectFingerprint = draft.PublicPlanDialectFingerprint,
+            SourceAlias = draft.SourceAlias, SourceSchemaFingerprint = draft.SourceSchemaFingerprint
         };
         try
         {
@@ -104,7 +105,8 @@ public sealed class SableContentSurrealViewStore(IDocumentSession session) : ICo
         source.CreatedOn, source.CreatedBy, source.CacheEnabled, TimeSpan.FromSeconds(source.CacheDurationSeconds), source.CacheGeneration,
         source.EntrySelectStatement, source.SearchSelectStatement, source.RelationshipId, source.RelationshipSchemaFingerprint,
         source.PublicExecutionEligible, source.PublicExecutionIneligibilityReason,
-        source.PublicPlanAlias, source.PublicPlanFingerprint, source.PublicPlanDialectFingerprint);
+        source.PublicPlanAlias, source.PublicPlanFingerprint, source.PublicPlanDialectFingerprint,
+        source.SourceAlias, source.SourceSchemaFingerprint);
     private static ContentSurrealViewDocument Map(ContentSurrealViewRevision source) => new()
     {
         // SableDocument creates a snowflake identity.  Do not overwrite it with the revision
@@ -121,7 +123,8 @@ public sealed class SableContentSurrealViewStore(IDocumentSession session) : ICo
         PublicExecutionEligible = source.PublicExecutionEligible,
         PublicExecutionIneligibilityReason = source.PublicExecutionIneligibilityReason,
         PublicPlanAlias = source.PublicPlanAlias, PublicPlanFingerprint = source.PublicPlanFingerprint,
-        PublicPlanDialectFingerprint = source.PublicPlanDialectFingerprint
+        PublicPlanDialectFingerprint = source.PublicPlanDialectFingerprint,
+        SourceAlias = source.SourceAlias, SourceSchemaFingerprint = source.SourceSchemaFingerprint
     };
 
     private static bool IsUniqueConstraintConflict(Exception exception)

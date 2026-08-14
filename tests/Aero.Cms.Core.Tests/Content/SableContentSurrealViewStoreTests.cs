@@ -30,7 +30,9 @@ public sealed class SableContentSurrealViewStoreTests
             null,
             0,
             ContentViewPublicationState.Draft,
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow,
+            SourceAlias: "taxonomy_species_active",
+            SourceSchemaFingerprint: "0123456789ABCDEF0123456789ABCDEF"));
 
         var loadedDraft = await store.LoadAsync(scope, "catalog", ContentViewPublicationState.Draft);
         var published = await store.PublishAsync(scope, "catalog", draft.Version);
@@ -38,10 +40,14 @@ public sealed class SableContentSurrealViewStoreTests
 
         loadedDraft.ShouldNotBeNull();
         loadedDraft.Version.ShouldBe(draft.Version);
+        loadedDraft.SourceAlias.ShouldBe("taxonomy_species_active");
+        loadedDraft.SourceSchemaFingerprint.ShouldBe("0123456789ABCDEF0123456789ABCDEF");
         published.ShouldNotBeNull();
         loadedPublished.ShouldNotBeNull();
         loadedPublished.Version.ShouldBe(draft.Version);
         loadedPublished.PublicationState.ShouldBe(ContentViewPublicationState.Published);
+        loadedPublished.SourceAlias.ShouldBe("taxonomy_species_active");
+        loadedPublished.SourceSchemaFingerprint.ShouldBe("0123456789ABCDEF0123456789ABCDEF");
     }
 
     [Test]
