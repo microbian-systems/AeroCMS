@@ -3,6 +3,7 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -15,8 +16,12 @@ public sealed class ContentLocalizationHandler(
     IContentService contentService,
     AeroContentService writableContentService,
     IContentTypeService contentTypeService,
-    ContentValidationService validation) : IContentLocalizationHandler
+    ContentValidationService validation,
+    IEnumerable<IContentTranslationGroupProjectionContributor>? translationGroupProjectionContributors = null) : IContentLocalizationHandler
 {
+    private readonly IReadOnlyList<IContentTranslationGroupProjectionContributor> _translationGroupProjectionContributors =
+        translationGroupProjectionContributors?.ToArray() ?? [];
+
     public async Task<Result<ContentLocalizationOperationResult, AeroError>> ForkAsync(
         ContentLocalizationContext context,
         ContentCultureForkCommand command,
@@ -276,6 +281,12 @@ public sealed class ContentLocalizationHandler(
         group.SharedFields = candidateShared;
         group.Revision++;
         group.ModifiedOn = DateTimeOffset.UtcNow;
+        var projectionResult = await StageTranslationGroupProjectionAsync(group, cancellationToken);
+        if (projectionResult is Result<NoneType, AeroError>.Failure projectionFailure)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(projectionFailure.Error);
+        }
         session.Store(new ContentTranslationProjectionWorkDocument
         {
             Id = Snowflake.NewId(),
@@ -305,6 +316,35 @@ public sealed class ContentLocalizationHandler(
             session.ClearChanges();
             return Conflict();
         }
+    }
+
+    private async Task<Result<NoneType, AeroError>> StageTranslationGroupProjectionAsync(
+        ContentTranslationGroupDocument group,
+        CancellationToken cancellationToken)
+    {
+        if (_translationGroupProjectionContributors.Count == 0)
+            return Prelude.Ok<NoneType, AeroError>(default);
+
+        var context = new ContentTranslationGroupProjectionContext(
+            group.SiteId,
+            group.ContentTypeAlias,
+            group.Id,
+            group.SourceItemId,
+            group.Revision,
+            group.SharedFields.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.Clone(),
+                StringComparer.Ordinal),
+            ContentTranslationGroupProjectionChange.Upsert);
+
+        foreach (var contributor in _translationGroupProjectionContributors)
+        {
+            var result = await contributor.StageAsync(session, context, cancellationToken);
+            if (result is Result<NoneType, AeroError>.Failure)
+                return result;
+        }
+
+        return Prelude.Ok<NoneType, AeroError>(default);
     }
 
     private static Dictionary<string, JsonElement> CopyForkableFields(

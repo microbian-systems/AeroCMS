@@ -44,6 +44,24 @@ public sealed class SableReadOnlyContentViewExecutorTests
         provider.GetRequiredService<IReadOnlyContentViewExecutor>().IsReadOnlyGuaranteed.ShouldBeTrue();
     }
 
+    [Test]
+    public void Explicit_anonymous_loopback_activates_without_registering_a_document_store()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IContentViewSourceRegistry>(new Sources(true));
+        services.AddSableReadOnlyContentViews(options =>
+        {
+            options.Endpoint = "ws://127.0.0.1:8000/rpc";
+            options.Namespace = "wnp";
+            options.Database = "wnp";
+            options.AllowAnonymousLoopback = true;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IReadOnlyContentViewExecutor>().IsReadOnlyGuaranteed.ShouldBeTrue();
+        provider.GetKeyedService<IDocumentStore>(ContentViewReadOnlyStoreKey.Value).ShouldBeNull();
+    }
+
     private sealed class Sources(bool hasSources) : IContentViewSourceRegistry
     {
         public bool IsValid => true;

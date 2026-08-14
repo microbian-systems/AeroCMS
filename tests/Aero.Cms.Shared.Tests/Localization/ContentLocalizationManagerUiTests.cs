@@ -17,6 +17,18 @@ public sealed class ContentLocalizationManagerUiTests
     }
 
     [Test]
+    public void Ai_translation_requires_resolved_enabled_provider_and_exact_clean_revisions()
+    {
+        ContentLocalizationManagerUi.CanRequestAiTranslation(false, true, true, true, true, false).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, false, true, true, true, false).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, true, false, true, true, false).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, true, true, false, true, false).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, true, true, true, false, false).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, true, true, true, true, true).ShouldBeFalse();
+        ContentLocalizationManagerUi.CanRequestAiTranslation(true, true, true, true, true, false).ShouldBeTrue();
+    }
+
+    [Test]
     public void Ai_assisted_content_with_unavailable_revision_metadata_cannot_publish()
     {
         var provenance = new ContentTranslationProvenance(

@@ -16,6 +16,7 @@ public interface IContentViewsHttpClient
     Task<Result<bool, AeroError>> InvalidateCacheAsync(string alias, CancellationToken ct = default);
     Task<Result<IReadOnlyList<ContentRelationshipSummary>, AeroError>> GetRelationshipsAsync(string alias, CancellationToken ct = default);
     Task<Result<ContentRelationshipSummary, AeroError>> SaveRelationshipDraftAsync(string alias, string relationshipAlias, SaveContentRelationshipDraftRequest request, CancellationToken ct = default);
+    Task<Result<ContentRelationshipSummary, AeroError>> AdoptRelationshipAsync(string alias, string relationshipAlias, string schemaFingerprint, CancellationToken ct = default);
     Task<Result<RelationshipDdlPreviewResponse, AeroError>> PreviewRelationshipDdlAsync(string alias, long relationshipId, CancellationToken ct = default);
     Task<Result<RelationshipDdlApplyResponse, AeroError>> ApplyRelationshipDdlAsync(string alias, long relationshipId, string proposedSchemaFingerprint, CancellationToken ct = default);
     Task<Result<IReadOnlyList<VirtualContentEntryOption>, AeroError>> SearchEntriesAsync(string provider, string? culture = null, string? query = null, int take = 50, CancellationToken ct = default);
@@ -88,6 +89,16 @@ public sealed class ContentViewsHttpClient(HttpClient httpClient, ILogger<Conten
         => PutAsync<SaveContentRelationshipDraftRequest, ContentRelationshipSummary>(
             $"{Uri.EscapeDataString(alias)}/relationships/{Uri.EscapeDataString(relationshipAlias)}/draft",
             request,
+            ct);
+
+    public Task<Result<ContentRelationshipSummary, AeroError>> AdoptRelationshipAsync(
+        string alias,
+        string relationshipAlias,
+        string schemaFingerprint,
+        CancellationToken ct = default)
+        => PostAsync<AdoptContentRelationshipRequest, ContentRelationshipSummary>(
+            $"{Uri.EscapeDataString(alias)}/relationships/{Uri.EscapeDataString(relationshipAlias)}/adopt",
+            new AdoptContentRelationshipRequest(schemaFingerprint),
             ct);
 
     public Task<Result<RelationshipDdlPreviewResponse, AeroError>> PreviewRelationshipDdlAsync(
@@ -201,7 +212,11 @@ public sealed record ContentRelationshipSummary(
     ContentRelationshipOwnershipState OwnershipState,
     string SchemaFingerprint,
     bool CanPreviewDdl,
-    bool CanApplyDdl);
+    bool CanApplyDdl,
+    bool CanAdopt = false);
+
+/// <summary>Fingerprint fence for adopting server-discovered relationship metadata.</summary>
+public sealed record AdoptContentRelationshipRequest(string SchemaFingerprint);
 
 /// <summary>Editable CMS relationship metadata. Scope, ownership, identifiers, and fingerprints remain server-owned.</summary>
 public sealed record SaveContentRelationshipDraftRequest(

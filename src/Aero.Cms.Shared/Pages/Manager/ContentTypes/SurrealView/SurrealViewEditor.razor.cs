@@ -297,6 +297,35 @@ public partial class SurrealViewEditor : IAsyncDisposable
         }
     }
 
+    private async Task AdoptRelationshipAsync(ContentRelationshipSummary relationship)
+    {
+        if (!_isConfigured || _relationshipMutating || !relationship.CanAdopt) return;
+        _relationshipMutating = true;
+        _relationshipsError = null;
+        _relationshipPreview = null;
+        try
+        {
+            var result = await ViewsApi.AdoptRelationshipAsync(
+                ContentTypeAlias,
+                relationship.Alias,
+                relationship.SchemaFingerprint);
+            switch (result)
+            {
+                case Result<ContentRelationshipSummary, AeroError>.Ok:
+                    SetPageMessage("Relationship adopted from its reviewed schema fingerprint and locked for View use.", false);
+                    await LoadRelationshipsAsync();
+                    break;
+                case Result<ContentRelationshipSummary, AeroError>.Failure failure:
+                    _relationshipsError = FormatError(failure.Error);
+                    break;
+            }
+        }
+        finally
+        {
+            _relationshipMutating = false;
+        }
+    }
+
     private async Task SaveRelationshipDraftAsync(SaveContentRelationshipDraftCommand command)
     {
         if (!_isConfigured || _relationshipMutating) return;

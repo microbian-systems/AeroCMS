@@ -16,6 +16,7 @@ public partial class SurrealViewRelationshipsPanel
     [Parameter] public bool IsMutating { get; set; }
     [Parameter] public string? ErrorMessage { get; set; }
     [Parameter] public EventCallback<SaveContentRelationshipDraftCommand> SaveDraftRequested { get; set; }
+    [Parameter] public EventCallback<ContentRelationshipSummary> AdoptRequested { get; set; }
     [Parameter] public EventCallback<long> PreviewDdlRequested { get; set; }
     [Parameter] public EventCallback<long> ApplyDdlRequested { get; set; }
 
@@ -29,7 +30,7 @@ public partial class SurrealViewRelationshipsPanel
     private string? _sourceField;
     private string? _targetField;
     private string? _edgeTable;
-    private ContentRelationshipKind _kind = ContentRelationshipKind.RecordLink;
+    private ContentRelationshipKind _kind = ContentRelationshipKind.GraphEdge;
     private ContentRelationshipCardinality _cardinality = ContentRelationshipCardinality.ManyToOne;
 
     private bool CanSubmitDraft => !IsMutating
@@ -41,6 +42,9 @@ public partial class SurrealViewRelationshipsPanel
             ContentRelationshipKind.FieldJoin => !string.IsNullOrWhiteSpace(_sourceField) && !string.IsNullOrWhiteSpace(_targetField),
             ContentRelationshipKind.RecordLink or ContentRelationshipKind.SelfHierarchy => !string.IsNullOrWhiteSpace(_sourceField),
             ContentRelationshipKind.GraphEdge => true,
+            ContentRelationshipKind.AssociationRecord => !string.IsNullOrWhiteSpace(_sourceField)
+                && !string.IsNullOrWhiteSpace(_targetField)
+                && !string.IsNullOrWhiteSpace(_edgeTable),
             _ => false
         });
 
@@ -54,7 +58,7 @@ public partial class SurrealViewRelationshipsPanel
         _sourceField = null;
         _targetField = null;
         _edgeTable = null;
-        _kind = ContentRelationshipKind.RecordLink;
+        _kind = ContentRelationshipKind.GraphEdge;
         _cardinality = ContentRelationshipCardinality.ManyToOne;
         _editingExisting = false;
         _isEditing = true;
@@ -103,7 +107,18 @@ public partial class SurrealViewRelationshipsPanel
         ContentRelationshipKind.RecordLink => "Record link",
         ContentRelationshipKind.GraphEdge => "Graph edge",
         ContentRelationshipKind.SelfHierarchy => "Self hierarchy",
+        ContentRelationshipKind.AssociationRecord => "Association record",
         _ => kind.ToString()
+    };
+
+    private static string KindGuidance(ContentRelationshipKind kind) => kind switch
+    {
+        ContentRelationshipKind.GraphEdge => "Recommended: a separate edge table with bidirectional traversal and optional metadata. Edge rows still mutate data, so CMS-derived edges follow the authoritative reference and are not edited independently.",
+        ContentRelationshipKind.RecordLink => "Adds or adopts a record-valued field on the source table. Schema and delete behavior require explicit review.",
+        ContentRelationshipKind.AssociationRecord => "Uses a separate scoped record table when the relationship has its own identity or metadata.",
+        ContentRelationshipKind.SelfHierarchy => "A parent record link on the same table; cycle and delete rules remain domain policy.",
+        ContentRelationshipKind.FieldJoin => "Metadata-only equality join; it does not create referential integrity or relationship records.",
+        _ => string.Empty
     };
 
     private static string FormatOwnership(ContentRelationshipOwnershipState state) => state switch
@@ -111,7 +126,8 @@ public partial class SurrealViewRelationshipsPanel
         ContentRelationshipOwnershipState.ExternalDiscovered => "Database-owned",
         ContentRelationshipOwnershipState.CmsDraft => "CMS draft",
         ContentRelationshipOwnershipState.Applied => "Applied · locked",
-        ContentRelationshipOwnershipState.Derived => "Query-derived",
+        ContentRelationshipOwnershipState.Adopted => "Adopted · locked",
+        ContentRelationshipOwnershipState.Derived => "Content-declared",
         ContentRelationshipOwnershipState.Drifted => "Drifted · locked",
         _ => state.ToString()
     };
@@ -121,14 +137,16 @@ public partial class SurrealViewRelationshipsPanel
         ContentRelationshipOwnershipState.Drifted => "is-drifted",
         ContentRelationshipOwnershipState.CmsDraft => "is-draft",
         ContentRelationshipOwnershipState.Applied => "is-applied",
+        ContentRelationshipOwnershipState.Adopted => "is-applied",
         _ => "is-read-only"
     };
 
     private static string EditingState(ContentRelationshipSummary relationship) => relationship.OwnershipState switch
     {
         ContentRelationshipOwnershipState.ExternalDiscovered => "Read-only because this relationship already exists in SurrealDB.",
-        ContentRelationshipOwnershipState.Derived => "Read-only because the query defines this relationship.",
+        ContentRelationshipOwnershipState.Derived => "Read-only because a content field declares and materializes this relationship.",
         ContentRelationshipOwnershipState.Applied => "Locked after DDL application.",
+        ContentRelationshipOwnershipState.Adopted => "Locked after explicit adoption of the reviewed physical relationship.",
         ContentRelationshipOwnershipState.Drifted => "Locked because the live schema no longer matches the recorded fingerprint.",
         _ when relationship.CanApplyDdl => "Editable until reviewed DDL is applied.",
         _ when relationship.CanPreviewDdl => "Editable; DDL preview is available, but schema application is disabled in this host.",

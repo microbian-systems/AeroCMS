@@ -4,7 +4,7 @@ namespace Aero.Cms.Core.Content.Views;
 
 /// <summary>
 /// Emits immutable, scope-complete plan metadata from a locked relationship definition. This is
-/// deliberately a factory rather than an editor parser: only an Applied relationship with
+/// deliberately a factory rather than an editor parser: only an Applied or explicitly Adopted relationship with
 /// registered physical sources can produce a public-plan candidate. The public executor remains
 /// fail-closed until a host binds this candidate to a transport that can evaluate graph syntax.
 /// </summary>
@@ -15,7 +15,8 @@ public sealed class ContentRelationshipQueryPlanFactory(
     public ContentViewTrustedQueryPlanDefinition? Create(ContentRelationshipDefinition relationship,
         ContentViewSourceDefinition root, ContentViewSourceDefinition target)
     {
-        if (relationship.OwnershipState != ContentRelationshipOwnershipState.Applied
+        if (relationship.OwnershipState is not (ContentRelationshipOwnershipState.Applied
+                or ContentRelationshipOwnershipState.Adopted)
             || relationship.IsMutationBlocked is false
             || relationship.Kind != ContentRelationshipKind.GraphEdge
             || !targets.TryGet(relationship.SourceShapeAlias ?? string.Empty, relationship.SourceTable, out _)

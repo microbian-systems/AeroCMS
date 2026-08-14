@@ -15,8 +15,12 @@ namespace Aero.Cms.Core.Content.Services;
 /// </summary>
 public sealed class AeroContentService(
     IDocumentSession session,
-    ContentSearchProjectionService? searchProjectionService = null) : IContentService
+    ContentSearchProjectionService? searchProjectionService = null,
+    IEnumerable<IContentTranslationGroupProjectionContributor>? translationGroupProjectionContributors = null) : IContentService
 {
+    private readonly IReadOnlyList<IContentTranslationGroupProjectionContributor> _translationGroupProjectionContributors =
+        translationGroupProjectionContributors?.ToArray() ?? [];
+
     /// <inheritdoc />
     public async Task<Result<ContentItem, AeroError>> LoadAsync(long siteId, long id, CancellationToken ct = default)
     {
@@ -202,6 +206,18 @@ public sealed class AeroContentService(
             session.UpdateExpectedVersion(group, group.Version);
         if (isNewGroup)
             session.Store(group);
+        if (isNewGroup)
+        {
+            var projectionResult = await StageTranslationGroupProjectionAsync(
+                group,
+                ContentTranslationGroupProjectionChange.Upsert,
+                ct);
+            if (projectionResult is Result<NoneType, AeroError>.Failure projectionFailure)
+            {
+                session.ClearChanges();
+                return Prelude.Fail<ContentItem, AeroError>(projectionFailure.Error);
+            }
+        }
         if (existing is null)
             session.Store(item);
         if (searchProjectionService is not null)
@@ -269,6 +285,15 @@ public sealed class AeroContentService(
                     "The source item of a translation group cannot be deleted while translations exist."));
             }
 
+            var projectionResult = await StageTranslationGroupProjectionAsync(
+                group,
+                ContentTranslationGroupProjectionChange.Delete,
+                ct);
+            if (projectionResult is Result<NoneType, AeroError>.Failure projectionFailure)
+            {
+                session.ClearChanges();
+                return Prelude.Fail<bool, AeroError>(projectionFailure.Error);
+            }
             session.Delete(group);
         }
 
@@ -277,8 +302,17 @@ public sealed class AeroContentService(
         {
             await searchProjectionService.StageDeleteAsync(siteId, id, ct);
         }
-        await session.SaveChangesAsync(ct);
-        return Prelude.Ok<bool, AeroError>(true);
+        try
+        {
+            await session.SaveChangesAsync(ct);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
+        catch (ConcurrencyException)
+        {
+            session.ClearChanges();
+            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                "The content item or one of its relationships changed. Reload and try again."));
+        }
     }
 
     /// <summary>
@@ -331,6 +365,36 @@ public sealed class AeroContentService(
         if (group is null || group.SiteId != item.SiteId) return;
         foreach (var (name, value) in group.SharedFields)
             item.Fields[name] = value.Clone();
+    }
+
+    private async Task<Result<NoneType, AeroError>> StageTranslationGroupProjectionAsync(
+        ContentTranslationGroupDocument group,
+        ContentTranslationGroupProjectionChange change,
+        CancellationToken cancellationToken)
+    {
+        if (_translationGroupProjectionContributors.Count == 0)
+            return Prelude.Ok<NoneType, AeroError>(default);
+
+        var context = new ContentTranslationGroupProjectionContext(
+            group.SiteId,
+            group.ContentTypeAlias,
+            group.Id,
+            group.SourceItemId,
+            group.Revision,
+            group.SharedFields.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.Clone(),
+                StringComparer.Ordinal),
+            change);
+
+        foreach (var contributor in _translationGroupProjectionContributors)
+        {
+            var result = await contributor.StageAsync(session, context, cancellationToken);
+            if (result is Result<NoneType, AeroError>.Failure)
+                return result;
+        }
+
+        return Prelude.Ok<NoneType, AeroError>(default);
     }
 
     private async Task InvalidateAiTranslationVariantsForChangedSourceAsync(long siteId, long sourceItemId, CancellationToken ct)

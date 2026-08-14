@@ -25,6 +25,21 @@ public static class ContentLocalizationManagerUi
         && groupStorageVersion is > 0
         && groupRevision is >= 0;
 
+    /// <summary>Fails closed until manager AI is enabled, a provider is usable, and exact revisions are loaded.</summary>
+    public static bool CanRequestAiTranslation(
+        bool availabilityResolved,
+        bool aiAvailable,
+        bool hasExactLocalizationTokens,
+        bool hasAuthoritativeSource,
+        bool isDistinctTarget,
+        bool isEditorDirty) =>
+        availabilityResolved
+        && aiAvailable
+        && hasExactLocalizationTokens
+        && hasAuthoritativeSource
+        && isDistinctTarget
+        && !isEditorDirty;
+
     /// <summary>Builds the culture-prefixed public route used by an embedded content preview.</summary>
     public static string BuildCultureAwareContentPath(
         string alias,

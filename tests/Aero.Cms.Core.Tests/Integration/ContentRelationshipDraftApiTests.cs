@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
@@ -150,11 +151,215 @@ public sealed class ContentRelationshipDraftApiTests
         await lifecycle.DidNotReceiveWithAnyArgs().PreviewAsync(default!, default);
     }
 
+    [Test]
+    public async Task Admin_can_adopt_only_the_exact_scope_provable_physical_fingerprint()
+    {
+        var viewService = Substitute.For<IContentSurrealViewService>();
+        viewService.LoadDraftAsync(Scope, "catalog", Arg.Any<CancellationToken>()).Returns(
+            new ContentSurrealViewRevision(1, Scope, "catalog", "catalog-shape", "shape-fingerprint",
+                "SELECT id FROM catalog LIMIT 1", "id", null, 1,
+                ContentViewPublicationState.Draft, DateTimeOffset.UtcNow));
+        var candidate = new ContentRelationshipDefinition(
+            -17, Scope, "catalog_category", "catalog-shape", "category-shape",
+            "catalog", "categories", null, null, "catalog_category",
+            ContentRelationshipKind.GraphEdge, ContentRelationshipCardinality.ManyToMany,
+            ContentRelationshipOwnershipState.ExternalDiscovered, "SERVER-FINGERPRINT");
+        var discovery = Substitute.For<IContentRelationshipSchemaDiscovery>();
+        discovery.DiscoverAsync(Scope, Arg.Any<CancellationToken>()).Returns([candidate]);
+        var store = Substitute.For<IContentRelationshipStore>();
+        store.AdoptAsync(candidate, Arg.Any<CancellationToken>())
+            .Returns(candidate with { Id = 29, OwnershipState = ContentRelationshipOwnershipState.Adopted });
+        await using var app = await CreateAppAsync(
+            viewService,
+            store,
+            Substitute.For<IRelationshipDdlLifecycle>(),
+            discovery);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/v1/admin/content-views/catalog/relationships/catalog_category/adopt")
+        {
+            Content = JsonContent.Create(new AdoptContentRelationshipRequest("SERVER-FINGERPRINT"))
+        }.WithTestUser(12, role: "Admin");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+        var saved = await response.Content.ReadFromJsonAsync<ContentRelationshipSummary>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        saved.ShouldNotBeNull();
+        saved.Id.ShouldBe(29);
+        saved.OwnershipState.ShouldBe(ContentRelationshipOwnershipState.Adopted);
+        saved.CanAdopt.ShouldBeFalse();
+        await store.Received(1).AdoptAsync(candidate, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Adoption_rejects_a_stale_or_client_invented_fingerprint_without_mutation()
+    {
+        var viewService = Substitute.For<IContentSurrealViewService>();
+        viewService.LoadDraftAsync(Scope, "catalog", Arg.Any<CancellationToken>()).Returns(
+            new ContentSurrealViewRevision(1, Scope, "catalog", "catalog-shape", "shape-fingerprint",
+                "SELECT id FROM catalog LIMIT 1", "id", null, 1,
+                ContentViewPublicationState.Draft, DateTimeOffset.UtcNow));
+        var candidate = new ContentRelationshipDefinition(
+            -17, Scope, "catalog_category", "catalog-shape", "category-shape",
+            "catalog", "categories", null, null, "catalog_category",
+            ContentRelationshipKind.GraphEdge, ContentRelationshipCardinality.ManyToMany,
+            ContentRelationshipOwnershipState.ExternalDiscovered, "CURRENT-FINGERPRINT");
+        var discovery = Substitute.For<IContentRelationshipSchemaDiscovery>();
+        discovery.DiscoverAsync(Scope, Arg.Any<CancellationToken>()).Returns([candidate]);
+        var store = Substitute.For<IContentRelationshipStore>();
+        await using var app = await CreateAppAsync(
+            viewService,
+            store,
+            Substitute.For<IRelationshipDdlLifecycle>(),
+            discovery);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/v1/admin/content-views/catalog/relationships/catalog_category/adopt")
+        {
+            Content = JsonContent.Create(new AdoptContentRelationshipRequest("CLIENT-FINGERPRINT"))
+        }.WithTestUser(12, role: "Admin");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        await store.DidNotReceiveWithAnyArgs().AdoptAsync(default!, default);
+    }
+
+    [Test]
+    public async Task Declared_relationship_without_matching_physical_evidence_cannot_be_adopted()
+    {
+        var viewService = Substitute.For<IContentSurrealViewService>();
+        viewService.LoadDraftAsync(Scope, "catalog", Arg.Any<CancellationToken>()).Returns(
+            new ContentSurrealViewRevision(1, Scope, "catalog", "catalog-shape", "shape-fingerprint",
+                "SELECT id FROM catalog LIMIT 1", "id", null, 1,
+                ContentViewPublicationState.Draft, DateTimeOffset.UtcNow));
+        var candidate = new ContentRelationshipDefinition(
+            -17, Scope, "catalog_category", "catalog-shape", "category-shape",
+            "catalog", "categories", null, null, "catalog_category",
+            ContentRelationshipKind.GraphEdge, ContentRelationshipCardinality.ManyToMany,
+            ContentRelationshipOwnershipState.Derived, "SERVER-FINGERPRINT");
+        var catalog = Substitute.For<IContentDeclaredRelationshipCatalog>();
+        catalog.ListAsync(Scope, Arg.Any<CancellationToken>()).Returns([candidate]);
+        var discovery = Substitute.For<IContentRelationshipSchemaDiscovery>();
+        discovery.DiscoverAsync(Scope, Arg.Any<CancellationToken>()).Returns([]);
+        var store = Substitute.For<IContentRelationshipStore>();
+        await using var app = await CreateAppAsync(
+            viewService,
+            store,
+            Substitute.For<IRelationshipDdlLifecycle>(),
+            discovery,
+            catalog);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/v1/admin/content-views/catalog/relationships/catalog_category/adopt")
+        {
+            Content = JsonContent.Create(new AdoptContentRelationshipRequest("SERVER-FINGERPRINT"))
+        }.WithTestUser(12, role: "Admin");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        await store.DidNotReceiveWithAnyArgs().AdoptAsync(default!, default);
+    }
+
+    [Test]
+    public async Task Direct_record_link_discovery_is_visible_but_cannot_be_adopted()
+    {
+        var viewService = Substitute.For<IContentSurrealViewService>();
+        viewService.LoadDraftAsync(Scope, "catalog", Arg.Any<CancellationToken>()).Returns(
+            new ContentSurrealViewRevision(1, Scope, "catalog", "catalog-shape", "shape-fingerprint",
+                "SELECT id FROM catalog LIMIT 1", "id", null, 1,
+                ContentViewPublicationState.Draft, DateTimeOffset.UtcNow));
+        var link = new ContentRelationshipDefinition(
+            -17, Scope, "catalog_category", "catalog-shape", "category-shape",
+            "catalog", "categories", "category", null, null,
+            ContentRelationshipKind.RecordLink, ContentRelationshipCardinality.ManyToOne,
+            ContentRelationshipOwnershipState.ExternalDiscovered, "EXACT-PHYSICAL-FINGERPRINT");
+        var discovery = Substitute.For<IContentRelationshipSchemaDiscovery>();
+        discovery.DiscoverAsync(Scope, Arg.Any<CancellationToken>()).Returns([link]);
+        var store = Substitute.For<IContentRelationshipStore>();
+        await using var app = await CreateAppAsync(
+            viewService,
+            store,
+            Substitute.For<IRelationshipDdlLifecycle>(),
+            discovery);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/v1/admin/content-views/catalog/relationships/catalog_category/adopt")
+        {
+            Content = JsonContent.Create(new AdoptContentRelationshipRequest("EXACT-PHYSICAL-FINGERPRINT"))
+        }.WithTestUser(12, role: "Admin");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        await store.DidNotReceiveWithAnyArgs().AdoptAsync(default!, default);
+    }
+
+    [Test]
+    public async Task Inventory_preserves_two_declared_aliases_that_share_one_physical_graph_table()
+    {
+        var viewService = Substitute.For<IContentSurrealViewService>();
+        viewService.LoadDraftAsync(Scope, "catalog", Arg.Any<CancellationToken>()).Returns(
+            new ContentSurrealViewRevision(1, Scope, "catalog", "catalog-shape", "shape-fingerprint",
+                "SELECT id FROM catalog LIMIT 1", "id", null, 1,
+                ContentViewPublicationState.Draft, DateTimeOffset.UtcNow));
+        ContentRelationshipDefinition Declared(string alias) => new(
+            alias.EndsWith("primary_category", StringComparison.Ordinal) ? -17 : -18,
+            Scope, alias, "catalog-shape", "category-shape",
+            "content_translation_groups", "content_translation_groups", null, null,
+            "content_reference_relation", ContentRelationshipKind.GraphEdge,
+            ContentRelationshipCardinality.ManyToOne,
+            ContentRelationshipOwnershipState.Derived, $"DECLARED-{alias}");
+        var first = Declared("catalog_primary_category");
+        var second = Declared("catalog_secondary_category");
+        var managed = first with
+        {
+            Id = 71,
+            OwnershipState = ContentRelationshipOwnershipState.Adopted,
+            SchemaFingerprint = "PHYSICAL"
+        };
+        var physical = first with
+        {
+            Id = -90,
+            Alias = "content_reference_relation",
+            OwnershipState = ContentRelationshipOwnershipState.ExternalDiscovered,
+            SchemaFingerprint = "PHYSICAL"
+        };
+        var catalog = Substitute.For<IContentDeclaredRelationshipCatalog>();
+        catalog.ListAsync(Scope, Arg.Any<CancellationToken>()).Returns([first, second]);
+        var discovery = Substitute.For<IContentRelationshipSchemaDiscovery>();
+        discovery.DiscoverAsync(Scope, Arg.Any<CancellationToken>()).Returns([physical]);
+        var store = Substitute.For<IContentRelationshipStore>();
+        store.ListAsync(Scope, Arg.Any<CancellationToken>()).Returns([managed]);
+        await using var app = await CreateAppAsync(
+            viewService,
+            store,
+            Substitute.For<IRelationshipDdlLifecycle>(),
+            discovery,
+            catalog);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/v1/admin/content-views/catalog/relationships")
+            .WithTestUser(12, role: "Admin");
+
+        using var response = await app.GetTestClient().SendAsync(request);
+        var inventory = await response.Content.ReadFromJsonAsync<IReadOnlyList<ContentRelationshipSummary>>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        inventory.ShouldNotBeNull();
+        inventory.Select(item => item.Alias).ShouldContain("catalog_primary_category");
+        inventory.Select(item => item.Alias).ShouldContain("catalog_secondary_category");
+        inventory.Count(item => item.Alias.StartsWith("catalog_", StringComparison.Ordinal)).ShouldBe(2);
+    }
+
     private static async Task<WebApplication> CreateAppAsync(
         IContentSurrealViewService viewService,
         IContentRelationshipStore store,
         IRelationshipDdlLifecycle lifecycle,
-        IContentRelationshipSchemaDiscovery? discovery = null)
+        IContentRelationshipSchemaDiscovery? discovery = null,
+        IContentDeclaredRelationshipCatalog? declaredCatalog = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -164,7 +369,8 @@ public sealed class ContentRelationshipDraftApiTests
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton(lifecycle);
         if (discovery is not null) builder.Services.AddSingleton(discovery);
-        builder.Services.AddSingleton<IContentShapeRegistry>(new ContentShapeRegistry([new CatalogShape()]));
+        if (declaredCatalog is not null) builder.Services.AddSingleton(declaredCatalog);
+        builder.Services.AddSingleton<IContentShapeRegistry>(new ContentShapeRegistry([new CatalogShape(), new CategoryShape()]));
         builder.Services.AddSingleton<IPrivilegedContentSchemaCommandExecutor, DisabledContentSchemaCommandExecutor>();
         var site = Substitute.For<ISiteContext>();
         site.TenantId.Returns(Scope.TenantId);
@@ -187,6 +393,18 @@ public sealed class ContentRelationshipDraftApiTests
         {
             IReadOnlyList<ContentShapeField> fields = [new ContentShapeField("id", ContentShapeFieldType.String, true)];
             var unsigned = new ContentShapeDefinition("catalog-shape", fields, string.Empty);
+            return unsigned with { SchemaFingerprint = ContentShapeFingerprint.Create(unsigned) };
+        }
+    }
+
+    private sealed class CategoryShape : IContentShape
+    {
+        public ContentShapeDefinition Definition { get; } = CreateDefinition();
+
+        private static ContentShapeDefinition CreateDefinition()
+        {
+            IReadOnlyList<ContentShapeField> fields = [new ContentShapeField("id", ContentShapeFieldType.String, true)];
+            var unsigned = new ContentShapeDefinition("category-shape", fields, string.Empty);
             return unsigned with { SchemaFingerprint = ContentShapeFingerprint.Create(unsigned) };
         }
     }

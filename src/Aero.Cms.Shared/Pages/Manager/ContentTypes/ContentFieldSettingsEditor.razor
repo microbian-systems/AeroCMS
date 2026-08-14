@@ -231,6 +231,36 @@
                 }
             }
         }
+
+        @if (!IsCmsDocumentReference)
+        {
+            <div class="rounded-md p-3 mt-4" style="border: 1px solid var(--pe-border);">
+                <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                    <RadzenCheckBox TValue="bool"
+                                    Value="@NativeRelationshipEnabled"
+                                    Disabled="@(Field.LocalizationMode != ContentFieldLocalizationMode.Shared)"
+                                    ValueChanged="SetNativeRelationshipEnabledAsync" />
+                    @L["Materialize a native relationship"]
+                </label>
+                <p class="ct-help mt-1">@L["The reference field remains the editable source of truth. Aero updates a native SurrealDB relationship in the same transaction for traversal and Views."]</p>
+                @if (Field.LocalizationMode != ContentFieldLocalizationMode.Shared)
+                {
+                    <p class="ct-help">@L["Native relationships require a Shared field so every culture resolves to one relationship."]</p>
+                }
+                @if (NativeRelationshipEnabled)
+                {
+                    <label class="pe-property-group mt-3">
+                        <span class="pe-property-label">@L["Relationship alias"]</span>
+                        <input value="@GetStringSetting(ReferenceContentFieldSettings.RelationshipAlias)"
+                               @onchange="SetRelationshipAliasAsync"
+                               required
+                               maxlength="63"
+                               pattern="[A-Za-z][A-Za-z0-9_]{0,62}" />
+                        <span class="text-xs ct-muted">@L["Stable code-style identifier used by the relationship catalog and bounded View plans."]</span>
+                    </label>
+                }
+            </div>
+        }
     }
     else if (Field.FieldType == ContentFieldTypes.List)
     {

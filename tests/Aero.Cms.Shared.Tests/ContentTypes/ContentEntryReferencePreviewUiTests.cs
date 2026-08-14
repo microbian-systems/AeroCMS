@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Shared.Pages.Manager.ContentTypes;
 using Shouldly;
 
@@ -100,6 +101,40 @@ public sealed class ContentEntryReferencePreviewUiTests
         guard.IsCurrent(second).ShouldBeTrue();
 
         guard.Invalidate();
+        guard.IsCurrent(second).ShouldBeFalse();
+    }
+
+    [Test]
+    public void Editor_reference_serialization_omits_incomplete_values_and_preserves_complete_keys()
+    {
+        ContentEntryReferenceEditorValue.TrySerialize(null, out _).ShouldBeFalse();
+        ContentEntryReferenceEditorValue.TrySerialize(new ContentEntryKey("view:species", string.Empty), out _).ShouldBeFalse();
+
+        ContentEntryReferenceEditorValue.TrySerialize(
+            new ContentEntryKey("view:species", "44QY4"),
+            out var serialized).ShouldBeTrue();
+        serialized.GetProperty("provider").GetString().ShouldBe("view:species");
+        serialized.GetProperty("stableId").GetString().ShouldBe("44QY4");
+    }
+
+    [Test]
+    public async Task New_search_cancels_older_debounce_without_clearing_the_current_request()
+    {
+        using var guard = new ContentEntrySearchRequestGuard();
+        var first = guard.Begin();
+        var firstToken = first.Token;
+        var firstDelay = Task.Delay(Timeout.InfiniteTimeSpan, firstToken);
+
+        var second = guard.Begin();
+
+        await Should.ThrowAsync<TaskCanceledException>(async () => await firstDelay);
+        firstToken.IsCancellationRequested.ShouldBeTrue();
+        guard.IsCurrent(first).ShouldBeFalse();
+        guard.IsCurrent(second).ShouldBeTrue();
+
+        guard.Complete(first);
+        guard.IsCurrent(second).ShouldBeTrue();
+        guard.Complete(second);
         guard.IsCurrent(second).ShouldBeFalse();
     }
 }

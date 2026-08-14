@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content.Views;
 
 namespace Aero.Cms.Core.Content.Views;
@@ -78,9 +79,10 @@ public sealed class SurrealHttpBoundedQueryTransport :
             throw new InvalidOperationException("A content-view statement is required.");
 
         var endpoint = AddParameters(sqlEndpoint, parameters);
+        var executionStatement = RewriteHttpParameterTypes(statement, parameters);
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
-            Content = new StringContent(statement, Encoding.UTF8, "text/plain")
+            Content = new StringContent(executionStatement, Encoding.UTF8, "text/plain")
         };
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("identity"));
@@ -111,10 +113,17 @@ public sealed class SurrealHttpBoundedQueryTransport :
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(options.Username) || string.IsNullOrWhiteSpace(options.Password))
+        if (!string.IsNullOrWhiteSpace(options.Username) && !string.IsNullOrWhiteSpace(options.Password))
+        {
+            var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
+            headers.Authorization = new AuthenticationHeaderValue("Basic", credential);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.Username) || !string.IsNullOrWhiteSpace(options.Password))
             throw new InvalidOperationException("Dedicated read-only SurrealDB credentials are incomplete.");
-        var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Username}:{options.Password}"));
-        headers.Authorization = new AuthenticationHeaderValue("Basic", credential);
+        if (options.HasAnonymousLoopbackConfiguration) return;
+        throw new InvalidOperationException("Dedicated read-only SurrealDB credentials are incomplete.");
     }
 
     private static async Task<byte[]> ReadBoundedAsync(Stream stream, int maximumBytes, CancellationToken ct)
@@ -167,12 +176,15 @@ public sealed class SurrealHttpBoundedQueryTransport :
     private static Uri AddParameters(Uri endpoint, IReadOnlyDictionary<string, object?> parameters)
     {
         var query = new StringBuilder();
+        var normalizedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var pair in parameters.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             var name = pair.Key.StartsWith('$') ? pair.Key[1..] : pair.Key;
             if (string.IsNullOrWhiteSpace(name)
                 || !name.All(character => char.IsLetterOrDigit(character) || character == '_'))
                 throw new InvalidOperationException("A content-view parameter name is invalid.");
+            if (!normalizedNames.Add(name))
+                throw new InvalidOperationException("Content-view parameter names must be unique after wire normalization.");
             var value = FormatParameter(pair.Value);
             if (value.Length > MaximumParameterCharacters)
                 throw new InvalidOperationException("A content-view parameter exceeds the configured length limit.");
@@ -199,6 +211,41 @@ public sealed class SurrealHttpBoundedQueryTransport :
         _ => throw new InvalidOperationException("Only scalar content-view parameters are supported by the HTTP transport.")
     };
 
+    /// <summary>
+    /// SurrealDB's HTTP SQL query parameters arrive as strings. The two reserved scope parameters
+    /// are server-owned Int64 values, so cast only their exact parameter tokens after the statement
+    /// has passed the structural read-only and scope-predicate validation boundary.
+    /// </summary>
+    private static string RewriteHttpParameterTypes(
+        string statement,
+        IReadOnlyDictionary<string, object?> parameters)
+    {
+        var rewritten = statement;
+        rewritten = RewriteReservedInt64Parameter(
+            rewritten,
+            ReservedContentViewScopeBinder.TenantParameter,
+            parameters);
+        rewritten = RewriteReservedInt64Parameter(
+            rewritten,
+            ReservedContentViewScopeBinder.SiteParameter,
+            parameters);
+        return rewritten;
+    }
+
+    private static string RewriteReservedInt64Parameter(
+        string statement,
+        string parameter,
+        IReadOnlyDictionary<string, object?> parameters)
+    {
+        if (!parameters.TryGetValue(parameter, out var value) || value is not long)
+            throw new InvalidOperationException($"The reserved content-view parameter '{parameter}' must be an Int64 value.");
+        return Regex.Replace(
+            statement,
+            $@"{Regex.Escape(parameter)}(?![A-Za-z0-9_])",
+            _ => $"type::int({parameter})",
+            RegexOptions.CultureInvariant);
+    }
+
     private static bool TryCreateSqlEndpoint(string? value, out Uri endpoint)
     {
         endpoint = null!;
@@ -224,8 +271,15 @@ public sealed class SurrealHttpBoundedQueryTransport :
         => endpoint.Scheme == Uri.UriSchemeHttps || IPAddress.TryParse(endpoint.Host, out var address) && IPAddress.IsLoopback(address)
             || string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase);
 
+    internal static SocketsHttpHandler CreatePrimaryHandler()
+        => new()
+        {
+            AutomaticDecompression = DecompressionMethods.None,
+            AllowAutoRedirect = false
+        };
+
     private static HttpClient CreateHttpClient()
-        => new(new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.None })
+        => new(CreatePrimaryHandler())
         {
             Timeout = Timeout.InfiniteTimeSpan
         };

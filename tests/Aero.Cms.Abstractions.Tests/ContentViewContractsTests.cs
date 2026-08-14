@@ -81,6 +81,10 @@ public sealed class ContentViewContractsTests
     {
         var binder = new ReservedContentViewScopeBinder();
         binder.TryBind(new ContentViewScope(7, 11), new Dictionary<string, object?> { ["$TenantId"] = 999 }, out _).ShouldBeFalse();
+        binder.TryBind(new ContentViewScope(7, 11), new Dictionary<string, object?> { ["tenantId"] = 999 }, out _).ShouldBeFalse();
+        binder.TryBind(new ContentViewScope(7, 11), new Dictionary<string, object?> { ["SITEID"] = 999 }, out _).ShouldBeFalse();
+        binder.TryBind(new ContentViewScope(7, 11), new Dictionary<string, object?> { ["entryId"] = "spoof" }, out _).ShouldBeFalse();
+        binder.TryBind(new ContentViewScope(7, 11), new Dictionary<string, object?> { ["Search"] = "spoof" }, out _).ShouldBeFalse();
         var classifier = new SurrealSelectStatementClassifier();
         classifier.Classify("SELECT * FROM item WHERE tenant_id = $TenantId AND site_id = $SiteId LIMIT 10").HasRequiredScopePredicates.ShouldBeFalse();
     }

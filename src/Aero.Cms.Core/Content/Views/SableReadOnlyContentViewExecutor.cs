@@ -15,14 +15,30 @@ public sealed class SableReadOnlyContentViewOptions
     public string? Password { get; set; }
     public string? Token { get; set; }
 
+    /// <summary>
+    /// Explicitly permits an unauthenticated loopback endpoint for local development or testing.
+    /// This option never permits anonymous access to a non-loopback endpoint.
+    /// </summary>
+    public bool AllowAnonymousLoopback { get; set; }
+
     /// <summary>Set by a host secret/configuration resolver when it supplies the dedicated store itself.</summary>
     public bool UseHostResolvedStoreFactory { get; set; }
 
+    internal bool HasConnectionCoordinates => !string.IsNullOrWhiteSpace(Endpoint)
+        && !string.IsNullOrWhiteSpace(Namespace)
+        && !string.IsNullOrWhiteSpace(Database);
+
+    internal bool HasDedicatedCredentials => !string.IsNullOrWhiteSpace(Token)
+        || (!string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password));
+
+    internal bool HasAnonymousLoopbackConfiguration => AllowAnonymousLoopback
+        && HasConnectionCoordinates
+        && Uri.TryCreate(Endpoint, UriKind.Absolute, out var endpoint)
+        && endpoint.Scheme is "http" or "https" or "ws" or "wss"
+        && endpoint.IsLoopback;
+
     internal bool HasExplicitDedicatedConfiguration => UseHostResolvedStoreFactory
-        || (!string.IsNullOrWhiteSpace(Endpoint) && !string.IsNullOrWhiteSpace(Namespace)
-            && !string.IsNullOrWhiteSpace(Database)
-            && (!string.IsNullOrWhiteSpace(Token)
-                || (!string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password))));
+        || HasConnectionCoordinates && (HasDedicatedCredentials || HasAnonymousLoopbackConfiguration);
 }
 
 /// <summary>Host escape hatch for encrypted-secret and external configuration resolvers.</summary>
@@ -53,7 +69,9 @@ public static class SableReadOnlyContentViewServiceCollectionExtensions
         var options = new SableReadOnlyContentViewOptions();
         configure(options);
         services.AddSingleton(options);
-        if (!options.UseHostResolvedStoreFactory && options.HasExplicitDedicatedConfiguration)
+        if (!options.UseHostResolvedStoreFactory
+            && options.HasConnectionCoordinates
+            && options.HasDedicatedCredentials)
         {
             services.AddKeyedSingleton<IDocumentStore>(ContentViewReadOnlyStoreKey.Value, (provider, _) =>
             {

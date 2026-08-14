@@ -47,7 +47,9 @@ public sealed class ContentSurrealViewEntryProvider(ContentSurrealViewRevision v
     public async Task<IReadOnlyList<ContentEntry>> SearchAsync(ContentViewScope scope, string? culture, string? query, int take, CancellationToken ct = default)
     {
         if (scope != view.Scope || take <= 0) return [];
-        var result = await service.SearchEntriesAsync(view, scope, query ?? string.Empty, take, ct);
+        var result = string.IsNullOrWhiteSpace(query)
+            ? await service.ExecutePublicAsync(scope, view.Alias, new Dictionary<string, object?>(), take, ct)
+            : await service.SearchEntriesAsync(view, scope, query, take, ct);
         if (result is null) return [];
         var mapped = result.Rows.Select(Map).ToArray();
         if (mapped.Any(entry => entry is null)) return [];

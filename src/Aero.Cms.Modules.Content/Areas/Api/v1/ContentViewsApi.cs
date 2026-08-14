@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Core.Http;
@@ -31,6 +32,9 @@ public static class ContentViewsApi
         group.MapPost("/{alias}/cache/invalidate", InvalidateCache).RequireAuthorization("site:update").RequireAuthorization("AeroAdmin");
         group.MapGet("/{alias}/relationships", ListRelationships).RequireAuthorization("site:read").RequireAuthorization("AeroAdmin");
         group.MapPut("/{alias}/relationships/{relationshipAlias}/draft", SaveRelationshipDraft)
+            .RequireAuthorization("site:update")
+            .RequireAuthorization("AeroAdmin");
+        group.MapPost("/{alias}/relationships/{relationshipAlias}/adopt", AdoptRelationship)
             .RequireAuthorization("site:update")
             .RequireAuthorization("AeroAdmin");
         group.MapPost("/{alias}/relationships/{relationshipId:long}/ddl/preview", PreviewRelationshipDdl)
@@ -241,26 +245,130 @@ public static class ContentViewsApi
 
         var store = services.GetService<IContentRelationshipStore>();
         var discovery = services.GetService<IContentRelationshipSchemaDiscovery>();
+        IReadOnlyList<ContentRelationshipDefinition> declared;
+        IReadOnlyList<ContentRelationshipDefinition> discovered;
+        try
+        {
+            var declarationCatalog = services.GetService<IContentDeclaredRelationshipCatalog>();
+            declared = declarationCatalog is null ? [] : await declarationCatalog.ListAsync(scope, ct);
+            discovered = discovery is null ? [] : await discovery.DiscoverAsync(scope, ct);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return TypedResults.Problem(
+                title: "Relationship inventory is unavailable",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
         var managed = store is null ? [] : await store.ListAsync(scope, ct);
-        var discovered = discovery is null ? [] : await discovery.DiscoverAsync(scope, ct);
         if (store is not null)
         {
-            foreach (var applied in managed.Where(item => item.OwnershipState == ContentRelationshipOwnershipState.Applied))
+            foreach (var applied in managed.Where(item => item.OwnershipState is
+                         ContentRelationshipOwnershipState.Applied or ContentRelationshipOwnershipState.Adopted))
             {
                 var observed = discovered.FirstOrDefault(item => SamePhysicalRelationship(item, applied));
                 await store.MarkDriftedAsync(scope, applied.Id, observed?.SchemaFingerprint ?? "MISSING", ct);
             }
             managed = await store.ListAsync(scope, ct);
         }
-        var relationships = managed.Concat(discovered.Where(discoveredRelationship => !managed.Any(managedRelationship => SamePhysicalRelationship(managedRelationship, discoveredRelationship))))
+        // Semantic declarations are keyed by alias, not by their shared physical table.  Multiple
+        // content fields intentionally multiplex through content_reference_relation and must all
+        // remain visible.  A managed record replaces only its own semantic alias; raw INFO
+        // discoveries are de-duplicated as a separate physical inventory.
+        var semantic = managed.Concat(declared.Where(candidate =>
+                !managed.Any(managedRelationship => SameSemanticRelationship(managedRelationship, candidate))))
+            .ToArray();
+        var physical = new List<ContentRelationshipDefinition>();
+        foreach (var candidate in discovered)
+        {
+            if (!physical.Any(existing => SamePhysicalRelationship(existing, candidate)))
+                physical.Add(candidate);
+        }
+        var relationships = semantic.Concat(physical.Where(candidate =>
+                !semantic.Any(semanticRelationship => SameSemanticRelationship(semanticRelationship, candidate))))
             .Where(relationship =>
                 string.Equals(relationship.SourceShapeAlias, draft.ShapeAlias, StringComparison.Ordinal)
                 || string.Equals(relationship.TargetShapeAlias, draft.ShapeAlias, StringComparison.Ordinal))
             .DistinctBy(relationship => relationship.Id)
             .OrderBy(relationship => relationship.Alias, StringComparer.OrdinalIgnoreCase)
-            .Select(Map)
+            .Select(relationship => Map(
+                relationship,
+                relationship.OwnershipState == ContentRelationshipOwnershipState.ExternalDiscovered
+                    && IsPhysicalAdoptionProvable(relationship)))
             .ToArray();
         return TypedResults.Ok<IReadOnlyList<ContentRelationshipSummary>>(relationships);
+    }
+
+    private static async Task<IResult> AdoptRelationship(
+        string alias,
+        string relationshipAlias,
+        [FromBody] AdoptContentRelationshipRequest request,
+        [FromServices] IContentSurrealViewService viewService,
+        [FromServices] ISiteContext siteContext,
+        IServiceProvider services,
+        CancellationToken ct)
+    {
+        if (!TryCreateScope(siteContext, out var scope, out var failure)) return failure!;
+        var view = await viewService.LoadDraftAsync(scope, alias, ct);
+        if (view is null) return TypedResults.NotFound();
+        var store = services.GetService<IContentRelationshipStore>();
+        if (store is null)
+        {
+            return TypedResults.Problem(
+                title: "Relationship adoption is unavailable",
+                detail: "This host has not configured the relationship metadata store.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        IReadOnlyList<ContentRelationshipDefinition> discovered;
+        try
+        {
+            var schemaDiscovery = services.GetService<IContentRelationshipSchemaDiscovery>();
+            discovered = schemaDiscovery is null ? [] : await schemaDiscovery.DiscoverAsync(scope, ct);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return TypedResults.Problem(
+                title: "Relationship inventory is unavailable",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var normalizedAlias = relationshipAlias.Trim();
+        // Adoption records exact physical INFO evidence. Content-field declarations remain
+        // code-owned Derived metadata and cannot be promoted by alias alone.
+        var candidates = discovered
+            .Where(IsPhysicalAdoptionProvable)
+            .Where(candidate => string.Equals(candidate.Alias, normalizedAlias, StringComparison.Ordinal)
+                && BelongsToViewShape(candidate, view.ShapeAlias))
+            .ToArray();
+        if (candidates.Length != 1) return TypedResults.NotFound();
+        var candidate = candidates[0];
+        if (string.IsNullOrWhiteSpace(request.SchemaFingerprint)
+            || !string.Equals(candidate.SchemaFingerprint, request.SchemaFingerprint, StringComparison.Ordinal))
+        {
+            return TypedResults.Conflict(new ProblemDetails
+            {
+                Title = "The relationship schema changed",
+                Detail = "Reload and review the current relationship fingerprint before adopting it.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        try
+        {
+            var adopted = await store.AdoptAsync(candidate, ct);
+            return TypedResults.Ok(Map(adopted));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return TypedResults.Conflict(new ProblemDetails
+            {
+                Title = "The relationship could not be adopted",
+                Detail = exception.Message,
+                Status = StatusCodes.Status409Conflict
+            });
+        }
     }
 
     private static async Task<IResult> SaveRelationshipDraft(
@@ -535,7 +643,17 @@ public static class ContentViewsApi
             && string.Equals(left.SourceField, right.SourceField, StringComparison.Ordinal)
             && string.Equals(left.TargetField, right.TargetField, StringComparison.Ordinal)
             && string.Equals(left.EdgeTable, right.EdgeTable, StringComparison.Ordinal)
-            && left.Cardinality == right.Cardinality;
+            && (left.Kind is ContentRelationshipKind.GraphEdge or ContentRelationshipKind.AssociationRecord
+                || left.Cardinality == right.Cardinality);
+
+    private static bool SameSemanticRelationship(ContentRelationshipDefinition left, ContentRelationshipDefinition right)
+        => left.Scope == right.Scope
+            && string.Equals(left.Alias, right.Alias, StringComparison.Ordinal);
+
+    private static bool IsPhysicalAdoptionProvable(ContentRelationshipDefinition relationship)
+        => relationship.OwnershipState == ContentRelationshipOwnershipState.ExternalDiscovered
+            && relationship.Kind is ContentRelationshipKind.GraphEdge or ContentRelationshipKind.AssociationRecord
+            && !string.IsNullOrWhiteSpace(relationship.SchemaFingerprint);
 
     private static bool TryValidateDraftRequest(
         string alias,
@@ -631,7 +749,9 @@ public static class ContentViewsApi
         view.PublicExecutionEligible,
         view.PublicExecutionIneligibilityReason);
 
-    private static ContentRelationshipSummary Map(ContentRelationshipDefinition relationship) => new(
+    private static ContentRelationshipSummary Map(
+        ContentRelationshipDefinition relationship,
+        bool canAdopt = false) => new(
         relationship.Id,
         relationship.Alias,
         relationship.SourceShapeAlias,
@@ -646,7 +766,8 @@ public static class ContentViewsApi
         relationship.OwnershipState,
         relationship.SchemaFingerprint,
         false,
-        false);
+        false,
+        canAdopt);
 
     private static bool IsSimpleIdentifier(string? value)
         => !string.IsNullOrWhiteSpace(value)

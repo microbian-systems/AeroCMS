@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
@@ -94,6 +95,8 @@ public partial class ContentItemEditor
     private ContentItemDetail? _sourceVariant;
     private GenerateContentAiTranslationResponse? _aiSuggestion;
     private bool _isGeneratingTranslation;
+    private bool _aiAvailabilityResolved;
+    private bool _aiTranslationAvailable;
     private bool _isApplyingTranslation;
     private bool _isReviewingTranslation;
     private bool _isSavingSharedFields;
@@ -297,6 +300,7 @@ protected override async Task OnInitializedAsync()
             : "content";
 
         await LoadCurrentSiteAsync();
+        await LoadAiAvailabilityAsync();
 
         var typeResult = await ContentTypesApi.GetByAliasAsync(Alias);
         if (typeResult is not Result<ContentTypeDetail, AeroError>.Ok typeOk)
@@ -933,10 +937,33 @@ protected override async Task OnInitializedAsync()
             _translationGroupRevision);
 
     private bool CanGenerateAiTranslation =>
-        HasExactLocalizationTokens
-        && _sourceVariant is { StorageVersion: > 0 }
-        && _sourceVariant.Id != Id
-        && !IsEditorDirty;
+        ContentLocalizationManagerUi.CanRequestAiTranslation(
+            _aiAvailabilityResolved,
+            _aiTranslationAvailable,
+            HasExactLocalizationTokens,
+            _sourceVariant is { StorageVersion: > 0 },
+            _sourceVariant?.Id != Id,
+            IsEditorDirty);
+
+    private async Task LoadAiAvailabilityAsync()
+    {
+        try
+        {
+            var settingsResult = await AiClient.GetSettingsAsync();
+            var providersResult = await AiClient.GetProviderOptionsAsync();
+            _aiTranslationAvailable =
+                settingsResult is Result<AiSettingsConfiguration, AeroError>.Ok { Value.Enabled: true }
+                && providersResult is Result<IReadOnlyList<AiProviderOption>, AeroError>.Ok { Value.Count: > 0 };
+        }
+        catch
+        {
+            _aiTranslationAvailable = false;
+        }
+        finally
+        {
+            _aiAvailabilityResolved = true;
+        }
+    }
 
     private async Task GenerateAiTranslationAsync()
     {
@@ -1234,7 +1261,12 @@ protected override async Task OnInitializedAsync()
             }
             else if (IsContentEntryReference(field))
             {
-                dict[field.Name] = JsonSerializer.SerializeToElement(_contentEntryReferenceValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.ContentEntryKey);
+                if (ContentEntryReferenceEditorValue.TrySerialize(
+                        _contentEntryReferenceValues.GetValueOrDefault(field.Name),
+                        out var entryReference))
+                {
+                    dict[field.Name] = entryReference;
+                }
             }
             else
             {

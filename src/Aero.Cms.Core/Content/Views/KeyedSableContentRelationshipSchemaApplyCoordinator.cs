@@ -68,6 +68,12 @@ public sealed class KeyedSableContentRelationshipSchemaApplyCoordinator(
             ContentRelationshipKind.GraphEdge => text.Contains($"DEFINE TABLE {relationship.EdgeTable ?? relationship.Alias} TYPE RELATION", StringComparison.OrdinalIgnoreCase),
             ContentRelationshipKind.RecordLink or ContentRelationshipKind.SelfHierarchy => !string.IsNullOrWhiteSpace(relationship.SourceField)
                 && text.Contains($"DEFINE FIELD {relationship.SourceField} ON TABLE {relationship.SourceTable}", StringComparison.OrdinalIgnoreCase),
+            ContentRelationshipKind.AssociationRecord => !string.IsNullOrWhiteSpace(relationship.EdgeTable)
+                && !string.IsNullOrWhiteSpace(relationship.SourceField)
+                && !string.IsNullOrWhiteSpace(relationship.TargetField)
+                && text.Contains($"DEFINE TABLE {relationship.EdgeTable} SCHEMAFULL", StringComparison.OrdinalIgnoreCase)
+                && text.Contains($"DEFINE FIELD {relationship.SourceField} ON TABLE {relationship.EdgeTable}", StringComparison.OrdinalIgnoreCase)
+                && text.Contains($"DEFINE FIELD {relationship.TargetField} ON TABLE {relationship.EdgeTable}", StringComparison.OrdinalIgnoreCase),
             // Field joins do not claim ownership of a physical schema relation.
             _ => false
         };

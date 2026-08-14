@@ -40,6 +40,7 @@
                             <option value="@kind">@FormatKind(kind)</option>
                         }
                     </select>
+                    <small>@KindGuidance(_kind)</small>
                 </label>
                 <label>
                     <span>Cardinality</span>
@@ -78,21 +79,21 @@
                     <span>Target table</span>
                     <input @bind="_targetTable" disabled="@IsMutating" required />
                 </label>
-                @if (_kind is ContentRelationshipKind.FieldJoin or ContentRelationshipKind.RecordLink or ContentRelationshipKind.SelfHierarchy)
+                @if (_kind is ContentRelationshipKind.FieldJoin or ContentRelationshipKind.RecordLink or ContentRelationshipKind.SelfHierarchy or ContentRelationshipKind.AssociationRecord)
                 {
                     <label>
                         <span>Source field</span>
                         <input @bind="_sourceField" disabled="@IsMutating" required />
                     </label>
                 }
-                @if (_kind == ContentRelationshipKind.FieldJoin)
+                @if (_kind is ContentRelationshipKind.FieldJoin or ContentRelationshipKind.AssociationRecord)
                 {
                     <label>
                         <span>Target field</span>
                         <input @bind="_targetField" disabled="@IsMutating" required />
                     </label>
                 }
-                @if (_kind == ContentRelationshipKind.GraphEdge)
+                @if (_kind is ContentRelationshipKind.GraphEdge or ContentRelationshipKind.AssociationRecord)
                 {
                     <label>
                         <span>Edge table (optional)</span>
@@ -103,11 +104,11 @@
             </div>
 
             <div class="surreal-relationships__warning" role="status">
-                Saving computes a deterministic schema fingerprint and opens a DDL preview. Applying that preview is disabled unless this host explicitly configures a privileged schema identity.
+                Saving records a relationship draft and its proposed fingerprint; physical schema preview and application remain unavailable. A graph edge is the recommended additive default. Record links and association records change physical table schema and require a separately reviewed, privileged workflow; this editor never rewrites relationship data.
             </div>
             <div class="surreal-relationships__actions">
                 <button type="button" class="pe-btn pe-btn-ghost" disabled="@IsMutating" @onclick="() => _isEditing = false">Cancel</button>
-                <button type="button" class="pe-btn pe-btn-primary" disabled="@(!CanSubmitDraft)" @onclick="SubmitDraftAsync">Save and preview draft</button>
+                <button type="button" class="pe-btn pe-btn-primary" disabled="@(!CanSubmitDraft)" @onclick="SubmitDraftAsync">Save relationship draft</button>
             </div>
         </section>
     }
@@ -169,9 +170,19 @@
                         </div>
                     }
 
-                    @if (relationship.CanPreviewDdl || relationship.CanApplyDdl)
+                    @if (relationship.CanAdopt || relationship.CanPreviewDdl || relationship.CanApplyDdl)
                     {
                         <div class="surreal-relationships__actions">
+                            @if (relationship.CanAdopt)
+                            {
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary"
+                                        disabled="@IsMutating"
+                                        title="Adopt this reviewed fingerprint as locked CMS relationship metadata"
+                                        @onclick="() => AdoptRequested.InvokeAsync(relationship)">
+                                    Adopt for Views
+                                </button>
+                            }
                             @if (relationship.OwnershipState == ContentRelationshipOwnershipState.CmsDraft)
                             {
                                 <button type="button"

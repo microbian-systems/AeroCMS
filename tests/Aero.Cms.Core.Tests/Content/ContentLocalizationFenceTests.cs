@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -13,6 +14,97 @@ namespace Aero.Cms.Core.Tests.Content;
 
 public sealed class ContentLocalizationFenceTests
 {
+    [Test]
+    public async Task First_group_projection_commits_in_the_content_unit_of_work()
+    {
+        var contributor = new ProjectionContributor(fail: false);
+        await using var fixture = await CreateFixtureAsync(sourceTranslationGroupId: null, contributor: contributor);
+
+        var result = await fixture.Handler.ForkAsync(
+            fixture.Context,
+            new ContentCultureForkCommand(
+                fixture.SourceId,
+                "fr-FR",
+                "loup",
+                ExpectedGroupStorageVersion: null,
+                ExpectedSourceStorageVersion: 0));
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await using var verify = await fixture.Harness.Store.QuerySessionAsync();
+        var marker = await verify.LoadAsync<ProjectionMarker>(fixture.SourceId);
+        await Assert.That(marker).IsNotNull();
+        await Assert.That(marker!.SiteId).IsEqualTo(fixture.Context.SiteId);
+        await Assert.That(marker.ContentTypeAlias).IsEqualTo("animal");
+        await Assert.That(marker.Change).IsEqualTo(ContentTranslationGroupProjectionChange.Upsert);
+        await Assert.That(await verify.LoadAsync<ContentTranslationGroupDocument>(fixture.SourceId)).IsNotNull();
+    }
+
+    [Test]
+    public async Task Failed_first_group_projection_rolls_back_the_content_unit_of_work()
+    {
+        var contributor = new ProjectionContributor(fail: true);
+        await using var fixture = await CreateFixtureAsync(sourceTranslationGroupId: null, contributor: contributor);
+
+        var result = await fixture.Handler.ForkAsync(
+            fixture.Context,
+            new ContentCultureForkCommand(
+                fixture.SourceId,
+                "fr-FR",
+                "loup",
+                ExpectedGroupStorageVersion: null,
+                ExpectedSourceStorageVersion: 0));
+
+        await Assert.That(result.IsFailure).IsTrue();
+        await using var verify = await fixture.Harness.Store.QuerySessionAsync();
+        await Assert.That(await verify.LoadAsync<ProjectionMarker>(fixture.SourceId)).IsNull();
+        await Assert.That(await verify.LoadAsync<ContentTranslationGroupDocument>(fixture.SourceId)).IsNull();
+        await Assert.That(await verify.Query<ContentItem>()
+                .Where(item => item.SiteId == fixture.Context.SiteId && item.Culture == "fr-FR")
+                .AnyAsync())
+            .IsFalse();
+    }
+
+    [Test]
+    public async Task Shared_field_update_stages_the_host_projection_before_the_group_commit()
+    {
+        var contributor = new ProjectionContributor(fail: false);
+        await using var fixture = await CreateFixtureAsync(sourceTranslationGroupId: 100, contributor: contributor);
+
+        var result = await fixture.Handler.UpdateSharedFieldsAsync(
+            fixture.Context,
+            new UpdateContentTranslationSharedFieldsCommand(
+                100,
+                ExpectedGroupStorageVersion: 0,
+                ExpectedGroupRevision: 0,
+                new Dictionary<string, JsonElement>()));
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await using var verify = await fixture.Harness.Store.QuerySessionAsync();
+        var marker = await verify.LoadAsync<ProjectionMarker>(100);
+        var group = await verify.LoadAsync<ContentTranslationGroupDocument>(100);
+        await Assert.That(marker).IsNotNull();
+        await Assert.That(marker!.Change).IsEqualTo(ContentTranslationGroupProjectionChange.Upsert);
+        await Assert.That(group).IsNotNull();
+        await Assert.That(group!.Revision).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Source_delete_stages_the_host_projection_with_the_group_delete()
+    {
+        var contributor = new ProjectionContributor(fail: false);
+        await using var fixture = await CreateFixtureAsync(sourceTranslationGroupId: 100, contributor: contributor);
+
+        var result = await fixture.Writable.DeleteAsync(fixture.Context.SiteId, fixture.SourceId);
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await using var verify = await fixture.Harness.Store.QuerySessionAsync();
+        var marker = await verify.LoadAsync<ProjectionMarker>(100);
+        await Assert.That(marker).IsNotNull();
+        await Assert.That(marker!.Change).IsEqualTo(ContentTranslationGroupProjectionChange.Delete);
+        await Assert.That(await verify.LoadAsync<ContentTranslationGroupDocument>(100)).IsNull();
+        await Assert.That(await verify.LoadAsync<ContentItem>(fixture.SourceId)).IsNull();
+    }
+
     [Test]
     public async Task First_fork_uses_source_fence_and_insert_only_group_when_no_group_exists()
     {
@@ -211,12 +303,14 @@ public sealed class ContentLocalizationFenceTests
         int sourceVersionNumber = 0,
         int targetVersionNumber = 0,
         ContentTranslationReview? targetReview = null,
-        ContentTranslationProvenance? targetProvenance = null)
+        ContentTranslationProvenance? targetProvenance = null,
+        IContentTranslationGroupProjectionContributor? contributor = null)
     {
         var harness = new SableTestHarness()
             .WithSchema<ContentItem>(SchemaMode.Flexible)
             .WithSchema<ContentTypeDocument>(SchemaMode.Flexible)
             .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible)
+            .WithSchema<ProjectionMarker>(SchemaMode.Flexible)
             .WithConfiguration(options =>
             {
                 if (listener is not null)
@@ -286,7 +380,12 @@ public sealed class ContentLocalizationFenceTests
                     Name = "Animal",
                     Structure = ContentStructure.Flat
                 })));
-        var writable = new AeroContentService(harness.Session);
+        var contributors = contributor is null
+            ? Array.Empty<IContentTranslationGroupProjectionContributor>()
+            : [contributor];
+        var writable = new AeroContentService(
+            harness.Session,
+            translationGroupProjectionContributors: contributors);
         var validation = new ContentValidationService(
             typeService,
             new ContentHierarchyValidator(harness.Session, typeService),
@@ -294,7 +393,14 @@ public sealed class ContentLocalizationFenceTests
             []);
         return new Fixture(
             harness,
-            new ContentLocalizationHandler(harness.Session, writable, writable, typeService, validation),
+            new ContentLocalizationHandler(
+                harness.Session,
+                writable,
+                writable,
+                typeService,
+                validation,
+                contributors),
+            writable,
             new ContentLocalizationContext(1, "en-US", ["en-US", "fr-FR"], ContentCultureFallbackPolicy.ExactOnly),
             sourceId,
             targetId);
@@ -303,6 +409,7 @@ public sealed class ContentLocalizationFenceTests
     private sealed record Fixture(
         SableTestHarness Harness,
         ContentLocalizationHandler Handler,
+        AeroContentService Writable,
         ContentLocalizationContext Context,
         long SourceId,
         long TargetId) : IAsyncDisposable
@@ -318,5 +425,33 @@ public sealed class ContentLocalizationFenceTests
 
         public Task BeforeCommitAsync(IDocumentSession session, CancellationToken ct) =>
             Exception is null ? Task.CompletedTask : Task.FromException(Exception);
+    }
+
+    private sealed class ProjectionMarker : SableDocument
+    {
+        public long SiteId { get; set; }
+        public string ContentTypeAlias { get; set; } = string.Empty;
+        public ContentTranslationGroupProjectionChange Change { get; set; }
+    }
+
+    private sealed class ProjectionContributor(bool fail) : IContentTranslationGroupProjectionContributor
+    {
+        public Task<Result<NoneType, AeroError>> StageAsync(
+            IDocumentSession session,
+            ContentTranslationGroupProjectionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            session.Store(new ProjectionMarker
+            {
+                Id = context.TranslationGroupId,
+                SiteId = context.SiteId,
+                ContentTypeAlias = context.ContentTypeAlias,
+                Change = context.Change
+            });
+
+            return Task.FromResult(fail
+                ? Prelude.Fail<NoneType, AeroError>(AeroError.ValidationError(["Projection rejected the change."]))
+                : Prelude.Ok<NoneType, AeroError>(default));
+        }
     }
 }

@@ -415,7 +415,12 @@ public static class ContentItemsApi
             var groupId = source.data.TranslationGroupId ?? source.data.Id;
             var variants = await queryService.ListCultureVariantsAsync(siteId, alias, groupId, ct);
             return variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok ok
-                ? TypedResults.Ok(ok.Value.Select(MapToDetail).ToList())
+                ? TypedResults.Ok(ok.Value
+                    .Select(item => MapToDetail(
+                        item,
+                        source.data.TranslationGroupRevision,
+                        source.data.TranslationGroupStorageVersion))
+                    .ToList())
                 : TypedResults.Ok(new[] { MapToDetail(source.data) }.ToList());
         }
         catch (Exception ex)
@@ -634,7 +639,10 @@ public static class ContentItemsApi
     /// <summary>
     /// Projects a persisted content item into the detailed HTTP contract.
     /// </summary>
-    private static ContentItemDetail MapToDetail(ContentItem item)
+    private static ContentItemDetail MapToDetail(
+        ContentItem item,
+        int? translationGroupRevision,
+        long? translationGroupStorageVersion)
         => new(
             item.Id,
             item.Title ?? string.Empty,
@@ -652,7 +660,10 @@ public static class ContentItemsApi
             item.ParentId,
             item.SortOrder,
             item.TranslationProvenance,
-            item.TranslationReview);
+            item.TranslationReview,
+            translationGroupRevision,
+            item.Version,
+            translationGroupStorageVersion);
 
     /// <summary>
     /// Trims culture input without validating or canonicalizing it.

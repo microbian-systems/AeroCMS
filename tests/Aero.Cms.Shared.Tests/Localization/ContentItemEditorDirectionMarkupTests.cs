@@ -37,6 +37,16 @@ public sealed class ContentItemEditorDirectionMarkupTests
             "            forceLoad: true);");
     }
 
+    [Test]
+    public void Shared_field_notice_points_editors_to_the_available_concurrency_checked_command()
+    {
+        var sourcePath = FindEditorSource();
+        var source = File.ReadAllText(sourcePath);
+
+        source.ShouldContain("Edit it in Translations, under Shared fields, then choose Save shared fields.");
+        source.ShouldNotContain("Editing remains unavailable until the manager has an explicit concurrency-checked shared-value command");
+    }
+
     private static string FindEditorSource(string fileName = "ContentItemEditor.razor")
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

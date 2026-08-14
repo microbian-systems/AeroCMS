@@ -134,6 +134,48 @@ public sealed class ContentItemsApiScopeTests
     }
 
     [Test]
+    public async Task Translations_return_variant_and_group_concurrency_tokens()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var source = SuccessfulItem(ItemId);
+        source.data.TranslationGroupRevision = 5;
+        source.data.TranslationGroupStorageVersion = 23;
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(source);
+
+        var query = Substitute.For<IContentQueryService>();
+        query.ListCultureVariantsAsync(
+                SiteId,
+                "article",
+                ItemId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IReadOnlyList<ContentItem>, AeroError>>(
+                new Result<IReadOnlyList<ContentItem>, AeroError>.Ok([
+                    new ContentItem
+                    {
+                        Id = ItemId,
+                        SiteId = SiteId,
+                        ContentTypeAlias = "article",
+                        Title = "Title",
+                        Slug = "entry",
+                        Culture = "en-US",
+                        TranslationGroupId = ItemId,
+                        Version = 17
+                    }
+                ])));
+        await using var app = await CreateAppAsync(actor, query);
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("translations"));
+        var details = await response.Content.ReadFromJsonAsync<List<ContentItemDetail>>();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(details).IsNotNull();
+        await Assert.That(details!).HasSingleItem();
+        await Assert.That(details[0].StorageVersion).IsEqualTo(17);
+        await Assert.That(details[0].TranslationGroupRevision).IsEqualTo(5);
+        await Assert.That(details[0].TranslationGroupStorageVersion).IsEqualTo(23);
+    }
+
+    [Test]
     public async Task Update_preserves_the_persisted_translation_culture()
     {
         var actor = Substitute.For<IAeroContentItemActor>();

@@ -149,6 +149,29 @@ public sealed class ContentSurrealViewServiceVirtualEntryTests
     }
 
     [Test]
+    public async Task Provider_lists_the_published_view_when_no_search_filter_is_supplied()
+    {
+        var scope = new ContentViewScope(1, 2);
+        var view = new ContentSurrealViewRevision(1, scope, "catalog", "catalog", "shape",
+            "SELECT * FROM catalog WHERE tenant_id = $tenantId AND site_id = $siteId LIMIT 50", "id", null, 1,
+            ContentViewPublicationState.Published, DateTimeOffset.UtcNow,
+            EntrySelectStatement: "SELECT * FROM catalog WHERE tenant_id = $tenantId AND site_id = $siteId AND id = $entryId LIMIT 1",
+            SearchSelectStatement: "SELECT * FROM catalog WHERE tenant_id = $tenantId AND site_id = $siteId AND id CONTAINS $search LIMIT 50");
+        var executor = new RecordingExecutor();
+        var service = new ContentSurrealViewService(new PublishedStore(view), new EmptyInvalidator(), executor,
+            new SurrealSelectStatementClassifier(), new ReservedContentViewScopeBinder(), new CatalogShapes(), new CatalogSources(),
+            new EmptyCache(), new EmptyGeneration());
+        var provider = new ContentSurrealViewEntryProvider(view, service);
+
+        var result = await provider.SearchAsync(scope, "en-US", null, 20);
+
+        result.ShouldHaveSingleItem().Key.StableId.ShouldBe("entry-1");
+        executor.LastRequest.ShouldNotBeNull();
+        executor.LastRequest.View.SelectStatement.ShouldBe(view.SelectStatement);
+        executor.LastRequest.Parameters.ShouldNotContainKey("$search");
+    }
+
+    [Test]
     public async Task Exact_entry_rejects_a_row_whose_identity_does_not_match_the_requested_key()
     {
         var scope = new ContentViewScope(1, 2);
@@ -287,6 +310,15 @@ public sealed class ContentSurrealViewServiceVirtualEntryTests
     {
         public Task<ContentSurrealViewRevision?> LoadAsync(ContentViewScope scope, string alias, ContentViewPublicationState state, CancellationToken ct = default) => Task.FromResult<ContentSurrealViewRevision?>(null);
         public Task<IReadOnlyList<ContentSurrealViewRevision>> ListPublishedAsync(ContentViewScope scope, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ContentSurrealViewRevision>>([]);
+        public Task<ContentSurrealViewRevision> SaveDraftAsync(ContentSurrealViewRevision draft, CancellationToken ct = default) => Task.FromResult(draft);
+        public Task<ContentSurrealViewRevision?> PublishAsync(ContentViewScope scope, string alias, long draftVersion, CancellationToken ct = default) => Task.FromResult<ContentSurrealViewRevision?>(null);
+    }
+    private sealed class PublishedStore(ContentSurrealViewRevision view) : IContentSurrealViewStore
+    {
+        public Task<ContentSurrealViewRevision?> LoadAsync(ContentViewScope scope, string alias, ContentViewPublicationState state, CancellationToken ct = default)
+            => Task.FromResult<ContentSurrealViewRevision?>(scope == view.Scope && alias == view.Alias && state == ContentViewPublicationState.Published ? view : null);
+        public Task<IReadOnlyList<ContentSurrealViewRevision>> ListPublishedAsync(ContentViewScope scope, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ContentSurrealViewRevision>>(scope == view.Scope ? [view] : []);
         public Task<ContentSurrealViewRevision> SaveDraftAsync(ContentSurrealViewRevision draft, CancellationToken ct = default) => Task.FromResult(draft);
         public Task<ContentSurrealViewRevision?> PublishAsync(ContentViewScope scope, string alias, long draftVersion, CancellationToken ct = default) => Task.FromResult<ContentSurrealViewRevision?>(null);
     }

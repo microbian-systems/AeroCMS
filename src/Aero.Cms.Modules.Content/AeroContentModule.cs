@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Views;
@@ -18,6 +19,7 @@ using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Modules.Content.Routing;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -188,6 +190,30 @@ public void Configure(StoreOptions opts)
             .Identity(x => x.Id)
             .Index(x => x.SiteId);
         opts.Schema.For<ContentTranslationGroupDocument>().UseOptimisticConcurrency = true;
+
+        // Content reference fields remain canonical JSON on the translation group.
+        // This graph table is a same-transaction traversal projection between
+        // culture-invariant group identities.
+        opts.Schema.Edge<ContentReferenceRelation, ContentTranslationGroups, ContentTranslationGroups>(mapping =>
+        {
+            // AeroDB's edge mapper currently creates the relation table and
+            // indexes but does not emit definitions for edge payload fields.
+            // Keep this one CMS-owned table SCHEMALESS so the scoped descriptor
+            // metadata written by the materializer is retained.
+            mapping.SetSchemaMode(SchemaMode.Flexible);
+            mapping.Index(edge => edge.TenantId);
+            mapping.Index(edge => edge.SiteId);
+            mapping.Index(edge => edge.RelationshipAlias);
+            mapping.Index(edge => edge.SourceTranslationGroupId);
+            mapping.Index(edge => edge.TargetTranslationGroupId);
+        });
+
+        opts.Schema.For<ContentRelationshipTargetBarrier>()
+            .TableName("content_relationship_target_barriers")
+            .Identity(barrier => barrier.Id)
+            .Index(barrier => barrier.SiteId)
+            .UniqueIndex(barrier => barrier.TranslationGroupId);
+        opts.Schema.For<ContentRelationshipTargetBarrier>().UseOptimisticConcurrency = true;
 
         opts.Schema.For<ContentTranslationProjectionWorkDocument>()
             .TableName("content_translation_projection_work")

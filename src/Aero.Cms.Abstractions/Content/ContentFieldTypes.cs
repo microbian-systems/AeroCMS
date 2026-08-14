@@ -52,6 +52,12 @@ public static class ReferenceContentFieldSettings
     public const string DependsOnField = "dependsOnField";
     public const string TargetFilterField = "targetFilterField";
     /// <summary>
+    /// Optional stable alias for a server-owned native relationship projection.
+    /// The reference value remains canonical; the relationship is a derived,
+    /// same-transaction traversal projection.
+    /// </summary>
+    public const string RelationshipAlias = "relationshipAlias";
+    /// <summary>
     /// Ordered field names to display when previewing a query-backed content entry.
     /// </summary>
     public const string PreviewFields = "previewFields";

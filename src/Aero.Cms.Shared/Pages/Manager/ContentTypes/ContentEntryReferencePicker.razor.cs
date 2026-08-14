@@ -25,7 +25,7 @@ public partial class ContentEntryReferencePicker : IAsyncDisposable
     private readonly List<CmsContentReferenceSource> _providers = [];
     private readonly List<EntryOption> _options = [];
     private CancellationTokenSource? _loadCancellation;
-    private CancellationTokenSource? _searchCancellation;
+    private readonly ContentEntrySearchRequestGuard _searchRequestGuard = new();
     private CancellationTokenSource? _previewCancellation;
     private bool _providersLoaded;
     private bool _loadingProviders;
@@ -88,18 +88,27 @@ public partial class ContentEntryReferencePicker : IAsyncDisposable
 
     private async Task OnSearchTextChangedAsync(string value)
     {
-        _searchText = value; _searchCancellation?.Cancel(); _searchCancellation?.Dispose(); _searchCancellation = new CancellationTokenSource();
-        try { await Task.Delay(250, _searchCancellation.Token); await LoadOptionsAsync(value); }
-        catch (OperationCanceledException) when (_searchCancellation.IsCancellationRequested) { }
+        _searchText = value;
+        var request = _searchRequestGuard.Begin();
+        var token = request.Token;
+        try
+        {
+            await Task.Delay(250, token);
+            if (_searchRequestGuard.IsCurrent(request)) await LoadOptionsAsync(value);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { _searchRequestGuard.Complete(request); }
     }
 
     private async Task LoadOptionsAsync(string? search = null)
     {
         _loadCancellation?.Cancel(); _loadCancellation?.Dispose(); _loadCancellation = new CancellationTokenSource();
+        var cancellation = _loadCancellation;
         _loadingOptions = true; _error = null; _options.Clear();
         try
         {
-            var result = await ContentItemsApi.GetContentEntryReferenceOptionsAsync(_selectedProvider, Culture, search, 100, _loadCancellation.Token);
+            var result = await ContentItemsApi.GetContentEntryReferenceOptionsAsync(_selectedProvider, Culture, search, 100, cancellation.Token);
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_loadCancellation, cancellation)) return;
             if (result is Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>.Ok ok)
             {
                 _options.AddRange(ok.Value.Where(option => string.Equals(option.Provider, _selectedProvider, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(option.StableId)).Select(option => new EntryOption(option.StableId, option.Title, option.Detail)));
@@ -107,8 +116,11 @@ public partial class ContentEntryReferencePicker : IAsyncDisposable
             }
             else if (result is Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>.Failure failure) _error = failure.Error.ToString();
         }
-        catch (OperationCanceledException) when (_loadCancellation.IsCancellationRequested) { }
-        finally { _loadingOptions = false; }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        finally
+        {
+            if (ReferenceEquals(_loadCancellation, cancellation)) _loadingOptions = false;
+        }
     }
 
     private async Task OnOptionChangedAsync(string? stableId)
@@ -214,8 +226,7 @@ public partial class ContentEntryReferencePicker : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
+        _searchRequestGuard.Dispose();
         _loadCancellation?.Cancel();
         _loadCancellation?.Dispose();
         ClearPreview();
@@ -461,6 +472,59 @@ public static class ContentEntryReferencePreviewUi
             }
             IsTruncated = true;
         }
+    }
+}
+
+/// <summary>Serializes only complete provider-qualified editor selections.</summary>
+public static class ContentEntryReferenceEditorValue
+{
+    public static bool TrySerialize(ContentEntryKey? value, out JsonElement element)
+    {
+        if (value is not { IsValid: true } selected)
+        {
+            element = default;
+            return false;
+        }
+
+        element = JsonSerializer.SerializeToElement(
+            selected,
+            Aero.Cms.Abstractions.Content.Serialization.ContentJsonContext.Default.ContentEntryKey);
+        return true;
+    }
+}
+
+/// <summary>Owns one debounced search request and cancels stale requests without consulting mutable component state.</summary>
+public sealed class ContentEntrySearchRequestGuard : IDisposable
+{
+    private CancellationTokenSource? _current;
+
+    public CancellationTokenSource Begin()
+    {
+        var next = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _current, next);
+        if (previous is not null)
+        {
+            previous.Cancel();
+            previous.Dispose();
+        }
+        return next;
+    }
+
+    public bool IsCurrent(CancellationTokenSource request)
+        => ReferenceEquals(Volatile.Read(ref _current), request);
+
+    public void Complete(CancellationTokenSource request)
+    {
+        if (ReferenceEquals(Interlocked.CompareExchange(ref _current, null, request), request))
+            request.Dispose();
+    }
+
+    public void Dispose()
+    {
+        var current = Interlocked.Exchange(ref _current, null);
+        if (current is null) return;
+        current.Cancel();
+        current.Dispose();
     }
 }
 

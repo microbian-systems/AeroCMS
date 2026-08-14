@@ -43,7 +43,8 @@ public sealed class ContentRelationshipDdlLifecycle(
             throw new InvalidOperationException("Schema DDL is disabled until a privileged executor and atomic apply coordinator are configured.");
         if (preview.Relationship.Kind is ContentRelationshipKind.GraphEdge
             or ContentRelationshipKind.RecordLink
-            or ContentRelationshipKind.SelfHierarchy)
+            or ContentRelationshipKind.SelfHierarchy
+            or ContentRelationshipKind.AssociationRecord)
         {
             // This is intentionally not host-configurable. A coordinator/executor can provide
             // credentials, but cannot substitute for a verified atomic global-claim, endpoint
@@ -80,6 +81,13 @@ public sealed class ContentRelationshipDdlLifecycle(
                 $"DEFINE TABLE {edge} TYPE RELATION IN {source} OUT {target} SCHEMAFULL;",
                 $"DEFINE FIELD tenant_id ON TABLE {edge} TYPE int ASSERT $value != NONE;",
                 $"DEFINE FIELD site_id ON TABLE {edge} TYPE int ASSERT $value != NONE;"],
+            ContentRelationshipKind.AssociationRecord when sourceField is not null && targetField is not null => [
+                $"DEFINE TABLE {edge} SCHEMAFULL;",
+                $"DEFINE FIELD {sourceField} ON TABLE {edge} TYPE record<{source}>;",
+                $"DEFINE FIELD {targetField} ON TABLE {edge} TYPE record<{target}>;",
+                $"DEFINE FIELD tenant_id ON TABLE {edge} TYPE int ASSERT $value != NONE;",
+                $"DEFINE FIELD site_id ON TABLE {edge} TYPE int ASSERT $value != NONE;"],
+            ContentRelationshipKind.AssociationRecord => throw new InvalidOperationException("An association record requires source and target record-link fields."),
             ContentRelationshipKind.SelfHierarchy when source == target && sourceField is not null => [$"DEFINE FIELD {sourceField} ON TABLE {source} TYPE option<record<{source}>>;"],
             ContentRelationshipKind.SelfHierarchy => throw new InvalidOperationException("A self hierarchy must reference the same source and target shape."),
             _ => throw new InvalidOperationException("Unsupported relationship kind.")
@@ -101,7 +109,7 @@ public sealed class ContentRelationshipDdlLifecycle(
             || !target.RequiresTenantAndSiteFields)
             throw new InvalidOperationException("Physical schema application requires registered source and target tables with tenant/site invariants.");
 
-        if (relationship.Kind == ContentRelationshipKind.GraphEdge
+        if ((relationship.Kind is ContentRelationshipKind.GraphEdge or ContentRelationshipKind.AssociationRecord)
             && (string.IsNullOrWhiteSpace(relationship.EdgeTable)
                 || !targets.TryGetTable(relationship.EdgeTable, out var edge)
                 || !edge.RequiresTenantAndSiteFields))

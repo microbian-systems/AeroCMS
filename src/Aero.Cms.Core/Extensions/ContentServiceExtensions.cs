@@ -56,6 +56,14 @@ public static class ContentServiceExtensions
         services.AddScoped<IContentSchemaMetadataReader, SableContentSchemaMetadataReader>();
         services.AddScoped<IContentRelationshipSchemaDiscovery, SableContentRelationshipSchemaDiscovery>();
         services.AddScoped<IRelationshipDdlLifecycle, ContentRelationshipDdlLifecycle>();
+        services.TryAddScoped<ContentRelationshipTargetBarrierCoordinator>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IContentReferenceRelationshipMaterializer,
+            ContentTypeReferenceRelationshipMaterializer>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IContentTranslationGroupProjectionContributor,
+            ContentReferenceRelationshipProjectionContributor>());
+        services.TryAddScoped<IContentDeclaredRelationshipCatalog, ContentReferenceRelationshipCatalog>();
         services.TryAddSingleton<IContentViewScopeBinder, ReservedContentViewScopeBinder>();
         services.TryAddSingleton<IContentShapeRegistry, ContentShapeRegistry>();
         services.TryAddSingleton<IContentViewSourceRegistry, ContentViewSourceRegistry>();

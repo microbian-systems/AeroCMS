@@ -85,6 +85,10 @@ public partial class ContentFieldSettingsEditor
             ReferenceContentFieldSettings.SelectionModeHierarchy,
             StringComparison.Ordinal);
 
+    private bool NativeRelationshipEnabled =>
+        !string.IsNullOrWhiteSpace(
+            GetStringSetting(ReferenceContentFieldSettings.RelationshipAlias));
+
     private bool IsCompositeField =>
         Field.FieldType is ContentFieldTypes.List or ContentFieldTypes.Gallery or ContentFieldTypes.Dictionary;
 
@@ -334,6 +338,45 @@ public partial class ContentFieldSettingsEditor
             args.Value?.ToString());
         Field.Settings.Remove(ReferenceContentFieldSettings.TargetFilterField);
         await NotifyChangedAsync();
+    }
+
+    private async Task SetNativeRelationshipEnabledAsync(bool enabled)
+    {
+        if (!enabled)
+        {
+            Field.Settings.Remove(ReferenceContentFieldSettings.RelationshipAlias);
+        }
+        else if (Field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+        {
+            var owner = string.IsNullOrWhiteSpace(CurrentContentTypeAlias)
+                ? "content"
+                : CurrentContentTypeAlias;
+            SetSetting(
+                ReferenceContentFieldSettings.RelationshipAlias,
+                ToRelationshipAlias($"{owner}_{Field.Name}"));
+        }
+
+        await NotifyChangedAsync();
+    }
+
+    private async Task SetRelationshipAliasAsync(ChangeEventArgs args)
+    {
+        SetSetting(
+            ReferenceContentFieldSettings.RelationshipAlias,
+            ToRelationshipAlias(args.Value?.ToString()));
+        await NotifyChangedAsync();
+    }
+
+    private static string? ToRelationshipAlias(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var characters = value.Trim()
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character == '_' ? character : '_')
+            .ToArray();
+        var normalized = new string(characters);
+        if (normalized.Length == 0) return null;
+        if (!char.IsAsciiLetter(normalized[0])) normalized = $"r_{normalized}";
+        return normalized.Length <= 63 ? normalized : normalized[..63];
     }
 
     private async Task SetSettingAsync<T>(string key, T value)

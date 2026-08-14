@@ -170,7 +170,7 @@
                             @if (IsSharedField(field))
                             {
                                 <p id="@SharedFieldDescriptionId(field)" class="ci-localization-warning text-sm" role="status">
-                                    @L["This value belongs to the translation group and is shared by every culture. Editing remains unavailable until the manager has an explicit concurrency-checked shared-value command, so this draft will not overwrite it."]
+                                    @L["This value is shared by every culture. Edit it in Translations, under Shared fields, then choose Save shared fields. This draft form does not overwrite it."]
                                 </p>
                             }
 
@@ -645,7 +645,14 @@
                         </div>
                         @if (!CanGenerateAiTranslation && _aiSuggestion is null)
                         {
-                            <p class="ci-localization-warning text-sm" role="status">@L["Save and reload an unchanged target draft with current source and group tokens before requesting AI suggestions."]</p>
+                            @if (_aiAvailabilityResolved && !_aiTranslationAvailable)
+                            {
+                                <p class="ci-localization-warning text-sm" role="status">@L["AI translation is unavailable until manager AI is enabled and a usable provider is configured."]</p>
+                            }
+                            else
+                            {
+                                <p class="ci-localization-warning text-sm" role="status">@L["Save and reload an unchanged target draft with current source and group tokens before requesting AI suggestions."]</p>
+                            }
                         }
                         @if (_aiSuggestion is not null)
                         {

@@ -39,7 +39,7 @@ public sealed class SurrealHttpBoundedQueryTransportTests
         observed.Headers.GetValues("surreal-ns").Single().ShouldBe("aero");
         observed.Headers.GetValues("surreal-db").Single().ShouldBe("content_test");
         observed.Headers.Authorization!.Scheme.ShouldBe("Basic");
-        observedBody.ShouldBe(RequestStatement);
+        observedBody.ShouldBe(TypedScopeStatement);
         observedBody.ShouldNotContain("sample entry");
     }
 
@@ -86,6 +86,80 @@ public sealed class SurrealHttpBoundedQueryTransportTests
     }
 
     [Test]
+    public async Task Explicit_anonymous_loopback_sends_no_authorization_header()
+    {
+        HttpRequestMessage? observed = null;
+        using var client = new HttpClient(new Handler(request =>
+        {
+            observed = request;
+            return Task.FromResult(Json(HttpStatusCode.OK,
+                "[{\"status\":\"OK\",\"result\":[{\"externalId\":\"species:one\"}]}]"));
+        }));
+        var options = new SableReadOnlyContentViewOptions
+        {
+            Endpoint = "ws://localhost:8000/rpc",
+            Namespace = "wnp",
+            Database = "wnp",
+            AllowAnonymousLoopback = true
+        };
+        using var transport = new SurrealHttpBoundedQueryTransport(options, client);
+
+        var result = await transport.ExecuteBoundedAsync(Request(new Dictionary<string, object?>()));
+
+        result.Rows.Count.ShouldBe(1);
+        observed.ShouldNotBeNull();
+        observed!.Headers.Authorization.ShouldBeNull();
+        observed.RequestUri!.Scheme.ShouldBe(Uri.UriSchemeHttp);
+        observed.RequestUri.IsLoopback.ShouldBeTrue();
+    }
+
+    [Test]
+    public void Anonymous_remote_endpoint_never_activates_the_transport()
+    {
+        var options = new SableReadOnlyContentViewOptions
+        {
+            Endpoint = "https://db.example.test/rpc",
+            Namespace = "wnp",
+            Database = "wnp",
+            AllowAnonymousLoopback = true
+        };
+        using var transport = new SurrealHttpBoundedQueryTransport(
+            options,
+            new HttpClient(new Handler(_ => throw new InvalidOperationException("No request expected."))));
+
+        ((IAdminReadOnlyContentViewExecutor)transport).IsReadOnlyGuaranteed.ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task Loopback_redirect_is_not_followed_and_fails_closed()
+    {
+        var sends = 0;
+        using var client = new HttpClient(new Handler(_ =>
+        {
+            sends++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TemporaryRedirect)
+            {
+                Headers = { Location = new Uri("https://remote.example.test/sql") }
+            });
+        }));
+        var options = new SableReadOnlyContentViewOptions
+        {
+            Endpoint = "http://localhost:8000/rpc",
+            Namespace = "wnp",
+            Database = "wnp",
+            AllowAnonymousLoopback = true
+        };
+        using var transport = new SurrealHttpBoundedQueryTransport(options, client);
+
+        await Should.ThrowAsync<InvalidOperationException>(() =>
+            transport.ExecuteBoundedAsync(Request(new Dictionary<string, object?>())));
+
+        sends.ShouldBe(1);
+        using var productionHandler = SurrealHttpBoundedQueryTransport.CreatePrimaryHandler();
+        productionHandler.AllowAutoRedirect.ShouldBeFalse();
+    }
+
+    [Test]
     public async Task Non_scalar_parameters_fail_closed_before_the_request_is_sent()
     {
         var sent = false;
@@ -101,7 +175,28 @@ public sealed class SurrealHttpBoundedQueryTransportTests
         sent.ShouldBeFalse();
     }
 
+    [Test]
+    [Arguments("tenantId")]
+    [Arguments("SITEID")]
+    [Arguments("$TenantId")]
+    public async Task Normalized_scope_parameter_collisions_fail_before_sending(string alias)
+    {
+        var sent = false;
+        using var client = new HttpClient(new Handler(_ =>
+        {
+            sent = true;
+            return Task.FromResult(Json(HttpStatusCode.OK, "[]"));
+        }));
+        using var transport = new SurrealHttpBoundedQueryTransport(Options("https://db.example.test/sql"), client);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => transport.ExecuteBoundedAsync(
+            Request(new Dictionary<string, object?> { [alias] = 999L })));
+
+        sent.ShouldBeFalse();
+    }
+
     private const string RequestStatement = "SELECT external_id, display_name FROM registered_catalog_read WHERE tenant_id = $tenantId AND site_id = $siteId LIMIT 10";
+    private const string TypedScopeStatement = "SELECT external_id, display_name FROM registered_catalog_read WHERE tenant_id = type::int($tenantId) AND site_id = type::int($siteId) LIMIT 10";
 
     private static SableReadOnlyContentViewOptions Options(string endpoint) => new()
     {
@@ -115,10 +210,15 @@ public sealed class SurrealHttpBoundedQueryTransportTests
     private static ContentViewExecutionRequest Request(IReadOnlyDictionary<string, object?> parameters)
     {
         var scope = new ContentViewScope(11, 22);
+        var bound = new Dictionary<string, object?>(parameters, StringComparer.Ordinal)
+        {
+            [ReservedContentViewScopeBinder.TenantParameter] = scope.TenantId,
+            [ReservedContentViewScopeBinder.SiteParameter] = scope.SiteId
+        };
         var view = new ContentSurrealViewRevision(1, scope, "catalog-entry", "catalog-entry", "fingerprint",
             RequestStatement, "externalId", "displayName", 1, ContentViewPublicationState.Published,
             DateTimeOffset.UtcNow);
-        return new ContentViewExecutionRequest(view, scope, 10, parameters,
+        return new ContentViewExecutionRequest(view, scope, 10, bound,
             new ContentViewExecutionLimits(10, 10, 16_384, 8),
             new ContentViewSourceDefinition("catalog-entry", "registered_catalog_read"));
     }

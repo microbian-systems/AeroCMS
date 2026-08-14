@@ -30,6 +30,7 @@ public sealed class ContentViewsApiAuthorizationTests
             // Relationship metadata exposes physical schema topology and is intentionally admin-only.
             ("GET", "/api/v1/admin/content-views/{alias}/relationships", "site:read", true),
             ("PUT", "/api/v1/admin/content-views/{alias}/relationships/{relationshipAlias}/draft", "site:update", true),
+            ("POST", "/api/v1/admin/content-views/{alias}/relationships/{relationshipAlias}/adopt", "site:update", true),
             ("POST", "/api/v1/admin/content-views/{alias}/relationships/{relationshipId:long}/ddl/preview", "site:update", true),
             ("POST", "/api/v1/admin/content-views/{alias}/relationships/{relationshipId:long}/ddl/apply", "site:update", true),
             ("GET", "/api/v1/admin/content-views/entries", "site:read", false),

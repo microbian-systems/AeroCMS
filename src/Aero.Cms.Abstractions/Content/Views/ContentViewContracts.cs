@@ -460,10 +460,14 @@ public sealed class ReservedContentViewScopeBinder : IContentViewScopeBinder
         return true;
     }
 
-    private static bool IsReserved(string parameter) => string.Equals(parameter, TenantParameter, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(parameter, SiteParameter, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(parameter, "$entryId", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(parameter, "$search", StringComparison.OrdinalIgnoreCase);
+    private static bool IsReserved(string parameter)
+    {
+        var normalized = parameter.StartsWith('$') ? parameter[1..] : parameter;
+        return string.Equals(normalized, TenantParameter[1..], StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, SiteParameter[1..], StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "entryId", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "search", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed record ContentViewExecutionResult(IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows, bool IsTruncated);
@@ -1007,9 +1011,17 @@ public sealed class SurrealSelectStatementClassifier :
     private sealed record Token(TokenKind Kind, string Value, int Start, int Length);
 }
 
-public enum ContentRelationshipOwnershipState { ExternalDiscovered, CmsDraft, Applied, Derived, Drifted }
+public enum ContentRelationshipOwnershipState
+{
+    ExternalDiscovered = 0,
+    CmsDraft = 1,
+    Applied = 2,
+    Derived = 3,
+    Drifted = 4,
+    Adopted = 5
+}
 public enum ContentRelationshipCardinality { OneToOne, OneToMany, ManyToOne, ManyToMany }
-public enum ContentRelationshipKind { FieldJoin, RecordLink, GraphEdge, SelfHierarchy }
+public enum ContentRelationshipKind { FieldJoin, RecordLink, GraphEdge, SelfHierarchy, AssociationRecord }
 
 /// <summary>Metadata for a relationship. Population is intentionally outside DDL lifecycle operations.</summary>
 public sealed record ContentRelationshipDefinition(
@@ -1028,8 +1040,12 @@ public sealed record ContentRelationshipDefinition(
     ContentRelationshipOwnershipState OwnershipState,
     string SchemaFingerprint)
 {
-    public bool IsReadOnly => OwnershipState is ContentRelationshipOwnershipState.ExternalDiscovered or ContentRelationshipOwnershipState.Derived;
-    public bool IsMutationBlocked => OwnershipState is ContentRelationshipOwnershipState.Applied or ContentRelationshipOwnershipState.Drifted;
+    public bool IsReadOnly => OwnershipState is ContentRelationshipOwnershipState.ExternalDiscovered
+        or ContentRelationshipOwnershipState.Adopted
+        or ContentRelationshipOwnershipState.Derived;
+    public bool IsMutationBlocked => OwnershipState is ContentRelationshipOwnershipState.Applied
+        or ContentRelationshipOwnershipState.Adopted
+        or ContentRelationshipOwnershipState.Drifted;
 }
 
 public sealed record RelationshipDdlPreview(ContentRelationshipDefinition Relationship, string ProposedSchemaFingerprint, IReadOnlyList<string> Statements);
@@ -1047,6 +1063,7 @@ public sealed record ContentPhysicalSchemaTarget(
 
 public interface IContentPhysicalSchemaTargetRegistry
 {
+    IReadOnlyList<ContentPhysicalSchemaTarget> All { get; }
     bool TryGet(string shapeAlias, string tableName, out ContentPhysicalSchemaTarget? target);
     bool TryGetTable(string tableName, out ContentPhysicalSchemaTarget? target);
 }
@@ -1054,6 +1071,7 @@ public interface IContentPhysicalSchemaTargetRegistry
 /// <summary>Fail-closed registry used until the consuming host explicitly registers targets.</summary>
 public sealed class EmptyContentPhysicalSchemaTargetRegistry : IContentPhysicalSchemaTargetRegistry
 {
+    public IReadOnlyList<ContentPhysicalSchemaTarget> All => [];
     public bool TryGet(string shapeAlias, string tableName, out ContentPhysicalSchemaTarget? target)
     {
         target = null;
@@ -1069,16 +1087,38 @@ public sealed class EmptyContentPhysicalSchemaTargetRegistry : IContentPhysicalS
 /// <summary>Host registrations for the finite set of physical tables CMS may administer.</summary>
 public sealed class ContentPhysicalSchemaTargetRegistry(IEnumerable<ContentPhysicalSchemaTarget> targets) : IContentPhysicalSchemaTargetRegistry
 {
-    private readonly IReadOnlyDictionary<string, ContentPhysicalSchemaTarget> byTable = targets
+    private readonly IReadOnlyList<ContentPhysicalSchemaTarget> all = targets
+        .DistinctBy(target => (target.ShapeAlias, target.TableName))
+        .OrderBy(target => target.ShapeAlias, StringComparer.Ordinal)
+        .ThenBy(target => target.TableName, StringComparer.Ordinal)
+        .ToArray();
+
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<ContentPhysicalSchemaTarget>> byTable = targets
+        .DistinctBy(target => (target.ShapeAlias, target.TableName))
         .GroupBy(target => target.TableName, StringComparer.Ordinal)
-        .ToDictionary(group => group.Key, group => group.Single(), StringComparer.Ordinal);
+        .ToDictionary(
+            group => group.Key,
+            group => (IReadOnlyList<ContentPhysicalSchemaTarget>)group.OrderBy(target => target.ShapeAlias, StringComparer.Ordinal).ToArray(),
+            StringComparer.Ordinal);
+
+    public IReadOnlyList<ContentPhysicalSchemaTarget> All => all;
 
     public bool TryGet(string shapeAlias, string tableName, out ContentPhysicalSchemaTarget? target)
-        => byTable.TryGetValue(tableName, out target)
-            && string.Equals(target.ShapeAlias, shapeAlias, StringComparison.Ordinal);
+    {
+        target = null;
+        if (!byTable.TryGetValue(tableName, out var candidates)) return false;
+        target = candidates.SingleOrDefault(candidate =>
+            string.Equals(candidate.ShapeAlias, shapeAlias, StringComparison.Ordinal));
+        return target is not null;
+    }
 
     public bool TryGetTable(string tableName, out ContentPhysicalSchemaTarget? target)
-        => byTable.TryGetValue(tableName, out target);
+    {
+        target = null;
+        if (!byTable.TryGetValue(tableName, out var candidates) || candidates.Count != 1) return false;
+        target = candidates[0];
+        return true;
+    }
 }
 
 /// <summary>Authenticated platform actor allowed to apply global schema changes.</summary>
@@ -1140,6 +1180,7 @@ public interface IContentRelationshipStore
     Task<ContentRelationshipDefinition?> LoadAsync(ContentViewScope scope, string alias, CancellationToken ct = default);
     Task<IReadOnlyList<ContentRelationshipDefinition>> ListAsync(ContentViewScope scope, CancellationToken ct = default);
     Task<ContentRelationshipDefinition> SaveDraftAsync(ContentRelationshipDefinition relationship, CancellationToken ct = default);
+    Task<ContentRelationshipDefinition> AdoptAsync(ContentRelationshipDefinition relationship, CancellationToken ct = default);
     Task<RelationshipDdlApplyJournal> SaveAppliedAsync(RelationshipDdlApplyJournal journal, CancellationToken ct = default);
     Task MarkDriftedAsync(ContentViewScope scope, long relationshipId, string observedSchemaFingerprint, CancellationToken ct = default);
 }
