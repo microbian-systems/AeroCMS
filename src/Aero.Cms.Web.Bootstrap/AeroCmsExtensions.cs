@@ -424,6 +424,19 @@ public static class AeroCmsExtensions
                 "AEROCMS_PIPELINE_STAGE_ORDER: Routing must be added before Aero CMS middleware stages.");
         }
 
+        var options = app.Services.GetRequiredService<AeroCmsOptions>();
+        if (options.EnableHydro)
+        {
+            // Hydro adds its embedded file provider from UseHydro, but that call must remain
+            // after authorization because it also registers component endpoints. Serve only
+            // the two public browser assets here so explicit hosts can call UseStaticFiles
+            // in the normal early position without requests falling through to CMS routes.
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new HydroStaticFileProvider()
+            });
+        }
+
         app.UseRouting();
         state.RoutingApplied = true;
         return app;
