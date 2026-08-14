@@ -2,14 +2,22 @@
 
 ## Status
 
-Approved for incremental implementation. This document is also the task brief
-for the first production slice.
+Approved direction for incremental implementation. This document is also the
+task brief for the first production slice and the design contract for the
+managed-component authoring work that follows it.
 
 The first slice adds DaisyUI to AeroCMS's existing Tailwind asset build, defines
 the initial Aero corporate theme, and introduces a scalable component catalog
 inside the PageEditor. It does **not** rewrite existing manager or public-page
 markup. Existing styles remain valid and unchanged; DaisyUI is the preferred
 foundation for new UI and new page-builder components.
+
+The first slice continues to expand catalog templates into ordinary HTML
+nodes. A later, additive PageEditor slice will retain a component's semantic
+identity in the page-composition sidecar while keeping the generated
+`HtmlNode` subtree as the public rendering artifact. Sections that describe
+managed component instances are therefore approved future-state design, not a
+claim that the feature is already implemented.
 
 ## Goals
 
@@ -20,6 +28,11 @@ foundation for new UI and new page-builder components.
 - Make useful Daisy components draggable into Aero pages as ordinary persisted
   `HtmlNode` trees.
 - Keep generated pages editable through the normal canvas and inspector.
+- Retain the semantic identity of selected components so the inspector can
+  offer component-specific, bounded controls without changing public HTML
+  rendering.
+- Support safe component evolution through named slots, versioned schemas,
+  explicit upgrades, and permission-controlled detachment to ordinary HTML.
 - Add room for curated HyperUI-inspired patterns without shipping HyperUI CSS.
 - Establish site-level themes with identical editor-preview and public output.
 - Specify a future internal visual theme generator based on safe design tokens.
@@ -28,6 +41,7 @@ foundation for new UI and new page-builder components.
 
 - Rewriting existing manager pages with Daisy classes.
 - Migrating existing PageEditor elements or persisted page content.
+- Retrofitting managed identity onto existing HTML trees in the first slice.
 - Adding npm, pnpm, Vite, PostCSS, or a runtime CSS compiler.
 - Persisting arbitrary theme CSS supplied by ordinary editors.
 - Copying HyperUI source or adding its stylesheet/runtime to AeroCMS.
@@ -164,10 +178,11 @@ Search spans every category. Component cards show a concise icon, human name,
 and optional category badge; both click-to-insert and drag-to-canvas remain
 supported.
 
-## Component persistence contract
+## Component persistence and authoring contract
 
-Daisy components are template factories, not new persisted polymorphic types.
-Dragging a component creates a normal, editable `HtmlNode` subtree:
+Daisy components are descriptor-driven template factories, not persisted CLR
+subclasses of `HtmlNode`. The first production slice keeps the existing
+insertion path:
 
 ```text
 catalog descriptor
@@ -178,8 +193,120 @@ catalog descriptor
 ```
 
 This preserves the current content model and avoids coupling saved pages to a
-specific C# component class. Stable catalog keys are used for editor commands
-and telemetry, while persisted nodes remain ordinary HTML.
+specific C# component class. Existing pages and unmanaged components continue
+to use this path unchanged.
+
+### Managed component instances
+
+For components that need a purpose-built authoring experience, insertion will
+add two coordinated representations:
+
+1. a normal `HtmlNode` subtree containing the materialized, renderable HTML;
+2. a generic managed-component record in `PageCompositionDocument`, keyed to
+   the subtree's stable root node ID.
+
+The sidecar record retains semantic authoring identity without becoming the
+public renderer. Its conceptual shape is:
+
+```text
+PageComponentInstance
+  RootNodeId: 8123
+  ComponentKey: "marketing.split-hero"
+  SchemaVersion: 2
+  Variant: "media-right"
+  Properties:
+    surface: "base-100"
+    spacing: "xl"
+    mediaAspect: "16:9"
+  Slots:
+    eyebrow: [8124]
+    heading: [8125]
+    body: [8126]
+    actions: [8127]
+    media: [8130]
+```
+
+This is a generic composition contract. It must not persist a component CLR
+type name, runtime object graph, arbitrary script, or unrestricted CSS. The
+stable component key resolves through the catalog descriptor registry.
+
+The compatibility rule is mandatory:
+
+> If managed-component metadata is absent, render and edit the `HtmlNode` tree
+> exactly as AeroCMS does today.
+
+Public rendering, preview, publishing, sanitization, and output caching
+continue to consume the materialized HTML tree. The sidecar exists to improve
+authoring and controlled evolution, not to introduce a second public rendering
+engine.
+
+### Ownership and editor behavior
+
+The component descriptor owns:
+
+- structural wrappers and required semantic or accessibility markup;
+- the property schema, allowed variants, and responsive options;
+- named slot definitions and repeatable-item constraints;
+- deterministic mapping from semantic properties to known Daisy/Tailwind
+  classes; and
+- schema migrations between supported descriptor versions.
+
+Editors own content placed into named slots, including text, media, links,
+actions, and bounded repeatable items. While a component remains managed, its
+structural scaffold is protected from destructive raw edits. Selecting any
+node inside that scaffold should expose the component inspector together with
+the relevant slot controls.
+
+Properties store semantic intent such as `surface: primary`, `spacing: lg`, or
+`mediaPosition: end`. They do not normally store copied theme colors or
+unbounded class strings. The descriptor translates those values into complete,
+statically discoverable Daisy/Tailwind classes.
+
+Content bindings should target stable named slots or stable node IDs that the
+descriptor promises to preserve. Component upgrades must not silently detach
+or orphan page bindings.
+
+### Atomic commands, validation, and history
+
+A managed-component operation can change both the HTML tree and the page
+composition sidecar. Insert, property update, repeatable-item mutation,
+upgrade, detach, undo, redo, save, and reload must therefore treat these as one
+authoring aggregate. The command/history pipeline must never restore the tree
+without the matching component record, or vice versa.
+
+Whole-document validation must fail closed when:
+
+- the managed root node is absent or appears more than once;
+- a slot points outside its component root or violates slot cardinality;
+- the descriptor key or stored schema version cannot be resolved;
+- properties do not conform to the descriptor schema;
+- protected scaffold structure no longer satisfies its contract; or
+- managed components overlap or nest in a way their descriptors do not allow.
+
+### Detachment and adoption
+
+An explicit **Detach to HTML** action removes the managed-component record and
+preserves the current `HtmlNode` subtree exactly. The result remains fully
+renderable and editable, but loses its typed inspector, structural guarantees,
+and component upgrade path. Detachment requires a trusted design/source-edit
+permission; ordinary content editors work through properties and slots.
+
+Existing unmanaged component trees are never upgraded implicitly. A future
+**Adopt as managed component** action may be offered only when the existing
+tree matches a known descriptor structure and fingerprint exactly. AeroCMS
+must not guess component identity from approximate classes or markup.
+
+### Versioned upgrades
+
+Managed descriptors have explicit schema versions and pure, deterministic
+migrations. Published pages remain pinned to their saved HTML and component
+version; installing a newer descriptor must not silently rewrite them.
+
+The PageEditor may report that an upgrade is available, preview its structural
+diff, and apply it only through an explicit author action. An upgrade rebuilds
+only descriptor-owned scaffolding and carries named-slot content and bindings
+forward. If every slot and binding cannot be mapped safely, the upgrade fails
+without modifying the page.
 
 Catalog descriptors replace an ever-growing enum/switch pair. A descriptor
 contains at least:
@@ -190,7 +317,10 @@ contains at least:
 - icon identifier;
 - template factory;
 - trust/feature flags where needed; and
-- optional preview metadata.
+- optional preview metadata;
+- an optional versioned property and slot schema;
+- deterministic semantic-property-to-class mapping; and
+- optional explicit migration functions between supported schema versions.
 
 Factories emit complete, statically known Tailwind/Daisy class tokens. They do
 not construct Tailwind class names dynamically because build-time source
@@ -295,20 +425,32 @@ Theme token draft
 4. Ship the initial script-free Daisy component templates.
 5. Verify editor insertion, save/reload, preview, publish, and public rendering.
 
-### Phase 2: curated patterns
+### Phase 2: managed component authoring
+
+1. Add generic managed-component instances to the page-composition sidecar.
+2. Make component/tree/slot mutations atomic in save and undo/redo history.
+3. Add typed inspectors, named slots, repeatable-item controls, validation, and
+   permission-controlled detachment.
+4. Opt selected high-value components such as Hero, CTA, Feature Grid, and
+   Timeline into managed authoring without changing existing components.
+5. Add explicit versioned upgrade previews and fail-closed migrations.
+
+### Phase 3: curated patterns
 
 1. Recreate selected HyperUI-inspired patterns in Aero-owned templates.
-2. Add responsive and accessibility regression coverage.
-3. Add component thumbnails or lightweight previews after catalog behavior is
+2. Model their content as named slots and their layout choices as bounded,
+   semantic properties.
+3. Add responsive and accessibility regression coverage.
+4. Add component thumbnails or lightweight previews after catalog behavior is
    stable.
 
-### Phase 3: site theme management
+### Phase 4: site theme management
 
 1. Persist a site-level theme selection and version.
 2. Add manager preview and safe publish/revert workflows.
 3. Ensure CSS artifact and output-cache invalidation is deterministic.
 
-### Phase 4: visual theme generator
+### Phase 5: visual theme generator
 
 1. Add the token editor and component preview gallery.
 2. Add contrast validation and light/dark theme workflows.
@@ -325,3 +467,19 @@ Theme token draft
 - Inserted components persist as normal HTML nodes and survive save/reload.
 - Preview and published output render the same component structure and theme.
 - Focused tests and the standard solution/build checks pass.
+
+## Acceptance criteria for managed component authoring
+
+- Pages without managed metadata render and edit exactly as before.
+- A managed component survives save/reload with its descriptor key, schema
+  version, properties, slots, and materialized HTML synchronized.
+- Public and preview rendering remain based on the ordinary `HtmlNode` tree.
+- Component-specific inspectors expose only descriptor-approved semantic
+  properties and slot operations.
+- Undo/redo treats the component record, subtree, slots, and bindings as one
+  operation.
+- Invalid or unresolved managed metadata fails closed in authoring without
+  corrupting or silently rewriting the saved HTML.
+- Detach preserves rendered HTML exactly and removes the managed upgrade path.
+- Published pages do not change when a newer descriptor version is deployed.
+- Explicit upgrades preserve every mapped slot and binding or make no change.
