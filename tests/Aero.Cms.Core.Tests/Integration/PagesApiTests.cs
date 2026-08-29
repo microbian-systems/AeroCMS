@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -17,6 +18,7 @@ using Aero.Cms.Modules.Pages.Rendering;
 using Aero.Core.Http;
 using Aero.Core;
 using Aero.Core.Railway;
+using Shouldly;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authorization;
@@ -244,6 +246,7 @@ public sealed class PagesApiTests
                 new PageErrorViewModel()));
         actor.UpdateAsync(
                 Arg.Any<GrainUpdatePageRequest>(),
+                71,
                 42,
                 Arg.Any<CancellationToken>())
             .Returns(call =>
@@ -301,8 +304,74 @@ public sealed class PagesApiTests
         await Assert.That(paragraph.Children.Single().Text).IsEqualTo("مرحبا");
         await actor.Received(1).UpdateAsync(
             Arg.Any<GrainUpdatePageRequest>(),
+            71,
             42,
             Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Create_and_publish_use_distinct_authoritative_tenant_and_site_scope()
+    {
+        const long pageId = 6_020;
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.CreateAsync(
+                Arg.Any<Aero.Cms.Abstractions.Requests.CreatePageRequest>(),
+                71,
+                42,
+                Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<PageViewModel>(
+                new PageViewModel { Id = pageId, SiteId = 42, Title = "Catalog", Slug = "catalog" },
+                new PageErrorViewModel()));
+        actor.PublishAsync(pageId, 71, 42, Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<PageViewModel>(
+                new PageViewModel { Id = pageId, SiteId = 42, Title = "Catalog", Slug = "catalog" },
+                new PageErrorViewModel()));
+        var composition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = 2,
+                    ContentEntryKey = new Aero.Cms.Abstractions.Content.Views.ContentEntryKey("view:catalog", "entry-42")
+                }
+            ],
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = 3,
+                    TemplateRootNodeId = 4,
+                    ContentEntryProvider = "view:catalog",
+                    ContentTypeAlias = "view:catalog"
+                }
+            ]
+        };
+        await using var app = await CreateAppAsync(actor);
+        using var create = new HttpRequestMessage(HttpMethod.Post, $"/{HttpConstants.ApiPrefix}admin/pages/")
+        {
+            Content = JsonContent.Create(new Aero.Cms.Abstractions.Http.Clients.CreatePageRequest(
+                "Catalog", "catalog", null, null, null, ContentPublicationState.Draft,
+                DraftComposition: composition))
+        };
+        create.WithTestUser(42);
+
+        using var created = await app.GetTestClient().SendAsync(create);
+        using var publish = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}/publish").WithTestUser(42);
+        using var published = await app.GetTestClient().SendAsync(publish);
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        published.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await actor.Received(1).CreateAsync(
+            Arg.Is<Aero.Cms.Abstractions.Requests.CreatePageRequest>(request =>
+                request.DraftCompositionJson != null
+                && request.DraftCompositionJson.Contains("view:catalog", StringComparison.Ordinal)),
+            71,
+            42,
+            Arg.Any<CancellationToken>());
+        await actor.Received(1).PublishAsync(pageId, 71, 42, Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -694,6 +763,7 @@ public sealed class PagesApiTests
         builder.Services.AddTestAuthentication();
         builder.Services.AddSingleton(actor);
         var siteContext = Substitute.For<ISiteContext>();
+        siteContext.TenantId.Returns(71);
         siteContext.SiteId.Returns(42);
         builder.Services.AddSingleton(siteContext);
         builder.Services.AddSingleton<IPageRendererRegistry>(

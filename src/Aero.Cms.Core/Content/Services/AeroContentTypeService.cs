@@ -1,10 +1,13 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Templating;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -14,8 +17,16 @@ namespace Aero.Cms.Core.Content.Services;
 public sealed class AeroContentTypeService(
     IDocumentSession session,
     IEnumerable<IFieldTemplateSnippet> snippets,
-    ScribanTemplateValidator templateValidator) : IContentTypeService
+    ScribanTemplateValidator templateValidator,
+    IEnumerable<IContentReferenceRelationshipMaterializer>? relationshipMaterializers = null) : IContentTypeService
 {
+    private readonly IReadOnlyList<IContentReferenceRelationshipMaterializer> _relationshipMaterializers =
+        relationshipMaterializers?.ToArray() ?? [];
+    private static readonly Regex RelationshipAliasPattern = new(
+        "^[A-Za-z][A-Za-z0-9_]{0,62}$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
     /// <inheritdoc />
     public async Task<Result<ContentTypeDefinition, AeroError>> GetByIdAsync(
         long siteId,
@@ -101,6 +112,27 @@ public sealed class AeroContentTypeService(
                     AeroError.ConflictError(
                         "Changing a content-type alias requires an explicit conversion workflow."));
             }
+
+            var priorModes = stored.Fields.ToDictionary(field => field.Name, field => field.LocalizationMode, StringComparer.Ordinal);
+            var modeChanged = definition.Fields.Any(field =>
+                priorModes.TryGetValue(field.Name, out var previous)
+                && previous != field.LocalizationMode);
+            var relationshipProjectionChanged = !RelationshipProjectionSignatures(stored.Fields)
+                .SequenceEqual(RelationshipProjectionSignatures(definition.Fields), StringComparer.Ordinal);
+            if (modeChanged || relationshipProjectionChanged)
+            {
+                var hasItems = await session.Query<ContentItem>()
+                    .Where(item => item.SiteId == definition.SiteId && item.ContentTypeAlias == definition.Alias)
+                    .AnyAsync(ct);
+                var hasGroups = await session.Query<ContentTranslationGroupDocument>()
+                    .Where(group => group.SiteId == definition.SiteId && group.ContentTypeAlias == definition.Alias)
+                    .AnyAsync(ct);
+                if (hasItems || hasGroups)
+                    return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.ConflictError(
+                        relationshipProjectionChanged
+                            ? "Changing a native relationship declaration requires an explicit content conversion and relationship backfill workflow."
+                            : "Changing a field localization mode requires an explicit content conversion workflow."));
+            }
         }
 
         var existing = await session.Query<ContentTypeDocument>()
@@ -110,6 +142,22 @@ public sealed class AeroContentTypeService(
         {
             return Prelude.Fail<ContentTypeDefinition, AeroError>(
                 AeroError.CreateError($"A content type with alias '{definition.Alias}' already exists for this site."));
+        }
+
+        var declaredRelationshipAliases = RelationshipAliases(definition.Fields).ToHashSet(StringComparer.Ordinal);
+        if (declaredRelationshipAliases.Count > 0)
+        {
+            var otherContentTypes = await session.Query<ContentTypeDocument>()
+                .Where(candidate => candidate.SiteId == definition.SiteId && candidate.Id != definition.Id)
+                .ToListAsync(ct);
+            var duplicateRelationshipAlias = otherContentTypes
+                .SelectMany(candidate => RelationshipAliases(candidate.Fields))
+                .FirstOrDefault(declaredRelationshipAliases.Contains);
+            if (duplicateRelationshipAlias is not null)
+            {
+                return Prelude.Fail<ContentTypeDefinition, AeroError>(AeroError.ConflictError(
+                    $"Native relationship alias '{duplicateRelationshipAlias}' is already declared by another content type in this site."));
+            }
         }
 
         var templateValidation = PrepareTemplate(definition);
@@ -133,7 +181,8 @@ public sealed class AeroContentTypeService(
             IncludeInPublicAi = definition.IncludeInPublicAi,
             Fields = definition.Fields,
             ScribanTemplate = definition.ScribanTemplate,
-            ScheduleConfig = definition.ScheduleConfig
+            ScheduleConfig = definition.ScheduleConfig,
+            Localization = definition.Localization
         };
 
         session.Store(doc);
@@ -166,6 +215,18 @@ public sealed class AeroContentTypeService(
                 "This content type is referenced by another content type."));
         }
 
+        var hasItems = await session.Query<ContentItem>()
+            .Where(item => item.SiteId == siteId && item.ContentTypeAlias == alias)
+            .AnyAsync(ct);
+        var hasGroups = await session.Query<ContentTranslationGroupDocument>()
+            .Where(group => group.SiteId == siteId && group.ContentTypeAlias == alias)
+            .AnyAsync(ct);
+        if (hasItems || hasGroups)
+        {
+            return Prelude.Fail<bool, AeroError>(AeroError.ConflictError(
+                "This content type has content items or translation groups and cannot be deleted."));
+        }
+
         session.Delete(doc);
         await session.SaveChangesAsync(ct);
         return Prelude.Ok<bool, AeroError>(true);
@@ -177,7 +238,8 @@ public sealed class AeroContentTypeService(
         Category = doc.Category, Icon = doc.Icon, Cardinality = doc.Cardinality, Structure = doc.Structure,
         HierarchyRules = doc.HierarchyRules, AllowPublicUrl = doc.AllowPublicUrl,
         IncludeInSearch = doc.IncludeInSearch, IncludeInPublicAi = doc.IncludeInPublicAi, Fields = doc.Fields,
-        ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig
+        ScribanTemplate = doc.ScribanTemplate, ScheduleConfig = doc.ScheduleConfig,
+        Localization = doc.Localization
     };
 
     private Result<NoneType, AeroError> PrepareTemplate(ContentTypeDefinition definition)
@@ -274,11 +336,20 @@ public sealed class AeroContentTypeService(
                      field => field.FieldType == ContentFieldTypes.Reference))
         {
             var label = field.Label ?? field.Name;
+            ValidateNativeRelationshipDefinition(definition.Alias, field, label, errors);
             if (ReferenceFieldValidator.IsCmsDocumentReference(field))
             {
                 ValidateCmsDocumentReferenceDefinition(field, label, errors);
                 continue;
             }
+
+            if (ReferenceFieldValidator.IsContentEntryReference(field))
+            {
+                ValidateContentEntryReferenceDefinition(field, label, errors);
+                continue;
+            }
+
+            ValidatePreviewFields(field, label, errors);
 
             if (!TryGetTargetContentTypeId(field, out var targetId))
             {
@@ -372,6 +443,19 @@ public sealed class AeroContentTypeService(
             }
         }
 
+        var duplicateRelationshipAliases = definition.Fields
+            .Select(field => GetStringSetting(field, ReferenceContentFieldSettings.RelationshipAlias))
+            .Where(alias => !string.IsNullOrWhiteSpace(alias))
+            .GroupBy(alias => alias!, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .OrderBy(alias => alias, StringComparer.Ordinal)
+            .ToArray();
+        if (duplicateRelationshipAliases.Length > 0)
+        {
+            errors.Add($"Native relationship aliases must be unique within a content type: {string.Join(", ", duplicateRelationshipAliases)}.");
+        }
+
         return errors.Count == 0
             ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
             : AeroError.ValidationError(errors);
@@ -399,6 +483,8 @@ public sealed class AeroContentTypeService(
         string label,
         List<string> errors)
     {
+        ValidatePreviewFields(field, label, errors);
+
         var sources = ReferenceFieldValidator.GetAllowedSources(field);
         if (sources.Count == 0)
         {
@@ -431,6 +517,149 @@ public sealed class AeroContentTypeService(
         {
             errors.Add(
                 $"Reference field '{label}' cannot combine CMS documents with hierarchy or cascading settings.");
+        }
+    }
+
+    private static void ValidateContentEntryReferenceDefinition(
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors)
+    {
+        ValidatePreviewFields(field, label, errors, allowPreviewFields: true);
+
+        var providers = ReferenceFieldValidator.GetAllowedProviders(field);
+        if (providers.Any(provider => provider.Length > 200 || provider.Any(char.IsWhiteSpace)))
+        {
+            errors.Add($"Reference field '{label}' contains an invalid content-entry provider key.");
+        }
+
+        if (IsHierarchyReference(field)
+            || !string.IsNullOrWhiteSpace(GetStringSetting(field, ReferenceContentFieldSettings.DependsOnField))
+            || !string.IsNullOrWhiteSpace(GetStringSetting(field, ReferenceContentFieldSettings.TargetFilterField))
+            || field.Settings.ContainsKey(ReferenceContentFieldSettings.TargetContentTypeId))
+        {
+            errors.Add($"Reference field '{label}' cannot combine virtual entries with content-type, hierarchy, or cascading settings.");
+        }
+    }
+
+    private void ValidateNativeRelationshipDefinition(
+        string sourceContentTypeAlias,
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors)
+    {
+        if (!field.Settings.TryGetValue(ReferenceContentFieldSettings.RelationshipAlias, out var setting))
+        {
+            return;
+        }
+
+        if (setting.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(setting.GetString())
+            || !RelationshipAliasPattern.IsMatch(setting.GetString()!.Trim()))
+        {
+            errors.Add($"Reference field '{label}' must use a simple native relationship alias no longer than 63 characters.");
+            return;
+        }
+
+        if (field.LocalizationMode != ContentFieldLocalizationMode.Shared)
+        {
+            errors.Add($"Reference field '{label}' must be shared across cultures before it can materialize a native relationship.");
+        }
+
+        if (ReferenceFieldValidator.IsCmsDocumentReference(field))
+        {
+            errors.Add($"Reference field '{label}' cannot materialize CMS document references as native relationships yet.");
+        }
+
+        if (ReferenceFieldValidator.IsContentEntryReference(field)
+            && ReferenceFieldValidator.GetAllowedProviders(field).Count != 1)
+        {
+            errors.Add($"Reference field '{label}' must select exactly one query-backed provider before it can materialize a native relationship.");
+        }
+
+        if (ContentReferenceRelationshipDeclaration.TryCreate(sourceContentTypeAlias, field, out var declaration)
+            && declaration is not null)
+        {
+            var handlerCount = _relationshipMaterializers.Count(candidate => candidate.CanHandle(declaration));
+            if (handlerCount != 1)
+            {
+                errors.Add($"Reference field '{label}' requires exactly one registered native relationship materializer; found {handlerCount}.");
+            }
+        }
+    }
+
+    private static IEnumerable<string> RelationshipProjectionSignatures(
+        IEnumerable<ContentFieldDefinition> fields) => fields
+        .Select(field =>
+        {
+            var alias = GetStringSetting(field, ReferenceContentFieldSettings.RelationshipAlias);
+            if (string.IsNullOrWhiteSpace(alias)) return null;
+            var targetKind = GetStringSetting(field, ReferenceContentFieldSettings.TargetKind)
+                ?? ReferenceContentFieldSettings.TargetKindContentType;
+            var targetId = GetStringSetting(field, ReferenceContentFieldSettings.TargetContentTypeId) ?? string.Empty;
+            var providers = ReferenceFieldValidator.GetAllowedProviders(field)
+                .OrderBy(provider => provider, StringComparer.Ordinal);
+            var multiple = field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowMultiple, out var allowMultiple)
+                && allowMultiple.ValueKind == JsonValueKind.True;
+            return string.Join("\u001f", field.Name, alias, targetKind, targetId,
+                string.Join("\u001e", providers), multiple, field.LocalizationMode);
+        })
+        .Where(signature => signature is not null)
+        .Select(signature => signature!)
+        .OrderBy(signature => signature, StringComparer.Ordinal);
+
+    private static IEnumerable<string> RelationshipAliases(
+        IEnumerable<ContentFieldDefinition> fields) => fields
+        .Select(field => GetStringSetting(field, ReferenceContentFieldSettings.RelationshipAlias))
+        .Where(alias => !string.IsNullOrWhiteSpace(alias))
+        .Select(alias => alias!);
+
+    private static void ValidatePreviewFields(
+        ContentFieldDefinition field,
+        string label,
+        List<string> errors,
+        bool allowPreviewFields = false)
+    {
+        if (!field.Settings.TryGetValue(
+                ReferenceContentFieldSettings.PreviewFields,
+                out var previewFields))
+        {
+            return;
+        }
+
+        if (!allowPreviewFields)
+        {
+            errors.Add($"Reference field '{label}' can use preview fields only with query-backed content entries.");
+            return;
+        }
+
+        if (previewFields.ValueKind != System.Text.Json.JsonValueKind.Array)
+        {
+            errors.Add($"Reference field '{label}' preview fields must be an ordered array of field names.");
+            return;
+        }
+
+        var values = previewFields.EnumerateArray().ToArray();
+        if (values.Length > 16)
+        {
+            errors.Add($"Reference field '{label}' can specify at most 16 preview fields.");
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var value in values)
+        {
+            if (value.ValueKind != System.Text.Json.JsonValueKind.String
+                || string.IsNullOrWhiteSpace(value.GetString())
+                || value.GetString()!.Length > 128)
+            {
+                errors.Add($"Reference field '{label}' preview fields must be nonblank strings no longer than 128 characters.");
+                continue;
+            }
+
+            if (!names.Add(value.GetString()!))
+            {
+                errors.Add($"Reference field '{label}' preview fields must be unique.");
+            }
         }
     }
 

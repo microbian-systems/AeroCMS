@@ -220,7 +220,7 @@ public sealed class SitePipelineChainTests
         await app.StartAsync();
         await using var _ = app;
 
-        var response = await app.GetTestClient().GetAsync("/js/app.js");
+        var response = await app.GetTestClient().GetAsync("/_content/Aero.Cms.UI/js/app.js");
 
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
         await Assert.That(serviceResolutionCount).IsEqualTo(0);
@@ -275,7 +275,7 @@ public sealed class SitePipelineChainTests
         var response = await host.GetTestClient().SendAsync(request);
 
         await Assert.That((int)response.StatusCode).IsEqualTo(301);
-        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/en-us/new-page?foo=bar");
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/en-US/new-page?foo=bar");
     }
 
     [Test]

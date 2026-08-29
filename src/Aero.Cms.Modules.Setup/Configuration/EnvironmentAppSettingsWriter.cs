@@ -18,9 +18,17 @@ public sealed class EnvironmentAppSettingsWriter : IEnvironmentAppSettingsWriter
     /// Initializes a writer for the specified web project directory.
     /// </summary>
     /// <param name="webProjectPath">The target project directory, or <see langword="null"/> to resolve the repository-relative default.</param>
-public EnvironmentAppSettingsWriter(string? webProjectPath = null)
+public EnvironmentAppSettingsWriter(string webProjectPath)
     {
-        _webProjectPath = webProjectPath ?? AppSettingsPathResolver.GetWebProjectPath();
+        ArgumentException.ThrowIfNullOrWhiteSpace(webProjectPath);
+        _webProjectPath = Path.GetFullPath(webProjectPath);
+    }
+
+    /// <inheritdoc />
+    public string GetFilePath(string environmentName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
+        return Path.Combine(_webProjectPath, $"appsettings.{environmentName}.json");
     }
 
     /// <inheritdoc />
@@ -29,7 +37,7 @@ public async Task WriteAsync(string environmentName, string json, CancellationTo
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        var targetFile = Path.Combine(_webProjectPath, $"appsettings.{environmentName}.json");
+        var targetFile = GetFilePath(environmentName);
 
         var directory = Path.GetDirectoryName(targetFile) ?? _webProjectPath;
         Directory.CreateDirectory(directory);

@@ -1,10 +1,14 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Composition;
+using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Content.Search;
+using Aero.Cms.Core.Content.Views;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Content.Caching;
@@ -12,9 +16,12 @@ using Aero.Cms.Modules.Content.Composition;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
 using Aero.Cms.Modules.Content.Events;
 using Aero.Cms.Modules.Content.Rendering;
+using Aero.Cms.Modules.Content.Routing;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -66,6 +73,12 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+        // Do not let a privileged store registration become an implicit DDL enable switch.  The
+        // default capability is intentionally immutable until the exact transaction/claim proof
+        // exists for the bundled Sable + SurrealDB runtime.
+        services.TryAddSingleton<IContentRelationshipSchemaCapabilityProvider, DisabledContentRelationshipSchemaCapabilityProvider>();
+        services.TryAddScoped<IPublicSiteRouteResolver, DisabledPublicSiteRouteResolver>();
+        services.Replace(ServiceDescriptor.Singleton<IContentViewOutputCacheInvalidator, ContentViewOutputCacheInvalidator>());
         services.AddScoped<ContentCacheInvalidator>();
         services.AddScoped<ContentEventPublisher>();
         services.Replace(ServiceDescriptor.Scoped<IContentTypeService, CachedContentTypeService>());
@@ -73,17 +86,41 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.Replace(ServiceDescriptor.Scoped<IContentHierarchyQueryService, ContentHierarchyQueryService>());
         services.AddScoped<ContentHierarchyManagerService>();
         services.AddScoped<IContentCompositionReferenceValidator, ContentCompositionReferenceValidator>();
+        services.AddScoped<IContentTranslationProjectionWorkProcessor, ContentTranslationProjectionWorkProcessor>();
+        services.AddHostedService<ContentTranslationProjectionWorkHostedService>();
         services.AddScoped<IContentCompositionResolver, ContentCompositionResolver>();
 
         // Public URL rendering for content types
         services.AddScoped<ContentTypeUrlRenderer>();
+        services.AddTransient<PublicContentRouteTransformer>();
         services.AddRazorPages()
             .AddApplicationPart(typeof(ContentModule).Assembly);
         services.Configure<RazorPagesOptions>(options =>
+        {
             options.Conventions.AddAreaPageRoute(
                 "Content",
                 "/PublicContent",
-                "/content/{typeAlias}/{entrySlug}"));
+                "/content/{typeAlias}/{entrySlug}");
+            options.Conventions.AddAreaPageRouteModelConvention("Content", "/PublicContent", model =>
+            {
+                var dynamicTargets = model.Selectors
+                    .Where(selector => !string.Equals(
+                        selector.AttributeRouteModel?.Template?.TrimStart('/'),
+                        "content/{typeAlias}/{entrySlug}",
+                        StringComparison.OrdinalIgnoreCase))
+                    .Take(2)
+                    .ToArray();
+                if (dynamicTargets is [{ AttributeRouteModel: not null } dynamicTarget])
+                {
+                    // A successful culture-aware dynamic route targets this Page.
+                    // Prefer it over the legacy direct route (order 0) and the
+                    // generic Pages catch-all (order 1); a declined transform
+                    // remains eligible for the latter.
+                    dynamicTarget.AttributeRouteModel.Order = -1;
+                    dynamicTarget.EndpointMetadata.Add(PublicContentDynamicTargetMetadata.Instance);
+                }
+            });
+        });
 
         // Grain-backed actors — direct injection for thin API controllers
         services.AddSingleton<IAeroContentItemActor>(sp =>
@@ -143,11 +180,73 @@ public void Configure(StoreOptions opts)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias)
-            .Index(x => x.ParentId);
+            .Index(x => x.ParentId)
+            .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.TranslationGroupId, x.Culture })
+            .UniqueIndex(x => new { x.SiteId, x.ContentTypeAlias, x.Culture, x.Slug });
+        opts.Schema.For<ContentItem>().UseOptimisticConcurrency = true;
+
+        opts.Schema.For<ContentTranslationGroupDocument>()
+            .TableName("content_translation_groups")
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId);
+        opts.Schema.For<ContentTranslationGroupDocument>().UseOptimisticConcurrency = true;
+
+        // Content reference fields remain canonical JSON on the translation group.
+        // This graph table is a same-transaction traversal projection between
+        // culture-invariant group identities.
+        opts.Schema.Edge<ContentReferenceRelation, ContentTranslationGroups, ContentTranslationGroups>(mapping =>
+        {
+            // AeroDB's edge mapper currently creates the relation table and
+            // indexes but does not emit definitions for edge payload fields.
+            // Keep this one CMS-owned table SCHEMALESS so the scoped descriptor
+            // metadata written by the materializer is retained.
+            mapping.SetSchemaMode(SchemaMode.Flexible);
+            mapping.Index(edge => edge.TenantId);
+            mapping.Index(edge => edge.SiteId);
+            mapping.Index(edge => edge.RelationshipAlias);
+            mapping.Index(edge => edge.SourceTranslationGroupId);
+            mapping.Index(edge => edge.TargetTranslationGroupId);
+        });
+
+        opts.Schema.For<ContentRelationshipTargetBarrier>()
+            .TableName("content_relationship_target_barriers")
+            .Identity(barrier => barrier.Id)
+            .Index(barrier => barrier.SiteId)
+            .UniqueIndex(barrier => barrier.TranslationGroupId);
+        opts.Schema.For<ContentRelationshipTargetBarrier>().UseOptimisticConcurrency = true;
+
+        opts.Schema.For<ContentTranslationProjectionWorkDocument>()
+            .TableName("content_translation_projection_work")
+            .Identity(x => x.Id)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.SiteId, x.TranslationGroupId, x.GroupStorageVersion });
+        opts.Schema.For<ContentTranslationProjectionWorkDocument>().UseOptimisticConcurrency = true;
 
         opts.Schema.For<ContentItemVersion>()
             .TableName(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
+
+        opts.Schema.For<ContentSurrealViewDocument>()
+            .TableName("content_surreal_view_revisions")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.Alias, x.IsPublished, x.Version });
+
+        opts.Schema.For<ContentRelationshipDocument>()
+            .TableName("content_relationship_definitions")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.Alias });
+
+        opts.Schema.For<ContentRelationshipDdlJournalDocument>()
+            .TableName("content_relationship_ddl_journal")
+            .Identity(x => x.Id)
+            .Index(x => x.TenantId)
+            .Index(x => x.SiteId)
+            .Index(x => x.RelationshipId)
+            .UniqueIndex(x => new { x.TenantId, x.SiteId, x.RelationshipId, x.AppliedSchemaFingerprint });
 
         opts.Schema.For<ContentSearchDocument>()
             .TableName(Schemas.Tables.ContentSearchIndex)
@@ -208,6 +307,11 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
         builder.MapContentHierarchyManagerApi();
+        builder.MapContentViewsApi();
+        // A successful transform is explicitly more specific than the generic
+        // public Pages catch-all, while a declined transform leaves that fallback
+        // untouched. This remains local to the optional public-content route.
+        builder.MapDynamicPageRoute<PublicContentRouteTransformer>("/{culture}/{typeAlias}/{entrySlug}", state: null!, order: -1);
 
         return Task.CompletedTask;
     }

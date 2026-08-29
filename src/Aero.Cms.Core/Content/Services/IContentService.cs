@@ -51,6 +51,12 @@ public interface IContentService
     /// <exception cref="OperationCanceledException"><paramref name="ct"/> is canceled.</exception>
     Task<Result<ContentItem, AeroError>> SaveAsync(ContentItem item, CancellationToken ct = default);
 
+    /// <summary>
+    /// Persists a server-authorized localization workflow mutation, retaining workflow metadata
+    /// while applying the same cache-coherent mutation behavior as an ordinary save.
+    /// </summary>
+    Task<Result<ContentItem, AeroError>> SaveLocalizationAsync(ContentItem item, CancellationToken ct = default);
+
     /// <summary>Determines whether a content item exists in a site.</summary>
     /// <param name="id">The content-item identifier.</param><param name="ct">A token that can cancel the operation.</param>
     /// <returns><see langword="true"/> when the item exists; otherwise <see langword="false"/>.</returns>

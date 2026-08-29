@@ -43,6 +43,7 @@ public static PageDocument Fork(PageDocument source, long targetPageId, string t
             DraftSourceVersionId = null,
             PublishedSourceVersionId = null,
             Slug = normalizedSlug,
+            DraftRouteTemplate = source.DraftRouteTemplate,
             Title = source.Title,
             Summary = source.Summary,
             SeoTitle = source.SeoTitle,

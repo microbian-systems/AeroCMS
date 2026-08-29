@@ -1,9 +1,11 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Search;
 using Aero.Core.Railway;
 using AeroDB.Sable;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Content.Indexing;
 
@@ -17,9 +19,16 @@ public sealed class ContentSearchProjectionService(
     public async Task StageUpsertAsync(
         ContentItem item,
         ContentTypeDefinition definition,
+        IReadOnlyDictionary<string, JsonElement> authoritativeSharedFields,
         CancellationToken cancellationToken = default)
     {
-        var artifacts = indexService.BuildIndex(item, definition);
+        ArgumentNullException.ThrowIfNull(authoritativeSharedFields);
+
+        // ContentTranslationGroupDocument is the single durable owner of shared
+        // values. Build all projections from a detached logical item so stale or
+        // accidentally persisted values on a variant cannot leak into search.
+        var projectionItem = CreateProjectionSnapshot(item, definition, authoritativeSharedFields);
+        var artifacts = indexService.BuildIndex(projectionItem, definition);
         if (artifacts.Facets.Count > ContentSearchConstants.MaximumFacetsPerItem)
         {
             throw new InvalidOperationException(
@@ -27,16 +36,16 @@ public sealed class ContentSearchProjectionService(
                 $"the bounded limit is {ContentSearchConstants.MaximumFacetsPerItem}.");
         }
 
-        await DeletePriorFacetsAsync(item.Id, cancellationToken);
-        session.Delete<ContentSearchDocument>(item.Id);
-        session.Delete<ContentSemanticDocument>(item.Id);
+        await DeletePriorFacetsAsync(projectionItem.Id, cancellationToken);
+        session.Delete<ContentSearchDocument>(projectionItem.Id);
+        session.Delete<ContentSemanticDocument>(projectionItem.Id);
 
         session.Store(artifacts.Document);
         foreach (var facet in artifacts.Facets)
         {
             session.Store(facet);
         }
-        await StageKnowledgeAsync(item, definition, artifacts, cancellationToken);
+        await StageKnowledgeAsync(projectionItem, definition, artifacts, cancellationToken);
 
         if (!definition.IncludeInSearch
             || string.IsNullOrWhiteSpace(artifacts.SemanticText)
@@ -69,13 +78,13 @@ public sealed class ContentSearchProjectionService(
 
         session.Store(new ContentSemanticDocument
         {
-            Id = item.Id,
-            SiteId = item.SiteId,
-            ContentItemId = item.Id,
-            ContentTypeAlias = item.ContentTypeAlias,
-            Culture = item.Culture,
-            PublicationState = item.PublicationState,
-            PublishedOn = item.PublishedOn,
+            Id = projectionItem.Id,
+            SiteId = projectionItem.SiteId,
+            ContentItemId = projectionItem.Id,
+            ContentTypeAlias = projectionItem.ContentTypeAlias,
+            Culture = projectionItem.Culture,
+            PublicationState = projectionItem.PublicationState,
+            PublishedOn = projectionItem.PublishedOn,
             HideFromSearch = !definition.IncludeInSearch,
             ModelId = embeddingGenerator.ModelId,
             EmbeddingDimensions = embeddingGenerator.Dimensions,
@@ -140,4 +149,52 @@ public sealed class ContentSearchProjectionService(
                     artifacts.PublicKnowledgeSections,
                     artifacts.ManagerKnowledgeSections),
                 cancellationToken);
+
+    private static ContentItem CreateProjectionSnapshot(
+        ContentItem item,
+        ContentTypeDefinition definition,
+        IReadOnlyDictionary<string, JsonElement> authoritativeSharedFields)
+    {
+        var sharedNames = definition.Fields
+            .Where(field => field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+            .Select(field => field.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var fields = item.Fields
+            .Where(pair => !sharedNames.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), item.Fields.Comparer);
+        foreach (var (name, value) in authoritativeSharedFields)
+        {
+            if (sharedNames.Contains(name))
+            {
+                fields[name] = value.Clone();
+            }
+        }
+
+        return new ContentItem
+        {
+            Id = item.Id,
+            Version = item.Version,
+            SiteId = item.SiteId,
+            ContentTypeAlias = item.ContentTypeAlias,
+            Slug = item.Slug,
+            Title = item.Title,
+            TranslationGroupId = item.TranslationGroupId,
+            Culture = item.Culture,
+            SourceItemId = item.SourceItemId,
+            ParentId = item.ParentId,
+            SortOrder = item.SortOrder,
+            Fields = fields,
+            PublicationState = item.PublicationState,
+            PublishedOn = item.PublishedOn,
+            VersionNumber = item.VersionNumber,
+            SchedulePublishUtc = item.SchedulePublishUtc,
+            ScheduleUnpublishUtc = item.ScheduleUnpublishUtc,
+            CreatedOn = item.CreatedOn,
+            ModifiedOn = item.ModifiedOn,
+            CreatedBy = item.CreatedBy,
+            ModifiedBy = item.ModifiedBy,
+            TranslationProvenance = item.TranslationProvenance,
+            TranslationReview = item.TranslationReview
+        };
+    }
 }

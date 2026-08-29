@@ -12,7 +12,9 @@ using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
 using FluentValidation;
 using AeroDB.Sable;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +29,7 @@ namespace Aero.Cms.Modules.Aliases;
 /// final middleware ordering remains the host's responsibility.
 /// </summary>
 [Module(nameof(AliasModule))]
-public class AliasModule : AeroWebModule, IConfigureAeroDB
+public class AliasModule : AeroWebModule, IConfigureAeroDB, IAeroPipelineModule
 {
     /// <summary>Gets the module order intended to follow site resolution.</summary>
     public override short Order => -9998;
@@ -91,12 +93,21 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // Background warmup — loads cache from AeroDB on startup
         services.AddHostedService<AliasRuleCacheWarmupService>();
 
-        // Pipeline middleware — runs UseRewriter AFTER SiteResolutionMiddleware.
-        // Insert(0) guarantees this filter wraps the pipeline after SitesModule's filter.
-        if (!DisabledInProduction)
+    }
+
+    /// <summary>Places alias rewriting immediately after site resolution.</summary>
+    public int PipelineOrder => -9_999;
+
+    /// <inheritdoc />
+    public void ConfigurePipeline(Microsoft.AspNetCore.Builder.IApplicationBuilder app)
+    {
+        if (DisabledInProduction)
         {
-            services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, AliasStartupFilter>());
+            return;
         }
+
+        var rule = app.ApplicationServices.GetRequiredService<AliasRewriteRule>();
+        app.UseRewriter(new Microsoft.AspNetCore.Rewrite.RewriteOptions().Add(rule));
     }
 
         /// <summary>

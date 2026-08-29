@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -318,6 +319,35 @@ public sealed class HtmlPageEditorSession
                 contentTypeAlias));
     }
 
+    /// <summary>Adds a bounded list resolved by a fixed provider-qualified virtual source.</summary>
+    public Result<HtmlNode> AddVirtualContentList(
+        string contentEntryProvider,
+        int pageSize = 10,
+        string? searchText = null,
+        long? parentNodeId = null)
+    {
+        var providerResult = NormalizeContentEntryProvider(contentEntryProvider);
+        if (providerResult is Result<string>.Failure providerFailure)
+            return providerFailure.Error;
+
+        var queryResult = NormalizeVirtualContentListQuery(pageSize, searchText);
+        if (queryResult is Result<PageContentListQuery>.Failure queryFailure)
+            return queryFailure.Error;
+
+        var provider = ((Result<string>.Ok)providerResult).Value;
+        var query = ((Result<PageContentListQuery>.Ok)queryResult).Value;
+        var scopeNode = CreateContentListScopeNode(out var templateRootNodeId);
+        return Insert(
+            scopeNode,
+            parentNodeId,
+            (inserted, composition) => AddVirtualContentListScope(
+                composition,
+                inserted.NodeId,
+                templateRootNodeId,
+                provider,
+                query));
+    }
+
     /// <summary>
     /// Adds a pageable typed-content scope at an explicit canvas drop location.
     /// </summary>
@@ -412,6 +442,35 @@ public sealed class HtmlPageEditorSession
                 contentTypeAlias,
                 contentItemId,
                 contentItemSlug));
+    }
+
+    /// <summary>
+    /// Adds a query-backed content item scope whose stable provider key is persisted
+    /// in the page composition sidecar.
+    /// </summary>
+    public Result<HtmlNode> AddVirtualContentItem(
+        ContentEntryKey entryKey,
+        string? stableIdRouteParameter = null,
+        long? parentNodeId = null)
+    {
+        var routeBound = !string.IsNullOrWhiteSpace(stableIdRouteParameter);
+        if (string.IsNullOrWhiteSpace(entryKey.Provider)
+            || (!routeBound && string.IsNullOrWhiteSpace(entryKey.StableId))
+            || (routeBound && !string.IsNullOrWhiteSpace(entryKey.StableId)))
+        {
+            return AeroError.ValidationError(
+                ["Select a query-backed provider and stable entry before adding an item scope."]);
+        }
+
+        var scopeNode = CreateContentItemScopeNode();
+        return Insert(
+            scopeNode,
+            parentNodeId,
+            (inserted, composition) => AddVirtualContentItemScope(
+                composition,
+                inserted.NodeId,
+                entryKey,
+                routeBound ? stableIdRouteParameter!.Trim() : null));
     }
 
     /// <summary>
@@ -539,6 +598,13 @@ public sealed class HtmlPageEditorSession
         }
 
         var normalizedQuery = ((Result<PageContentListQuery>.Ok)queryResult).Value;
+        if (!string.IsNullOrWhiteSpace(scope.ContentEntryProvider))
+        {
+            var virtualValidation = NormalizeVirtualContentListQuery(normalizedQuery);
+            if (virtualValidation is Result<PageContentListQuery>.Failure virtualFailure)
+                return virtualFailure.Error;
+            normalizedQuery = ((Result<PageContentListQuery>.Ok)virtualValidation).Value;
+        }
         var updatedScope = scope with
         {
             Query = normalizedQuery,
@@ -1361,6 +1427,66 @@ public sealed class HtmlPageEditorSession
         };
     }
 
+    private static Result<PageContentListQuery> NormalizeVirtualContentListQuery(
+        int pageSize,
+        string? searchText) => NormalizeVirtualContentListQuery(new PageContentListQuery
+        {
+            PageSize = pageSize,
+            Filters = string.IsNullOrWhiteSpace(searchText)
+                ? []
+                :
+                [
+                    new PageContentFilter
+                    {
+                        FieldName = "$search",
+                        Operator = PageContentFilterOperator.Contains,
+                        Value = searchText
+                    }
+                ]
+        });
+
+    private static Result<PageContentListQuery> NormalizeVirtualContentListQuery(PageContentListQuery query)
+    {
+        if (query.PageSize is < PageContentListQuery.MinimumPageSize or > PageContentListQuery.MaximumPageSize)
+            return AeroError.ValidationError(
+                [$"Provider-backed list page size must be between {PageContentListQuery.MinimumPageSize} and {PageContentListQuery.MaximumPageSize}."]);
+
+        if (!string.IsNullOrWhiteSpace(query.SortField))
+            return AeroError.ValidationError(["Provider-backed lists do not support field sorting."]);
+
+        var filters = query.Filters ?? [];
+        if (filters.Count > 1
+            || filters.Any(filter => filter.Operator != PageContentFilterOperator.Contains
+                || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal)))
+        {
+            return AeroError.ValidationError(
+                ["Provider-backed lists support only one bounded search value; structured filters are not supported."]);
+        }
+
+        var search = filters.SingleOrDefault()?.Value?.Trim();
+        if ((search?.Length ?? 0) > 256)
+            return AeroError.ValidationError(["Provider-backed list search text cannot exceed 256 characters."]);
+
+        return query with
+        {
+            SortField = null,
+            SortDirection = PageContentSortDirection.Ascending,
+            Filters = string.IsNullOrWhiteSpace(search)
+                ? []
+                : [filters[0] with { FieldName = "$search", Value = search }]
+        };
+    }
+
+    private static Result<string> NormalizeContentEntryProvider(string? provider)
+    {
+        var normalized = provider?.Trim() ?? string.Empty;
+        return string.IsNullOrWhiteSpace(normalized)
+            || normalized.Length > 128
+            || normalized.Any(character => !(char.IsLetterOrDigit(character) || character is ':' or '_' or '-'))
+            ? AeroError.ValidationError(["Select a valid provider-qualified virtual source."])
+            : normalized;
+    }
+
     private HtmlNode CreateContentListScopeNode(out long templateRootNodeId)
     {
         var scope = _catalog.CreateElement("section");
@@ -1639,6 +1765,46 @@ public sealed class HtmlPageEditorSession
                 LookupMode = PageContentItemLookupMode.StableId,
                 ContentItemId = contentItemId,
                 Slug = contentItemSlug
+            }
+        ]
+    };
+
+    private static PageCompositionDocument AddVirtualContentListScope(
+        PageCompositionDocument composition,
+        long scopeNodeId,
+        long templateRootNodeId,
+        string contentEntryProvider,
+        PageContentListQuery query) => composition with
+    {
+        ContentLists =
+        [
+            .. (composition.ContentLists ?? []),
+            new PageContentListScope
+            {
+                NodeId = scopeNodeId,
+                TemplateRootNodeId = templateRootNodeId,
+                ContentEntryProvider = contentEntryProvider,
+                ContentTypeAlias = contentEntryProvider,
+                Query = query,
+                EmptyState = PageContentEmptyStateBehavior.RenderNothing
+            }
+        ]
+    };
+
+    private static PageCompositionDocument AddVirtualContentItemScope(
+        PageCompositionDocument composition,
+        long scopeNodeId,
+        ContentEntryKey entryKey,
+        string? stableIdRouteParameter) => composition with
+    {
+        ContentItems =
+        [
+            .. (composition.ContentItems ?? []),
+            new PageContentItemScope
+            {
+                NodeId = scopeNodeId,
+                ContentEntryKey = entryKey,
+                StableIdRouteParameter = stableIdRouteParameter
             }
         ]
     };

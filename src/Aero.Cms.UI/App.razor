@@ -1,0 +1,114 @@
+@implements IDisposable
+@inject PersistentComponentState PersistentState
+@inject AuthenticationStateProvider AuthProvider
+@inject IHttpContextAccessor HttpContextAccessor
+
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.Name" dir="@(CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <script>
+        (function () {
+            const names = ['manager-theme', 'AeroCms.ManagerTheme', 'AeroCms.Theme', 'aero-manager-theme'];
+            const cookies = document.cookie ? document.cookie.split(';') : [];
+            let theme = null;
+            for (const name of names) {
+                const prefix = name + '=';
+                const match = cookies.map(c => c.trim()).find(c => c.startsWith(prefix));
+                if (match) { theme = decodeURIComponent(match.substring(prefix.length)); break; }
+            }
+            theme = theme || localStorage.getItem('manager-theme') || 'light';
+            theme = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.addEventListener('DOMContentLoaded', function () { document.body.setAttribute('data-theme', theme); });
+        })();
+    </script>
+    <ResourcePreloader />
+    <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Shared/dashboard.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Client/Aero.Cms.Client.bundle.scp.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Shared/Aero.Cms.Shared.bundle.scp.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.UI/css/aero.generated.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Client/lib/tippy.js/tippy.min.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Client/lib/tippy.js/svg-arrow.min.css" />
+    <ImportMap />
+    <link rel="icon" type="image/x-icon" href="_content/Aero.Cms.Shared/images/brand/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="_content/Aero.Cms.Shared/images/brand/aero-mark-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="_content/Aero.Cms.Shared/images/brand/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="_content/Aero.Cms.Shared/images/brand/site.webmanifest" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
+    <link id="radzen-theme-link" rel="stylesheet" href="_content/Radzen.Blazor/css/standard-dark-base.css" disabled />
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/components.css" />
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/base/zinc.css" />
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/primary/blue.css" />
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
+    <HeadOutlet @rendermode="@_interactiveRenderMode" />
+</head>
+<body>
+    <main id="app-splash" class="app-splash" aria-labelledby="app-splash-title">
+        <div class="app-splash-inner">
+            <div class="app-splash-mark" aria-hidden="true">
+                <img src="_content/Aero.Cms.UI/img/aero-logo-new.png" alt="" class="app-splash-logo" />
+                <span class="app-splash-orbit"></span>
+            </div>
+            <div class="app-splash-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+                <p class="app-splash-eyebrow">Aero Manager</p>
+                <h1 id="app-splash-title" class="app-splash-title">Starting Aero Manager</h1>
+                <p class="app-splash-text">Loading the manager workspace.</p>
+            </div>
+            <button type="button" class="app-splash-retry" hidden onclick="location.reload()">Reload manager</button>
+        </div>
+    </main>
+
+    <CascadingValue Value="@AppState">
+        <Routes @rendermode="@_interactiveRenderMode" />
+    </CascadingValue>
+    <ReconnectModal />
+    <script src="_content/Aero.Cms.Client/lib/popperjs-core/dist/umd/popper.min.js"></script>
+    <script src="_content/Aero.Cms.Client/lib/tippy.js/tippy-bundle.umd.min.js"></script>
+    <script src="_content/Aero.Cms.Shared/nav-tooltip.js"></script>
+    <script src="_content/Aero.Cms.Shared/page-editor-shortcuts.js"></script>
+    <script src="@Assets["_content/BlazorMonaco/jsInterop.js"]"></script>
+    <script src="@Assets["_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"]"></script>
+    <script src="@Assets["_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"]"></script>
+    <script src="_content/NeoUI.Blazor/js/theme.js"></script>
+    <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script src="@Assets["_content/Aero.Cms.Shared/splash.js"]"></script>
+</body>
+</html>
+
+@code {
+    private PersistingComponentStateSubscription _subscription;
+    private InteractiveWebAssemblyRenderMode _interactiveRenderMode = new(prerender: true);
+
+    [Inject] public Aero.Cms.Contracts.Services.AppState AppState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        var isAuthenticatedManagerRequest = httpContext?.Request.Path.StartsWithSegments("/manager") == true
+            && httpContext.User.Identity?.IsAuthenticated == true;
+        _interactiveRenderMode = new InteractiveWebAssemblyRenderMode(prerender: !isAuthenticatedManagerRequest);
+        if (isAuthenticatedManagerRequest) return;
+
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated != true) return;
+
+        var user = authState.User;
+        var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        _subscription = PersistentState.RegisterOnPersisting(() =>
+        {
+            PersistentState.PersistAsJson("ClientAuthState", new ClientAuthState(
+                long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0,
+                user.FindFirstValue(ClaimTypes.Name) ?? "",
+                user.FindFirstValue(ClaimTypes.Email),
+                roles));
+            return Task.CompletedTask;
+        }, _interactiveRenderMode);
+    }
+
+    public void Dispose() => _subscription.Dispose();
+}

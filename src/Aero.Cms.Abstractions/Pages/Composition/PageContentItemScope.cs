@@ -1,5 +1,7 @@
 namespace Aero.Cms.Abstractions.Pages.Composition;
 
+using Aero.Cms.Abstractions.Content.Views;
+
 /// <summary>
 /// Resolves one content item for bindings within a page subtree.
 /// </summary>
@@ -25,4 +27,19 @@ public sealed record PageContentItemScope
     /// Gets the routing slug or last-known slug retained for authoring diagnostics.
     /// </summary>
     public string? Slug { get; init; }
+
+    /// <summary>
+    /// Gets an optional provider-qualified virtual entry identity. When present, this scope
+    /// resolves through a site-scoped content-entry provider instead of a persisted content item.
+    /// </summary>
+    public ContentEntryKey? ContentEntryKey { get; init; }
+
+    /// <summary>
+    /// Gets the persisted page-route parameter whose value replaces the virtual
+    /// entry stable identifier at render time. The provider always remains fixed.
+    /// </summary>
+    public string? StableIdRouteParameter { get; init; }
+
+    /// <summary>Gets whether this scope targets a provider-qualified virtual entry.</summary>
+    public bool IsVirtualEntry => ContentEntryKey is not null;
 }

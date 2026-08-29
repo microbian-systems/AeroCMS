@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NeoUI.Blazor.Extensions;
@@ -30,21 +31,44 @@ public static class SetupAppFactory
     /// Creates and configures a setup-specific <see cref="WebApplication"/>.
     /// </summary>
     /// <param name="args">Command-line arguments passed to the setup host builder.</param>
-    /// <param name="earlyConfig">The caller's early configuration snapshot. The current factory retains this contract but builds setup services from the new host configuration.</param>
+    /// <param name="earlyConfig">The consuming host's authoritative configuration.</param>
+    /// <param name="contentRootPath">The consuming host's content root.</param>
+    /// <param name="environmentName">The consuming host's resolved environment name.</param>
+    /// <param name="webRootFileProvider">The consuming host's resolved static-web-asset file provider.</param>
     /// <returns>A configured application that has not yet been started.</returns>
     /// <remarks>
     /// Creating the application may create or load a data-protection certificate and key
     /// ring. The setup host intentionally omits runtime database, Orleans, and Identity services.
     /// </remarks>
-    public static async Task<WebApplication> CreateSetupAppAsync(string[] args, IConfiguration earlyConfig)
+    public static async Task<WebApplication> CreateSetupAppAsync(
+        string[] args,
+        IConfiguration earlyConfig,
+        string contentRootPath,
+        string environmentName,
+        IFileProvider webRootFileProvider)
     {
-        var webProjectPath = AppSettingsPathResolver.GetWebProjectPath();
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentRootPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
+        ArgumentNullException.ThrowIfNull(webRootFileProvider);
+        var webProjectPath = Path.GetFullPath(contentRootPath);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
             ContentRootPath = webProjectPath,
-            EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Development
+            EnvironmentName = environmentName
         });
+
+        // The outer host has already composed framework, host, and referenced-RCL assets into
+        // its web-root provider. Reuse that provider so the temporary setup host can serve the
+        // Blazor runtime and _content assets instead of resolving every endpoint under the
+        // consuming application's physical wwwroot directory.
+        builder.Environment.WebRootFileProvider = webRootFileProvider;
+
+        // The setup host is a temporary UI surface, not a second configuration owner. Consume the
+        // exact resolved configuration graph supplied by the application and do not add another
+        // appsettings/environment/command-line precedence stack.
+        builder.Configuration.Sources.Clear();
+        builder.Configuration.AddConfiguration(earlyConfig);
         var services = builder.Services;
         var config = builder.Configuration;
         var env = builder.Environment;
@@ -136,7 +160,12 @@ public static class SetupAppFactory
         // The paired browser local-storage values are removed by setup-handoff.js.
         app.UseSetupSiteSelectionReset();
         
-        // Static assets must be mapped before Antiforgery/Routing
+        // The setup host reuses the consuming host's composite web-root provider. Serve that
+        // provider through middleware as well as endpoint routing: referenced RCL and framework
+        // assets may not have endpoint metadata in the temporary setup application's manifest.
+        app.UseStaticFiles();
+
+        // Map fingerprinted static-asset endpoints when the consuming manifest contributes them.
         app.MapStaticAssets();
         
         app.UseAntiforgery();

@@ -5,6 +5,7 @@ using Aero.Secrets;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SurrealDb.Embedded.SurrealKv;
@@ -48,20 +49,23 @@ public static class AeroAppServerExtensions
     /// <returns>The same builder after infrastructure registrations have been added.</returns>
     /// <remarks>
     /// This method resolves bootstrap secrets immediately, creates the embedded database directory
-    /// when selected, and registers local database/cache hosted services conditionally. The built-in
-    /// TickerQ dashboard currently uses hard-coded basic-auth credentials; hosts must not expose it
-    /// beyond a trusted boundary until that existing configuration is replaced.
+    /// when selected, and registers local database/cache hosted services conditionally. The TickerQ
+    /// dashboard is disabled by default and fails closed unless an enabling host supplies credentials.
     /// </remarks>
     public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
         this IHostApplicationBuilder builder,
         Action<WolverineOptions>? configureWolverine = null,
-        Action<ISiloBuilder>? configureGrains = null)
+        Action<ISiloBuilder>? configureGrains = null,
+        bool configureAeroLogging = true)
     {
         var services = builder.Services;
         var config = builder.Configuration;
         var env = builder.Environment;
 
-        builder.AddAeroLogging();
+        if (configureAeroLogging)
+        {
+            builder.AddAeroLogging();
+        }
 
         services.AddOptions<AeroDbOptions>()
             .BindConfiguration("Aero:Embedded");
@@ -96,18 +100,36 @@ public static class AeroAppServerExtensions
 
         services.AddTickerQ(opts =>
         {
-            opts.AddDashboard(dashboard =>
+            if (config.GetValue<bool>("AeroCms:TickerQ:Dashboard:Enabled"))
             {
-                dashboard.SetBasePath("/manager/jobs");
-                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace tickerq creds with secure credentials and configuration
-            });
+                var username = config["AeroCms:TickerQ:Dashboard:Username"];
+                var password = config["AeroCms:TickerQ:Dashboard:Password"];
+                if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+                {
+                    throw new InvalidOperationException(
+                        "AEROCMS_TICKERQ_CREDENTIALS_REQUIRED: Enabling the TickerQ dashboard requires host-owned username and password configuration.");
+                }
+
+                opts.AddDashboard(dashboard =>
+                {
+                    dashboard.SetBasePath("/manager/jobs");
+                    dashboard.WithBasicAuth(username, password);
+                });
+            }
         });
 
         // Register AeroDB (SurrealDB) document store
+        if (services.Any(static descriptor =>
+                descriptor.ServiceType == typeof(IDocumentStore) && !descriptor.IsKeyedService))
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_SABLE_OWNERSHIP_AMBIGUOUS: Aero CMS owns the unkeyed IDocumentStore registration. Remove the host registration or use a keyed secondary store.");
+        }
+
         services.AddAeroDB(opts =>
         {
-            opts.Namespace = "aero";
-            opts.Database = "aero";
+            opts.Namespace = resolved.DatabaseNamespace;
+            opts.Database = resolved.DatabaseName;
 
             if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
             {

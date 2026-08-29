@@ -1,18 +1,24 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
+using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.Content.Routing;
 using Aero.Cms.Modules.Identity;
+using Aero.Cms.Hosting.Defaults;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
-using Aero.Cms.Web.Infrastructure;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Models.Entities;
@@ -24,6 +30,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,18 +43,27 @@ using Npgsql;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
-using System.Reflection;
+using System.Net.Sockets;
+using IPAddress = System.Net.IPAddress;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.Extensions.Options;
 using SurrealDb.Embedded.InMemory;
-using Wolverine;
-using Orleans.Runtime;
-using Aero.Modular;
 using Hydro.Configuration;
 
 namespace Aero.Cms.E2E.Tests;
+
+/// <summary>
+/// Owns the single browser/Kestrel/Postgres fixture shared by the test session.
+/// Multiple session hooks may initialize or dispose it; both operations are idempotent.
+/// </summary>
+public static class SharedPlaywrightE2EFixture
+{
+    public static PlaywrightE2EFixture Instance { get; } = new();
+}
+
+public sealed record LocalizationContentEntrySeed(long ItemId, long AiBlockedItemId, string Alias, string Slug, string ViewAlias);
 
 /// <summary>
 /// E2E test fixture that starts a real Kestrel-hosted WebApplication (not Alba/TestServer).
@@ -57,8 +73,8 @@ namespace Aero.Cms.E2E.Tests;
 ///
 /// Startup sequence:
 ///   1. Start embedded Postgres via MysticMind.PostgresEmbed
-///   2. Build a WebApplication using the real <c>AddAeroCmsAsync</c> DI setup
-///   3. Configure the middleware pipeline (mirrors <c>RunAeroCmsAsync</c> minus HTTPS)
+///   2. Build a WebApplication using the public arbitrary-host registration contract
+///   3. Configure the public staged middleware pipeline (minus HTTPS)
 ///   4. Start the app via <c>app.StartAsync()</c> on a background thread
 ///   5. Poll for HTTP readiness
 ///   6. Start Playwright
@@ -69,6 +85,9 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     private const string E2EAuthenticationScheme = "E2E";
     private static readonly long E2EUserId = Snowflake.NewId();
     private static readonly SemaphoreSlim Lock = new(1, 1);
+    // Session-scoped E2E classes share one browser page. TUnit scheduling may still
+    // overlap individual tests, so serialize a complete navigation journey here.
+    private static readonly SemaphoreSlim BrowserJourneyLock = new(1, 1);
 
     private PgServer? _postgres;
     private int _pgPort;
@@ -86,6 +105,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public long HomePageId { get; private set; }
     public long BlockPageId { get; private set; }
     public long SiteId { get; private set; }
+    public long TenantId { get; private set; }
 
     public async Task InitializeAsync()
     {
@@ -93,6 +113,11 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         try
         {
             if (_app is not null) return;
+
+            // Several E2E classes have independent session fixtures. Give each
+            // real Kestrel host its own loopback endpoint rather than competing
+            // for the historical fixed port during a focused test run.
+            BaseUrl = AllocateLoopbackBaseUrl();
 
             // ── 1. Start embedded Postgres ──────────────────────────────
             const string dbName = "aero_e2e_test";
@@ -104,14 +129,22 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             var connString = $"Host=localhost;Port={_pgPort};Username={dbName};Database={dbName};";
 
             // ── 3. Build & start the real web app with Kestrel ───────────
-            var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
-
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             {
-                ContentRootPath = webProjectPath,
+                ContentRootPath = Directory.GetCurrentDirectory(),
                 EnvironmentName = Environments.Development,
-                ApplicationName = "Aero.Cms.Web"
+                // MapStaticAssets resolves the generated endpoint manifest from
+                // the host application name. TUnit's process entry point is not
+                // this test assembly, so pin the host identity to the executable
+                // that owns Aero.Cms.E2E.Tests.staticwebassets.endpoints.json.
+                ApplicationName = typeof(PlaywrightE2EFixture).Assembly.GetName().Name
             });
+
+            // This executable is the real Kestrel host for the browser test,
+            // rather than the standalone Aero.Cms.Web host. Load its generated
+            // static-web-assets manifest before MapAeroCms maps the endpoints so
+            // the WebAssembly bootstrap script is available to the browser.
+            builder.WebHost.UseStaticWebAssets();
 
             // Override config for testing
             builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -142,22 +175,25 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             });
 
             // Configure Serilog for bootstrap logging
-            AeroCmsExtensions.ConfigureAeroCmsBootstrapLogging(webProjectPath);
+            AeroCmsExtensions.ConfigureAeroCmsBootstrapLogging(builder.Environment.ContentRootPath);
 
-            // Load module descriptors via reflection — avoids CS0433 type collisions from
-            // the source generator that emits GeneratedAeroModuleCatalog / GeneratedWolverineHandlerCatalog
-            // into every project referencing Aero.Modular.
-            var (descriptors, configureWolverine, configureGrains) = LoadGeneratedCatalogs();
+            await builder
+                .AddAeroCms(AeroCmsDefaultCatalog.Catalog, options =>
+                    options.ConfigureApplicationCookie = cookie =>
+                        cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest)
+                .WithSetupSettingsDirectory(builder.Environment.ContentRootPath)
+                .RegisterHostAsync<PlaywrightE2EFixture>();
 
-            // Call the real startup to register all services
-            await builder.AddAeroCmsAsync<DefaultSiteContext>(options =>
-            {
-                options.ModuleDescriptors = descriptors;
-                options.ConfigureWolverine = configureWolverine;
-                options.ConfigureGrains = configureGrains;
-                options.ConfigureApplicationCookie = cookie =>
-                    cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-            });
+            // Query-backed views intentionally require an explicitly supplied
+            // read-only connection.  The browser fixture supplies a deterministic
+            // implementation and a generic compile-time shape; production hosts
+            // must still opt in with their own separately constrained identity.
+            builder.Services.AddSingleton<IContentShape, E2ESurrealViewShape>();
+            builder.Services.AddSingleton<IContentViewSource, E2ESurrealViewSource>();
+            builder.Services.RemoveAll<IReadOnlyContentViewExecutor>();
+            builder.Services.AddSingleton<IReadOnlyContentViewExecutor, E2EReadOnlyContentViewExecutor>();
+            builder.Services.RemoveAll<IAdminReadOnlyContentViewExecutor>();
+            builder.Services.AddSingleton<IAdminReadOnlyContentViewExecutor, E2EReadOnlyContentViewExecutor>();
 
             builder.Services.RemoveAll<AeroDB.Sable.IDocumentStore>();
             builder.Services.AddAeroDB(options =>
@@ -233,14 +269,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 {
                     await _app.StartAsync(_appCts.Token);
 
-                    // Optional post-start initialization (migrations, modules)
-                    // Non-fatal — app stays up even if these fail.
-                    try { await _app.PrepareAeroAppAsync(); }
-                    catch (Exception ex) { Log.Warning(ex, "PrepareAeroAppAsync failed (non-fatal)"); }
-
-                    try { await _app.InitializeAeroAppAsync(); }
-                    catch (Exception ex) { Log.Warning(ex, "InitializeAeroAppAsync failed (non-fatal)"); }
-
                     // Wait until cancellation is requested (by DisposeAsync)
                     var tcs = new TaskCompletionSource();
                     _appCts.Token.Register(() => tcs.TrySetResult());
@@ -298,65 +326,34 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 Console.WriteLine("[Browser page error] {0}", error);
             Page.RequestFailed += (_, request) =>
                 Console.WriteLine("[Browser request failed] {0} {1}", request.Url, request.Failure);
-            Page.Response += (_, response) =>
+            Page.Request += (_, request) =>
+            {
+                if (request.Url.Contains("/api/v1/admin/content-views/", StringComparison.Ordinal))
+                    Console.WriteLine("[Browser content-view cookie] {0}", request.Headers.TryGetValue("cookie", out var cookie) ? cookie : "<none>");
+            };
+            Page.Response += async (_, response) =>
             {
                 if (response.Status >= StatusCodes.Status400BadRequest)
+                {
                     Console.WriteLine("[Browser response:{0}] {1}", response.Status, response.Url);
+                    if (response.Url.Contains("/api/v1/admin/content-views/", StringComparison.Ordinal))
+                    {
+                        try
+                        {
+                            Console.WriteLine("[Browser response body] {0}", await response.TextAsync());
+                        }
+                        catch (PlaywrightException)
+                        {
+                            // A failed/aborted browser request may not expose a response body.
+                        }
+                    }
+                }
             };
         }
         finally
         {
             Lock.Release();
         }
-    }
-
-    // ── Generated catalog loader (reflection-based) ──────────────────────
-
-    /// <summary>
-    /// Loads source-generated catalogs from the web project's assembly via reflection.
-    ///
-    /// Avoids CS0433: the source generator emits the same type names
-    /// (GeneratedAeroModuleCatalog, GeneratedWolverineHandlerCatalog) into every
-    /// project that references Aero.Modular, making compile-time resolution ambiguous.
-    /// Runtime reflection picks the correct copy from the <c>Aero.Cms.Web</c> assembly.
-    /// </summary>
-    private static (IReadOnlyList<ModuleDescriptor> Descriptors,
-                    Action<WolverineOptions> ConfigureWolverine,
-                    Action<ISiloBuilder> ConfigureGrains) LoadGeneratedCatalogs()
-    {
-        var webAssembly = typeof(DefaultSiteContext).Assembly;
-
-        // ModuleDescriptors from GeneratedAeroModuleCatalog.Descriptors
-        IReadOnlyList<ModuleDescriptor> descriptors = [];
-        var moduleCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedAeroModuleCatalog");
-        if (moduleCatalogType is not null)
-        {
-            var prop = moduleCatalogType.GetProperty("Descriptors", BindingFlags.Public | BindingFlags.Static);
-            if (prop?.GetValue(null) is IReadOnlyList<ModuleDescriptor> list)
-                descriptors = list;
-        }
-
-        // Wolverine registration callback from GeneratedWolverineHandlerCatalog.Register
-        Action<WolverineOptions> configureWolverine = static _ => { };
-        var wolverineCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedWolverineHandlerCatalog");
-        if (wolverineCatalogType is not null)
-        {
-            var method = wolverineCatalogType.GetMethod("Register", BindingFlags.Public | BindingFlags.Static);
-            if (method is not null)
-                configureWolverine = method.CreateDelegate<Action<WolverineOptions>>();
-        }
-
-        // Grain registration callback from GeneratedAeroGrainCatalog.Register
-        Action<ISiloBuilder> configureGrains = static _ => { };
-        var grainCatalogType = webAssembly.GetType("Aero.Cms.Web.Generated.GeneratedAeroGrainCatalog");
-        if (grainCatalogType is not null)
-        {
-            var method = grainCatalogType.GetMethod("Register", BindingFlags.Public | BindingFlags.Static);
-            if (method is not null)
-                configureGrains = method.CreateDelegate<Action<ISiloBuilder>>();
-        }
-
-        return (descriptors, configureWolverine, configureGrains);
     }
 
     // ── Middleware pipeline ──────────────────────────────────────────────
@@ -371,9 +368,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     /// </summary>
     private void ConfigureTestMiddleware(WebApplication app)
     {
-        var env = app.Environment;
-        var options = app.Services.GetRequiredService<AeroCmsOptions>();
-
         app.Map("/__e2e/ready", readyApp =>
             readyApp.Run(context =>
             {
@@ -397,124 +391,29 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             })));
 
         app.UseExceptionHandler();
-
-        if (env.IsDevelopment())
+        if (app.Environment.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();
         }
-        else
-        {
-            app.UseExceptionHandler("/error", createScopeForErrors: true);
-            // HSTS skipped for testing
-        }
-
-        // HTTPS redirection skipped — Playwright tests use HTTP.
-
-        app.UseAeroApplicationServer();
         app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
-        app.Use(static async (context, next) =>
-        {
-            if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-            {
-                var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
-                if (statusCodePagesFeature is not null)
-                {
-                    statusCodePagesFeature.Enabled = false;
-                }
-            }
-
-            await next(context);
-        });
-
-        // The production host receives this through SiteStartupFilter. This
-        // fixture builds its pipeline manually, so add it explicitly to give
-        // public requests the same host-derived site context. The readiness
-        // endpoint runs before the database is seeded and must stay reachable.
-        app.UseWhen(
-            context => !context.Request.Path.StartsWithSegments("/__e2e", StringComparison.OrdinalIgnoreCase),
-            branch => branch.UseMiddleware<SiteResolutionMiddleware>());
-
+        app.UseAeroCmsRouting();
         app.UseStaticFiles();
-        app.MapStaticAssets();
-
-        app.UseRouting();
-        app.UseRequestLocalization(localization =>
-        {
-            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures | CultureTypes.NeutralCultures)
-                .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
-                .ToArray();
-
-            localization.DefaultRequestCulture = new RequestCulture("en-US");
-            localization.SupportedCultures = supportedCultures;
-            localization.SupportedUICultures = supportedCultures;
-            localization.ApplyCurrentCultureToResponseHeaders = true;
-
-            localization.RequestCultureProviders.Clear();
-            localization.RequestCultureProviders.Add(new Aero.Cms.Web.Bootstrap.Localization.AeroRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new CookieRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
-            localization.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
-        });
+        app.UseAeroCmsSiteAndLocalization();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
-        app.UseAeroCmsModulePipeline();
+        app.UseAeroCmsRequestPipeline();
         app.UseAntiforgery();
 
-        // Culture cookie setter
-        app.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
-        {
-            context.Response.Cookies.Append(
-                CookieRequestCultureProvider.DefaultCookieName,
-                CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
-                new CookieOptions
-                {
-                    Expires = DateTimeOffset.UtcNow.AddYears(1),
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Lax
-                });
-
-            return Results.Redirect(returnUrl);
-        });
-
-        app.MapRazorPages();
-
-        var componentBuilder = app.MapRazorComponents<Aero.Cms.Web.Components.App>()
-            .AddInteractiveServerRenderMode()
-            .AddInteractiveWebAssemblyRenderMode()
-            .AddAdditionalAssemblies(
-                typeof(Aero.Cms.Shared._Imports).Assembly,
-                typeof(Aero.Cms.Web.Client._Imports).Assembly,
-                typeof(SetupModule).Assembly);
-
-        Aero.Cms.Modules.Identity.IdentityApi.MapIdentityApi(app);
-        app.MapAeroCmsEndpoints();
-
-        if (options.EnableOpenApi)
-        {
-            app.MapOpenApi();
-        }
-
-        if (options.EnableScalarApiReference)
-        {
-            app.MapScalarApiReference(scalar =>
-            {
-                scalar.WithTitle("Aero CMS")
-                    .ForceDarkMode()
-                    .HideSearch()
-                    .ShowOperationId()
-                    .ExpandAllTags()
-                    .SortTagsAlphabetically()
-                    .SortOperationsByMethod()
-                    .PreserveSchemaPropertyOrder();
-            });
-        }
-
-        if (options.EnableHydro)
-        {
-            // Hydro MUST be last — it internally calls UseEndpoints().
-            app.UseHydro(app.Environment);
-        }
+        // The test runner's bootstrap entry point does not automatically expose
+        // this executable's endpoint manifest to MapStaticAssets. Map the
+        // generated manifest explicitly before AeroCMS adds its interactive
+        // WebAssembly render mode.
+        app.MapStaticAssets(Path.Combine(
+            AppContext.BaseDirectory,
+            $"{typeof(PlaywrightE2EFixture).Assembly.GetName().Name}.staticwebassets.endpoints.json"));
+        app.MapAeroCms();
+        app.UseAeroCmsTerminalPipeline();
     }
 
     // ── Readiness polling ────────────────────────────────────────────────
@@ -566,6 +465,39 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             $"{BaseUrl}/api/v1/admin/auth/me");
         if (authenticatedResponse.Status == StatusCodes.Status200OK)
         {
+            // Playwright's API request context and the browser circuit can start
+            // independently. Establish the selected-site cookie through the
+            // product endpoint so the WebAssembly client receives the same
+            // authorized site scope as a real manager session.
+            var selectionResponse = await Page.APIRequest.PostAsync(
+                $"{BaseUrl}/api/v1/admin/sites/current",
+                new APIRequestContextOptions
+                {
+                    DataObject = new { siteId = SiteId }
+                });
+            if (selectionResponse.Status != StatusCodes.Status200OK)
+                throw new InvalidOperationException($"Failed to select E2E site: HTTP {selectionResponse.Status}.");
+
+            // APIRequest owns a separate cookie jar. Mirror the server-accepted
+            // selection into the real browser context that hosts the WASM app.
+            await BrowserContext!.AddCookiesAsync(
+            [
+                new Cookie
+                {
+                    Name = "AeroCms.SiteId",
+                    Value = SiteId.ToString(CultureInfo.InvariantCulture),
+                    Url = BaseUrl,
+                    SameSite = SameSiteAttribute.Lax
+                }
+            ]);
+            var selectedCookies = await BrowserContext.CookiesAsync([BaseUrl]);
+            var selectedSiteCookie = selectedCookies.SingleOrDefault(cookie => cookie.Name == "AeroCms.SiteId");
+            Console.WriteLine(
+                "[Login] Browser site cookie present: {0}; domain={1}; path={2}",
+                selectedSiteCookie?.Value == SiteId.ToString(CultureInfo.InvariantCulture),
+                selectedSiteCookie?.Domain ?? "<none>",
+                selectedSiteCookie?.Path ?? "<none>");
+
             Console.WriteLine("[Login] E2E authentication scheme is active");
             return;
         }
@@ -613,6 +545,19 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
+    public async Task RunBrowserJourneyAsync(Func<Task> journey)
+    {
+        await BrowserJourneyLock.WaitAsync();
+        try
+        {
+            await journey();
+        }
+        finally
+        {
+            BrowserJourneyLock.Release();
+        }
+    }
+
     /// <summary>
     /// Navigates to the login page and waits for Blazor WASM to download/cache.
     /// Call this once before any browser-based page navigation tests.
@@ -623,32 +568,28 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public async Task WarmUpBlazorAsync(int timeoutMs = 60000)
     {
         if (_warmedUp) return;
-        _warmedUp = true;
 
         if (Page is null) throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
 
         // Ensure authenticated before warming up Blazor
         await LoginAsync();
 
-        // Navigate to the pages grid to establish the SignalR circuit
+        // Navigate to the pages grid and wait for the browser application to finish
+        // starting. Server-rendered manager markup can exist before the WebAssembly
+        // client is interactive, so it is not a safe readiness signal.
         await Page.GotoAsync($"{BaseUrl}/manager/pages", new()
         {
-            WaitUntil = WaitUntilState.NetworkIdle,
+            WaitUntil = WaitUntilState.DOMContentLoaded,
             Timeout = timeoutMs
         });
 
-        // Wait for a known page element to confirm circuit is active
-        try
+        await Page.Locator("#app-splash").WaitForAsync(new()
         {
-            await Page.WaitForSelectorAsync("a[href*='manager']", new() { Timeout = 30000, State = WaitForSelectorState.Attached });
-            Console.WriteLine("[Warmup] Blazor circuit warmup complete");
-        }
-        catch
-        {
-            // Fallback: wait fixed time and hope
-            Console.WriteLine("[Warmup] Blazor warmup fallback — waiting 10s");
-            await Task.Delay(10000);
-        }
+            Timeout = timeoutMs,
+            State = WaitForSelectorState.Detached
+        });
+        _warmedUp = true;
+        Console.WriteLine("[Warmup] Blazor WebAssembly startup complete");
     }
 
     private static Cookie? ParseSetCookie(string setCookie)
@@ -725,6 +666,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             session.Store(site);
         }
         SiteId = site.Id;
+        TenantId = site.TenantId;
 
         // ── Site host ───────────────────────────────────────────────────
         var hostEntry = await session.Query<SiteHost>()
@@ -1006,6 +948,203 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
     }
 
+    /// <summary>Seeds the persisted content type which exposes the Surreal View editor tab.</summary>
+    public async Task SeedSurrealViewContentTypeAsync(string alias)
+    {
+        if (_app is null) throw new InvalidOperationException("The E2E application has not been initialized.");
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var contentTypes = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+        var existing = await contentTypes.GetByAliasAsync(SiteId, alias);
+        if (existing is Result<ContentTypeDefinition, AeroError>.Ok) return;
+
+        var result = await contentTypes.SaveAsync(new ContentTypeDefinition
+        {
+            Id = 0,
+            SiteId = SiteId,
+            Alias = alias,
+            Name = "Surreal View E2E records",
+            Description = "Browser fixture for generic query-backed content.",
+            Fields =
+            [
+                new ContentFieldDefinition { Name = "title", Label = "Title", FieldType = "text", Required = true }
+            ]
+        });
+        if (result is Result<ContentTypeDefinition, AeroError>.Failure failure)
+            throw new InvalidOperationException(failure.Error.ToString());
+    }
+
+    /// <summary>Seeds a generic localized entry and its published query-backed reference provider.</summary>
+    public async Task<LocalizationContentEntrySeed> SeedLocalizedContentEntryAsync(string alias)
+    {
+        if (_app is null) throw new InvalidOperationException("The E2E application has not been initialized.");
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var contentTypes = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+        var contentItems = scope.ServiceProvider.GetRequiredService<IContentService>();
+        var commands = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
+        var views = scope.ServiceProvider.GetRequiredService<IContentSurrealViewStore>();
+        var shape = scope.ServiceProvider.GetServices<IContentShape>()
+            .Single(candidate => candidate.Definition.Alias == "e2e-record").Definition;
+        var viewScope = new ContentViewScope(TenantId, SiteId);
+        var viewAlias = $"{alias}-records";
+
+        if (await contentTypes.GetByAliasAsync(SiteId, alias) is Result<ContentTypeDefinition, AeroError>.Failure)
+        {
+            var typeResult = await contentTypes.SaveAsync(new ContentTypeDefinition
+            {
+                SiteId = SiteId,
+                Alias = alias,
+                Name = "Localized reference records",
+                Description = "Disposable browser fixture for generic content localization.",
+                AllowPublicUrl = true,
+                Fields =
+                [
+                    new ContentFieldDefinition { Name = "shared-code", Label = "Shared code", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.Shared },
+                    new ContentFieldDefinition { Name = "localized-name", Label = "Localized name", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.Localized, Required = true },
+                    new ContentFieldDefinition { Name = "fork-note", Label = "Fork note", FieldType = "text", LocalizationMode = ContentFieldLocalizationMode.CopyOnFork },
+                    new ContentFieldDefinition
+                    {
+                        Name = "related-entry", Label = "Related entry", FieldType = ContentFieldTypes.Reference,
+                        LocalizationMode = ContentFieldLocalizationMode.Localized,
+                        Settings = new Dictionary<string, JsonElement>
+                        {
+                            [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindContentEntry),
+                            [ReferenceContentFieldSettings.AllowedProviders] = JsonSerializer.SerializeToElement(new[] { $"view:{viewAlias}" }),
+                            ["previewFields"] = JsonSerializer.SerializeToElement(new[] { "title", "kind" })
+                        }
+                    }
+                ]
+            });
+            if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure failure)
+                throw new InvalidOperationException(failure.Error.ToString());
+        }
+
+        // The public dynamic route resolves its tenant scope before middleware from
+        // the request host. Verify the fixture's persisted site/type contract here
+        // so a routing failure cannot be mistaken for an editor-preview problem.
+        var publicSites = scope.ServiceProvider.GetRequiredService<IPublicSiteRouteResolver>();
+        var publicSite = await publicSites.ResolveAsync("localhost");
+        if (publicSite is null || publicSite.SiteId != SiteId ||
+            !publicSite.SupportedCultures.Contains("ar-SA", StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("E2E public route scope did not resolve localhost with the seeded ar-SA culture.");
+        }
+
+        var publicType = await contentTypes.GetByAliasAsync(SiteId, alias);
+        if (publicType is not Result<ContentTypeDefinition, AeroError>.Ok { Value.AllowPublicUrl: true })
+        {
+            throw new InvalidOperationException("E2E localized content type is not eligible for public URLs.");
+        }
+
+        var publicRoute = await scope.ServiceProvider
+            .GetRequiredService<PublicContentRouteTransformer>()
+            .TransformAsync(
+                new DefaultHttpContext { Request = { Host = new HostString("localhost") } },
+                new RouteValueDictionary
+                {
+                    ["culture"] = "ar-SA",
+                    ["typeAlias"] = alias,
+                    ["entrySlug"] = "rtl-localized-reference"
+                });
+        if (publicRoute["page"]?.ToString() != "/PublicContent")
+        {
+            throw new InvalidOperationException("E2E public route transformer declined the seeded localized content URL.");
+        }
+
+        if (await views.LoadAsync(viewScope, viewAlias, ContentViewPublicationState.Published) is null)
+        {
+            var draft = await views.SaveDraftAsync(new ContentSurrealViewRevision(
+                0, viewScope, viewAlias, shape.Alias, shape.SchemaFingerprint,
+                "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId LIMIT 20",
+                "id", "title", 0, ContentViewPublicationState.Draft, DateTimeOffset.UtcNow,
+                EntrySelectStatement: "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId AND id = $entryId LIMIT 1",
+                SearchSelectStatement: "SELECT id, title, kind FROM e2e_records WHERE tenant_id = $tenantId AND site_id = $siteId AND title CONTAINS $search LIMIT 20"));
+            _ = await views.PublishAsync(viewScope, viewAlias, draft.Version);
+        }
+
+        var slug = "rtl-localized-reference";
+        var item = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", slug);
+        long itemId;
+        if (item is Result<ContentItem, AeroError>.Ok existing)
+        {
+            itemId = existing.Value.Id;
+        }
+        else
+        {
+            var created = new ContentItem
+            {
+                Id = 0, SiteId = SiteId, ContentTypeAlias = alias, Culture = "ar-SA", Slug = slug,
+                Title = "سجل مرجعي", VersionNumber = 0,
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["shared-code"] = JsonSerializer.SerializeToElement("shared-e2e"),
+                    ["localized-name"] = JsonSerializer.SerializeToElement("سجل مرجعي"),
+                    ["fork-note"] = JsonSerializer.SerializeToElement("Copied only when a culture is forked."),
+                    ["related-entry"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey($"view:{viewAlias}", "e2e-entry"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }
+            };
+            var saved = await commands.SaveDraftAsync(created);
+            if (saved is not Result<ContentItem, AeroError>.Ok savedOk) throw new InvalidOperationException(saved.ToString());
+            var published = await commands.PublishAsync(savedOk.Value);
+            if (published is Result<ContentItem, AeroError>.Failure publishFailure)
+                throw new InvalidOperationException(DescribeError(publishFailure.Error));
+            itemId = savedOk.Value.Id;
+        }
+
+        var publicItem = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", slug);
+        if (publicItem is not Result<ContentItem, AeroError>.Ok { Value.PublicationState: ContentPublicationState.Published })
+        {
+            throw new InvalidOperationException("E2E localized content item was not durably published.");
+        }
+
+        var publicRender = await scope.ServiceProvider
+            .GetRequiredService<ContentTypeUrlRenderer>()
+            .RenderAsync(SiteId, alias, "ar-SA", slug, defaultCulture: "en-US", supportedCultures: ["en-US", "ar-SA"]);
+        if (publicRender is Result<PublicContentRenderResult, AeroError>.Failure renderFailure)
+        {
+            throw new InvalidOperationException($"E2E localized content item failed direct public rendering: {DescribeError(renderFailure.Error)}");
+        }
+
+        var aiBlockedSlug = "ai-review-blocked";
+        var aiBlocked = await contentItems.GetBySlugAndTypeAsync(SiteId, alias, "ar-SA", aiBlockedSlug);
+        long aiBlockedItemId;
+        if (aiBlocked is Result<ContentItem, AeroError>.Ok existingAiBlocked)
+        {
+            aiBlockedItemId = existingAiBlocked.Value.Id;
+        }
+        else
+        {
+            var draft = new ContentItem
+            {
+                Id = 0, SiteId = SiteId, ContentTypeAlias = alias, Culture = "ar-SA", Slug = aiBlockedSlug,
+                Title = "مراجعة مطلوبة", VersionNumber = 1,
+                TranslationProvenance = new ContentTranslationProvenance(
+                    ContentTranslationOrigin.AiAssisted, "en-US", 1, DateTimeOffset.UtcNow),
+                TranslationReview = new ContentTranslationReview(),
+                Fields = new Dictionary<string, JsonElement>
+                {
+                    ["localized-name"] = JsonSerializer.SerializeToElement("مراجعة مطلوبة"),
+                    ["related-entry"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey($"view:{viewAlias}", "e2e-entry"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }
+            };
+            var saved = await contentItems.SaveAsync(draft);
+            if (saved is Result<ContentItem, AeroError>.Failure aiFailure) throw new InvalidOperationException(aiFailure.Error.ToString());
+            aiBlockedItemId = draft.Id;
+        }
+
+        return new LocalizationContentEntrySeed(itemId, aiBlockedItemId, alias, slug, viewAlias);
+    }
+
+    private static string DescribeError(AeroError error) =>
+        error is AeroError.Validation validation
+            ? string.Join(Environment.NewLine, validation.Errors)
+            : error.ToString();
+
     private static HtmlPageContent CreateTestPageContent(
         string title,
         string summary)
@@ -1024,6 +1163,74 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         content.Root.Children.Add(main);
 
         return content;
+    }
+
+    private sealed class E2ESurrealViewShape : IContentShape
+    {
+        public ContentShapeDefinition Definition { get; } = CreateDefinition();
+
+        private static ContentShapeDefinition CreateDefinition()
+        {
+            var definition = new ContentShapeDefinition(
+                "e2e-record",
+                [
+                    new ContentShapeField("id", ContentShapeFieldType.String, Required: true),
+                    new ContentShapeField("title", ContentShapeFieldType.String, Required: true),
+                    new ContentShapeField("kind", ContentShapeFieldType.String)
+                ],
+                string.Empty);
+            return definition with { SchemaFingerprint = ContentShapeFingerprint.Create(definition) };
+        }
+    }
+
+    private sealed class E2ESurrealViewSource : IContentViewSource
+    {
+        public ContentViewSourceDefinition Definition { get; } = new(
+            "e2e_records",
+            "e2e_records");
+    }
+
+    private sealed class E2EReadOnlyContentViewExecutor : IReadOnlyContentViewExecutor, IAdminReadOnlyContentViewExecutor
+    {
+        public bool IsReadOnlyGuaranteed => true;
+
+        public Task<ContentViewExecutionResult> ExecuteAsync(ContentViewExecutionRequest request, CancellationToken ct = default)
+        {
+            var rows = new[]
+            {
+                (IReadOnlyDictionary<string, object?>)new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["id"] = "e2e-entry",
+                    ["title"] = "Sample entry",
+                    ["kind"] = "fixture"
+                }
+            };
+
+            if (request.Parameters.TryGetValue("$entryId", out var entryId)
+                && !string.Equals(entryId?.ToString(), "e2e-entry", StringComparison.Ordinal))
+            {
+                rows = [];
+            }
+
+            return Task.FromResult(new ContentViewExecutionResult(rows, false));
+        }
+
+        Task<ContentViewExecutionResult> IAdminReadOnlyContentViewExecutor.ExecuteAsync(
+            ContentSurrealViewRevision view,
+            ContentViewScope scope,
+            IReadOnlyDictionary<string, object?> parameters,
+            ContentViewExecutionLimits limits,
+            CancellationToken ct)
+            => Task.FromResult(new ContentViewExecutionResult(
+            [
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["id"] = "e2e-entry",
+                    ["title"] = "Sample entry",
+                    ["kind"] = "fixture"
+                }
+            ],
+            false));
     }
 
     private sealed class E2EAuthenticationHandler(
@@ -1061,6 +1268,23 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         await using var createCmd = new NpgsqlCommand(
             $"CREATE DATABASE {dbName} OWNER {dbName}", conn);
         await createCmd.ExecuteNonQueryAsync();
+    }
+
+    private static string AllocateLoopbackBaseUrl()
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+            // Chromium rejects historical service ports such as 6667 before
+            // issuing a request. Avoid the observed unsafe port without
+            // assuming a particular OS ephemeral-port range.
+            if (port != 6667)
+                return $"http://localhost:{port}";
+        }
+
+        throw new InvalidOperationException("Unable to allocate a browser-safe loopback port for the E2E host.");
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────

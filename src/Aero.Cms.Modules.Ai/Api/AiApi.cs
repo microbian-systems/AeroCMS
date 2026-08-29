@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Ai;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Modules.Ai.Configuration;
 using Aero.Cms.Modules.Ai.Services;
@@ -52,6 +53,9 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
         group.MapPost("/content/translate", TranslateContent)
             .WithName("TranslateContent");
 
+        group.MapPost("/content/localization/generate", GenerateContentTranslation)
+            .WithName("GenerateContentTranslation");
+
         group.MapGet("/settings", GetSettings)
             .WithName("GetAiSettings")
             .RequireAuthorization("AeroAdmin");
@@ -99,6 +103,42 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
         };
     }
 
+    /// <summary>Generates a schema-whitelisted translation suggestion without persisting or publishing it.</summary>
+    private static async Task<IResult> GenerateContentTranslation(
+        [FromBody] GenerateContentAiTranslationRequest request,
+        [FromServices] IContentAiTranslationGenerationService service,
+        [FromServices] IContentTranslationSiteAuthorizer siteAuthorizer,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var authorization = await siteAuthorizer.AuthorizeAsync(request.SiteId, cancellationToken);
+        if (authorization is Result<NoneType, AeroError>.Failure authorizationFailure)
+        {
+            return ToProblem(authorizationFailure.Error);
+        }
+
+        var started = TimeProvider.System.GetTimestamp();
+        var result = await service.GenerateAsync(request, cancellationToken);
+        var elapsed = TimeProvider.System.GetElapsedTime(started);
+        var logger = loggerFactory.CreateLogger(typeof(AiApi));
+        return result switch
+        {
+            Result<GenerateContentAiTranslationResponse>.Ok ok => LogGeneratedTranslationSuccessAndReturn(logger, ok.Value, elapsed),
+            Result<GenerateContentAiTranslationResponse>.Failure failure => LogFailureAndReturn(logger, failure.Error, elapsed),
+            _ => Results.Problem("Unexpected AI translation generation result.")
+        };
+    }
+
+    private static IResult LogGeneratedTranslationSuccessAndReturn(
+        ILogger logger, GenerateContentAiTranslationResponse response, TimeSpan elapsed)
+    {
+        logger.LogInformation(
+            "Schema-aware AI translation generated. Provider={Provider} Model={Model} ElapsedMs={ElapsedMs} FieldCount={FieldCount}",
+            response.Application.ProviderId, response.Application.Model, elapsed.TotalMilliseconds,
+            response.Application.TranslatedFields.Count);
+        return TypedResults.Ok(response);
+    }
+
     /// <summary>
     /// Loads the manager-safe AI configuration.
     /// </summary>
@@ -133,7 +173,7 @@ public static void MapAiApi(this IEndpointRouteBuilder app)
     {
         logger.LogInformation(
             "AI translation completed. Provider={Provider} Model={Model} ElapsedMs={ElapsedMs} FieldCount={FieldCount}",
-            response.Provider,
+            response.ProviderId,
             response.Model,
             elapsed.TotalMilliseconds,
             response.TranslatedFields.Count);

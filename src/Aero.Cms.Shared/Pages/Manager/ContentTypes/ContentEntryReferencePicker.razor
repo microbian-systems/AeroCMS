@@ -1,0 +1,116 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes
+
+<div class="cms-reference-picker">
+    <label class="pe-property-group">
+        <span class="pe-property-label">@L["Content-entry provider"]</span>
+        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                value="@_selectedProvider" disabled="@_loadingProviders" @onchange="OnProviderChangedAsync"
+                aria-describedby="@_selectionHelpId">
+            <option value="">@L["Choose a content-entry provider"]</option>
+            @foreach (var provider in _providers)
+            {
+                <option value="@provider.Key">@provider.DisplayName</option>
+            }
+        </select>
+        <span id="@_selectionHelpId" class="cms-reference-help">@L["Only the provider and stable entry ID are saved."]</span>
+    </label>
+
+    @if (_loadingProviders || _loadingOptions)
+    {
+        <div class="cms-reference-state" role="status"><RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" /><span>@L["Loading content…"]</span></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="cms-reference-state cms-reference-error" role="alert"><RadzenIcon Icon="error_outline" /><span>@_error</span></div>
+    }
+    else if (_providersLoaded && _providers.Count == 0)
+    {
+        <div class="cms-reference-state" role="status">@L["No available content-entry providers match this field."]</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_selectedProvider))
+    {
+        <label class="pe-property-group">
+            <span class="pe-property-label">@L["Content entry"]</span>
+            <RadzenDropDown TValue="string" Data="@_options" TextProperty="@nameof(EntryOption.DisplayText)" ValueProperty="@nameof(EntryOption.Value)"
+                            Value="@Value?.StableId" ValueChanged="OnOptionChangedAsync" AllowClear="true" AllowFiltering="true"
+                            SearchText="@_searchText" SearchTextChanged="OnSearchTextChangedAsync" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Placeholder="@L["Search or choose content"]" EmptyText="@L["No matching content"]" Class="w-full" />
+        </label>
+    }
+
+    <section class="content-entry-preview"
+             aria-labelledby="@_previewHeadingId"
+             aria-busy="@_loadingPreview.ToString().ToLowerInvariant()">
+        <div class="content-entry-preview-heading">
+            <h4 id="@_previewHeadingId">@L["Selected entry preview"]</h4>
+            <span>@L["Read only"]</span>
+        </div>
+        <p class="content-entry-preview-help">@L["Preview values are for confirmation only and are never copied into this field."]</p>
+
+        @if (PreviewFieldNames.Count == 0)
+        {
+            <div class="content-entry-preview-state" role="status">@L["Preview unavailable because no entry preview fields are configured."]</div>
+        }
+        else if (_effectivePreviewKey is null)
+        {
+            <div class="content-entry-preview-state" role="status">@L["Choose an entry to see its preview."]</div>
+        }
+        else if (_loadingPreview)
+        {
+            <div class="content-entry-preview-state" role="status" aria-live="polite">
+                <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+                <span>@L["Loading selected entry preview…"]</span>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_previewError))
+        {
+            <div class="content-entry-preview-state content-entry-preview-error" role="alert">
+                <RadzenIcon Icon="error_outline" />
+                <span>@_previewError</span>
+                <button type="button" class="content-entry-preview-retry" @onclick="RetryPreviewAsync">@L["Try again"]</button>
+            </div>
+        }
+        else if (_previewEntry is null)
+        {
+            <div class="content-entry-preview-state" role="status">@L["The selected entry preview is unavailable."]</div>
+        }
+        else if (_previewEntry.Values.Count == 0)
+        {
+            <div class="content-entry-preview-state" role="status">@L["The selected entry has no preview values."]</div>
+        }
+        else
+        {
+            <dl class="content-entry-preview-fields">
+                @foreach (var fieldName in VisiblePreviewFieldNames)
+                {
+                    <div class="content-entry-preview-field" @key="fieldName">
+                        <dt>@fieldName</dt>
+                        <dd>
+                            @if (_previewEntry.Values.TryGetValue(fieldName, out var value))
+                            {
+                                var formatted = ContentEntryReferencePreviewUi.FormatValue(value);
+                                <pre tabindex="0"
+                                     data-value-kind="@formatted.Kind"
+                                     aria-label="@L["{0} preview value", fieldName]">@formatted.Text</pre>
+                                @if (formatted.IsTruncated)
+                                {
+                                    <span class="content-entry-preview-truncated">@L["Preview truncated"]</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="content-entry-preview-missing">@L["Not available in this entry"]</span>
+                            }
+                        </dd>
+                    </div>
+                }
+            </dl>
+
+            @if (PreviewFieldNames.Count > ContentEntryReferencePreviewUi.MaximumPreviewFields)
+            {
+                <p class="content-entry-preview-limit" role="status">@L["Additional configured preview fields were omitted."]</p>
+            }
+        }
+    </section>
+</div>

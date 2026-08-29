@@ -1,0 +1,106 @@
+.surreal-preview {
+    display: grid;
+    gap: 1rem;
+    border-top: 1px solid var(--pe-border);
+    padding-top: 1.25rem;
+}
+
+.surreal-preview__heading,
+.surreal-preview__fields {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.surreal-preview h2 {
+    margin: 0;
+    color: var(--pe-text-primary);
+    font-size: 1.125rem;
+}
+
+.surreal-preview p {
+    margin: .25rem 0 0;
+    color: var(--pe-text-muted);
+}
+
+.surreal-preview__state,
+.surreal-preview__error {
+    border: 1px dashed var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-primary);
+}
+
+.surreal-preview__error {
+    border-style: solid;
+    border-color: var(--rz-danger);
+    color: var(--rz-danger);
+}
+
+.surreal-preview__fields {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.surreal-preview__fields code,
+.surreal-preview__fields span {
+    border-radius: 999px;
+    padding: .25rem .5rem;
+    background: var(--pe-bg-tertiary);
+    color: var(--pe-text-secondary);
+    font-size: .75rem;
+}
+
+.surreal-preview__fields span {
+    color: var(--rz-warning);
+}
+
+.surreal-preview__table-wrap {
+    max-width: 100%;
+    overflow: auto;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+}
+
+.surreal-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--pe-text-primary);
+    font-size: .8rem;
+}
+
+.surreal-preview th,
+.surreal-preview td {
+    min-width: 9rem;
+    padding: .625rem .75rem;
+    border-bottom: 1px solid var(--pe-border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.surreal-preview th {
+    position: sticky;
+    top: 0;
+    background: var(--pe-bg-tertiary);
+}
+
+.surreal-preview td code {
+    display: block;
+    max-width: 24rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+    .surreal-preview__heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .surreal-preview__heading button {
+        width: 100%;
+    }
+}

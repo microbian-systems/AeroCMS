@@ -5,7 +5,7 @@ using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -22,20 +22,34 @@ namespace Aero.Cms.Modules.Setup.Bootstrap;
 public sealed class DatabaseBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
-    IOptionsMonitor<AeroDbOptions> embeddedOptions,
-    InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : IDatabaseBootstrapService
+    InfisicalBootstrapSettingsProvider infisicalSettingsProvider,
+    IHostEnvironment hostEnvironment) : IDatabaseBootstrapService
 {
     /// <inheritdoc />
 public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
 
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        if (!SurrealDatabaseScope.TryNormalize(model.DatabaseNamespace, out var databaseNamespace))
+        {
+            throw new ArgumentException(
+                $"SurrealDB namespace must be 1-{SurrealDatabaseScope.MaximumNameLength} characters using only letters, digits, underscores, or hyphens.",
+                nameof(model));
+        }
+
+        if (!SurrealDatabaseScope.TryNormalize(model.DatabaseName, out var databaseName))
+        {
+            throw new ArgumentException(
+                $"SurrealDB database name must be 1-{SurrealDatabaseScope.MaximumNameLength} characters using only letters, digits, underscores, or hyphens.",
+                nameof(model));
+        }
+
+        var env = hostEnvironment.EnvironmentName;
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
         var infrastructure = GetOrCreateObject(root, "AeroCms", "Infrastructure");
 
-        bootstrap["State"] = BootstrapStates.Configured;
+        bootstrap["State"] = BootstrapStates.Setup;
         bootstrap["RequestedManagerAuthenticationProvider"] = model.RequestedManagerAuthenticationProvider;
         bootstrap["RequestedMemberAuthenticationProvider"] = model.RequestedMemberAuthenticationProvider;
         bootstrap.Remove("AuthenticationMode");
@@ -43,6 +57,8 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;
         infrastructure[AeroCmsInfrastructureConfiguration.DatabaseMode] = model.DatabaseMode;
+        infrastructure[AeroCmsInfrastructureConfiguration.DatabaseNamespace] = databaseNamespace;
+        infrastructure[AeroCmsInfrastructureConfiguration.DatabaseName] = databaseName;
         infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider] = model.SecretProvider;
         infrastructure["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
 
@@ -168,9 +184,9 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
     /// <summary>
     /// Reads the environment settings object or creates an empty root when the file is absent.
     /// </summary>
-    private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
+    private async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var path = appSettingsWriter.GetFilePath(env);
         if (!File.Exists(path)) return new JsonObject();
 
         var text = await File.ReadAllTextAsync(path, cancellationToken);

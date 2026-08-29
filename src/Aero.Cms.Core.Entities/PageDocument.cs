@@ -59,6 +59,10 @@ public long? PublishedSourceVersionId { get; set; }
     /// Gets or sets the route slug; normalization and uniqueness are external concerns.
     /// </summary>
 public string Slug { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional editable route template for this culture variant.</summary>
+    public string? DraftRouteTemplate { get; set; }
+    /// <summary>Gets or sets the route template captured by the latest publication.</summary>
+    public string? PublishedRouteTemplate { get; set; }
         /// <summary>
     /// Gets or sets the display title.
     /// </summary>
@@ -181,6 +185,7 @@ public string? SeoDescription { get; set; }
     {
         PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(DraftContent);
         PublishedComposition = DraftComposition.CreateSnapshot();
+        PublishedRouteTemplate = DraftRouteTemplate;
         PublishedSourceVersionId = DraftSourceVersionId;
         PublishedContentRevision = ContentRevision;
         PublicationState = ContentPublicationState.Published;
@@ -239,7 +244,8 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool HasUnpublishedChanges =>
         PublicationState == ContentPublicationState.Published
         && (ContentRevision != PublishedContentRevision
-            || DraftSourceVersionId != PublishedSourceVersionId);
+            || DraftSourceVersionId != PublishedSourceVersionId
+            || !string.Equals(DraftRouteTemplate, PublishedRouteTemplate, StringComparison.Ordinal));
 
     /// <summary>
     /// Gets or sets whether this page should be displayed in the main navigation menu.
@@ -304,6 +310,8 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         Id = Id,
         Title = Title,
         Slug = Slug,
+        RouteTemplate = DraftRouteTemplate,
+        PublishedRouteTemplate = PublishedRouteTemplate,
         Kind = Kind,
         RendererId = PageRendererIds.NormalizeOrDefault(RendererId),
         Summary = Summary,

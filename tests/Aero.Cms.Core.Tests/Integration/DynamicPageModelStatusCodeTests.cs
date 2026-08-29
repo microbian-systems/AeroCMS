@@ -2,23 +2,27 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Cms.Modules.Content.Composition;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Abstractions.Content.Composition;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Abstractions.Pages.Rendering;
 using System.Text.Json;
+using Shouldly;
 using Aero.Core;
 using Aero.Core.Railway;
-using FluentAssertions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -32,6 +36,93 @@ namespace Aero.Cms.Core.Tests.Integration;
 public class DynamicPageModelStatusCodeTests
 {
     [Test]
+    public async Task Infrastructure_lookup_failure_does_not_fall_through_to_a_route_template()
+    {
+        var page = CreatePublishedPage(9042);
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetBySlugAsync(
+                1,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<PageViewModel>(
+                new PageViewModel(),
+                new PageErrorViewModel
+                {
+                    Message = "Storage unavailable.",
+                    Kind = PageErrorKind.Failure
+                }));
+        var routeResolver = Substitute.For<IPageRouteTemplateResolver>();
+        var model = CreateModel(
+            Substitute.For<IDocumentStore>(),
+            page,
+            actor,
+            routeTemplateResolver: routeResolver);
+        model.Slug = "catalog/entry-42";
+
+        var result = await model.OnGetAsync();
+
+        result.ShouldBeOfType<StatusCodeResult>().StatusCode
+            .ShouldBe(StatusCodes.Status500InternalServerError);
+        await routeResolver.DidNotReceive().ResolveAsync(
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Published_route_template_resolves_dynamic_entry_and_uses_actual_path_for_urls_and_tags()
+    {
+        var setup = CreateRouteBoundPublicPage(entryExists: true);
+
+        var result = await setup.Model.OnGetAsync();
+
+        result.ShouldBeOfType<PageResult>();
+        setup.Model.RenderedMarkup.ShouldContain("Sample entry");
+        setup.Model.PageSlug.ShouldBe("catalog/entry-42");
+        setup.Model.CanonicalUrl.ShouldContain("/catalog/entry-42");
+        setup.Model.HttpContext.Items["AeroCms.PageSlug"].ShouldBe("catalog/entry-42");
+        await setup.Provider.Received(1).FindAsync(
+            new ContentViewScope(71, 42),
+            "entry-42",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Published_route_template_returns_404_when_dynamic_entry_is_missing()
+    {
+        var setup = CreateRouteBoundPublicPage(entryExists: false);
+
+        var result = await setup.Model.OnGetAsync();
+
+        result.ShouldBeOfType<NotFoundResult>();
+    }
+
+    [Test]
+    public async Task Exact_published_route_wins_without_consulting_template_resolver()
+    {
+        var page = CreatePublishedPage(90_045);
+        var actor = Substitute.For<IAeroPageActor>();
+        var session = Substitute.For<IDocumentSession>();
+        session.LoadAsync<PageDocument>(page.Id, Arg.Any<CancellationToken>()).Returns(page);
+        var store = Substitute.For<IDocumentStore>();
+        store.LightweightSessionAsync(Arg.Any<CancellationToken>()).Returns(session);
+        var routeResolver = Substitute.For<IPageRouteTemplateResolver>();
+        var model = CreateModel(store, page, actor, routeTemplateResolver: routeResolver);
+        model.Slug = page.Slug;
+
+        var result = await model.OnGetAsync();
+
+        result.ShouldBeOfType<PageResult>();
+        await routeResolver.DidNotReceive().ResolveAsync(
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task MissingRootHomepage_RedirectsToNoSite()
     {
         await using var harness = new SableTestHarness()
@@ -44,8 +135,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>()
-            .Which.Url.Should().Be("/nosite");
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>().Url.ShouldBe("/nosite");
         await actor.Received(1).GetBySlugAsync(
             page.SiteId,
             "/",
@@ -68,8 +158,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>()
-            .Which.Url.Should().Be("/nosite");
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.RedirectResult>().Url.ShouldBe("/nosite");
         await actor.Received(1).GetBySlugAsync(
             page.SiteId,
             string.Empty,
@@ -92,7 +181,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
         await actor.Received(1).GetBySlugAsync(
             page.SiteId,
             "fr-fr",
@@ -117,8 +206,8 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.StatusCodeResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.StatusCodeResult>().StatusCode
+            .ShouldBe(StatusCodes.Status500InternalServerError);
     }
 
     [Test]
@@ -134,7 +223,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
     }
 
     [Test]
@@ -151,7 +240,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
     }
 
     [Test]
@@ -171,8 +260,8 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        model.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        result.ShouldBeOfType<PageResult>();
+        model.Response.StatusCode.ShouldBe(StatusCodes.Status404NotFound);
     }
 
     [Test]
@@ -190,8 +279,8 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        model.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        result.ShouldBeOfType<PageResult>();
+        model.Response.StatusCode.ShouldBe(StatusCodes.Status200OK);
     }
 
     [Test]
@@ -209,9 +298,9 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
+        result.ShouldBeOfType<PageResult>();
         model.Response.Headers.CacheControl.ToString()
-            .Should().Be("public, no-cache, max-age=0, must-revalidate");
+            .ShouldBe("public, no-cache, max-age=0, must-revalidate");
     }
 
     [Test]
@@ -234,9 +323,9 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        model.Response.Headers.CacheControl.ToString().Should().Be("no-store, no-cache");
-        model.Response.Headers.Pragma.ToString().Should().Be("no-cache");
+        result.ShouldBeOfType<PageResult>();
+        model.Response.Headers.CacheControl.ToString().ShouldBe("no-store, no-cache");
+        model.Response.Headers.Pragma.ToString().ShouldBe("no-cache");
         await actor.Received(1).GetByIdAsync(
             page.Id,
             page.SiteId,
@@ -263,8 +352,8 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        model.DraftId.Should().Be(page.Id);
+        result.ShouldBeOfType<PageResult>();
+        model.DraftId.ShouldBe(page.Id);
         await actor.Received(1).GetByIdAsync(
             page.Id,
             page.SiteId,
@@ -290,7 +379,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
     }
 
     [Test]
@@ -319,7 +408,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.ForbidResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.ForbidResult>();
         await actor.DidNotReceive().GetByIdAsync(
             Arg.Any<long>(),
             Arg.Any<long>(),
@@ -356,12 +445,12 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        captured.Should().NotBeNull();
-        captured!.IsPreview.Should().BeFalse();
-        captured.Source.Should().NotBeNull();
-        captured.Source!.VersionId.Should().Be(source.Value.Id);
-        captured.Source.Source.Should().Be(source.Value.Source);
+        result.ShouldBeOfType<PageResult>();
+        captured.ShouldNotBeNull();
+        captured.IsPreview.ShouldBeFalse();
+        captured.Source.ShouldNotBeNull();
+        captured.Source.VersionId.ShouldBe(source.Value.Id);
+        captured.Source.Source.ShouldBe(source.Value.Source);
     }
 
     [Test]
@@ -408,11 +497,12 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        captured.Should().NotBeNull();
-        captured!.IsPreview.Should().BeTrue();
-        captured.Source!.VersionId.Should().Be(draftSource.Value.Id);
-        captured.Source.Source.Should().Be(draftSource.Value.Source);
+        result.ShouldBeOfType<PageResult>();
+        captured.ShouldNotBeNull();
+        captured.IsPreview.ShouldBeTrue();
+        captured.Source.ShouldNotBeNull();
+        captured.Source.VersionId.ShouldBe(draftSource.Value.Id);
+        captured.Source.Source.ShouldBe(draftSource.Value.Source);
     }
 
     [Test]
@@ -444,7 +534,7 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
         await renderer.DidNotReceive().RenderAsync(
             Arg.Any<PageRenderRequest>(),
             Arg.Any<CancellationToken>());
@@ -507,12 +597,49 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
-        model.RenderedMarkup.Should().Contain("Resolved &amp; encoded");
-        model.RenderedMarkup.Should().NotContain("Placeholder");
+        result.ShouldBeOfType<PageResult>();
+        model.RenderedMarkup.ShouldContain("Resolved &amp; encoded");
+        model.RenderedMarkup.ShouldNotContain("Placeholder");
         model.HttpContext.Items["AeroCms.ContentTypeAliases"]
-            .Should().BeAssignableTo<IReadOnlyList<string>>()
-            .Which.Should().Contain("articles");
+            .ShouldBeAssignableTo<IReadOnlyList<string>>()
+            .ShouldContain("articles");
+    }
+
+    [Test]
+    public async Task PublicPage_returns_404_when_virtual_content_reference_is_missing()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var page = CreatePublishedPage(9_406);
+        var section = HtmlNode.CreateElement("section");
+        page.PublishedContent = new HtmlPageContent();
+        page.PublishedContent.Root.Children.Add(section);
+        page.PublishedComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = section.NodeId,
+                    ContentEntryKey = new ContentEntryKey("view:catalog", "missing")
+                }
+            ]
+        };
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var resolver = Substitute.For<IContentCompositionResolver>();
+        resolver.ResolveItemAsync(1, "en-US", Arg.Any<PageContentItemScope>(), Arg.Any<CancellationToken>())
+            .Returns(Prelude.Fail<PublishedContentItemProjection, AeroError>(
+                AeroError.NotFoundError("The query-backed entry was not found.")));
+        var model = CreateModel(harness, page, contentResolver: resolver);
+        model.Slug = page.Slug;
+
+        var result = await model.OnGetAsync();
+
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.NotFoundResult>();
+        model.RenderedMarkup.ShouldBeNullOrEmpty();
     }
 
     [Test]
@@ -556,8 +683,8 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.StatusCodeResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        result.ShouldBeOfType<Microsoft.AspNetCore.Mvc.StatusCodeResult>().StatusCode
+            .ShouldBe(StatusCodes.Status500InternalServerError);
         await queryResolver.Received(1).ResolveAsync(
             1,
             "en-US",
@@ -626,14 +753,14 @@ public class DynamicPageModelStatusCodeTests
 
         var result = await model.OnGetAsync();
 
-        result.Should().BeOfType<PageResult>();
+        result.ShouldBeOfType<PageResult>();
         await queryResolver.Received(1).ResolveAsync(
             1,
             "en-US",
             Arg.Any<IReadOnlyList<ContentQueryDefinition>>(),
             false,
             Arg.Any<CancellationToken>());
-        model.RenderedCulture.Should().Be("en-US");
+        model.RenderedCulture.ShouldBe("en-US");
     }
 
     private static DynamicPageModel CreateModel(
@@ -643,7 +770,27 @@ public class DynamicPageModelStatusCodeTests
         IContentCompositionResolver? contentResolver = null,
         IPageContentQueryResolver? contentQueryResolver = null,
         IAuthorizationService? authorizationService = null,
-        IPageRendererRegistry? rendererRegistry = null)
+        IPageRendererRegistry? rendererRegistry = null,
+        IPageRouteTemplateResolver? routeTemplateResolver = null)
+        => CreateModel(
+            harness.Store,
+            page,
+            actor,
+            contentResolver,
+            contentQueryResolver,
+            authorizationService,
+            rendererRegistry,
+            routeTemplateResolver);
+
+    private static DynamicPageModel CreateModel(
+        IDocumentStore documentStore,
+        PageDocument page,
+        IAeroPageActor? actor = null,
+        IContentCompositionResolver? contentResolver = null,
+        IPageContentQueryResolver? contentQueryResolver = null,
+        IAuthorizationService? authorizationService = null,
+        IPageRendererRegistry? rendererRegistry = null,
+        IPageRouteTemplateResolver? routeTemplateResolver = null)
     {
         var vm = new PageViewModel
         {
@@ -662,11 +809,11 @@ public class DynamicPageModelStatusCodeTests
         pageActor
             .GetBySlugAsync(Arg.Any<long>(), page.Slug, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(response);
-        pageActor.ListCultureVariantsAsync(page.Id, 1, Arg.Any<CancellationToken>())
+        pageActor.ListCultureVariantsAsync(page.Id, page.SiteId, Arg.Any<CancellationToken>())
             .Returns([vm]);
 
         var siteContext = Substitute.For<ISiteContext>();
-        siteContext.SiteId.Returns(1L);
+        siteContext.SiteId.Returns(page.SiteId);
 
         var catalog = HtmlElementCatalog.CreateDefault();
         var contentPolicy = new HtmlContentModelPolicy(catalog);
@@ -693,12 +840,13 @@ public class DynamicPageModelStatusCodeTests
         return new DynamicPageModel(
             pageActor,
             siteContext,
-            harness.Store,
+            documentStore,
             rendererRegistry ?? new PageRendererRegistry([pageRenderer]),
             contentQueryResolver
                 ?? new PageContentQueryResolver(Substitute.For<IContentHierarchyQueryService>()),
             authorizationService,
-            NullLogger<DynamicPageModel>.Instance)
+            NullLogger<DynamicPageModel>.Instance,
+            routeTemplateResolver)
         {
             PageContext = new PageContext
             {
@@ -754,6 +902,94 @@ public class DynamicPageModelStatusCodeTests
             },
             new PageErrorViewModel());
 
+    private static RouteBoundPageSetup CreateRouteBoundPublicPage(bool entryExists)
+    {
+        var catalog = HtmlElementCatalog.CreateDefault();
+        var section = catalog.CreateElement("section");
+        var title = catalog.CreateElement("h1");
+        title.Children.Add(HtmlNode.CreateText("placeholder"));
+        section.Children.Add(title);
+        var content = new HtmlPageContent();
+        content.Root.Children.Add(section);
+        var page = CreatePublishedPage(90_044);
+        page.SiteId = 42;
+        page.Slug = "catalog-template";
+        page.Path = "/catalog-template";
+        page.PublishedRouteTemplate = "/catalog/{entryId}";
+        page.PublishedContent = content;
+        page.PublishedComposition = new PageCompositionDocument
+        {
+            ContentItems =
+            [
+                new PageContentItemScope
+                {
+                    NodeId = section.NodeId,
+                    ContentEntryKey = new ContentEntryKey("view:catalog", string.Empty),
+                    StableIdRouteParameter = "entryId"
+                }
+            ],
+            FieldBindings =
+            [
+                new PageFieldBinding
+                {
+                    NodeId = title.NodeId,
+                    ScopeNodeId = section.NodeId,
+                    FieldName = "title"
+                }
+            ]
+        };
+
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.GetBySlugAsync(
+                42,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new AeroRequestResponse<PageViewModel>(
+                new PageViewModel(),
+                new PageErrorViewModel { Message = "Not found.", Kind = PageErrorKind.NotFound }));
+        actor.GetByIdAsync(page.Id, 42, Arg.Any<CancellationToken>())
+            .Returns(CreateActorResponse(page));
+
+        var routeResolver = Substitute.For<IPageRouteTemplateResolver>();
+        routeResolver.ResolveAsync(42, Arg.Any<string>(), "catalog/entry-42", Arg.Any<CancellationToken>())
+            .Returns(new PageRouteTemplateMatch(
+                page.Id,
+                "en-US",
+                "/catalog/entry-42",
+                new Dictionary<string, string> { ["entryId"] = "entry-42" }));
+
+        var session = Substitute.For<IDocumentSession>();
+        session.LoadAsync<PageDocument>(page.Id, Arg.Any<CancellationToken>()).Returns(page);
+        var store = Substitute.For<IDocumentStore>();
+        store.LightweightSessionAsync(Arg.Any<CancellationToken>()).Returns(session);
+
+        var provider = Substitute.For<IContentEntrySourceProvider>();
+        provider.Provider.Returns("view:catalog");
+        provider.FindAsync(new ContentViewScope(71, 42), "entry-42", Arg.Any<CancellationToken>())
+            .Returns(entryExists
+                ? new ContentEntry(
+                    new ContentEntryKey("view:catalog", "entry-42"),
+                    new ContentViewScope(71, 42),
+                    new Dictionary<string, object?> { ["title"] = "Sample entry" })
+                : null);
+        var providerCatalog = Substitute.For<IContentEntrySourceProviderCatalog>();
+        providerCatalog.ResolveAsync(new ContentViewScope(71, 42), "view:catalog", Arg.Any<CancellationToken>())
+            .Returns(provider);
+        var contentResolver = new ContentCompositionResolver(
+            Substitute.For<IContentTypeService>(),
+            Substitute.For<IContentService>(),
+            Substitute.For<IContentQueryService>(),
+            [],
+            new FixedContentSiteContext(71, 42),
+            providerCatalog);
+        var model = CreateModel(store, page, actor, contentResolver, routeTemplateResolver: routeResolver);
+        model.Slug = "catalog/entry-42";
+        model.HttpContext.Request.Scheme = "https";
+        model.HttpContext.Request.Host = new HostString("example.test");
+        return new RouteBoundPageSetup(model, provider);
+    }
+
     private static IAeroPageActor CreateFailedActor()
     {
         var actor = Substitute.For<IAeroPageActor>();
@@ -764,7 +1000,7 @@ public class DynamicPageModelStatusCodeTests
                 Arg.Any<CancellationToken>())
             .Returns(new AeroRequestResponse<PageViewModel>(
                 new PageViewModel(),
-                new PageErrorViewModel { Message = "Page not found." }));
+                new PageErrorViewModel { Message = "Page not found.", Kind = PageErrorKind.NotFound }));
         return actor;
     }
 
@@ -808,5 +1044,15 @@ public class DynamicPageModelStatusCodeTests
         public string? OriginalQueryString { get; set; } = null;
         public Endpoint? Endpoint { get; } = null;
         public RouteValueDictionary? RouteValues { get; } = null;
+    }
+
+    private sealed record RouteBoundPageSetup(
+        DynamicPageModel Model,
+        IContentEntrySourceProvider Provider);
+
+    private sealed class FixedContentSiteContext(long tenantId, long siteId) : ISiteContext
+    {
+        public long TenantId { get; } = tenantId;
+        public long SiteId { get; } = siteId;
     }
 }

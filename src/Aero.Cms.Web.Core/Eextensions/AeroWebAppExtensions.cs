@@ -10,6 +10,7 @@ using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
+using System.Reflection;
 
 namespace Aero.Cms.Web.Core.Eextensions;
 
@@ -23,6 +24,32 @@ namespace Aero.Cms.Web.Core.Eextensions;
 /// </remarks>
 public static class AeroWebAppExtensions
 {
+    /// <summary>
+    /// Registers the Aero CMS module runtime without replacing the consuming host's
+    /// configuration sources or logging provider.
+    /// </summary>
+    public static async Task<WebApplicationBuilder> AddAeroCmsRuntimeServicesAsync(
+        this WebApplicationBuilder builder,
+        Assembly hostAssembly,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors,
+        Action<ConfigurationManager>? configureResolvedInfrastructure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(hostAssembly);
+        ArgumentNullException.ThrowIfNull(generatedDescriptors);
+
+        var config = builder.Configuration;
+        var services = builder.Services;
+        var env = builder.Environment;
+
+        configureResolvedInfrastructure?.Invoke(config);
+        services.AddModuleSystemServices();
+        await services.AddAeroModulesAsync(config, env, generatedDescriptors);
+        services.AddAeroDataLayer(config, env);
+
+        return builder;
+    }
+
     /// <summary>
     /// Adds bootstrap-safe Aero CMS services to the web application builder with default arguments.
     /// </summary>
@@ -75,13 +102,36 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
         string[]? args = null,
         Action<ConfigurationManager>? configureResolvedInfrastructure = null)
         where T : class
+        => await builder.AddAeroCmsRuntimeAsync(
+            typeof(T).Assembly,
+            generatedDescriptors,
+            args,
+            configureResolvedInfrastructure);
+
+    /// <summary>
+    /// Adds the legacy Aero-owned configuration and logging pipeline using an explicit
+    /// host assembly instead of a generic C# marker type.
+    /// </summary>
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync(
+        this WebApplicationBuilder builder,
+        Assembly hostAssembly,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors,
+        string[]? args = null,
+        Action<ConfigurationManager>? configureResolvedInfrastructure = null)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(hostAssembly);
+        ArgumentNullException.ThrowIfNull(generatedDescriptors);
+
         args ??= [];
         var config = builder.Configuration;
         var services = builder.Services;
         var env = builder.Environment;
 
-        _ = config.AddConfiguration<T>(env);
+        config.AddJsonFile("appsettings.json", optional: true);
+        config.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
+        config.AddUserSecrets(hostAssembly, optional: true);
+        config.AddEnvironmentVariables();
         configureResolvedInfrastructure?.Invoke(config);
         var log = await services.ConfigureLogging(config);
 
@@ -255,7 +305,21 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
     /// </remarks>
     public static IApplicationBuilder UseAeroCmsModulePipeline(
         this IApplicationBuilder app)
+        => app.UseAeroCmsModulePipeline(static _ => true);
+
+    /// <summary>
+    /// Applies the explicitly selected subset of middleware contributed by Aero CMS modules.
+    /// </summary>
+    /// <param name="app">The application builder to which module middleware is added.</param>
+    /// <param name="predicate">Selects modules for the current host-owned pipeline stage.</param>
+    /// <returns>The supplied <paramref name="app"/>.</returns>
+    public static IApplicationBuilder UseAeroCmsModulePipeline(
+        this IApplicationBuilder app,
+        Func<IAeroPipelineModule, bool> predicate)
     {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(predicate);
+
         var graph = app.ApplicationServices.GetService<ModuleGraph>();
 
         var modules = graph is not null
@@ -269,6 +333,7 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
                 .ToList();
 
         foreach (var module in modules
+                     .Where(predicate)
                      .OrderBy(module => module.PipelineOrder)
                      .ThenBy(module => module.Order))
         {

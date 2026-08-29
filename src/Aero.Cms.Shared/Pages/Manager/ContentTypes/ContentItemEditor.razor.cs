@@ -1,9 +1,12 @@
 using System.Text.Json;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Shared.Components;
@@ -20,6 +23,8 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentItemEditor
 {
+    private const string ContentEntryPreviewFieldsSetting = "previewFields";
+
         /// <summary>
     /// Gets or sets the Alias.
     /// </summary>
@@ -37,6 +42,7 @@ public partial class ContentItemEditor
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+    [Inject] private IAiHttpClient AiClient { get; set; } = default!;
     [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
@@ -52,6 +58,7 @@ public partial class ContentItemEditor
     private readonly Dictionary<string, List<string>> _galleryValues = [];
     private readonly Dictionary<string, List<KeyValueEditorRow>> _dictionaryValues = [];
     private readonly Dictionary<string, CmsContentReferenceValue?> _cmsReferenceValues = [];
+    private readonly Dictionary<string, ContentEntryKey?> _contentEntryReferenceValues = [];
     private readonly Dictionary<string, string> _fieldErrors = [];
 
     private IReadOnlyList<ContentItemDetail> _cultureVariants = [];
@@ -77,6 +84,45 @@ public partial class ContentItemEditor
     private long? _parentId;
     private int _sortOrder;
     private IReadOnlyList<ContentParentOption> _parentOptions = [];
+    private ContentTranslationProvenance? _translationProvenance;
+    private ContentTranslationReview? _translationReview;
+    private bool _hasTranslationReviewMetadata;
+    private ContentAiTranslationReviewPolicy _aiTranslationReviewPolicy = ContentAiTranslationReviewPolicy.RequireHumanReview;
+    private int? _currentSourceVersionNumber;
+    private int? _translationGroupRevision;
+    private long _storageVersion;
+    private long? _translationGroupStorageVersion;
+    private ContentItemDetail? _sourceVariant;
+    private GenerateContentAiTranslationResponse? _aiSuggestion;
+    private bool _isGeneratingTranslation;
+    private bool _aiAvailabilityResolved;
+    private bool _aiTranslationAvailable;
+    private bool _isApplyingTranslation;
+    private bool _isReviewingTranslation;
+    private bool _isSavingSharedFields;
+    private string _reviewNotes = string.Empty;
+    private string? _translationActionError;
+    private ContentItemEditSnapshot? _loadedEditSnapshot;
+
+    private ContentTranslationPublishDecision PublishReviewDecision =>
+        ContentLocalizationManagerUi.EvaluatePublishDecision(
+            _hasTranslationReviewMetadata,
+            _translationProvenance,
+            _translationReview,
+            _aiTranslationReviewPolicy,
+            _sourceItemId,
+            _currentSourceVersionNumber,
+            _versionNumber,
+            IsEditorDirty);
+
+    private bool IsEditorDirty =>
+        _loadedEditSnapshot is null
+        || !_loadedEditSnapshot.Matches(
+            _title,
+            _slug,
+            _parentId,
+            _sortOrder,
+            BuildFieldsDictionary());
 
     private static bool IsHierarchyReference(ContentFieldDefinition field) =>
         field.FieldType == ContentFieldTypes.Reference
@@ -90,6 +136,13 @@ public partial class ContentItemEditor
         && string.Equals(
             GetStringSetting(field, ReferenceContentFieldSettings.TargetKind),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    private static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        field.FieldType == ContentFieldTypes.Reference
+        && string.Equals(
+            GetStringSetting(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
             StringComparison.Ordinal);
 
     private static long? GetTargetContentTypeId(ContentFieldDefinition field)
@@ -119,6 +172,19 @@ public partial class ContentItemEditor
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static IReadOnlyList<string> GetAllowedContentEntryProviders(ContentFieldDefinition field) =>
+        field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowedProviders, out var providers)
+        && providers.ValueKind == JsonValueKind.Array
+            ? providers.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim()).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            : [];
+
+    private static IReadOnlyList<string> GetContentEntryPreviewFields(ContentFieldDefinition field) =>
+        ContentEntryReferencePreviewUi.ReadPreviewFields(
+            field.Settings,
+            ContentEntryPreviewFieldsSetting);
 
     private static bool GetBoolSetting(
         ContentFieldDefinition field,
@@ -214,7 +280,11 @@ public partial class ContentItemEditor
         string.Equals(_publicationState, "Published", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(_slug);
 
-    private string PublicPath => $"/content/{Alias}/{_slug}";
+    private string PublicPath =>
+        ContentLocalizationManagerUi.BuildCultureAwareContentPath(Alias, _slug, _culture);
+
+    private string PreviewDirection =>
+        ContentLocalizationManagerUi.ResolveTextDirection(_culture);
 
     private string? FrameUrl => CanPreviewPublishedPage
         ? new Uri(new Uri(Navigation.BaseUri), PublicPath.TrimStart('/')).ToString()
@@ -230,6 +300,7 @@ protected override async Task OnInitializedAsync()
             : "content";
 
         await LoadCurrentSiteAsync();
+        await LoadAiAvailabilityAsync();
 
         var typeResult = await ContentTypesApi.GetByAliasAsync(Alias);
         if (typeResult is not Result<ContentTypeDetail, AeroError>.Ok typeOk)
@@ -242,6 +313,8 @@ protected override async Task OnInitializedAsync()
         _typeDefinition = typeOk.Value;
         _typeName = _typeDefinition.Name;
         _allowPublicUrl = _typeDefinition.AllowPublicUrl;
+        _aiTranslationReviewPolicy = _typeDefinition.Localization?.AiTranslationReviewPolicy
+            ?? ContentAiTranslationReviewPolicy.RequireHumanReview;
         _culture = _currentSite?.DefaultCulture
             ?? System.Globalization.CultureInfo.CurrentUICulture.Name;
         InitializeFieldDictionaries();
@@ -285,6 +358,12 @@ protected override async Task OnInitializedAsync()
             if (IsCmsDocumentReference(field))
             {
                 _cmsReferenceValues.TryAdd(field.Name, null);
+                continue;
+            }
+
+            if (IsContentEntryReference(field))
+            {
+                _contentEntryReferenceValues.TryAdd(field.Name, null);
                 continue;
             }
 
@@ -339,7 +418,45 @@ protected override async Task OnInitializedAsync()
         _sourceItemId = detail.SourceItemId;
         _parentId = detail.ParentId;
         _sortOrder = detail.SortOrder;
+        _storageVersion = detail.StorageVersion;
+        _translationGroupStorageVersion = detail.TranslationGroupStorageVersion;
         PopulateFieldValues(detail.Fields);
+        _loadedEditSnapshot = ContentItemEditSnapshot.Create(
+            _title,
+            _slug,
+            _parentId,
+            _sortOrder,
+            BuildFieldsDictionary());
+
+        LoadTranslationReviewMetadata(
+            metadataAvailable: detail.StorageVersion > 0
+                               && detail.TranslationGroupStorageVersion is > 0
+                               && detail.TranslationGroupRevision.HasValue,
+            detail.TranslationProvenance,
+            detail.TranslationReview,
+            _sourceVariant?.VersionNumber ?? (detail.SourceItemId is null ? detail.VersionNumber : null),
+            detail.TranslationGroupRevision,
+            _typeDefinition?.Localization?.AiTranslationReviewPolicy
+                ?? ContentAiTranslationReviewPolicy.RequireHumanReview);
+    }
+
+    private void LoadTranslationReviewMetadata(
+        bool metadataAvailable,
+        ContentTranslationProvenance? provenance,
+        ContentTranslationReview? review,
+        int? currentSourceVersionNumber,
+        int? translationGroupRevision,
+        ContentAiTranslationReviewPolicy reviewPolicy)
+    {
+        _translationProvenance = provenance;
+        _translationReview = review;
+        _currentSourceVersionNumber = currentSourceVersionNumber;
+        _translationGroupRevision = translationGroupRevision;
+        _aiTranslationReviewPolicy = reviewPolicy;
+        _hasTranslationReviewMetadata = metadataAvailable
+                                        && review is not null
+                                        && (provenance?.Origin != ContentTranslationOrigin.AiAssisted
+                                            || currentSourceVersionNumber is > 0);
     }
 
     private async Task LoadParentOptionsAsync()
@@ -433,6 +550,15 @@ protected override async Task OnInitializedAsync()
                 _cmsReferenceValues[field.Name] =
                     element.ValueKind == JsonValueKind.Object
                         ? element.Deserialize(ContentJsonContext.Default.CmsContentReferenceValue)
+                        : null;
+                continue;
+            }
+
+            if (IsContentEntryReference(field))
+            {
+                _contentEntryReferenceValues[field.Name] =
+                    element.ValueKind == JsonValueKind.Object
+                        ? element.Deserialize(ContentJsonContext.Default.ContentEntryKey)
                         : null;
                 continue;
             }
@@ -569,8 +695,18 @@ protected override async Task OnInitializedAsync()
     {
         if (!ValidateForPublish()) return;
 
-        var saved = await SaveAsync(navigateAfterSave: false);
-        if (saved is null || !Id.HasValue) return;
+        var publishDecision = PublishReviewDecision;
+        if (!publishDecision.CanPublish)
+        {
+            Notify(NotificationSeverity.Warning, "Publication blocked", publishDecision.Detail);
+            return;
+        }
+
+        if (!Id.HasValue || IsEditorDirty)
+        {
+            var saved = await SaveAsync(navigateAfterSave: false);
+            if (saved is null || !Id.HasValue) return;
+        }
 
         _isSaving = true;
         try
@@ -666,6 +802,21 @@ protected override async Task OnInitializedAsync()
             if (result is Result<IReadOnlyList<ContentItemDetail>, AeroError>.Ok ok)
             {
                 _cultureVariants = ok.Value;
+                _sourceVariant = ResolveSourceVariant(ok.Value);
+                _currentSourceVersionNumber = _sourceVariant?.VersionNumber;
+                if (Id.HasValue && ok.Value.FirstOrDefault(variant => variant.Id == Id.Value) is { } current)
+                {
+                    LoadTranslationReviewMetadata(
+                        current.StorageVersion > 0
+                        && current.TranslationGroupStorageVersion is > 0
+                        && current.TranslationGroupRevision.HasValue,
+                        current.TranslationProvenance,
+                        current.TranslationReview,
+                        _sourceVariant?.VersionNumber,
+                        current.TranslationGroupRevision,
+                        _typeDefinition?.Localization?.AiTranslationReviewPolicy
+                            ?? ContentAiTranslationReviewPolicy.RequireHumanReview);
+                }
                 return;
             }
 
@@ -711,12 +862,48 @@ protected override async Task OnInitializedAsync()
         _isSaving = true;
         try
         {
-            var request = new ForkContentItemCultureRequest(decision.Culture, decision.Slug);
-            var result = await ContentItemsApi.ForkToCultureAsync(Alias, Id.Value, request);
+            if (_sourceVariant is not { Id: > 0 } sourceVariant)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Reload required",
+                    "The canonical source could not be identified. Reload translations before adding a culture.");
+                return;
+            }
+
+            var sourceResult = await ContentItemsApi.GetByIdAsync(Alias, sourceVariant.Id);
+            if (sourceResult is not Result<ContentItemDetail, AeroError>.Ok sourceOk)
+            {
+                Notify(
+                    NotificationSeverity.Warning,
+                    "Reload required",
+                    "The canonical source could not be reloaded. Reload translations before adding a culture.");
+                return;
+            }
+
+            var preparation = ContentTranslationForkUi.Prepare(
+                Id.Value,
+                _translationGroupId,
+                sourceVariant,
+                sourceOk.Value,
+                decision.Culture,
+                decision.Slug);
+            if (!preparation.CanFork || preparation.Request is null)
+            {
+                Notify(NotificationSeverity.Warning, "Reload required", preparation.ReloadMessage);
+                return;
+            }
+
+            var result = await ContentItemsApi.ForkToCultureAsync(
+                Alias,
+                preparation.SourceItemId,
+                preparation.Request);
             if (result is Result<ContentItemDetail, AeroError>.Ok ok)
             {
                 Notify(NotificationSeverity.Success, "Translation created", $"{FormatCulture(ok.Value.Culture)} draft created.");
-                Navigation.NavigateTo($"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations");
+                Navigation.NavigateTo(
+                    $"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations",
+                    forceLoad: true);
                 return;
             }
 
@@ -732,7 +919,226 @@ protected override async Task OnInitializedAsync()
     }
 
     private void OpenTranslation(long id)
-        => Navigation.NavigateTo($"/manager/content/{Alias}/editor/{id}?tab=translations");
+        => Navigation.NavigateTo(
+            $"/manager/content/{Alias}/editor/{id}?tab=translations",
+            forceLoad: true);
+
+    private ContentItemDetail? ResolveSourceVariant(IEnumerable<ContentItemDetail> variants)
+        => variants.FirstOrDefault(variant => variant.SourceItemId is null)
+           ?? variants.FirstOrDefault(variant => variant.Id == _sourceItemId)
+           ?? variants.FirstOrDefault();
+
+    private bool HasExactLocalizationTokens =>
+        Id is > 0
+        && _translationGroupId is > 0
+        && ContentLocalizationManagerUi.HasExactLocalizationTokens(
+            _storageVersion,
+            _translationGroupStorageVersion,
+            _translationGroupRevision);
+
+    private bool CanGenerateAiTranslation =>
+        ContentLocalizationManagerUi.CanRequestAiTranslation(
+            _aiAvailabilityResolved,
+            _aiTranslationAvailable,
+            HasExactLocalizationTokens,
+            _sourceVariant is { StorageVersion: > 0 },
+            _sourceVariant?.Id != Id,
+            IsEditorDirty);
+
+    private async Task LoadAiAvailabilityAsync()
+    {
+        try
+        {
+            var settingsResult = await AiClient.GetSettingsAsync();
+            var providersResult = await AiClient.GetProviderOptionsAsync();
+            _aiTranslationAvailable =
+                settingsResult is Result<AiSettingsConfiguration, AeroError>.Ok { Value.Enabled: true }
+                && providersResult is Result<IReadOnlyList<AiProviderOption>, AeroError>.Ok { Value.Count: > 0 };
+        }
+        catch
+        {
+            _aiTranslationAvailable = false;
+        }
+        finally
+        {
+            _aiAvailabilityResolved = true;
+        }
+    }
+
+    private async Task GenerateAiTranslationAsync()
+    {
+        if (!CanGenerateAiTranslation || _currentSite is null || _sourceVariant is null || !Id.HasValue)
+        {
+            _translationActionError = "Save and reload an unchanged target variant with current source and group tokens before generating a translation.";
+            return;
+        }
+
+        _isGeneratingTranslation = true;
+        _translationActionError = null;
+        try
+        {
+            var result = await AiClient.GenerateContentTranslationAsync(new(
+                _currentSite.Id,
+                _sourceVariant.Id,
+                _sourceVariant.VersionNumber,
+                Id.Value,
+                _versionNumber,
+                _culture));
+            if (result is Result<GenerateContentAiTranslationResponse, AeroError>.Ok ok)
+            {
+                _aiSuggestion = ok.Value;
+                return;
+            }
+
+            _translationActionError = result is Result<GenerateContentAiTranslationResponse, AeroError>.Failure failure
+                ? failure.Error.ToString()
+                : "The AI translation suggestion could not be generated.";
+        }
+        finally
+        {
+            _isGeneratingTranslation = false;
+        }
+    }
+
+    private async Task ApplyAiTranslationAsync()
+    {
+        if (_aiSuggestion?.Application is not { } suggestion
+            || _sourceVariant is null
+            || !Id.HasValue
+            || !HasExactLocalizationTokens)
+        {
+            _translationActionError = "Reload before applying this suggestion; current revision tokens are required.";
+            return;
+        }
+
+        _isApplyingTranslation = true;
+        _translationActionError = null;
+        try
+        {
+            var request = new ApplyContentItemAiTranslationRequest(
+                suggestion.TargetItemId,
+                suggestion.SourceVersionNumber,
+                suggestion.ExpectedTargetVersionNumber,
+                suggestion.SourceCulture,
+                suggestion.TargetCulture,
+                suggestion.TranslatedFields,
+                suggestion.ProviderId,
+                suggestion.Model,
+                _sourceVariant.StorageVersion,
+                _storageVersion,
+                _translationGroupStorageVersion);
+            var result = await ContentItemsApi.ApplyAiTranslationAsync(Alias, suggestion.SourceItemId, request);
+            if (result is Result<ContentLocalizationOperationResult, AeroError>.Ok)
+            {
+                _aiSuggestion = null;
+                await ReloadLocalizationStateAsync();
+                Notify(NotificationSeverity.Success, "Translation applied", "AI suggestions were saved as a draft pending review.");
+                return;
+            }
+
+            await HandleLocalizationMutationFailureAsync(result, "The translation changed. Reloaded the latest draft; generate a new suggestion.");
+        }
+        finally
+        {
+            _isApplyingTranslation = false;
+        }
+    }
+
+    private async Task ReviewTranslationAsync(bool approved)
+    {
+        if (_sourceVariant is null || !Id.HasValue || !HasExactLocalizationTokens)
+        {
+            _translationActionError = "Reload before reviewing; current revision tokens are required.";
+            return;
+        }
+
+        _isReviewingTranslation = true;
+        _translationActionError = null;
+        try
+        {
+            var request = new ReviewContentItemTranslationRequest(
+                Id.Value,
+                _sourceVariant.VersionNumber,
+                _versionNumber,
+                approved,
+                string.IsNullOrWhiteSpace(_reviewNotes) ? null : _reviewNotes.Trim(),
+                _sourceVariant.StorageVersion,
+                _storageVersion,
+                _translationGroupStorageVersion);
+            var result = await ContentItemsApi.ReviewTranslationAsync(Alias, _sourceVariant.Id, request);
+            if (result is Result<ContentLocalizationOperationResult, AeroError>.Ok)
+            {
+                await ReloadLocalizationStateAsync();
+                Notify(NotificationSeverity.Success, approved ? "Translation approved" : "Translation rejected", approved ? "This exact revision may now be published." : "The draft remains blocked from publication.");
+                return;
+            }
+
+            await HandleLocalizationMutationFailureAsync(result, "The translation changed. Reloaded the latest draft; review it again.");
+        }
+        finally
+        {
+            _isReviewingTranslation = false;
+        }
+    }
+
+    private async Task SaveSharedFieldsAsync()
+    {
+        if (!Id.HasValue
+            || _translationGroupId is not > 0
+            || _translationGroupStorageVersion is not > 0
+            || _translationGroupRevision is null)
+        {
+            _translationActionError = "Shared fields need current translation-group storage and revision tokens. Reload and try again.";
+            return;
+        }
+
+        _isSavingSharedFields = true;
+        _translationActionError = null;
+        try
+        {
+            var result = await ContentItemsApi.UpdateSharedFieldsAsync(
+                Alias,
+                Id.Value,
+                new UpdateContentItemTranslationSharedFieldsRequest(
+                    _translationGroupId.Value,
+                    _translationGroupStorageVersion.Value,
+                    _translationGroupRevision.Value,
+                    BuildSharedFieldsDictionary()));
+            if (result is Result<ContentLocalizationOperationResult, AeroError>.Ok)
+            {
+                await ReloadLocalizationStateAsync();
+                Notify(NotificationSeverity.Success, "Shared fields saved", "Every culture now uses the updated shared values.");
+                return;
+            }
+
+            await HandleLocalizationMutationFailureAsync(result, "Another editor changed these shared values. The latest values were reloaded; review and try again.");
+        }
+        finally
+        {
+            _isSavingSharedFields = false;
+        }
+    }
+
+    private async Task ReloadLocalizationStateAsync()
+    {
+        if (!Id.HasValue) return;
+        var itemResult = await ContentItemsApi.GetByIdAsync(Alias, Id.Value);
+        if (itemResult is Result<ContentItemDetail, AeroError>.Ok ok)
+        {
+            LoadItem(ok.Value);
+            await LoadTranslationsAsync();
+        }
+    }
+
+    private async Task HandleLocalizationMutationFailureAsync(
+        Result<ContentLocalizationOperationResult, AeroError> result,
+        string staleMessage)
+    {
+        _translationActionError = result is Result<ContentLocalizationOperationResult, AeroError>.Failure failure
+            ? $"{staleMessage} {failure.Error}"
+            : staleMessage;
+        await ReloadLocalizationStateAsync();
+    }
 
     private async Task DeleteTranslationAsync(ContentItemDetail variant)
     {
@@ -813,6 +1219,9 @@ protected override async Task OnInitializedAsync()
               || cmsReference is null
               || string.IsNullOrWhiteSpace(cmsReference.Source)
               || string.IsNullOrWhiteSpace(cmsReference.Id)
+            : IsContentEntryReference(field)
+              ? !_contentEntryReferenceValues.TryGetValue(field.Name, out var entryReference)
+                || entryReference is not { IsValid: true }
             : field.FieldType switch
         {
             "number" => !_numberValues.TryGetValue(field.Name, out var value) || value is null,
@@ -826,47 +1235,66 @@ protected override async Task OnInitializedAsync()
         };
 
     private Dictionary<string, JsonElement> BuildFieldsDictionary()
+        => BuildEditorFieldsDictionary(includeShared: false);
+
+    private Dictionary<string, JsonElement> BuildSharedFieldsDictionary()
+    {
+        var allValues = BuildEditorFieldsDictionary(includeShared: true);
+        return _typeDefinition?.Fields
+                   .Where(IsSharedField)
+                   .Where(field => allValues.ContainsKey(field.Name))
+                   .ToDictionary(field => field.Name, field => allValues[field.Name].Clone(), StringComparer.Ordinal)
+               ?? [];
+    }
+
+    private Dictionary<string, JsonElement> BuildEditorFieldsDictionary(bool includeShared)
     {
         var dict = new Dictionary<string, JsonElement>();
         if (_typeDefinition is null) return dict;
 
         foreach (var field in _typeDefinition.Fields)
         {
+            if (!includeShared && IsSharedField(field)) continue;
             if (IsCmsDocumentReference(field))
             {
-                dict[field.Name] = JsonSerializer.SerializeToElement(
-                    _cmsReferenceValues.GetValueOrDefault(field.Name),
-                    ContentJsonContext.Default.CmsContentReferenceValue);
-                continue;
+                dict[field.Name] = JsonSerializer.SerializeToElement(_cmsReferenceValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.CmsContentReferenceValue);
             }
-
-            dict[field.Name] = field.FieldType switch
+            else if (IsContentEntryReference(field))
             {
-                "number" => JsonSerializer.SerializeToElement(
-                    _numberValues.GetValueOrDefault(field.Name),
-                    ContentJsonContext.Default.Options),
-                ContentFieldTypes.Range => JsonSerializer.SerializeToElement(
-                    _rangeValues.GetValueOrDefault(field.Name),
-                    ContentJsonContext.Default.Options),
-                "boolean" => JsonSerializer.SerializeToElement(
-                    _boolValues.GetValueOrDefault(field.Name),
-                    ContentJsonContext.Default.Options),
-                "date" => JsonSerializer.SerializeToElement(
-                    _dateValues.GetValueOrDefault(field.Name),
-                    ContentJsonContext.Default.Options),
-                ContentFieldTypes.List => SerializeList(field),
-                ContentFieldTypes.Gallery => JsonSerializer.SerializeToElement(
-                    _galleryValues.GetValueOrDefault(field.Name, []),
-                    ContentJsonContext.Default.Options),
-                ContentFieldTypes.Dictionary => SerializeDictionary(field),
-                _ => JsonSerializer.SerializeToElement(
-                    _fieldValues.GetValueOrDefault(field.Name, string.Empty),
-                    ContentJsonContext.Default.Options)
-            };
+                if (ContentEntryReferenceEditorValue.TrySerialize(
+                        _contentEntryReferenceValues.GetValueOrDefault(field.Name),
+                        out var entryReference))
+                {
+                    dict[field.Name] = entryReference;
+                }
+            }
+            else
+            {
+                dict[field.Name] = field.FieldType switch
+                {
+                    "number" => JsonSerializer.SerializeToElement(_numberValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.Options),
+                    ContentFieldTypes.Range => JsonSerializer.SerializeToElement(_rangeValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.Options),
+                    "boolean" => JsonSerializer.SerializeToElement(_boolValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.Options),
+                    "date" => JsonSerializer.SerializeToElement(_dateValues.GetValueOrDefault(field.Name), ContentJsonContext.Default.Options),
+                    ContentFieldTypes.List => SerializeList(field),
+                    ContentFieldTypes.Gallery => JsonSerializer.SerializeToElement(_galleryValues.GetValueOrDefault(field.Name, []), ContentJsonContext.Default.Options),
+                    ContentFieldTypes.Dictionary => SerializeDictionary(field),
+                    _ => JsonSerializer.SerializeToElement(_fieldValues.GetValueOrDefault(field.Name, string.Empty), ContentJsonContext.Default.Options)
+                };
+            }
         }
 
         return dict;
     }
+
+    private static string FormatSuggestion(JsonElement value) => value.ValueKind == JsonValueKind.String
+        ? value.GetString() ?? string.Empty
+        : value.GetRawText();
+
+    private string SuggestionFieldLabel(string fieldName) =>
+        _typeDefinition?.Fields.FirstOrDefault(field => string.Equals(field.Name, fieldName, StringComparison.Ordinal)) is { } field
+            ? FieldLabel(field)
+            : fieldName;
 
     private void OpenMediaSelector(string fieldName)
     {
@@ -1115,6 +1543,12 @@ protected override async Task OnInitializedAsync()
     private static string FieldLabel(ContentFieldDefinition field)
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
 
+    private static bool IsSharedField(ContentFieldDefinition field) =>
+        field.LocalizationMode == ContentFieldLocalizationMode.Shared;
+
+    private static string SharedFieldDescriptionId(ContentFieldDefinition field) =>
+        $"shared-field-{field.Name}-description";
+
     private int? ActiveGalleryMaximumSelections =>
         _activeGalleryField is not null
         && _typeDefinition?.Fields.FirstOrDefault(candidate => candidate.Name == _activeGalleryField) is { } definitionField
@@ -1168,4 +1602,101 @@ protected override async Task OnInitializedAsync()
         string ContentTypeAlias,
         string Breadcrumb,
         bool CanAcceptChildren);
+
+    private sealed record ContentItemEditSnapshot(
+        string Title,
+        string Slug,
+        long? ParentId,
+        int SortOrder,
+        IReadOnlyDictionary<string, JsonElement> Fields)
+    {
+        public static ContentItemEditSnapshot Create(
+            string title,
+            string slug,
+            long? parentId,
+            int sortOrder,
+            IReadOnlyDictionary<string, JsonElement> fields) =>
+            new(
+                title,
+                slug,
+                parentId,
+                sortOrder,
+                fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal));
+
+        public bool Matches(
+            string title,
+            string slug,
+            long? parentId,
+            int sortOrder,
+            IReadOnlyDictionary<string, JsonElement> fields) =>
+            string.Equals(Title, title, StringComparison.Ordinal)
+            && string.Equals(Slug, slug, StringComparison.Ordinal)
+            && ParentId == parentId
+            && SortOrder == sortOrder
+            && Fields.Count == fields.Count
+            && Fields.All(pair =>
+                fields.TryGetValue(pair.Key, out var current)
+                && JsonElement.DeepEquals(pair.Value, current));
+    }
+}
+
+/// <summary>
+/// Fail-closed preparation for a manager translation fork from the authoritative canonical item.
+/// </summary>
+public static class ContentTranslationForkUi
+{
+    private const string ReloadMessage =
+        "The canonical source or its concurrency tokens changed. Reload translations before adding a culture.";
+
+    /// <summary>
+    /// Validates that the freshly loaded item is the canonical source for the current translation group
+    /// and builds the exact source and group concurrency fence required by the server.
+    /// </summary>
+    public static ContentTranslationForkPreparation Prepare(
+        long currentItemId,
+        long? currentTranslationGroupId,
+        ContentItemDetail? sourceReference,
+        ContentItemDetail? authoritativeSource,
+        string culture,
+        string slug)
+    {
+        if (currentItemId <= 0
+            || currentTranslationGroupId is not > 0
+            || sourceReference is not { Id: > 0 }
+            || authoritativeSource is not { Id: > 0 }
+            || authoritativeSource.Id != sourceReference.Id
+            || authoritativeSource.SourceItemId is not null
+            || authoritativeSource.TranslationGroupId != currentTranslationGroupId
+            || authoritativeSource.StorageVersion <= 0
+            || authoritativeSource.TranslationGroupStorageVersion is not > 0)
+        {
+            return ContentTranslationForkPreparation.Reload(ReloadMessage);
+        }
+
+        return ContentTranslationForkPreparation.Ready(
+            authoritativeSource.Id,
+            new ForkContentItemCultureRequest(
+                culture,
+                slug,
+                authoritativeSource.TranslationGroupStorageVersion,
+                ExpectedSourceStorageVersion: authoritativeSource.StorageVersion));
+    }
+}
+
+/// <summary>Validated canonical source and request for a manager translation fork.</summary>
+public sealed record ContentTranslationForkPreparation(
+    bool CanFork,
+    long SourceItemId,
+    ForkContentItemCultureRequest? Request,
+    string ReloadMessage)
+{
+    /// <summary>Creates a successful fork preparation.</summary>
+    public static ContentTranslationForkPreparation Ready(
+        long sourceItemId,
+        ForkContentItemCultureRequest request) =>
+        new(true, sourceItemId, request, string.Empty);
+
+    /// <summary>Creates a fail-closed preparation requiring manager reload.</summary>
+    public static ContentTranslationForkPreparation Reload(string message) =>
+        new(false, 0, null, message);
 }

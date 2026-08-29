@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -60,7 +61,10 @@ public class SetupAuthenticationHandoffTests
             cache,
             pending,
             completion,
+            Substitute.For<IEnvironmentAppSettingsWriter>(),
+            HostEnvironment(),
             lifetime,
+            new SetupBootstrapHandoffGate(),
             Substitute.For<ILogger<SetupBootstrapHandoffService>>());
         var request = CreateRequest(
             AuthenticationProviderSelections.Manager.Local,
@@ -77,14 +81,47 @@ public class SetupAuthenticationHandoffTests
         lifetime.Received(1).StopApplication();
     }
 
+    [Test]
+    public async Task Handoff_persists_database_namespace_and_name()
+    {
+        var database = Substitute.For<IDatabaseBootstrapService>();
+        var service = CreateService(database);
+        var request = CreateRequest(
+            AuthenticationProviderSelections.Manager.Local,
+            AuthenticationProviderSelections.Member.Disabled) with
+        {
+            DatabaseNamespace = "wildlife-prod",
+            DatabaseName = "cms_data"
+        };
+
+        var result = await service.CompleteAndHandoffAsync(request);
+
+        await Assert.That(result.Succeeded).IsTrue();
+        await database.Received(1).PersistAsync(
+            Arg.Is<DatabaseBootstrapModel>(model =>
+                model.DatabaseNamespace == "wildlife-prod"
+                && model.DatabaseName == "cms_data"),
+            Arg.Any<CancellationToken>());
+    }
+
     private static SetupBootstrapHandoffService CreateService(IDatabaseBootstrapService database)
         => new(
             database,
             Substitute.For<ICacheBootstrapService>(),
             Substitute.For<IBootstrapPendingSetupRequestStore>(),
             Substitute.For<IBootstrapCompletionWriter>(),
+            Substitute.For<IEnvironmentAppSettingsWriter>(),
+            HostEnvironment(),
             Substitute.For<IHostApplicationLifetime>(),
+            new SetupBootstrapHandoffGate(),
             Substitute.For<ILogger<SetupBootstrapHandoffService>>());
+
+    private static IHostEnvironment HostEnvironment()
+    {
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns("Test");
+        return environment;
+    }
 
     private static SeedDatabaseRequest CreateRequest(string managerProvider, string memberProvider)
         => new(

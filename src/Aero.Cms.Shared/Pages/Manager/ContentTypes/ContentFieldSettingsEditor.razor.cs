@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -15,11 +16,15 @@ namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 /// </summary>
 public partial class ContentFieldSettingsEditor
 {
+    private const string ContentEntryPreviewFieldsSetting = "previewFields";
+
     private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
         Enum.GetValues<AeroAiFieldExposure>();
 
     private ContentTypeDetail? _referenceTargetDefinition;
     private long? _loadedReferenceTargetId;
+    private IReadOnlyList<CmsContentReferenceSource> _contentEntryProviders = [];
+    private bool _contentEntryProvidersLoaded;
 
     [Parameter, EditorRequired]
     public ContentFieldDefinition Field { get; set; } = default!;
@@ -39,8 +44,17 @@ public partial class ContentFieldSettingsEditor
     [Parameter]
     public EventCallback<ContentFieldDefinition> FieldChanged { get; set; }
 
+    [Parameter]
+    public bool LocalizationModeLocked { get; set; }
+
+    [Parameter]
+    public string? LocalizationModeLockedReason { get; set; }
+
     [Inject]
     private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
+
+    [Inject]
+    private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
 
     [Inject]
     private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
@@ -51,11 +65,29 @@ public partial class ContentFieldSettingsEditor
             ReferenceContentFieldSettings.TargetKindCmsDocument,
             StringComparison.Ordinal);
 
+    private bool IsContentEntryReference =>
+        string.Equals(
+            GetStringSetting(ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
+            StringComparison.Ordinal);
+
+    private IReadOnlySet<string> AllowedContentEntryProviders =>
+        Field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowedProviders, out var providers)
+        && providers.ValueKind == JsonValueKind.Array
+            ? providers.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String)
+                .Select(value => value.GetString()?.Trim()).Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     private bool IsHierarchyReference =>
         string.Equals(
             GetStringSetting(ReferenceContentFieldSettings.SelectionMode),
             ReferenceContentFieldSettings.SelectionModeHierarchy,
             StringComparison.Ordinal);
+
+    private bool NativeRelationshipEnabled =>
+        !string.IsNullOrWhiteSpace(
+            GetStringSetting(ReferenceContentFieldSettings.RelationshipAlias));
 
     private bool IsCompositeField =>
         Field.FieldType is ContentFieldTypes.List or ContentFieldTypes.Gallery or ContentFieldTypes.Dictionary;
@@ -71,6 +103,16 @@ public partial class ContentFieldSettingsEditor
         GetBoolSetting(RangeContentFieldSettings.AllowNegative)
             ? int.MinValue
             : 0;
+
+    private string LocalizationModeHelp => Field.LocalizationMode switch
+    {
+        ContentFieldLocalizationMode.Shared =>
+            L["Use for invariant values such as identifiers or source references. One translation-group value is shown in every culture."],
+        ContentFieldLocalizationMode.Localized =>
+            L["Use when every culture must supply its own value. A new translation starts empty."],
+        _ =>
+            L["Use when a new translation should start from the source value but become independent after the fork."]
+    };
 
     private IEnumerable<ContentTypeSummary> AvailableReferenceContentTypes =>
         ContentTypes.Where(contentType =>
@@ -127,9 +169,52 @@ public partial class ContentFieldSettingsEditor
         }
     }
 
+    private string PreviewFieldsText => string.Join(
+        Environment.NewLine,
+        ContentEntryReferencePreviewUi.ReadPreviewFields(
+            Field.Settings,
+            ContentEntryPreviewFieldsSetting));
+
     protected override async Task OnParametersSetAsync()
     {
         await LoadReferenceTargetDefinitionAsync();
+        if (IsContentEntryReference && !_contentEntryProvidersLoaded)
+            await LoadContentEntryProvidersAsync();
+    }
+
+    private async Task LoadContentEntryProvidersAsync()
+    {
+        var result = await ContentItemsApi.GetContentEntryReferenceSourcesAsync();
+        if (result is Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>.Ok ok)
+        {
+            _contentEntryProviders = ok.Value;
+            _contentEntryProvidersLoaded = true;
+        }
+    }
+
+    private async Task SetContentEntryProviderAsync(string provider, bool selected)
+    {
+        var values = AllowedContentEntryProviders.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selected) values.Add(provider); else values.Remove(provider);
+        Field.Settings[ReferenceContentFieldSettings.AllowedProviders] =
+            JsonSerializer.SerializeToElement(values.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(), ContentJsonContext.Default.ListString);
+        await NotifyChangedAsync();
+    }
+
+    private async Task SetPreviewFieldsTextAsync(string? value)
+    {
+        var fields = ContentEntryReferencePreviewUi.ParsePreviewFields(value);
+        if (fields.Count == 0)
+        {
+            Field.Settings.Remove(ContentEntryPreviewFieldsSetting);
+        }
+        else
+        {
+            Field.Settings[ContentEntryPreviewFieldsSetting] =
+                JsonSerializer.SerializeToElement(fields.ToList(), ContentJsonContext.Default.ListString);
+        }
+
+        await NotifyChangedAsync();
     }
 
     private async Task SetLabelAsync(string? value)
@@ -148,6 +233,23 @@ public partial class ContentFieldSettingsEditor
     {
         Field.Required = value;
         await NotifyChangedAsync();
+    }
+
+    private async Task SetLocalizationModeAsync(ChangeEventArgs args)
+    {
+        if (LocalizationModeLocked)
+        {
+            return;
+        }
+
+        if (Enum.TryParse<ContentFieldLocalizationMode>(
+                args.Value?.ToString(),
+                ignoreCase: true,
+                out var mode))
+        {
+            Field.LocalizationMode = mode;
+            await NotifyChangedAsync();
+        }
     }
 
     private async Task SetNameAsync(string? value)
@@ -236,6 +338,45 @@ public partial class ContentFieldSettingsEditor
             args.Value?.ToString());
         Field.Settings.Remove(ReferenceContentFieldSettings.TargetFilterField);
         await NotifyChangedAsync();
+    }
+
+    private async Task SetNativeRelationshipEnabledAsync(bool enabled)
+    {
+        if (!enabled)
+        {
+            Field.Settings.Remove(ReferenceContentFieldSettings.RelationshipAlias);
+        }
+        else if (Field.LocalizationMode == ContentFieldLocalizationMode.Shared)
+        {
+            var owner = string.IsNullOrWhiteSpace(CurrentContentTypeAlias)
+                ? "content"
+                : CurrentContentTypeAlias;
+            SetSetting(
+                ReferenceContentFieldSettings.RelationshipAlias,
+                ToRelationshipAlias($"{owner}_{Field.Name}"));
+        }
+
+        await NotifyChangedAsync();
+    }
+
+    private async Task SetRelationshipAliasAsync(ChangeEventArgs args)
+    {
+        SetSetting(
+            ReferenceContentFieldSettings.RelationshipAlias,
+            ToRelationshipAlias(args.Value?.ToString()));
+        await NotifyChangedAsync();
+    }
+
+    private static string? ToRelationshipAlias(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var characters = value.Trim()
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character == '_' ? character : '_')
+            .ToArray();
+        var normalized = new string(characters);
+        if (normalized.Length == 0) return null;
+        if (!char.IsAsciiLetter(normalized[0])) normalized = $"r_{normalized}";
+        return normalized.Length <= 63 ? normalized : normalized[..63];
     }
 
     private async Task SetSettingAsync<T>(string key, T value)

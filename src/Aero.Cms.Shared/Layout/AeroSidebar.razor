@@ -1,4 +1,5 @@
-<aside class="pe-sidebar @(Side == SidebarSide.Right ? "pe-sidebar-right" : "") @(IsCollapsed ? "collapsed" : "")">
+<aside class="pe-sidebar @(Side == SidebarSide.Right ? "pe-sidebar-right" : "") @(IsCollapsed ? "collapsed" : "") @(MobileOpen ? "mobile-open" : "")"
+       aria-label="@Title">
     <div class="pe-sidebar-header">
         @if (Side == SidebarSide.Left)
         {
@@ -29,6 +30,7 @@
 @code {
     [Parameter] public string Title { get; set; } = "Navigation";
     [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public bool MobileOpen { get; set; }
     [Parameter] public SidebarSide Side { get; set; } = SidebarSide.Left;
     [Parameter] public EventCallback<bool> IsCollapsedChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }

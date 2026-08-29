@@ -46,7 +46,8 @@ public class DynamicPageModel(
     IPageRendererRegistry rendererRegistry,
     IPageContentQueryResolver contentQueryResolver,
     IAuthorizationService authorizationService,
-    ILogger<DynamicPageModel> logger) : PageModel
+    ILogger<DynamicPageModel> logger,
+    IPageRouteTemplateResolver? routeTemplateResolver = null) : PageModel
 {
     /// <summary>
     /// Gets or sets the optional catch-all slug supplied by route binding.
@@ -121,6 +122,9 @@ public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [
     /// Gets culture-switcher links derived from the published alternate links.
     /// </summary>
 public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+    private IReadOnlyDictionary<string, string> _routeValues = new Dictionary<string, string>();
+    private string? _resolvedRequestSlug;
+    private string? _resolvedStableId;
 
     /// <summary>
     /// Resolves the requested variant, loads the selected snapshot, compiles its styles,
@@ -173,6 +177,28 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         {
             var normalizedSlug = StripConfirmedCulturePrefix(requestedSlug);
             result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, CultureInfo.CurrentUICulture.Name, cancellationToken);
+            if (result?.error is PageErrorViewModel { Kind: PageErrorKind.NotFound }
+                && routeTemplateResolver is not null)
+            {
+                var templateResult = await routeTemplateResolver.ResolveAsync(
+                    siteContext.SiteId,
+                    CultureInfo.CurrentUICulture.Name,
+                    normalizedSlug,
+                    cancellationToken);
+                if (templateResult is Result<PageRouteTemplateMatch?, AeroError>.Failure templateFailure)
+                {
+                    logger.LogWarning("Page route-template resolution failed for {Path}: {Error}", normalizedSlug, templateFailure.Error);
+                    return templateFailure.Error is AeroError.NotFound ? NotFound() : StatusCode(StatusCodes.Status500InternalServerError);
+                }
+
+                if (((Result<PageRouteTemplateMatch?, AeroError>.Ok)templateResult).Value is { } match)
+                {
+                    result = await pageActor.GetByIdAsync(match.PageId, siteContext.SiteId, cancellationToken);
+                    _routeValues = match.RouteValues;
+                    _resolvedRequestSlug = match.ResolvedPath.Trim('/');
+                    _resolvedStableId = match.RouteValues.Values.SingleOrDefault();
+                }
+            }
         }
 
         if (result is null || !string.IsNullOrWhiteSpace(result.error?.Message))
@@ -183,6 +209,11 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                 requestedSlug,
                 CultureInfo.CurrentUICulture.Name,
                 result?.error?.Message ?? "No actor response");
+            if (result?.error is PageErrorViewModel { Kind: PageErrorKind.Failure })
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
             if (IsRootHomepageRequest(requestedSlug))
             {
                 return await ResolveMissingRootHomepageAsync(cancellationToken);
@@ -210,10 +241,10 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         HideFooter = vm.HideFooter;
         ShowChatAgent = vm.ShowChatAgent;
         PageId = vm.Id;
-        PageSlug = vm.Slug;
+        PageSlug = _resolvedRequestSlug ?? vm.Slug;
         RenderedCulture = vm.Culture;
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
-        CanonicalUrl = BuildCultureUrl(RenderedCulture, vm.Slug);
+        CanonicalUrl = BuildCultureUrl(RenderedCulture, _resolvedRequestSlug ?? vm.Slug);
 
         await using (var session = await documentStore.LightweightSessionAsync())
         {
@@ -234,7 +265,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                 RequestedCulture,
                 renderCulture,
                 StringComparison.OrdinalIgnoreCase);
-            CanonicalUrl = BuildCultureUrl(renderCulture, document.Slug);
+            CanonicalUrl = BuildCultureUrl(renderCulture, _resolvedRequestSlug ?? document.Slug);
 
             var content = DraftId is not null
                 ? document.DraftContent
@@ -242,6 +273,22 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             var composition = DraftId is not null
                 ? document.DraftComposition
                 : document.PublishedComposition;
+            var viewProviders = composition is null
+                ? []
+                : composition.ContentLists
+                    .Where(list => !string.IsNullOrWhiteSpace(list.ContentEntryProvider))
+                    .Select(list => list.ContentEntryProvider!)
+                    .Concat(composition.ContentItems
+                        .Where(item => item.ContentEntryKey is not null)
+                        .Select(item => item.ContentEntryKey!.Value.Provider))
+                    .Where(provider => !string.IsNullOrWhiteSpace(provider))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            if (viewProviders.Length > 0)
+            {
+                HttpContext.Items["AeroCms.ContentViewProviders"] = viewProviders;
+                HttpContext.Items["AeroCms.TenantId"] = siteContext.TenantId;
+            }
 
             if (content is null)
             {
@@ -339,10 +386,21 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
                     composition,
                     ResolveContentPageNumbers(composition),
                     contentQueries,
-                    IsPreview: DraftId is not null),
+                    IsPreview: DraftId is not null,
+                    RouteValues: _routeValues),
                 cancellationToken);
             if (rendered is Result<RenderedPage>.Failure renderFailure)
             {
+                if (renderFailure.Error is AeroError.NotFound)
+                {
+                    logger.LogWarning(
+                        "Page rendering found a broken content reference for page {PageId} on site {SiteId}: {Error}",
+                        vm.Id,
+                        document.SiteId,
+                        FormatError(renderFailure.Error));
+                    return NotFound();
+                }
+
                 logger.LogError(
                     "Page rendering failed for page {PageId} on site {SiteId} with renderer {RendererId}: {Error}",
                     vm.Id,
@@ -365,7 +423,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
 
         // Store page ID + slug for output cache tagging
         HttpContext.Items["AeroCms.PageId"] = vm.Id;
-        HttpContext.Items["AeroCms.PageSlug"] = vm.Slug;
+        HttpContext.Items["AeroCms.PageSlug"] = _resolvedRequestSlug ?? vm.Slug;
         ViewData["RequestedCulture"] = RequestedCulture;
         ViewData["RenderedCulture"] = RenderedCulture;
         ViewData["IsCultureFallback"] = IsCultureFallback;
@@ -432,7 +490,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         var links = publishedVariants
             .Select(variant => new AlternatePageLink(
                 variant.Culture.ToLowerInvariant(),
-                BuildCultureUrl(variant.Culture, variant.Slug)))
+                BuildCultureUrl(variant.Culture, ResolveVariantSlug(variant))))
             .ToList();
 
         var siteDefaultCulture = HttpContext.Features.Get<IAeroSiteSlice>()?.DefaultCulture
@@ -443,7 +501,7 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
 
         if (defaultVariant is not null)
         {
-            links.Add(new AlternatePageLink("x-default", BuildCultureUrl(defaultVariant.Culture, defaultVariant.Slug)));
+            links.Add(new AlternatePageLink("x-default", BuildCultureUrl(defaultVariant.Culture, ResolveVariantSlug(defaultVariant))));
         }
 
         return links;
@@ -469,6 +527,19 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
             : $"/{culture.ToLowerInvariant()}/{normalizedSlug}";
 
         return UriHelper.BuildAbsolute(Request.Scheme, Request.Host, Request.PathBase, path);
+    }
+
+    private string? ResolveVariantSlug(PageViewModel variant)
+    {
+        if (_resolvedStableId is null || string.IsNullOrWhiteSpace(variant.PublishedRouteTemplate))
+            return variant.Slug;
+        var parsed = PageRouteTemplate.Parse(variant.PublishedRouteTemplate);
+        return parsed is Result<PageRouteTemplate, AeroError>.Ok ok
+            ? ok.Value.Template.Replace(
+                "{" + ok.Value.ParameterName + "}",
+                _resolvedStableId,
+                StringComparison.Ordinal).Trim('/')
+            : variant.Slug;
     }
 
     private bool IsRootHomepageRequest(string? requestedSlug)

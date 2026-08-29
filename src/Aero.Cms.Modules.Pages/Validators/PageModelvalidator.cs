@@ -47,6 +47,11 @@ public PageDocumentValidator()
             .Must(path => !path.EndsWith("/") || path == "/")
             .WithMessage("Path must not end with '/' (except root).");
 
+        RuleFor(x => x.DraftRouteTemplate)
+            .Must(template => string.IsNullOrWhiteSpace(template)
+                || PageRouteTemplate.Parse(template).IsSuccess)
+            .WithMessage("The page route template is invalid.");
+
         // Hierarchy
         RuleFor(x => x.Depth)
             .GreaterThanOrEqualTo(0);

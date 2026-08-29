@@ -1,0 +1,199 @@
+.surreal-relationships {
+    display: grid;
+    gap: 1rem;
+    border-top: 1px solid var(--pe-border);
+    padding-top: 1.25rem;
+}
+
+.surreal-relationships h2,
+.surreal-relationships h3,
+.surreal-relationships p {
+    margin: 0;
+}
+
+.surreal-relationships h2 {
+    color: var(--pe-text-primary);
+    font-size: 1.125rem;
+}
+
+.surreal-relationships p {
+    margin-top: .25rem;
+    color: var(--pe-text-muted);
+}
+
+.surreal-relationships__state,
+.surreal-relationships__error {
+    border: 1px dashed var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-primary);
+}
+
+.surreal-relationships__error {
+    border-style: solid;
+    border-color: var(--rz-danger);
+    color: var(--rz-danger);
+}
+
+.surreal-relationships__list {
+    display: grid;
+    gap: .75rem;
+}
+
+.surreal-relationships__card {
+    display: grid;
+    gap: .875rem;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    background: var(--pe-bg-primary);
+}
+
+.surreal-relationships__card-heading,
+.surreal-relationships__heading,
+.surreal-relationships__badges,
+.surreal-relationships__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.surreal-relationships__form {
+    display: grid;
+    gap: 1rem;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    background: var(--pe-bg-secondary);
+}
+
+.surreal-relationships__form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem 1rem;
+}
+
+.surreal-relationships__form-grid label {
+    display: grid;
+    gap: .35rem;
+}
+
+.surreal-relationships__form-grid input,
+.surreal-relationships__form-grid select {
+    width: 100%;
+    min-height: 2.5rem;
+}
+
+.surreal-relationships__warning {
+    border-left: .25rem solid var(--rz-warning, #b7791f);
+    padding: .75rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-primary);
+}
+
+.surreal-relationships__card h3 {
+    color: var(--pe-text-primary);
+    font-size: 1rem;
+}
+
+.surreal-relationships__badges {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.surreal-relationships__badges span,
+.surreal-relationships__badges strong {
+    border-radius: 999px;
+    padding: .25rem .5rem;
+    background: var(--pe-bg-tertiary);
+    color: var(--pe-text-secondary);
+    font-size: .72rem;
+}
+
+.surreal-relationships__badges .is-drifted {
+    color: var(--rz-danger);
+}
+
+.surreal-relationships__badges .is-draft {
+    color: var(--rz-info);
+}
+
+.surreal-relationships__badges .is-applied {
+    color: var(--rz-success);
+}
+
+.surreal-relationships dl {
+    display: grid;
+    gap: .5rem;
+    margin: 0;
+}
+
+.surreal-relationships dl div {
+    display: grid;
+    grid-template-columns: minmax(8rem, .3fr) minmax(0, 1fr);
+    gap: .75rem;
+}
+
+.surreal-relationships dt {
+    color: var(--pe-text-muted);
+    font-size: .8rem;
+}
+
+.surreal-relationships dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--pe-text-secondary);
+}
+
+.surreal-relationships dd code {
+    overflow-wrap: anywhere;
+}
+
+.surreal-relationships__ddl {
+    display: grid;
+    gap: .5rem;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: .75rem;
+}
+
+.surreal-relationships__ddl pre {
+    max-width: 100%;
+    overflow: auto;
+    margin: 0;
+    padding: .75rem;
+    color: var(--pe-text-primary);
+    background: var(--pe-bg-tertiary);
+}
+
+.surreal-relationships__actions {
+    justify-content: flex-end;
+}
+
+@media (max-width: 40rem) {
+    .surreal-relationships__card-heading,
+    .surreal-relationships__heading,
+    .surreal-relationships__actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .surreal-relationships__form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .surreal-relationships__badges {
+        justify-content: flex-start;
+    }
+
+    .surreal-relationships dl div {
+        grid-template-columns: 1fr;
+        gap: .25rem;
+    }
+
+    .surreal-relationships__actions button {
+        width: 100%;
+    }
+}

@@ -120,7 +120,7 @@ public sealed class PageContentServiceHtmlTests
 
         var referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
         referenceValidator.ValidateAsync(
-                page.SiteId,
+                Arg.Any<Aero.Cms.Abstractions.Content.Views.ContentViewScope>(),
                 Arg.Any<string>(),
                 Arg.Any<PageCompositionDocument>(),
                 ContentReferenceValidationMode.Authoring,
@@ -305,7 +305,7 @@ public sealed class PageContentServiceHtmlTests
         {
             referenceValidator = Substitute.For<IContentCompositionReferenceValidator>();
             referenceValidator.ValidateAsync(
-                    Arg.Any<long>(),
+                    Arg.Any<Aero.Cms.Abstractions.Content.Views.ContentViewScope>(),
                     Arg.Any<string>(),
                     Arg.Any<PageCompositionDocument>(),
                     Arg.Any<ContentReferenceValidationMode>(),

@@ -9,6 +9,8 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Modules.Content.Events;
+using Aero.Cms.Core.Content;
+using AeroDB.Sable;
 using Microsoft.Extensions.DependencyInjection;
 using IRequest = Aero.Core.Commands.IRequest;
 
@@ -81,7 +83,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long i
         var result = await contentService.LoadAsync(siteId, id, ct);
         return result switch
         {
-            Result<ContentItem, AeroError>.Ok ok => Ok(MapToViewModel(ok.Value)),
+            Result<ContentItem, AeroError>.Ok ok => Ok(await MapToViewModelAsync(ok.Value, scope.ServiceProvider, ct)),
             _ => NotFound($"Content item {id} not found")
         };
     }
@@ -176,12 +178,14 @@ public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByType
         var queryService = scope.ServiceProvider.GetRequiredService<IContentQueryService>();
 
         var result = await queryService.GetByTypeAsync(siteId, contentTypeAlias, skip, take, ct);
-        return result switch
+        if (result is Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>.Ok ok)
         {
-            Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>.Ok ok =>
-                (ok.Value.Items.Select(MapToViewModel).ToList(), ok.Value.TotalCount),
-            _ => ([], 0)
-        };
+            var mapped = await Task.WhenAll(ok.Value.Items.Select(
+                item => MapToViewModelAsync(item, scope.ServiceProvider, ct)));
+            return (mapped.ToList(), ok.Value.TotalCount);
+        }
+
+        return ([], 0);
     }
 
         /// <summary>
@@ -225,7 +229,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(Cont
 
         if (result is Result<ContentItem, AeroError>.Ok ok)
         {
-            var viewModel = MapToViewModel(ok.Value);
+            var viewModel = await MapToViewModelAsync(ok.Value, scope.ServiceProvider, ct);
             var events = scope.ServiceProvider.GetRequiredService<ContentEventPublisher>();
             if (isNew)
                 await events.PublishBestEffortAsync(new ContentItemViewModelCreated(viewModel));
@@ -259,7 +263,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long i
         var publishResult = await commandService.PublishAsync(ok.Value, ct);
         return publishResult switch
         {
-            Result<ContentItem, AeroError>.Ok pubOk => Ok(MapToViewModel(pubOk.Value)),
+            Result<ContentItem, AeroError>.Ok pubOk => Ok(await MapToViewModelAsync(pubOk.Value, scope.ServiceProvider, ct)),
             _ => Fail("Publish failed")
         };
     }
@@ -285,7 +289,7 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         var saveResult = await commandService.SaveDraftAsync(item, ct);
         return saveResult switch
         {
-            Result<ContentItem, AeroError>.Ok saveOk => Ok(MapToViewModel(saveOk.Value)),
+            Result<ContentItem, AeroError>.Ok saveOk => Ok(await MapToViewModelAsync(saveOk.Value, scope.ServiceProvider, ct)),
             _ => Fail("Unpublish failed")
         };
     }
@@ -319,6 +323,9 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         SourceItemId = item.SourceItemId,
         ParentId = item.ParentId,
         SortOrder = item.SortOrder,
+        TranslationProvenanceJson = item.TranslationProvenance is null ? null : JsonSerializer.Serialize(item.TranslationProvenance, ContentJsonContext.Default.ContentTranslationProvenance),
+        TranslationReviewJson = JsonSerializer.Serialize(item.TranslationReview, ContentJsonContext.Default.ContentTranslationReview),
+        StorageVersion = item.Version,
         FieldsJson = JsonSerializer.Serialize(
             item.Fields,
             ContentJsonContext.Default.DictionaryStringJsonElement),
@@ -330,6 +337,30 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         CreatedOn = item.CreatedOn,
         ModifiedOn = item.ModifiedOn
     };
+
+    private static async Task<ContentItemViewModel> MapToViewModelAsync(
+        ContentItem item,
+        IServiceProvider services,
+        CancellationToken ct)
+    {
+        var viewModel = MapToViewModel(item);
+        if (item.TranslationGroupId is not { } groupId)
+        {
+            return viewModel;
+        }
+
+        var session = services.GetRequiredService<IDocumentSession>();
+        var group = await session.LoadAsync<ContentTranslationGroupDocument>(groupId, ct);
+        if (group is not null
+            && group.SiteId == item.SiteId
+            && string.Equals(group.ContentTypeAlias, item.ContentTypeAlias, StringComparison.Ordinal))
+        {
+            viewModel.TranslationGroupStorageVersion = group.Version;
+            viewModel.TranslationGroupRevision = group.Revision;
+        }
+
+        return viewModel;
+    }
 
     /// <summary>
     /// Deserializes fields, canonicalizes culture, and projects a view model into a mutable entity.
@@ -356,6 +387,9 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
             SourceItemId = vm.SourceItemId,
             ParentId = vm.ParentId,
             SortOrder = vm.SortOrder,
+            TranslationProvenance = string.IsNullOrWhiteSpace(vm.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(vm.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            TranslationReview = string.IsNullOrWhiteSpace(vm.TranslationReviewJson) ? new() : JsonSerializer.Deserialize(vm.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview) ?? new(),
+            Version = vm.StorageVersion,
             Fields = fields,
             PublicationState = vm.PublicationState,
             PublishedOn = vm.PublishedOn,

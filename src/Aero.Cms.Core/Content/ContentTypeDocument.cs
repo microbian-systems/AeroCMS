@@ -1,5 +1,6 @@
 using Aero.Core.Data;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Content;
@@ -58,6 +59,9 @@ public string? ScribanTemplate { get; set; }
     /// Gets or sets the optional scheduling configuration for items of this type.
     /// </summary>
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
+
+    /// <summary>Gets or sets the culture and AI-review policy for this content type.</summary>
+    public ContentLocalizationSettings Localization { get; set; } = new();
 
     // IAuditable
     /// <summary>Gets or sets the audit creation timestamp.</summary>

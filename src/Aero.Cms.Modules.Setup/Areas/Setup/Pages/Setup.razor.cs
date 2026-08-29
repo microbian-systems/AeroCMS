@@ -374,6 +374,20 @@ protected async Task HandleSubmit()
         var cacheMode = NormalizeMode(Input.CacheMode, AeroAppServerConstants.LocalCacheMode);
         var authenticationSelections = GetAuthenticationSelections();
 
+        if (!SurrealDatabaseScope.TryNormalize(Input.DatabaseNamespace, out var databaseNamespace))
+        {
+            HasValidationErrors = true;
+            StatusMessage = GetInvalidDatabaseScopeMessage("namespace");
+            return;
+        }
+
+        if (!SurrealDatabaseScope.TryNormalize(Input.DatabaseName, out var databaseName))
+        {
+            HasValidationErrors = true;
+            StatusMessage = GetInvalidDatabaseScopeMessage("database name");
+            return;
+        }
+
         if (!IsSupportedCacheMode(cacheMode))
         {
             HasValidationErrors = true;
@@ -437,6 +451,8 @@ protected async Task HandleSubmit()
             Input.DefaultCulture,
             Input.SupportedCultures)
         {
+            DatabaseNamespace = databaseNamespace,
+            DatabaseName = databaseName,
             DatabaseUnauthenticated = Input.DatabaseUnauthenticated,
             DatabaseUsername = Input.DatabaseUsername,
             DatabasePassword = Input.DatabasePassword
@@ -578,6 +594,10 @@ protected async Task HandleSubmit()
                 => "A database username is required unless unauthenticated access is enabled.",
             2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && !Input.DatabaseUnauthenticated && string.IsNullOrWhiteSpace(Input.DatabasePassword)
                 => "A database password is required unless unauthenticated access is enabled.",
+            2 when !SurrealDatabaseScope.TryNormalize(Input.DatabaseNamespace, out _)
+                => GetInvalidDatabaseScopeMessage("namespace"),
+            2 when !SurrealDatabaseScope.TryNormalize(Input.DatabaseName, out _)
+                => GetInvalidDatabaseScopeMessage("database name"),
             3 when string.Equals(Input.CacheMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString)
                 => "A cache connection string is required when Cache is set to Server.",
             4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalMachineId)
@@ -608,6 +628,9 @@ protected async Task HandleSubmit()
         StatusMessage = error;
         return false;
     }
+
+    private static string GetInvalidDatabaseScopeMessage(string label)
+        => $"SurrealDB {label} must be 1-{SurrealDatabaseScope.MaximumNameLength} characters using only letters, digits, underscores, or hyphens.";
 
     /// <summary>
     /// Gets the localized title for a one-based wizard step.
@@ -726,6 +749,20 @@ public bool IsReady { get; set; }
 /// </remarks>
 public class SetupInput
 {
+    /// <summary>
+    /// Gets or sets whether advanced SurrealDB target fields are displayed.
+    /// This presentation choice is not persisted.
+    /// </summary>
+public bool UseAdvancedDatabaseOptions { get; set; }
+
+    /// <summary>Gets or sets the installation-wide SurrealDB namespace.</summary>
+[Required]
+public string DatabaseNamespace { get; set; } = AeroAppServerConstants.SableNamespace;
+
+    /// <summary>Gets or sets the installation-wide SurrealDB database name.</summary>
+[Required]
+public string DatabaseName { get; set; } = AeroAppServerConstants.SableDatabase;
+
     /// <summary>
     /// Gets or sets the embedded or server database mode.
     /// </summary>

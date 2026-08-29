@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Aero.AppServer.Startup;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
@@ -19,6 +20,7 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
     private readonly ISetupCompletionService _setupCompletionService;
     private readonly IBootstrapPendingSetupRequestStore _pendingSetupRequestStore;
     private readonly IBootstrapCompletionWriter _completionWriter;
+    private readonly ResolvedInfrastructureSettings _infrastructureSettings;
     private readonly ILogger<RuntimeActivationService> _logger;
     private readonly Channel<bool> _activationChannel = Channel.CreateBounded<bool>(1);
     private readonly Lock _lock = new();
@@ -41,18 +43,21 @@ public string? ActivationError => _activationError;
     /// <param name="setupCompletionService">Performs setup seeding and completion.</param>
     /// <param name="pendingSetupRequestStore">Provides and removes the protected pending setup request.</param>
     /// <param name="completionWriter">Persists the transition to the running state.</param>
+    /// <param name="infrastructureSettings">Provides the runtime database target selected from persisted configuration.</param>
     /// <param name="logger">Records activation decisions and failures.</param>
 public RuntimeActivationService(
         ISetupInitializationService setupInitializationService,
         ISetupCompletionService setupCompletionService,
         IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
         IBootstrapCompletionWriter completionWriter,
+        ResolvedInfrastructureSettings infrastructureSettings,
         ILogger<RuntimeActivationService> logger)
     {
         _setupInitializationService = setupInitializationService;
         _setupCompletionService = setupCompletionService;
         _pendingSetupRequestStore = pendingSetupRequestStore;
         _completionWriter = completionWriter;
+        _infrastructureSettings = infrastructureSettings;
         _logger = logger;
     }
 
@@ -95,6 +100,13 @@ public async Task<RuntimeActivationResult> ActivateAsync(CancellationToken cance
                 var error = "Bootstrap state is Configured but no pending seed payload exists.";
                 _logger.LogError(error);
                 return RuntimeActivationResult.Failed(error);
+            }
+
+            var scopeError = BootstrapDatabaseScopeGuard.GetValidationError(request, _infrastructureSettings);
+            if (scopeError is not null)
+            {
+                _logger.LogError(scopeError);
+                return RuntimeActivationResult.Failed(scopeError);
             }
 
             _logger.LogInformation("Executing setup completion...");

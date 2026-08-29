@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -43,7 +44,8 @@ Task ClearAsync(CancellationToken cancellationToken = default);
 /// </remarks>
 public sealed class BootstrapPendingSetupRequestStore(
     IEnvironmentAppSettingsWriter appSettingsWriter,
-    ISecretManager secretManager) : IBootstrapPendingSetupRequestStore
+    ISecretManager secretManager,
+    IHostEnvironment hostEnvironment) : IBootstrapPendingSetupRequestStore
 {
     private const string PendingSeedKey = "PendingSeedPayload";
     private const string PendingSeedName = "AeroCms:Bootstrap:PendingSeed";
@@ -53,7 +55,7 @@ public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cance
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var env = hostEnvironment.EnvironmentName;
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
         var payload = JsonSerializer.Serialize(request);
@@ -66,7 +68,7 @@ public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cance
     /// <inheritdoc />
 public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var env = hostEnvironment.EnvironmentName;
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var payload = root["AeroCms"]?["Bootstrap"]?[PendingSeedKey]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(payload))
@@ -81,7 +83,7 @@ public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellation
     /// <inheritdoc />
 public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var env = hostEnvironment.EnvironmentName;
         var root = await ReadOrCreateAsync(env, cancellationToken);
         var bootstrap = root["AeroCms"]?["Bootstrap"] as JsonObject;
         bootstrap?.Remove(PendingSeedKey);
@@ -108,9 +110,9 @@ public async Task ClearAsync(CancellationToken cancellationToken = default)
     /// <summary>
     /// Reads the environment settings object, returning an empty object when the file is absent or contains JSON <see langword="null"/>.
     /// </summary>
-    private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
+    private async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {
-        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        var path = appSettingsWriter.GetFilePath(env);
         if (!File.Exists(path))
         {
             return new JsonObject();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Services;
@@ -94,6 +95,111 @@ public sealed class ContentItemsApiScopeTests
         await Assert.That(body.ToLowerInvariant()).DoesNotContain(ActorFailure.ToLowerInvariant());
     }
 
+    [Test]
+    public async Task Missing_authoritative_localization_context_rejects_fork_before_handler()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(SuccessfulItem(ItemId));
+        var query = Substitute.For<IContentQueryService>();
+        var localization = Substitute.For<IContentLocalizationHandler>();
+        var contextResolver = Substitute.For<IContentLocalizationContextResolver>();
+        contextResolver.ResolveAsync(SiteId, "article", Arg.Any<CancellationToken>()).Returns((ContentLocalizationContext?)null);
+        await using var app = await CreateAppAsync(actor, query, localization, contextResolver);
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("fork"));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await localization.DidNotReceiveWithAnyArgs().ForkAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task Get_returns_the_actor_item_and_translation_group_storage_tokens()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var stored = SuccessfulItem(ItemId);
+        stored.data.StorageVersion = 17;
+        stored.data.TranslationGroupRevision = 5;
+        stored.data.TranslationGroupStorageVersion = 23;
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(stored);
+        await using var app = await CreateAppAsync(actor, Substitute.For<IContentQueryService>());
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("get"));
+        var detail = await response.Content.ReadFromJsonAsync<ContentItemDetail>();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(detail).IsNotNull();
+        await Assert.That(detail!.StorageVersion).IsEqualTo(17);
+        await Assert.That(detail.TranslationGroupRevision).IsEqualTo(5);
+        await Assert.That(detail.TranslationGroupStorageVersion).IsEqualTo(23);
+    }
+
+    [Test]
+    public async Task Translations_return_variant_and_group_concurrency_tokens()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var source = SuccessfulItem(ItemId);
+        source.data.TranslationGroupRevision = 5;
+        source.data.TranslationGroupStorageVersion = 23;
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(source);
+
+        var query = Substitute.For<IContentQueryService>();
+        query.ListCultureVariantsAsync(
+                SiteId,
+                "article",
+                ItemId,
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IReadOnlyList<ContentItem>, AeroError>>(
+                new Result<IReadOnlyList<ContentItem>, AeroError>.Ok([
+                    new ContentItem
+                    {
+                        Id = ItemId,
+                        SiteId = SiteId,
+                        ContentTypeAlias = "article",
+                        Title = "Title",
+                        Slug = "entry",
+                        Culture = "en-US",
+                        TranslationGroupId = ItemId,
+                        Version = 17
+                    }
+                ])));
+        await using var app = await CreateAppAsync(actor, query);
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("translations"));
+        var details = await response.Content.ReadFromJsonAsync<List<ContentItemDetail>>();
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(details).IsNotNull();
+        await Assert.That(details!).HasSingleItem();
+        await Assert.That(details[0].StorageVersion).IsEqualTo(17);
+        await Assert.That(details[0].TranslationGroupRevision).IsEqualTo(5);
+        await Assert.That(details[0].TranslationGroupStorageVersion).IsEqualTo(23);
+    }
+
+    [Test]
+    public async Task Update_preserves_the_persisted_translation_culture()
+    {
+        var actor = Substitute.For<IAeroContentItemActor>();
+        var stored = SuccessfulItem(ItemId);
+        stored.data.Culture = "es-MX";
+        actor.GetByIdAsync(ItemId, SiteId, Arg.Any<CancellationToken>()).Returns(stored);
+        actor.SaveDraftAsync(
+                Arg.Any<ContentItemViewModel>(),
+                SiteId,
+                Arg.Any<CancellationToken>())
+            .Returns(call => new AeroRequestResponse<ContentItemViewModel>(
+                call.Arg<ContentItemViewModel>(),
+                new ContentItemErrorViewModel()));
+        await using var app = await CreateAppAsync(actor, Substitute.For<IContentQueryService>());
+
+        using var response = await app.GetTestClient().SendAsync(CreateRequest("update"));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await actor.Received(1).SaveDraftAsync(
+            Arg.Is<ContentItemViewModel>(item => item.Culture == "es-MX"),
+            SiteId,
+            Arg.Any<CancellationToken>());
+    }
+
     private static AeroRequestResponse<ContentItemViewModel> SuccessfulItem(long id) =>
         new(
             new ContentItemViewModel
@@ -164,7 +270,9 @@ public sealed class ContentItemsApiScopeTests
 
     private static async Task<WebApplication> CreateAppAsync(
         IAeroContentItemActor actor,
-        IContentQueryService query)
+        IContentQueryService query,
+        IContentLocalizationHandler? localization = null,
+        IContentLocalizationContextResolver? contextResolver = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -172,6 +280,21 @@ public sealed class ContentItemsApiScopeTests
         builder.Services.AddTestAuthentication();
         builder.Services.AddSingleton(actor);
         builder.Services.AddSingleton(query);
+        localization ??= Substitute.For<IContentLocalizationHandler>();
+        localization.ForkAsync(
+                Arg.Any<ContentLocalizationContext>(),
+                Arg.Any<ContentCultureForkCommand>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<ContentLocalizationOperationResult, AeroError>>(
+                AeroError.InvalidRequestError("rejected")));
+        builder.Services.AddSingleton(localization);
+        if (contextResolver is null)
+        {
+            contextResolver = Substitute.For<IContentLocalizationContextResolver>();
+            contextResolver.ResolveAsync(SiteId, "article", Arg.Any<CancellationToken>())
+                .Returns(new ContentLocalizationContext(SiteId, "en-US", ["en-US", "fr-FR"], ContentCultureFallbackPolicy.ExactOnly));
+        }
+        builder.Services.AddSingleton(contextResolver);
         var site = Substitute.For<ISiteContext>();
         site.SiteId.Returns(SiteId);
         builder.Services.AddSingleton(site);

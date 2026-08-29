@@ -206,7 +206,7 @@ public sealed class AdminEndpointAuthorizationMetadataTests
                     "/api/v1/admin/ai/settings",
                     StringComparison.Ordinal))
             .ToList();
-        await Assert.That(editorAiEndpoints.Count).IsEqualTo(4);
+        await Assert.That(editorAiEndpoints.Count).IsEqualTo(5);
         await Assert.That(editorAiEndpoints.All(endpoint =>
             endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
             && endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Any()

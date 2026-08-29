@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core;
@@ -20,7 +21,8 @@ namespace Aero.Cms.Core.Content.Services;
 public sealed class ContentCommandService(
     ContentValidationService validation,
     IContentService contentService,
-    IDocumentSession session)
+    IDocumentSession session,
+    IContentTypeService contentTypeService)
 {
     /// <summary>
     /// Validates an item using draft rules, increments its version, and commits it.
@@ -66,6 +68,10 @@ public sealed class ContentCommandService(
     public async Task<Result<ContentItem, AeroError>> PublishAsync(
         ContentItem item, CancellationToken ct = default)
     {
+        var review = await ValidateAiTranslationReviewAsync(item, ct);
+        if (review is Result<NoneType, AeroError>.Failure reviewFailure)
+            return reviewFailure.Error;
+
         var result = await validation.ValidateAsync(item, ContentValidationMode.Publish, ct);
         if (result is Result<ContentItem, AeroError>.Failure f)
             return f.Error;
@@ -89,6 +95,33 @@ public sealed class ContentCommandService(
         item.PublishedOn = DateTimeOffset.UtcNow;
 
         return await contentService.SaveAsync(item, ct);
+    }
+
+    private async Task<Result<NoneType, AeroError>> ValidateAiTranslationReviewAsync(ContentItem item, CancellationToken ct)
+    {
+        if (item.TranslationProvenance?.Origin != ContentTranslationOrigin.AiAssisted)
+            return Prelude.Ok<NoneType, AeroError>(default);
+
+        var type = await contentTypeService.GetByAliasAsync(item.SiteId, item.ContentTypeAlias, ct);
+        if (type is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
+            return Prelude.Fail<NoneType, AeroError>(AeroError.NotFoundError("The content type was not found."));
+        if (typeOk.Value.Localization.AiTranslationReviewPolicy != ContentAiTranslationReviewPolicy.RequireHumanReview)
+            return Prelude.Ok<NoneType, AeroError>(default);
+
+        var source = item.SourceItemId is { } sourceId
+            ? await contentService.LoadAsync(item.SiteId, sourceId, ct)
+            : null;
+        var review = item.TranslationReview;
+        if (source is not Result<ContentItem, AeroError>.Ok sourceOk
+            || review.Status != ContentTranslationReviewStatus.Approved
+            || review.ReviewedSourceItemId != sourceOk.Value.Id
+            || review.ReviewedSourceVersionNumber != sourceOk.Value.VersionNumber
+            || review.ReviewedSourceVersionNumber != item.TranslationProvenance.SourceVersionNumber
+            || review.ReviewedTargetVersionNumber != item.VersionNumber)
+            return Prelude.Fail<NoneType, AeroError>(AeroError.ValidationError([
+                "AI-assisted translations require an approved review bound to the current source and target revisions before publication."]));
+
+        return Prelude.Ok<NoneType, AeroError>(default);
     }
 
     /// <summary>

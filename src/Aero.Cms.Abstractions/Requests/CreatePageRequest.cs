@@ -44,7 +44,8 @@ public record CreatePageRequest(
     string RendererId = PageRendererIds.AeroComposition,
     string? DraftSource = null,
     bool IncludeInSearch = true,
-    bool IncludeInPublicAi = false
+    bool IncludeInPublicAi = false,
+    string? RouteTemplate = null
 ) : IRequest;
 
 /// <summary>
@@ -90,7 +91,8 @@ public record UpdatePageRequest(
     string RendererId = PageRendererIds.AeroComposition,
     string? DraftSource = null,
     bool IncludeInSearch = true,
-    bool IncludeInPublicAi = false
+    bool IncludeInPublicAi = false,
+    string? RouteTemplate = null
 ) : IRequest;
 
 /// <summary>

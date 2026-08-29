@@ -29,6 +29,12 @@ public partial class HtmlContentListQueryEditor
 
     protected bool IsSubmitting { get; private set; }
 
+    protected bool IsVirtualProvider => !string.IsNullOrWhiteSpace(Scope.ContentEntryProvider);
+
+    protected string VirtualSearchText { get; set; } = string.Empty;
+
+    protected bool HasUnsupportedVirtualSettings { get; private set; }
+
     protected string? DisplayError => _localError ?? ErrorMessage;
 
     protected override void OnParametersSet()
@@ -41,6 +47,22 @@ public partial class HtmlContentListQueryEditor
         _loadedScope = Scope;
         _localError = null;
         Form = QueryForm.FromScope(Scope);
+        if (IsVirtualProvider)
+        {
+            var filters = Scope.Query?.Filters ?? [];
+            HasUnsupportedVirtualSettings = !string.IsNullOrWhiteSpace(Scope.Query?.SortField)
+                || filters.Count > 1
+                || filters.Any(filter => filter.Operator != PageContentFilterOperator.Contains
+                    || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal));
+            VirtualSearchText = HasUnsupportedVirtualSettings
+                ? string.Empty
+                : filters.SingleOrDefault()?.Value ?? string.Empty;
+        }
+        else
+        {
+            HasUnsupportedVirtualSettings = false;
+            VirtualSearchText = string.Empty;
+        }
     }
 
     protected void AddFilter()
@@ -76,6 +98,12 @@ public partial class HtmlContentListQueryEditor
 
     protected async Task SaveAsync()
     {
+        if (HasUnsupportedVirtualSettings)
+        {
+            _localError = "Clear unsupported provider-backed list settings before applying changes.";
+            return;
+        }
+
         _localError = ValidateFilters();
         if (_localError is not null)
         {
@@ -88,20 +116,36 @@ public partial class HtmlContentListQueryEditor
             await SettingsChanged.InvokeAsync(new HtmlContentListSettingsRequest
             {
                 ScopeNodeId = Scope.NodeId,
-                Query = new PageContentListQuery
-                {
-                    PageSize = Form.PageSize,
-                    SortField = NullIfWhiteSpace(Form.SortField),
-                    SortDirection = Form.SortDirection,
-                    Filters = Form.Filters.Select(filter => new PageContentFilter
+                Query = IsVirtualProvider
+                    ? new PageContentListQuery
                     {
-                        FieldName = filter.FieldName,
-                        Operator = filter.Operator,
-                        Value = FilterRequiresValue(filter.Operator)
-                            ? NullIfWhiteSpace(filter.Value)
-                            : null
-                    }).ToArray()
-                },
+                        PageSize = Form.PageSize,
+                        Filters = string.IsNullOrWhiteSpace(VirtualSearchText)
+                            ? []
+                            :
+                            [
+                                new PageContentFilter
+                                {
+                                    FieldName = "$search",
+                                    Operator = PageContentFilterOperator.Contains,
+                                    Value = VirtualSearchText.Trim()
+                                }
+                            ]
+                    }
+                    : new PageContentListQuery
+                    {
+                        PageSize = Form.PageSize,
+                        SortField = NullIfWhiteSpace(Form.SortField),
+                        SortDirection = Form.SortDirection,
+                        Filters = Form.Filters.Select(filter => new PageContentFilter
+                        {
+                            FieldName = filter.FieldName,
+                            Operator = filter.Operator,
+                            Value = FilterRequiresValue(filter.Operator)
+                                ? NullIfWhiteSpace(filter.Value)
+                                : null
+                        }).ToArray()
+                    },
                 EmptyState = Form.EmptyState
             });
         }
@@ -135,6 +179,13 @@ public partial class HtmlContentListQueryEditor
 
     private string? ValidateFilters()
     {
+        if (IsVirtualProvider)
+        {
+            return VirtualSearchText.Length > 256
+                ? "Provider-backed list search text cannot exceed 256 characters."
+                : null;
+        }
+
         if (Form.Filters.Count > PageContentListQuery.MaximumFilterCount)
         {
             return $"A content list can contain at most {PageContentListQuery.MaximumFilterCount} filters.";
@@ -164,6 +215,16 @@ public partial class HtmlContentListQueryEditor
 
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    protected void ResetUnsupportedVirtualSettings()
+    {
+        HasUnsupportedVirtualSettings = false;
+        Form.SortField = null;
+        Form.SortDirection = PageContentSortDirection.Ascending;
+        Form.Filters.Clear();
+        VirtualSearchText = string.Empty;
+        _localError = null;
+    }
 
     protected sealed class QueryForm
     {

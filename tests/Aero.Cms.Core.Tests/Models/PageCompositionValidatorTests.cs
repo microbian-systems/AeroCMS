@@ -1,11 +1,54 @@
 using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Validators;
+using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Models;
 
 public sealed class PageCompositionValidatorTests
 {
+    [Test]
+    public async Task Validate_accepts_provider_only_list_and_rejects_unsupported_virtual_query_features()
+    {
+        var fixture = CreateContent();
+        var valid = new PageCompositionDocument
+        {
+            ContentLists =
+            [
+                new PageContentListScope
+                {
+                    NodeId = fixture.Scope.NodeId,
+                    ContentEntryProvider = "view:catalog",
+                    ContentTypeAlias = "catalog",
+                    TemplateRootNodeId = fixture.Template.NodeId,
+                    Query = new PageContentListQuery { PageSize = 12 }
+                }
+            ]
+        };
+
+        (await new PageCompositionValidator(fixture.Content).ValidateAsync(valid)).IsValid.ShouldBeTrue();
+
+        var invalid = valid with
+        {
+            ContentLists =
+            [
+                valid.ContentLists[0] with
+                {
+                    Query = new PageContentListQuery
+                    {
+                        PageSize = 12,
+                        SortField = "title",
+                        Filters = [new PageContentFilter { FieldName = "title", Operator = PageContentFilterOperator.Equals, Value = "sample" }]
+                    }
+                }
+            ]
+        };
+        var result = await new PageCompositionValidator(fixture.Content).ValidateAsync(invalid);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(error => error.ErrorMessage.Contains("does not support sorting", StringComparison.Ordinal));
+        result.Errors.ShouldContain(error => error.ErrorMessage.Contains("Contains search filter", StringComparison.Ordinal));
+    }
     [Test]
     public async Task Validate_accepts_bounded_scope_query_and_descendant_field_binding()
     {

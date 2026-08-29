@@ -81,6 +81,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var pageRendererRegistry = sp.GetRequiredService<IPageRendererRegistry>();
             var pageSourceVersionStore = sp.GetRequiredService<IPageSourceVersionStore>();
             var pageContentQueryResolver = sp.GetRequiredService<IPageContentQueryResolver>();
+            var routeTemplateValidator = sp.GetService<IPageRouteTemplateValidator>();
             var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
             var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
             var styleProfileResolver = sp.GetRequiredService<ISiteStyleProfileResolver>();
@@ -101,7 +102,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 registeredFragmentRegistry,
                 pageRendererRegistry,
                 pageSourceVersionStore,
-                pageContentQueryResolver);
+                pageContentQueryResolver,
+                routeTemplateValidator);
         });
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroPageActor>(sp =>
@@ -110,6 +112,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // Page hierarchy services
         services.AddScoped<IPageTreeService, PageTreeService>();
         services.AddScoped<INavigationService, NavigationService>();
+        services.AddScoped<PageRouteTemplateService>();
+        services.AddScoped<IPageRouteTemplateResolver>(sp => sp.GetRequiredService<PageRouteTemplateService>());
+        services.AddScoped<IPageRouteTemplateValidator>(sp => sp.GetRequiredService<PageRouteTemplateService>());
 
         // Publishing workflow over the tracked PageDocument aggregate.
         services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
@@ -175,6 +180,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 foreach (var selector in model.Selectors)
                 {
                     var template = selector.AttributeRouteModel?.Template;
+                    if (string.Equals(template?.TrimStart('/'), "{**slug}", StringComparison.Ordinal))
+                    {
+                        // A content dynamic route must first explicitly accept a
+                        // public type/culture. Keep this general fallback below
+                        // that accepted route without removing it when declined.
+                        selector.AttributeRouteModel!.Order = 1;
+                    }
+
                     if (string.Equals(
                             template?.TrimStart('/'),
                             "_cms/preview/pages/drafts/{draftId:long}",

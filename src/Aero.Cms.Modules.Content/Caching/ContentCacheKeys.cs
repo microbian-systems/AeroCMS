@@ -54,6 +54,9 @@ internal static class ContentCacheKeys
     public static string ContentItemTag(long siteId, long itemId) =>
         $"content-item:{siteId}:{itemId}";
 
+    public static string ContentTranslationGroupTag(long siteId, long groupId) =>
+        $"content-translation-group:{siteId}:{groupId}";
+
     /// <summary>Builds the tag for one site's normalized type, culture, and slug identity.</summary>
     public static string ContentItemSlugTag(
         long siteId,

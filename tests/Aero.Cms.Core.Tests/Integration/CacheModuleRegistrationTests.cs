@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Cache;
+using Aero.Cms.Abstractions.Content.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -17,6 +18,7 @@ public sealed class CacheModuleRegistrationTests
         var services = ConfigureServices("Local");
 
         services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IFusionCacheBackplane));
+        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IContentViewDistributedCacheCoordinator));
 
         services.AddSingleton(Substitute.For<IFusionCacheBackplane>());
         using var provider = services.BuildServiceProvider();
@@ -32,6 +34,7 @@ public sealed class CacheModuleRegistrationTests
         var services = ConfigureServices("Server");
 
         services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IFusionCacheBackplane));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IContentViewDistributedCacheCoordinator));
 
         services.RemoveAll<IFusionCacheBackplane>();
         services.AddSingleton(Substitute.For<IFusionCacheBackplane>());
@@ -40,6 +43,7 @@ public sealed class CacheModuleRegistrationTests
 
         cache.HasDistributedCache.ShouldBeTrue();
         cache.HasBackplane.ShouldBeTrue();
+        provider.GetRequiredService<IContentViewDistributedCacheCoordinator>().IsDistributed.ShouldBeTrue();
     }
 
     private static ServiceCollection ConfigureServices(string cacheMode)

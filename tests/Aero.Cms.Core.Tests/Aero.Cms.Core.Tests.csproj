@@ -48,6 +48,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Jobs\Aero.Cms.Modules.Jobs.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Html\Aero.Cms.Html.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />

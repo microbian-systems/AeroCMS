@@ -1,0 +1,52 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Abstractions.Http.Clients
+
+<section class="aero-virtual-entry-selector"
+         aria-labelledby="aero-virtual-entry-title"
+         aria-busy="@(IsProvidersLoading || IsLoading ? "true" : "false")">
+    <h3 id="aero-virtual-entry-title">Query-backed entry</h3>
+    <p>Resolve an entry exposed by a registered provider. Existing content-item selection remains unchanged.</p>
+    <div class="aero-virtual-entry-selector__controls">
+        <label><span>Provider</span><select value="@Provider" @onchange="OnProviderChangedAsync" disabled="@(IsProvidersLoading || Providers.Count == 0)"><option value="">@(IsProvidersLoading ? "Loading providers…" : "Select a provider")</option>@foreach (var provider in Providers) { <option @key="provider.Provider" value="@provider.Provider">@provider.DisplayName</option> }</select></label>
+        <label><span>Search</span><input type="search" value="@PendingQuery" @oninput="OnQueryInput" placeholder="Find entries" disabled="@string.IsNullOrWhiteSpace(Provider)" /></label>
+        <button type="button" @onclick="SearchAsync" disabled="@(IsLoading || string.IsNullOrWhiteSpace(Provider))">Search</button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <p class="aero-virtual-entry-selector__error" role="alert">@ErrorMessage</p> }
+    @if (IsProvidersLoading || IsLoading) { <p aria-live="polite">Loading query-backed entries…</p> }
+    else if (HasSearched && Entries.Count == 0) { <p>No entries match this provider and search.</p> }
+    else if (Entries.Count > 0)
+    {
+        <label><span>Entry</span><select value="@SelectedStableId" @onchange="OnEntryChangedAsync">
+            <option value="">Select an entry</option>
+            @foreach (var entry in Entries) { <option @key="entry.StableId" value="@entry.StableId">@entry.Title@(string.IsNullOrWhiteSpace(entry.Subtitle) ? "" : $" — {entry.Subtitle}")</option> }
+        </select></label>
+    }
+    @if (!string.IsNullOrWhiteSpace(RouteParameterName))
+    {
+        <label class="aero-virtual-entry-selector__route">
+            <input type="checkbox"
+                   checked="@BindToRoute"
+                   @onchange="OnRouteBindingChanged"
+                   disabled="@string.IsNullOrWhiteSpace(Provider)"
+                   aria-describedby="aero-virtual-entry-route-help" />
+            <span>Use <code>@($"{{{RouteParameterName}}}")</code> from the page route</span>
+        </label>
+        <p id="aero-virtual-entry-route-help" class="aero-virtual-entry-selector__route-help">
+            The provider stays fixed. Each URL resolves that parameter as the entry ID; a missing entry returns 404.
+        </p>
+    }
+    @if (SelectedEntry is { } selected)
+    {
+        <p class="aero-virtual-entry-selector__selected">Selected: <strong>@selected.Provider:@selected.StableId</strong></p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Provider)
+        && (SelectedEntry is not null || (BindToRoute && !string.IsNullOrWhiteSpace(RouteParameterName))))
+    {
+        <button type="button"
+                class="aero-virtual-entry-selector__add"
+                @onclick="AddAsync"
+                disabled="@IsLoading">
+            Add query-backed entry to page
+        </button>
+    }
+</section>

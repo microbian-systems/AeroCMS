@@ -25,7 +25,14 @@ public sealed record ResolvedInfrastructureSettings(
     string SecretProvider,
     string? DatabaseUsername = null,
     string? DatabasePassword = null,
-    bool DatabaseUnauthenticated = false);
+    bool DatabaseUnauthenticated = false)
+{
+    /// <summary>Gets the installation-wide SurrealDB namespace.</summary>
+    public string DatabaseNamespace { get; init; } = AeroAppServerConstants.SableNamespace;
+
+    /// <summary>Gets the installation-wide SurrealDB database name.</summary>
+    public string DatabaseName { get; init; } = AeroAppServerConstants.SableDatabase;
+}
 
 /// <summary>
 /// Resolves bootstrap configuration and protected secret references into runtime infrastructure settings.
@@ -65,13 +72,42 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
         var secretProvider = infrastructure[AeroCmsInfrastructureConfiguration.SecretProvider] ?? "Local Certificate";
         ValidateCacheMode(cacheMode);
 
+        var databaseNamespace = ResolveDatabaseScope(
+            infrastructure[AeroCmsInfrastructureConfiguration.DatabaseNamespace],
+            AeroAppServerConstants.SableNamespace,
+            "namespace");
+        var databaseName = ResolveDatabaseScope(
+            infrastructure[AeroCmsInfrastructureConfiguration.DatabaseName],
+            AeroAppServerConstants.SableDatabase,
+            "database name");
+
         var secretManager = DataProtectionCertificateBootstrapper.CreateSecretManager(configuration);
         var db = ResolveDatabase(databaseMode, secretProvider, infrastructure, secretManager);
         var cache = ResolveCache(cacheMode, secretProvider, infrastructure, secretManager);
         var databaseUnauthenticated = infrastructure.GetValue<bool?>("DatabaseUnauthenticated") ?? false;
         var credentials = ResolveDatabaseCredentials(databaseMode, databaseUnauthenticated, secretProvider, infrastructure, secretManager);
         return new ResolvedInfrastructureSettings(db, cache, databaseMode, cacheMode, secretProvider,
-            credentials.username, credentials.password, databaseUnauthenticated);
+            credentials.username, credentials.password, databaseUnauthenticated)
+        {
+            DatabaseNamespace = databaseNamespace,
+            DatabaseName = databaseName
+        };
+    }
+
+    private static string ResolveDatabaseScope(string? configured, string fallback, string label)
+    {
+        if (configured is null)
+        {
+            return fallback;
+        }
+
+        if (SurrealDatabaseScope.TryNormalize(configured, out var normalized))
+        {
+            return normalized;
+        }
+
+        throw new InvalidOperationException(
+            $"The configured SurrealDB {label} is invalid. Use 1-{SurrealDatabaseScope.MaximumNameLength} ASCII letters, digits, underscores, or hyphens.");
     }
 
     /// <summary>
@@ -262,21 +298,20 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
     /// Locates the environment-specific appsettings file used for plaintext-secret upgrades.
     /// </summary>
     /// <param name="environmentName">The ASP.NET Core environment name.</param>
-    /// <returns>A path under <c>src/Aero.Cms.Web</c> when available, otherwise under the current directory.</returns>
+    /// <returns>The path under the consuming host's explicitly configured settings directory.</returns>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="environmentName"/> is empty or whitespace.
     /// </exception>
-    private static string ResolveAppSettingsPath(string environmentName)
+    private string ResolveAppSettingsPath(string environmentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
-        var webProjectPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "src", "Aero.Cms.Web"));
-        if (!Directory.Exists(webProjectPath))
-        {
-            webProjectPath = Directory.GetCurrentDirectory();
-        }
+        var settingsDirectory = configuration["AeroCms:Configuration:SettingsDirectory"];
+        if (string.IsNullOrWhiteSpace(settingsDirectory))
+            throw new InvalidOperationException(
+                "AEROCMS_CONFIG_PATH_REQUIRED: Plaintext-secret upgrades require a host-owned settings directory.");
 
-        return Path.Combine(webProjectPath, $"appsettings.{environmentName}.json");
+        return Path.Combine(Path.GetFullPath(settingsDirectory), $"appsettings.{environmentName}.json");
     }
 
     /// <summary>

@@ -1,9 +1,12 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Jobs;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Views;
 using Aero.Cms.Core.Content.Templating;
 using Aero.Core.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -43,14 +46,49 @@ public static class ContentServiceExtensions
         services.AddScoped<IContentService>(
             static provider => provider.GetRequiredService<AeroContentService>());
         services.AddScoped<IContentQueryService, AeroContentQueryService>();
+        services.AddScoped<IContentSurrealViewService, ContentSurrealViewService>();
+        services.AddScoped<IContentSurrealViewStore, SableContentSurrealViewStore>();
+        services.AddScoped<IContentRelationshipStore, SableContentRelationshipStore>();
+        services.AddScoped<IContentEntrySourceProviderCatalog, ContentSurrealViewEntryProviderCatalog>();
+        services.TryAddSingleton<IContentPhysicalSchemaTargetRegistry, EmptyContentPhysicalSchemaTargetRegistry>();
+        services.TryAddSingleton<IPrivilegedContentSchemaCommandExecutor, DisabledContentSchemaCommandExecutor>();
+        services.TryAddSingleton<IContentRelationshipSchemaApplyCoordinator, DisabledContentRelationshipSchemaApplyCoordinator>();
+        services.AddScoped<IContentSchemaMetadataReader, SableContentSchemaMetadataReader>();
+        services.AddScoped<IContentRelationshipSchemaDiscovery, SableContentRelationshipSchemaDiscovery>();
+        services.AddScoped<IRelationshipDdlLifecycle, ContentRelationshipDdlLifecycle>();
+        services.TryAddScoped<ContentRelationshipTargetBarrierCoordinator>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IContentReferenceRelationshipMaterializer,
+            ContentTypeReferenceRelationshipMaterializer>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IContentTranslationGroupProjectionContributor,
+            ContentReferenceRelationshipProjectionContributor>());
+        services.TryAddScoped<IContentDeclaredRelationshipCatalog, ContentReferenceRelationshipCatalog>();
+        services.TryAddSingleton<IContentViewScopeBinder, ReservedContentViewScopeBinder>();
+        services.TryAddSingleton<IContentShapeRegistry, ContentShapeRegistry>();
+        services.TryAddSingleton<IContentViewSourceRegistry, ContentViewSourceRegistry>();
+        services.TryAddSingleton<IContentViewStatementClassifier, SurrealSelectStatementClassifier>();
+        services.TryAddSingleton<IContentViewTrustedQueryPlanRegistry, EmptyContentViewTrustedQueryPlanRegistry>();
+        services.TryAddSingleton<IContentViewRelationshipPlanDialectCapability, DisabledContentViewRelationshipPlanDialectCapability>();
+        services.TryAddSingleton<IReadOnlyContentViewExecutor, DisabledContentViewExecutor>();
+        services.TryAddSingleton<IAdminReadOnlyContentViewExecutor, DisabledAdminContentViewExecutor>();
+        services.TryAddSingleton<InMemoryContentViewCache>();
+        services.TryAddSingleton<IContentViewExecutionCache>(sp => sp.GetRequiredService<InMemoryContentViewCache>());
+        services.TryAddSingleton<IContentViewCacheInvalidator>(sp => sp.GetRequiredService<InMemoryContentViewCache>());
+        services.TryAddSingleton<IContentViewCacheGenerationProvider>(sp => sp.GetRequiredService<InMemoryContentViewCache>());
+        services.TryAddSingleton<IContentViewDistributedCacheCoordinator, DisabledContentViewDistributedCacheCoordinator>();
+        services.TryAddSingleton<IContentViewOutputCacheInvalidator, DisabledContentViewOutputCacheInvalidator>();
         services.AddScoped<IContentHierarchyQueryService, ContentHierarchyQueryService>();
         services.AddScoped<ContentHierarchyValidator>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
+        services.AddScoped<IContentLocalizationHandler, ContentLocalizationHandler>();
         services.AddScoped<ContentIndexService>();
         services.AddScoped<ContentSearchProjectionService>();
         services.TryAddSingleton<IContentEmbeddingGenerator, UnavailableContentEmbeddingGenerator>();
         services.AddScoped<IContentItemRenderer, ContentItemRenderer>();
+        services.AddScoped<IContentRenderReferenceResolver, ContentRenderReferenceResolver>();
+        services.AddScoped<IContentViewSourceSnapshotService, RegisteredContentViewSourceSnapshotService>();
         services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         services.TryAddSingleton<SecureScribanTemplateOptions>();
         services.TryAddSingleton<ScribanTemplateValidator>();

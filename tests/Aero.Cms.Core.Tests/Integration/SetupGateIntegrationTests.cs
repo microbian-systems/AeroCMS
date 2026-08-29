@@ -227,6 +227,10 @@ public sealed class SetupGateIntegrationTests
             EnvironmentName = Environments.Development,
             ApplicationName = typeof(SetupModule).Assembly.GetName().Name
         });
+        builder.Configuration["AeroCms:Configuration:SettingsDirectory"] = Path.Combine(
+            Path.GetTempPath(),
+            "aero-cms-setup-tests",
+            Guid.NewGuid().ToString("N"));
 
         builder.WebHost.UseTestServer();
         builder.Services.AddLogging();
@@ -261,15 +265,15 @@ public sealed class SetupGateIntegrationTests
             .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true });
 
         var module = new SetupModule();
-        module.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
+        module.ConfigureServices(builder.Services, builder.Configuration, builder.Environment);
         var pagesModule = new PagesModule();
-        pagesModule.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
+        pagesModule.ConfigureServices(builder.Services, builder.Configuration, builder.Environment);
         var blogModule = new PostsModule();
-        blogModule.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
+        blogModule.ConfigureServices(builder.Services, builder.Configuration, builder.Environment);
         builder.Services.RemoveAll<ISetupIdentityBootstrapper>();
         builder.Services.AddSingleton(bootstrapper);
         var healthModule = new Aero.Cms.Modules.Health.HealthModule();
-        healthModule.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
+        healthModule.ConfigureServices(builder.Services, builder.Configuration, builder.Environment);
 
         var app = builder.Build();
 

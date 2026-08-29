@@ -1,7 +1,9 @@
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 using Aero.Core.Railway;
+using Shouldly;
 using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Html;
@@ -1040,6 +1042,138 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(scope.ContentItemId).IsEqualTo(73);
         await Assert.That(scope.Slug).IsEqualTo("hello-world");
         await Assert.That(session.Content.Root.Children.Single().NodeId).IsEqualTo(scope.NodeId);
+    }
+
+    [Test]
+    public async Task AddVirtualContentItem_persists_stable_key_and_round_trips_with_page_composition()
+    {
+        var session = CreateSession();
+        var key = new ContentEntryKey("view:catalog", "entry-42");
+
+        var added = session.AddVirtualContentItem(key);
+
+        var node = (added as Result<HtmlNode>.Ok)?.Value;
+        node.ShouldNotBeNull();
+        var persisted = session.Composition.ContentItems.Single();
+        persisted.NodeId.ShouldBe(node.NodeId);
+        persisted.ContentEntryKey.ShouldBe(key);
+        persisted.ContentItemId.ShouldBeNull();
+
+        var json = JsonSerializer.Serialize(
+            session.Composition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        var roundTrip = JsonSerializer.Deserialize(
+            json,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        roundTrip.ShouldNotBeNull();
+        roundTrip.ContentItems.Single().ContentEntryKey.ShouldBe(key);
+
+        session.Undo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentItems.ShouldBeEmpty();
+        session.Redo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentItems.Single().ContentEntryKey.ShouldBe(key);
+    }
+
+    [Test]
+    public void AddVirtualContentItem_persists_route_parameter_binding_through_undo_redo_and_json()
+    {
+        var session = CreateSession();
+        var providerKey = new ContentEntryKey("view:catalog", string.Empty);
+
+        session.AddVirtualContentItem(providerKey, "entryId")
+            .ShouldBeOfType<Result<HtmlNode>.Ok>();
+        var persisted = session.Composition.ContentItems.Single();
+        persisted.ContentEntryKey.ShouldBe(providerKey);
+        persisted.StableIdRouteParameter.ShouldBe("entryId");
+
+        var json = JsonSerializer.Serialize(
+            session.Composition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        var roundTrip = JsonSerializer.Deserialize(
+            json,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        roundTrip.ShouldNotBeNull();
+        roundTrip.ContentItems.Single().StableIdRouteParameter.ShouldBe("entryId");
+
+        session.Undo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentItems.ShouldBeEmpty();
+        session.Redo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentItems.Single().StableIdRouteParameter.ShouldBe("entryId");
+    }
+
+    [Test]
+    public void AddVirtualContentList_persists_provider_and_bounded_search_through_history_and_json()
+    {
+        var session = CreateSession();
+
+        session.AddVirtualContentList(" view:catalog ", 24, " sample entry ")
+            .ShouldBeOfType<Result<HtmlNode>.Ok>();
+
+        var persisted = session.Composition.ContentLists.Single();
+        persisted.ContentEntryProvider.ShouldBe("view:catalog");
+        persisted.ContentTypeId.ShouldBe(0);
+        persisted.ContentTypeAlias.ShouldBe("view:catalog");
+        persisted.Query.PageSize.ShouldBe(24);
+        persisted.Query.SortField.ShouldBeNull();
+        var search = persisted.Query.Filters.Single();
+        search.FieldName.ShouldBe("$search");
+        search.Operator.ShouldBe(PageContentFilterOperator.Contains);
+        search.Value.ShouldBe("sample entry");
+
+        var json = JsonSerializer.Serialize(
+            session.Composition,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        var roundTrip = JsonSerializer.Deserialize(
+            json,
+            PageCompositionJsonContext.Default.PageCompositionDocument);
+        roundTrip.ShouldNotBeNull();
+        roundTrip.ContentLists.Single().ContentEntryProvider.ShouldBe("view:catalog");
+        roundTrip.ContentLists.Single().Query.Filters.Single().Value.ShouldBe("sample entry");
+
+        session.Undo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentLists.ShouldBeEmpty();
+        session.Redo().ShouldBeOfType<Result<HtmlPageContent>.Ok>();
+        session.Composition.ContentLists.Single().ContentEntryProvider.ShouldBe("view:catalog");
+    }
+
+    [Test]
+    public void UpdateVirtualContentList_rejects_sort_and_structured_filters_without_mutation()
+    {
+        var session = CreateSession();
+        session.AddVirtualContentList("view:catalog", 10, "sample")
+            .ShouldBeOfType<Result<HtmlNode>.Ok>();
+        var scope = session.Composition.ContentLists.Single();
+
+        session.UpdateContentListSettings(
+                scope.NodeId,
+                new PageContentListQuery
+                {
+                    PageSize = 20,
+                    SortField = "scientificName",
+                    Filters =
+                    [
+                        new PageContentFilter
+                        {
+                            FieldName = "order",
+                            Operator = PageContentFilterOperator.Equals,
+                            Value = "Carnivora"
+                        }
+                    ]
+                },
+                PageContentEmptyStateBehavior.RenderNothing)
+            .ShouldBeOfType<Result<PageContentListScope>.Failure>();
+
+        var unchanged = session.Composition.ContentLists.Single();
+        unchanged.Query.PageSize.ShouldBe(10);
+        unchanged.Query.SortField.ShouldBeNull();
+        unchanged.Query.Filters.Single().FieldName.ShouldBe("$search");
+        unchanged.Query.Filters.Single().Value.ShouldBe("sample");
+
+        session.AddVirtualContentList("view:catalog", PageContentListQuery.MaximumPageSize + 1)
+            .ShouldBeOfType<Result<HtmlNode>.Failure>();
+        session.AddVirtualContentList("view:catalog;DELETE", 10)
+            .ShouldBeOfType<Result<HtmlNode>.Failure>();
+        session.Composition.ContentLists.Count.ShouldBe(1);
     }
 
     [Test]

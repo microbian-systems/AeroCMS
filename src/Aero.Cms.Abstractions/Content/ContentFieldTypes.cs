@@ -38,8 +38,12 @@ public static class ReferenceContentFieldSettings
     public const string TargetKind = "targetKind";
     public const string TargetKindContentType = "contentType";
     public const string TargetKindCmsDocument = "cmsDocument";
+    /// <summary>A provider-qualified, query-backed or otherwise virtual content entry.</summary>
+    public const string TargetKindContentEntry = "contentEntry";
     public const string TargetContentTypeId = "targetContentTypeId";
     public const string AllowedSources = "allowedSources";
+    /// <summary>Optional exact provider keys. An omitted value admits every server-registered provider.</summary>
+    public const string AllowedProviders = "allowedProviders";
     public const string AllowMultiple = "allowMultiple";
     public const string SelectionMode = "selectionMode";
     public const string SelectionModeHierarchy = "hierarchy";
@@ -47,6 +51,16 @@ public static class ReferenceContentFieldSettings
     public const string ShowAncestors = "showAncestors";
     public const string DependsOnField = "dependsOnField";
     public const string TargetFilterField = "targetFilterField";
+    /// <summary>
+    /// Optional stable alias for a server-owned native relationship projection.
+    /// The reference value remains canonical; the relationship is a derived,
+    /// same-transaction traversal projection.
+    /// </summary>
+    public const string RelationshipAlias = "relationshipAlias";
+    /// <summary>
+    /// Ordered field names to display when previewing a query-backed content entry.
+    /// </summary>
+    public const string PreviewFields = "previewFields";
 }
 
 /// <summary>Stable source keys for first-class CMS document references.</summary>

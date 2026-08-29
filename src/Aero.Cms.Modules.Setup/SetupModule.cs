@@ -73,7 +73,20 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         // The route is discovered via AddAdditionalAssemblies in Program.cs
         services.AddOptions<AeroDbOptions>()
             .BindConfiguration("Aero:Embedded");
-        services.TryAddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
+        services.TryAddSingleton<IEnvironmentAppSettingsWriter>(_ =>
+        {
+            var configuredDirectory = config?["AeroCms:Configuration:SettingsDirectory"];
+            if (string.IsNullOrWhiteSpace(configuredDirectory))
+            {
+                throw new InvalidOperationException(
+                    "AEROCMS_SETUP_PERSISTENCE_REQUIRED: Setup persistence requires an explicit host-owned settings directory.");
+            }
+
+            var contentRoot = env?.ContentRootPath
+                ?? throw new InvalidOperationException(
+                    "AEROCMS_CONFIG_PATH_REQUIRED: Setup persistence requires the consuming host content root.");
+            return new EnvironmentAppSettingsWriter(Path.GetFullPath(configuredDirectory, contentRoot));
+        });
         services.TryAddSingleton<InfisicalBootstrapSettingsProvider>();
         services.TryAddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
         services.TryAddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
@@ -83,14 +96,12 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.TryAddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
         services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
         services.TryAddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
+        services.TryAddSingleton<SetupBootstrapHandoffGate>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddSingleton(_ => new RuntimeBootstrapReadinessGate(runtimeMode));
         services.TryAddTransient<SetupGateMiddleware>();
         services.TryAddTransient<RuntimeBootstrapReadinessMiddleware>();
         services.TryAddSingleton<ISecretManager>(sp => DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
-
-        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, RuntimeBootstrapReadinessStartupFilter>());
-        services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
 
         if (runtimeMode)
         {
@@ -103,7 +114,6 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
             services.TryAddScoped<ITranslationImportService, TranslationImportService>();
             services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
-            services.AddTransient<IStartupFilter, TranslationImportStartupFilter>();
             services.AddAeroCaching(false);
         }
     }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
+using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Content;
 
@@ -16,7 +17,7 @@ public sealed class ContentApiAuthorizationTests
         app.MapContentTypesApi();
         app.MapContentItemsApi();
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(x => x.Endpoints).OfType<RouteEndpoint>().ToList();
-        await Assert.That(endpoints.Count).IsEqualTo(18);
+        endpoints.Count.ShouldBe(23);
         var expected = new (string Method, string Route, string Policy)[]
         {
             ("GET", "/api/v1/admin/content-types/", "site:read"),
@@ -30,19 +31,26 @@ public sealed class ContentApiAuthorizationTests
             ("GET", "/api/v1/admin/content-items/reference-options/{targetContentTypeId:long}", "site:read"),
             ("GET", "/api/v1/admin/content-items/reference-sources", "site:read"),
             ("GET", "/api/v1/admin/content-items/reference-sources/{source}/options", "site:read"),
+            ("GET", "/api/v1/admin/content-items/entry-reference-sources", "site:read"),
+            ("GET", "/api/v1/admin/content-items/entry-reference-sources/{provider}/options", "site:read"),
             ("POST", "/api/v1/admin/content-items/{alias}", "site:create"),
             ("PUT", "/api/v1/admin/content-items/{alias}/{id:long}", "site:update"),
             ("DELETE", "/api/v1/admin/content-items/{alias}/{id:long}", "site:delete"),
             ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/publish", "site:update"),
             ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/unpublish", "site:update"),
             ("GET", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:read"),
-            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:create")
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations", "site:update"),
+            ("PUT", "/api/v1/admin/content-items/{alias}/{id:long}/translations/shared-fields", "site:update"),
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations/ai-apply", "site:update"),
+            ("POST", "/api/v1/admin/content-items/{alias}/{id:long}/translations/review", "site:update")
         };
         foreach (var item in expected)
         {
             var endpoint = endpoints.Single(x => x.RoutePattern.RawText == item.Route &&
                 x.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Contains(item.Method));
-            await Assert.That(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(x => x.Policy)).Contains(item.Policy);
+            endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
+                .Select(x => x.Policy)
+                .ShouldContain(item.Policy);
         }
     }
 }

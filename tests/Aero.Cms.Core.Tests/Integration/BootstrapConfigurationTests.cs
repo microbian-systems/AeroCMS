@@ -134,6 +134,37 @@ public class BootstrapConfigurationTests
     }
 
     [Test]
+    public void Infrastructure_resolver_defaults_and_overrides_database_scope_independently()
+    {
+        using var fixture = CreateApplicationServerBuilder(AeroAppServerConstants.LocalCacheMode);
+        fixture.Builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AeroCms:Infrastructure:DatabaseNamespace"] = "wildlife-prod"
+        });
+
+        var resolved = new InfrastructureConnectionStringResolver(fixture.Builder.Configuration).Resolve();
+
+        resolved.DatabaseNamespace.Should().Be("wildlife-prod");
+        resolved.DatabaseName.Should().Be("aero");
+    }
+
+    [Test]
+    public void Infrastructure_resolver_rejects_an_explicit_invalid_database_scope()
+    {
+        using var fixture = CreateApplicationServerBuilder(AeroAppServerConstants.LocalCacheMode);
+        fixture.Builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["AeroCms:Infrastructure:DatabaseName"] = "invalid database"
+        });
+
+        var action = () => new InfrastructureConnectionStringResolver(fixture.Builder.Configuration).Resolve();
+
+        action.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*SurrealDB database name is invalid*");
+    }
+
+    [Test]
     public async Task Local_cache_mode_registers_the_in_process_garnet_host()
     {
         using var fixture = CreateApplicationServerBuilder(AeroAppServerConstants.LocalCacheMode);

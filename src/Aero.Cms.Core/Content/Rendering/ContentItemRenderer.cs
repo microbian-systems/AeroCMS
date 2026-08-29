@@ -11,7 +11,8 @@ namespace Aero.Cms.Core.Content.Rendering;
 /// </summary>
 public sealed class ContentItemRenderer(
     IEnumerable<IFieldTemplateSnippet> templateSnippets,
-    ISecureScribanRenderer scribanRenderer) : IContentItemRenderer
+    ISecureScribanRenderer scribanRenderer,
+    IContentRenderReferenceResolver? referenceResolver = null) : IContentItemRenderer
 {
     /// <inheritdoc />
     /// <remarks>
@@ -39,7 +40,14 @@ public sealed class ContentItemRenderer(
             typeDefinition.Fields);
 
         using var schema = ContentTypeSchemaGenerator.GenerateSchema(typeDefinition);
-        var model = ScribanContentRenderModel.Create(typeDefinition, item);
+        JsonElement? references = null;
+        if (referenceResolver is not null)
+        {
+            var referenceResult = await referenceResolver.ResolveAsync(typeDefinition, item, ct);
+            if (referenceResult is Result<JsonElement, AeroError>.Failure failure) return failure.Error;
+            references = ((Result<JsonElement, AeroError>.Ok)referenceResult).Value;
+        }
+        var model = ScribanContentRenderModel.Create(typeDefinition, item, references: references);
         var definition = new ScribanRenderDefinition(
             typeDefinition.Id,
             Version: 1,

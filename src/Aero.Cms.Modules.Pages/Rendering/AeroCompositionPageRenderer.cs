@@ -50,7 +50,8 @@ public sealed class AeroCompositionPageRenderer(
                 Path = request.Metadata.Path,
                 ContentQueries = request.ContentQueries,
                 IsPreview = request.IsPreview
-            });
+            },
+            request.RouteValues);
         if (expansionResult is Result<PageCompositionExpansion, Aero.Core.AeroError>.Failure expansionFailure)
         {
             return expansionFailure.Error;

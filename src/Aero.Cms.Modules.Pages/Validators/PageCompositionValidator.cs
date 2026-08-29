@@ -36,7 +36,14 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
 
         foreach (var list in lists)
         {
-            ValidateScopeIdentity(content, list.NodeId, list.ContentTypeId, list.ContentTypeAlias, scopeNodeIds, context);
+            if (string.IsNullOrWhiteSpace(list.ContentEntryProvider))
+            {
+                ValidateScopeIdentity(content, list.NodeId, list.ContentTypeId, list.ContentTypeAlias, scopeNodeIds, context);
+            }
+            else
+            {
+                ValidateVirtualListScopeIdentity(content, list, scopeNodeIds, context);
+            }
 
             var scopeNode = HtmlTreeOperations.FindById(content.Root, list.NodeId);
             if (list.TemplateRootNodeId <= 0
@@ -49,7 +56,7 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
                     $"Content list scope '{list.NodeId}' must identify a template node inside its scope.");
             }
 
-            ValidateQuery(list.NodeId, list.Query, context);
+            ValidateQuery(list.NodeId, list.Query, context, !string.IsNullOrWhiteSpace(list.ContentEntryProvider));
             if (!Enum.IsDefined(list.EmptyState))
             {
                 context.AddFailure(
@@ -60,6 +67,12 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
 
         foreach (var item in items)
         {
+            if (item.ContentEntryKey is { } entryKey)
+            {
+                ValidateVirtualItemScope(content, item, entryKey, scopeNodeIds, context);
+                continue;
+            }
+
             ValidateScopeIdentity(content, item.NodeId, item.ContentTypeId, item.ContentTypeAlias, scopeNodeIds, context);
 
             if (!Enum.IsDefined(item.LookupMode))
@@ -133,6 +146,45 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
         ValidateRenderedFragments(content, fragments, registeredFragments, scopeNodeIds, bindings, context);
         ValidateRegisteredFragments(content, registeredFragments, fragments, scopeNodeIds, bindings, context);
         ValidateContentQueries(contentQueries, context);
+    }
+
+    private static void ValidateVirtualItemScope(
+        HtmlPageContent content,
+        PageContentItemScope item,
+        Aero.Cms.Abstractions.Content.Views.ContentEntryKey entryKey,
+        ISet<long> scopeNodeIds,
+        ValidationContext<PageCompositionDocument> context)
+    {
+        if (item.NodeId <= 0 || HtmlTreeOperations.FindById(content.Root, item.NodeId) is not { Kind: HtmlNodeKind.Element })
+        {
+            context.AddFailure("NodeId", $"Content scope node '{item.NodeId}' must identify an HTML element in the draft.");
+        }
+
+        if (!scopeNodeIds.Add(item.NodeId))
+        {
+            context.AddFailure(nameof(PageCompositionDocument.ContentItems),
+                $"HTML node '{item.NodeId}' cannot own more than one content scope.");
+        }
+
+        var routeBound = !string.IsNullOrWhiteSpace(item.StableIdRouteParameter);
+        if (string.IsNullOrWhiteSpace(entryKey.Provider)
+            || (!routeBound && string.IsNullOrWhiteSpace(entryKey.StableId)))
+        {
+            context.AddFailure(nameof(PageContentItemScope.ContentEntryKey),
+                $"Content item scope '{item.NodeId}' must provide a provider and stable entry identifier.");
+        }
+
+        if (item.ContentItemId is not null || !string.IsNullOrWhiteSpace(item.Slug))
+        {
+            context.AddFailure(nameof(PageContentItemScope.ContentEntryKey),
+                $"Virtual content item scope '{item.NodeId}' cannot also specify a persisted item lookup.");
+        }
+
+        if (routeBound && !string.IsNullOrWhiteSpace(entryKey.StableId))
+        {
+            context.AddFailure(nameof(PageContentItemScope.StableIdRouteParameter),
+                $"Route-bound virtual content scope '{item.NodeId}' cannot also persist a stable entry identifier.");
+        }
     }
 
     private static void ValidateContentQueries(
@@ -361,10 +413,43 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
         }
     }
 
+    private static void ValidateVirtualListScopeIdentity(
+        HtmlPageContent content,
+        PageContentListScope scope,
+        ISet<long> scopeNodeIds,
+        ValidationContext<PageCompositionDocument> context)
+    {
+        if (scope.NodeId <= 0 || HtmlTreeOperations.FindById(content.Root, scope.NodeId) is not { Kind: HtmlNodeKind.Element })
+        {
+            context.AddFailure("NodeId", $"Content scope node '{scope.NodeId}' must identify an HTML element in the draft.");
+        }
+
+        if (!scopeNodeIds.Add(scope.NodeId))
+        {
+            context.AddFailure(nameof(PageCompositionDocument.ContentLists),
+                $"HTML node '{scope.NodeId}' cannot own more than one content scope.");
+        }
+
+        var provider = scope.ContentEntryProvider.Trim();
+        if (provider.Length is 0 or > 128
+            || provider.Any(character => !(char.IsLetterOrDigit(character) || character is ':' or '_' or '-')))
+        {
+            context.AddFailure(nameof(PageContentListScope.ContentEntryProvider),
+                $"Virtual content list scope '{scope.NodeId}' must use a bounded provider key.");
+        }
+
+        if (string.IsNullOrWhiteSpace(scope.ContentTypeAlias))
+        {
+            context.AddFailure(nameof(PageContentListScope.ContentTypeAlias),
+                $"Virtual content list scope '{scope.NodeId}' must retain a presentation alias.");
+        }
+    }
+
     private static void ValidateQuery(
         long scopeNodeId,
         PageContentListQuery? query,
-        ValidationContext<PageCompositionDocument> context)
+        ValidationContext<PageCompositionDocument> context,
+        bool isVirtualProvider = false)
     {
         if (query is null)
         {
@@ -423,6 +508,21 @@ public sealed class PageCompositionValidator : AbstractValidator<PageComposition
                     nameof(PageContentFilter.Value),
                     $"Content list scope '{scopeNodeId}' contains a filter without a comparison value.");
             }
+        }
+
+        if (!isVirtualProvider) return;
+
+        if (!string.IsNullOrWhiteSpace(query.SortField))
+        {
+            context.AddFailure(nameof(PageContentListQuery.SortField),
+                $"Virtual content list scope '{scopeNodeId}' does not support sorting.");
+        }
+
+        if (filters.Count > 1 || filters.Any(filter => filter.Operator != PageContentFilterOperator.Contains
+            || !string.Equals(filter.FieldName, "$search", StringComparison.Ordinal)))
+        {
+            context.AddFailure(nameof(PageContentListQuery.Filters),
+                $"Virtual content list scope '{scopeNodeId}' supports at most one Contains search filter on '$search'.");
         }
     }
 }

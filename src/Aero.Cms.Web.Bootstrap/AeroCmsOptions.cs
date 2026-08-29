@@ -2,6 +2,7 @@ using Aero.Modular;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Wolverine;
+using System.Reflection;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -15,6 +16,19 @@ namespace Aero.Cms.Web.Bootstrap;
 /// </remarks>
 public sealed class AeroCmsOptions
 {
+    /// <summary>Gets the capabilities supplied by the authoritative selected catalog.</summary>
+    public Aero.Cms.Hosting.AeroCmsCapabilities SelectedCapabilities { get; internal set; }
+
+    /// <summary>Gets or sets the capabilities required by this host configuration.</summary>
+    public Aero.Cms.Hosting.AeroCmsCapabilities RequiredCapabilities { get; set; } =
+        Aero.Cms.Hosting.AeroCmsCapabilities.ServerComponents;
+
+    /// <summary>Gets or sets explicit server component and MVC application-part assemblies.</summary>
+    public IReadOnlyList<Assembly> ServerComponentAssemblies { get; set; } = [];
+
+    /// <summary>Gets or sets explicit interactive WebAssembly component assemblies.</summary>
+    public IReadOnlyList<Assembly> WebAssemblyComponentAssemblies { get; set; } = [];
+
     /// <summary>
     /// Gets or sets the source-generated module descriptors registered for the host.
     /// </summary>

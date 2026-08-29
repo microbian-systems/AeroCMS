@@ -15,6 +15,7 @@ using Aero.Cms.Abstractions.Pages.Rendering;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Rendering;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
@@ -45,7 +46,8 @@ public static class PagesApi
 public static void MapPagesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages")
-            .WithTags("Admin - Pages");
+            .WithTags("Admin - Pages")
+            .AddEndpointFilter<SelectedSiteScopeEndpointFilter>();
         
         group.MapGet("/", ListPages)
             .WithName("ListPages")
@@ -284,9 +286,14 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 RendererId: normalizedRendererId,
                 DraftSource: request.DraftSource,
                 IncludeInSearch: request.IncludeInSearch,
-                IncludeInPublicAi: request.IncludeInPublicAi);
+                IncludeInPublicAi: request.IncludeInPublicAi,
+                RouteTemplate: request.RouteTemplate);
 
-            var result = await pagesActor.CreateAsync(grainRequest, ct);
+            var result = await pagesActor.CreateAsync(
+                grainRequest,
+                siteContext.TenantId,
+                siteContext.SiteId,
+                ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails
                 {
@@ -345,7 +352,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 RendererId: normalizedRendererId,
                 DraftSource: request.DraftSource,
                 IncludeInSearch: request.IncludeInSearch,
-                IncludeInPublicAi: request.IncludeInPublicAi);
+                IncludeInPublicAi: request.IncludeInPublicAi,
+                RouteTemplate: request.RouteTemplate);
 
             var existing = await pagesActor.GetByIdAsync(id, siteContext.SiteId, ct);
             if (!string.IsNullOrWhiteSpace(existing.error.Message))
@@ -372,7 +380,11 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                     return TypedResults.NotFound(parent.error);
             }
 
-            var result = await pagesActor.UpdateAsync(grainRequest, siteContext.SiteId, ct);
+            var result = await pagesActor.UpdateAsync(
+                grainRequest,
+                siteContext.TenantId,
+                siteContext.SiteId,
+                ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails
                 {
@@ -730,7 +742,11 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pagesActor.PublishAsync(id, siteContext.SiteId, ct);
+            var result = await pagesActor.PublishAsync(
+                id,
+                siteContext.TenantId,
+                siteContext.SiteId,
+                ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.NotFound(result.error)
                 : TypedResults.Ok(MapToDetail(result.data));
@@ -860,7 +876,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             vm.RendererId,
             vm.HasUnpublishedChanges,
             vm.IncludeInSearch,
-            vm.IncludeInPublicAi
+            vm.IncludeInPublicAi,
+            vm.RouteTemplate
         );
     }
 
@@ -894,7 +911,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             PageRendererIds.NormalizeOrDefault(document.RendererId),
             document.HasUnpublishedChanges,
             document.IncludeInSearch,
-            document.IncludeInPublicAi);
+            document.IncludeInPublicAi,
+            document.DraftRouteTemplate);
 
     private static string? SerializeDraftContent(HtmlPageContent? content) => content is null
         ? null

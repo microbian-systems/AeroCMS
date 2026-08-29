@@ -79,30 +79,43 @@ $libProjects = @(
     "$RepoRoot/src/Aero.Cms.Data"
     "$RepoRoot/src/Aero.Cms.Db.Marten"
     "$RepoRoot/src/Aero.Cms.Db.Polecat"
-    "$RepoRoot/src/Aero.Cms.Generated.Json"
+    "$RepoRoot/src/Aero.Cms.Hosting.Abstractions"
+    "$RepoRoot/src/Aero.Cms.Hosting.Defaults"
+    "$RepoRoot/src/Aero.Cms.Html"
     "$RepoRoot/src/Aero.Cms.Jobs"
     "$RepoRoot/src/Aero.Cms.Marten.Identity"
     "$RepoRoot/src/Aero.Cms.Modules.Abstraction"
+    "$RepoRoot/src/Aero.Cms.Client"
+    "$RepoRoot/src/Aero.Cms.ServiceDefaults"
     "$RepoRoot/src/Aero.Cms.Services"
     "$RepoRoot/src/Aero.Cms.Shared"
     "$RepoRoot/src/Aero.Cms.Shared.Models"
-    "$RepoRoot/src/Aero.Cms.Web.Client"
+    "$RepoRoot/src/Aero.Cms.SourceGenerators"
+    "$RepoRoot/src/Aero.Cms.UI"
     "$RepoRoot/src/Aero.Cms.Web.Bootstrap"
     "$RepoRoot/src/Aero.Cms.Web.Core"
-    "$RepoRoot/src/Aero.Cms.Ui.Hyper"
-    "$RepoRoot/src/Aero.Cms.Ui.Neo"
 
     "$RepoRoot/src/Aero.AppServer"
 )
 
-# Meta-package: bundles all modules. Restored from local nupkgs + nuget.org.
-$metaProjDir = "$RepoRoot/src/Aero.Cms.Modules.Meta"
-$metaNugetConfig = "$metaProjDir/nuget.config"
+# The default hosting catalog has ordinary package dependencies on its explicitly
+# selected modules. Pack every module package so the facade/default packages can
+# be restored from this output directory on a clean machine.
+$moduleProjects = Get-ChildItem "$RepoRoot/src" -Directory |
+    Where-Object {
+        $_.Name.StartsWith("Aero.Cms.Modules.", [StringComparison]::Ordinal) -or
+        $_.Name.StartsWith("Aero.Cms.Banners", [StringComparison]::Ordinal) -or
+        $_.Name.StartsWith("Aero.Cms.CookiePolicy", [StringComparison]::Ordinal)
+    } |
+    Select-Object -ExpandProperty FullName
+
+$packageProjects = @($libProjects + $moduleProjects | Sort-Object -Unique)
 
 $failed = @()
 
-foreach ($proj in $libProjects) {
-    $csproj = Get-ChildItem "$proj/*.csproj" | Select-Object -First 1 -ExpandProperty FullName
+foreach ($proj in $packageProjects) {
+    $csproj = Get-ChildItem "$proj/*.csproj" -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty FullName
     if (-not $csproj) {
         Write-Host "WARN: Project not found, skipping: $proj" -ForegroundColor Yellow
         continue
@@ -113,13 +126,21 @@ foreach ($proj in $libProjects) {
     $packArgs = @(
         "pack", $csproj,
         "-c", $Configuration,
-        "-o", $OutputDir,
-        "--include-symbols",
-        "-p:IncludeSymbols=true",
-        "-p:SymbolPackageFormat=snupkg"
+        "-o", $OutputDir
     )
 
-    if ($projName -eq "Aero.Cms.Web.Client") {
+    # Analyzer-only packages place their assembly under analyzers/ instead of lib/.
+    # Aero.Cms.SourceGenerators therefore opts out of a separate symbol package;
+    # forcing one here produces an empty .snupkg and fails with NU5017.
+    if ($projName -ne "Aero.Cms.SourceGenerators") {
+        $packArgs += @(
+            "--include-symbols",
+            "-p:IncludeSymbols=true",
+            "-p:SymbolPackageFormat=snupkg"
+        )
+    }
+
+    if ($projName -eq "Aero.Cms.Client") {
         $packArgs += @(
             "-m:1",
             "-p:BuildInParallel=false",
@@ -135,48 +156,6 @@ foreach ($proj in $libProjects) {
         $failed += $proj
         $output | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkRed }
     }
-}
-
-if ($metaCsproj = Get-ChildItem "$metaProjDir/*.csproj" | Select-Object -First 1 -ExpandProperty FullName) {
-    # Write nuget.config with absolute path to local packages
-    $nugetConfigXml = @"
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="local-aero" value="$RepoRoot/Aero/build/nupkgs" />
-    <add key="local-cms" value="$OutputDir" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
-"@
-    $nugetConfigXml | Set-Content -Path $metaNugetConfig -Encoding UTF8
-
-    $projName = (Get-Item $metaCsproj).BaseName
-    Write-Host "  Packing: $projName (meta)..." -ForegroundColor Cyan
-    if ($failed.Count -eq 0) {
-        dotnet restore $metaCsproj @versionArgs *>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  FAILED (restore): Meta-package" -ForegroundColor Red
-            $failed += $metaProjDir
-        }
-    }
-
-    if ($failed.Count -eq 0) {
-        # The meta-package bundles module DLLs directly from their Release outputs.
-        # Build the private ProjectReference graph before the custom pack target
-        # stages those DLLs; a clean checkout cannot rely on pre-existing bin files.
-        $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore -p:IncludeSymbols=false @versionArgs 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  FAILED (pack): Meta-package" -ForegroundColor Red
-            $failed += $metaProjDir
-            $output | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkRed }
-        } else {
-            Get-ChildItem "$OutputDir/Aero.Cms.Modules.Meta.*.snupkg" -ErrorAction SilentlyContinue | Remove-Item -Force
-        }
-    }
-} else {
-    Write-Host "WARN: Meta-package project not found, skipping." -ForegroundColor Yellow
 }
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan

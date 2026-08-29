@@ -136,7 +136,8 @@ public sealed class ContentGrainScopeTests
         await using var harness = new SableTestHarness()
             .WithSchema<ContentItem>(SchemaMode.Flexible)
             .WithSchema<ContentItemVersion>(SchemaMode.Flexible)
-            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible);
         await harness.InitializeAsync();
         harness.Session.Store(
             new ContentTypeDocument { Id = 10, SiteId = 1, Alias = "article", Name = "Article" });
@@ -158,6 +159,27 @@ public sealed class ContentGrainScopeTests
                 Title = "Foreign",
                 Slug = "foreign",
                 Culture = "en-US"
+            });
+        harness.Session.Store(
+            new ContentItem
+            {
+                Id = 22,
+                SiteId = 1,
+                ContentTypeAlias = "article",
+                Title = "Localized",
+                Slug = "localized",
+                Culture = "fr-FR",
+                TranslationGroupId = 20,
+                SourceItemId = 20
+            });
+        harness.Session.Store(
+            new ContentTranslationGroupDocument
+            {
+                Id = 20,
+                SiteId = 1,
+                ContentTypeAlias = "article",
+                SourceItemId = 20,
+                SourceCulture = "en-US"
             });
         await harness.Session.SaveChangesAsync();
 
@@ -223,6 +245,7 @@ public sealed class ContentGrainScopeTests
             new ContentItemViewModel
             {
                 Id = 20,
+                StorageVersion = localGet.data.StorageVersion,
                 SiteId = 999,
                 ContentTypeAlias = "attacker",
                 Title = "Updated",
@@ -234,16 +257,18 @@ public sealed class ContentGrainScopeTests
             default);
         var localPublish = await grain.PublishAsync(20, 1, default);
         var localUnpublish = await grain.UnpublishAsync(20, 1, default);
-        var localDelete = await grain.DeleteAsync(20, 1, default);
+        var localDelete = await grain.DeleteAsync(22, 1, default);
 
-        await Assert.That(new[]
+        var localErrors = new[]
         {
             localGet.error.Message,
             localSave.error.Message,
             localPublish.error.Message,
             localUnpublish.error.Message,
             localDelete.error.Message
-        }.All(string.IsNullOrWhiteSpace)).IsTrue();
+        };
+        await Assert.That(localErrors.All(string.IsNullOrWhiteSpace)).IsTrue()
+            .Because(string.Join(" | ", localErrors));
         await Assert.That(localSave.data.SiteId).IsEqualTo(1);
         await Assert.That(localSave.data.ContentTypeAlias).IsEqualTo("article");
 
@@ -252,7 +277,8 @@ public sealed class ContentGrainScopeTests
         await Assert.That(foreign).IsNotNull();
         await Assert.That(foreign!.SiteId).IsEqualTo(2);
         await Assert.That(foreign.Title).IsEqualTo("Foreign");
-        await Assert.That(await verify.LoadAsync<ContentItem>(20)).IsNull();
+        await Assert.That(await verify.LoadAsync<ContentItem>(20)).IsNotNull();
+        await Assert.That(await verify.LoadAsync<ContentItem>(22)).IsNull();
     }
 
     private sealed class AsyncOnlyScopedDependency : IAsyncDisposable

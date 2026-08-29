@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Content.Templating;
 using Aero.Core;
@@ -347,6 +349,143 @@ public sealed class ContentTypeServiceScopeTests
 
         await Assert.That(result.IsFailure).IsTrue();
     }
+
+    [Test]
+    public async Task Native_relationship_requires_one_materializer_and_a_shared_reference()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 90,
+            SiteId = 1,
+            Alias = "species",
+            Name = "Species"
+        });
+        await harness.Session.SaveChangesAsync();
+        var definition = NativeRelationshipType("animal_species", ContentFieldLocalizationMode.Shared);
+
+        var missing = await new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            []).SaveAsync(definition);
+        await Assert.That(missing.IsFailure).IsTrue();
+
+        var materializer = new ContentTypeReferenceRelationshipMaterializer();
+        var ambiguous = await new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            [materializer, materializer]).SaveAsync(definition);
+        await Assert.That(ambiguous.IsFailure).IsTrue();
+
+        var localized = await new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            [materializer]).SaveAsync(
+                NativeRelationshipType("animal_species", ContentFieldLocalizationMode.Localized));
+        await Assert.That(localized.IsFailure).IsTrue();
+
+        var saved = await new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            [materializer]).SaveAsync(definition);
+        await Assert.That(saved.IsSuccess).IsTrue();
+
+        var competing = NativeRelationshipType("animal_species", ContentFieldLocalizationMode.Shared);
+        competing.Alias = "habitat";
+        competing.Name = "Habitat";
+        var duplicateAcrossTypes = await new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            [materializer]).SaveAsync(competing);
+        await Assert.That(duplicateAcrossTypes.IsFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task Existing_native_relationship_change_requires_an_explicit_backfill_when_entries_exist()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible)
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(
+            new ContentTypeDocument
+            {
+                Id = 90,
+                SiteId = 1,
+                Alias = "species",
+                Name = "Species"
+            },
+            new ContentTypeDocument
+            {
+                Id = 91,
+                SiteId = 1,
+                Alias = "animal",
+                Name = "Animal",
+                Fields = [NativeRelationshipField("animal_species", ContentFieldLocalizationMode.Shared)]
+            });
+        harness.Session.Store(new ContentItem
+        {
+            Id = 92,
+            SiteId = 1,
+            ContentTypeAlias = "animal",
+            Culture = "en-US",
+            Slug = "animal",
+            Title = "Animal"
+        });
+        await harness.Session.SaveChangesAsync();
+        var materializer = new ContentTypeReferenceRelationshipMaterializer();
+        var service = new AeroContentTypeService(
+            harness.Session,
+            [],
+            new ScribanTemplateValidator(),
+            [materializer]);
+
+        var changed = NativeRelationshipType("animal_species_v2", ContentFieldLocalizationMode.Shared);
+        changed.Id = 91;
+        var result = await service.SaveAsync(changed);
+
+        await Assert.That(result.IsFailure).IsTrue();
+        await using var verify = await harness.Store.QuerySessionAsync();
+        var stored = await verify.LoadAsync<ContentTypeDocument>(91);
+        await Assert.That(stored).IsNotNull();
+        await Assert.That(stored!.Fields[0].Settings[ReferenceContentFieldSettings.RelationshipAlias].GetString())
+            .IsEqualTo("animal_species");
+    }
+
+    private static ContentTypeDefinition NativeRelationshipType(
+        string relationshipAlias,
+        ContentFieldLocalizationMode localizationMode) =>
+        new()
+        {
+            SiteId = 1,
+            Alias = "animal",
+            Name = "Animal",
+            Fields = [NativeRelationshipField(relationshipAlias, localizationMode)]
+        };
+
+    private static ContentFieldDefinition NativeRelationshipField(
+        string relationshipAlias,
+        ContentFieldLocalizationMode localizationMode) =>
+        new()
+        {
+            Name = "species",
+            Label = "Species",
+            FieldType = ContentFieldTypes.Reference,
+            LocalizationMode = localizationMode,
+            Settings = new Dictionary<string, JsonElement>
+            {
+                [ReferenceContentFieldSettings.TargetContentTypeId] = JsonSerializer.SerializeToElement("90"),
+                [ReferenceContentFieldSettings.RelationshipAlias] = JsonSerializer.SerializeToElement(relationshipAlias)
+            }
+        };
 
     private static ContentTypeDefinition ReferencingType(
         string alias,

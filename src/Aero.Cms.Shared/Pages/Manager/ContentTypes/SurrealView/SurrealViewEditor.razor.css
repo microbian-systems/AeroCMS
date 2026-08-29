@@ -1,0 +1,186 @@
+.surreal-view-editor {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.surreal-view-editor__header,
+.surreal-view-editor__title-row,
+.surreal-view-editor__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.surreal-view-editor__header {
+    align-items: flex-start;
+}
+
+.surreal-view-editor h1,
+.surreal-view-editor p {
+    margin: 0;
+}
+
+.surreal-view-editor h1 {
+    color: var(--pe-text-primary);
+    font-size: 1.35rem;
+}
+
+.surreal-view-editor p {
+    margin-top: .35rem;
+    color: var(--pe-text-muted);
+}
+
+.surreal-view-editor__title-row {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.surreal-view-editor__status {
+    border-radius: 999px;
+    padding: .25rem .55rem;
+    color: var(--rz-info);
+    background: color-mix(in srgb, var(--rz-info) 10%, var(--pe-bg-primary));
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.surreal-view-editor__status.is-unconfigured {
+    color: var(--pe-text-muted);
+}
+
+.surreal-view-editor__status.is-dirty {
+    color: var(--rz-warning);
+}
+
+.surreal-view-editor__actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.surreal-view-editor__panel {
+    display: grid;
+    gap: 1.25rem;
+    min-width: 0;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    padding: 1rem;
+    background: var(--pe-bg-secondary);
+}
+
+.surreal-view-editor__source,
+.surreal-view-editor__source-controls,
+.surreal-view-editor__source-summary {
+    display: grid;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.surreal-view-editor__source {
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    background: var(--pe-bg-primary);
+}
+
+.surreal-view-editor__source h2 {
+    margin: 0;
+    color: var(--pe-text-primary);
+    font-size: 1rem;
+}
+
+.surreal-view-editor__source-controls label {
+    color: var(--pe-text-secondary);
+    font-weight: 700;
+}
+
+.surreal-view-editor__source-controls select {
+    width: 100%;
+    min-height: 2.75rem;
+}
+
+.surreal-view-editor__source-summary {
+    border-left: .25rem solid var(--rz-info);
+    padding: .6rem .75rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-secondary);
+}
+
+.surreal-view-editor__source-summary code {
+    overflow-wrap: anywhere;
+    color: var(--pe-text-muted);
+}
+
+.surreal-view-editor__source-controls button {
+    justify-self: start;
+}
+
+.surreal-view-editor__state,
+.surreal-view-editor__message,
+.surreal-view-editor__unconfigured,
+.surreal-view-editor__eligibility {
+    display: grid;
+    gap: .35rem;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 1rem;
+    color: var(--pe-text-secondary);
+    background: var(--pe-bg-primary);
+}
+
+.surreal-view-editor__state.is-error,
+.surreal-view-editor__message.is-error {
+    border-color: var(--rz-danger);
+    color: var(--rz-danger);
+}
+
+.surreal-view-editor__message.is-success {
+    border-color: var(--rz-success);
+    color: var(--rz-success);
+}
+
+.surreal-view-editor__unconfigured {
+    border-left: .25rem solid var(--rz-info);
+}
+
+.surreal-view-editor__eligibility.is-eligible {
+    border-left: .25rem solid var(--rz-success);
+}
+
+.surreal-view-editor__eligibility.is-ineligible {
+    border-left: .25rem solid var(--rz-danger);
+    color: var(--rz-danger);
+}
+
+.surreal-view-editor__state button {
+    justify-self: start;
+    margin-top: .5rem;
+}
+
+@media (max-width: 40rem) {
+    .surreal-view-editor,
+    .surreal-view-editor__panel,
+    .surreal-view-editor__header > div {
+        min-width: 0;
+    }
+
+    .surreal-view-editor__header,
+    .surreal-view-editor__actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .surreal-view-editor__actions,
+    .surreal-view-editor__actions button {
+        width: 100%;
+    }
+
+    .surreal-view-editor__panel {
+        padding: .75rem;
+    }
+
+    .surreal-view-editor__source-controls button {
+        width: 100%;
+    }
+}

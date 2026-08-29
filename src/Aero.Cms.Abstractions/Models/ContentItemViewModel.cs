@@ -77,6 +77,21 @@ public sealed record ContentItemViewModel : AeroEntityViewModel
     /// <summary>Gets or sets the stable order among siblings.</summary>
     [Id(13)]
     public int SortOrder { get; set; }
+
+    /// <summary>Serialized immutable translation provenance preserved across ordinary manager edits.</summary>
+    [Id(14)]
+    public string? TranslationProvenanceJson { get; set; }
+
+    /// <summary>Serialized translation review preserved across ordinary manager edits.</summary>
+    [Id(15)]
+    public string? TranslationReviewJson { get; set; }
+
+    /// <summary>Current revision of the owning translation group, when resolved.</summary>
+    [Id(16)]
+    public int? TranslationGroupRevision { get; set; }
+
+    [Id(17)] public long StorageVersion { get; set; }
+    [Id(18)] public long? TranslationGroupStorageVersion { get; set; }
 }
 
 /// <summary>

@@ -214,7 +214,8 @@ public sealed class AeroPageContentService(
     IPageRegisteredFragmentRegistry? registeredFragmentRegistry = null,
     IPageRendererRegistry? pageRendererRegistry = null,
     IPageSourceVersionStore? pageSourceVersionStore = null,
-    IPageContentQueryResolver? pageContentQueryResolver = null) : IPageContentService
+    IPageContentQueryResolver? pageContentQueryResolver = null,
+    IPageRouteTemplateValidator? routeTemplateValidator = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
     private const int MaximumDraftSourceLengthBytes = 50_000;
@@ -572,6 +573,7 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 HideFooter = request.HideFooter,
                 ShowChatAgent = request.ShowChatAgent
             };
+            page.DraftRouteTemplate = NormalizeRouteTemplate(request.RouteTemplate);
 
             var draftContentResult = DeserializeDraftContent(request.DraftContentJson);
             if (draftContentResult is Result<HtmlPageContent, AeroError>.Failure draftFailure)
@@ -644,6 +646,13 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
             {
                 logger.LogWarning("Validation failed creating page '{Title}' (slug={Slug}): {Errors}", request.Title, request.Slug ?? "(auto)", vf.Error);
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            if (routeTemplateValidator is not null)
+            {
+                var routeValidation = await routeTemplateValidator.ValidateDraftAsync(page, cancellationToken);
+                if (routeValidation is Result<bool, AeroError>.Failure routeFailure)
+                    return routeFailure.Error;
             }
 
             var htmlValidation = await ValidateHtmlDraftAsync(page, cancellationToken);
@@ -839,6 +848,13 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             {
                 logger.LogWarning("Validation failed updating page {PageId}: {Errors}", id, vf.Error);
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            if (routeTemplateValidator is not null)
+            {
+                var routeValidation = await routeTemplateValidator.ValidateDraftAsync(page, cancellationToken);
+                if (routeValidation is Result<bool, AeroError>.Failure routeFailure)
+                    return routeFailure.Error;
             }
 
             var htmlValidation = await ValidateHtmlDraftAsync(
@@ -1343,7 +1359,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
         }
 
         var compositionValidation = await PageCompositionValidationPipeline.ValidateAsync(
-            siteId,
+            new Aero.Cms.Abstractions.Content.Views.ContentViewScope(_siteContext.TenantId, siteId),
             culture,
             draftContent,
             draftComposition,
@@ -1386,7 +1402,11 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
         page.ShowChatAgent = request.ShowChatAgent;
         page.ParentId = request.ParentId;
         page.RendererId = PageRendererIds.NormalizeOrDefault(request.RendererId);
+        page.DraftRouteTemplate = NormalizeRouteTemplate(request.RouteTemplate);
     }
+
+    private static string? NormalizeRouteTemplate(string? routeTemplate)
+        => string.IsNullOrWhiteSpace(routeTemplate) ? null : routeTemplate.Trim();
 
     private Result<string, AeroError> ValidateRendererId(string? rendererId)
     {
@@ -1649,6 +1669,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(
         target.HideHeader = source.HideHeader;
         target.HideFooter = source.HideFooter;
         target.ShowChatAgent = source.ShowChatAgent;
+        target.DraftRouteTemplate = source.DraftRouteTemplate;
     }
 
     private string BuildCacheKey(string suffix)

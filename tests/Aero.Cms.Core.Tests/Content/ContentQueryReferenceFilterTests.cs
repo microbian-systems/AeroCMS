@@ -57,7 +57,7 @@ public sealed class ContentQueryReferenceFilterTests
             new UnavailableContentEmbeddingGenerator());
         foreach (var item in items)
         {
-            await projection.StageUpsertAsync(item, definition);
+            await projection.StageUpsertAsync(item, definition, new Dictionary<string, JsonElement>());
         }
         await harness.Session.SaveChangesAsync();
         var service = new AeroContentQueryService(harness.Session);
@@ -119,10 +119,10 @@ public sealed class ContentQueryReferenceFilterTests
             harness.Session,
             new ContentIndexService([]),
             new UnavailableContentEmbeddingGenerator());
-        await projection.StageUpsertAsync(visible, visibleDefinition);
-        await projection.StageUpsertAsync(draft, visibleDefinition);
-        await projection.StageUpsertAsync(french, visibleDefinition);
-        await projection.StageUpsertAsync(hidden, hiddenDefinition);
+        await projection.StageUpsertAsync(visible, visibleDefinition, new Dictionary<string, JsonElement>());
+        await projection.StageUpsertAsync(draft, visibleDefinition, new Dictionary<string, JsonElement>());
+        await projection.StageUpsertAsync(french, visibleDefinition, new Dictionary<string, JsonElement>());
+        await projection.StageUpsertAsync(hidden, hiddenDefinition, new Dictionary<string, JsonElement>());
         await harness.Session.SaveChangesAsync();
         var service = new AeroContentQueryService(harness.Session);
 

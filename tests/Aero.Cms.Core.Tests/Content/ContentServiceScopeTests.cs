@@ -105,6 +105,54 @@ public sealed class ContentServiceScopeTests
     }
 
     [Test]
+    public async Task Create_defers_cms_document_references_to_the_authoritative_async_validator()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTypeDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTypeDocument
+        {
+            Id = 37,
+            SiteId = 1,
+            Alias = "article",
+            Name = "Article",
+            Fields =
+            [
+                new ContentFieldDefinition
+                {
+                    Name = "related",
+                    FieldType = ContentFieldTypes.Reference,
+                    Settings = new Dictionary<string, JsonElement>
+                    {
+                        [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindCmsDocument),
+                        [ReferenceContentFieldSettings.AllowedSources] = JsonSerializer.SerializeToElement(new[] { CmsContentReferenceSources.Pages })
+                    }
+                }
+            ]
+        });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentService(harness.Session);
+        var item = new ContentItem
+        {
+            Id = 0,
+            SiteId = 1,
+            ContentTypeAlias = "article",
+            Culture = "en-US",
+            Slug = "cms-reference",
+            Fields = new()
+            {
+                ["related"] = JsonSerializer.SerializeToElement(
+                    new CmsContentReferenceValue(CmsContentReferenceSources.Pages, "42"))
+            }
+        };
+
+        var result = await service.SaveAsync(item);
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+    }
+
+    [Test]
     public async Task Create_persists_hyphenated_dynamic_field_names()
     {
         await using var harness = new SableTestHarness()
@@ -165,5 +213,55 @@ public sealed class ContentServiceScopeTests
         var group = await service.SaveAsync(new ContentItem { SiteId = 1, ContentTypeAlias = "article", Culture = "en-US", Slug = "group", TranslationGroupId = 41 });
         await Assert.That(source.IsFailure).IsTrue();
         await Assert.That(group.IsFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task Delete_blocks_a_translation_group_source_until_its_variants_are_removed()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<ContentItem>(SchemaMode.Flexible)
+            .WithSchema<ContentTranslationGroupDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+        harness.Session.Store(new ContentTranslationGroupDocument
+        {
+            Id = 50,
+            SiteId = 1,
+            ContentTypeAlias = "animal",
+            SourceItemId = 51,
+            SourceCulture = "en-US"
+        });
+        harness.Session.Store(
+            new ContentItem
+            {
+                Id = 51,
+                SiteId = 1,
+                ContentTypeAlias = "animal",
+                Culture = "en-US",
+                Slug = "wolf",
+                TranslationGroupId = 50
+            },
+            new ContentItem
+            {
+                Id = 52,
+                SiteId = 1,
+                ContentTypeAlias = "animal",
+                Culture = "fr-FR",
+                Slug = "loup",
+                TranslationGroupId = 50,
+                SourceItemId = 51
+            });
+        await harness.Session.SaveChangesAsync();
+        var service = new AeroContentService(harness.Session);
+
+        var sourceDelete = await service.DeleteAsync(1, 51);
+        await Assert.That(sourceDelete.IsFailure).IsTrue();
+        await Assert.That(sourceDelete.ToString()).Contains("while translations exist");
+
+        var variantDelete = await service.DeleteAsync(1, 52);
+        await Assert.That(variantDelete.IsSuccess).IsTrue().Because(variantDelete.ToString());
+        await Assert.That((await service.DeleteAsync(1, 51)).IsSuccess).IsTrue();
+
+        await using var verify = await harness.Store.QuerySessionAsync();
+        await Assert.That(await verify.LoadAsync<ContentTranslationGroupDocument>(50)).IsNull();
     }
 }

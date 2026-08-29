@@ -56,4 +56,13 @@
     <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.SurrealKv\SurrealDb.Embedded.SurrealKv.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <Content Include="..\..\AeroDB\surrealdb.net\rust-embedded\target\x86_64-pc-windows-msvc\release\surreal_surrealkv.dll"
+             Link="surreal_surrealkv.dll"
+             TargetPath="surreal_surrealkv.dll"
+             CopyToOutputDirectory="PreserveNewest"
+             Pack="true"
+             PackagePath="runtimes\win-x64\native\"
+             Condition="Exists('..\..\AeroDB\surrealdb.net\rust-embedded\target\x86_64-pc-windows-msvc\release\surreal_surrealkv.dll')" />
+  </ItemGroup>
 </Project>

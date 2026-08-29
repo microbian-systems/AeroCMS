@@ -1,0 +1,167 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="surreal-query" aria-labelledby="surreal-query-title">
+    <div class="surreal-query__heading">
+        <div>
+            <h2 id="surreal-query-title">SurrealQL view</h2>
+            <p>Map read-only SurrealDB data to a code-owned content shape. Scope values are always supplied by the server.</p>
+        </div>
+        <span class="surreal-query__select-only">SELECT only</span>
+    </div>
+
+    <div class="surreal-query__settings">
+        <label>
+            <span>Content shape</span>
+            <select value="@SelectedShapeAlias"
+                    disabled="@(IsBusy || Shapes.Count == 0)"
+                    @onchange="OnShapeChangedAsync">
+                @if (Shapes.Count == 0)
+                {
+                    <option value="">No registered shapes</option>
+                }
+                else
+                {
+                    @foreach (var shapeOption in Shapes)
+                    {
+                        <option @key="shapeOption.Alias" value="@shapeOption.Alias">@shapeOption.Alias</option>
+                    }
+                }
+            </select>
+        </label>
+
+        <fieldset class="surreal-query__cache">
+            <legend>Result cache</legend>
+            <label class="surreal-query__toggle">
+                <input type="checkbox"
+                       checked="@CacheEnabled"
+                       disabled="@IsBusy"
+                       @onchange="OnCacheEnabledChangedAsync" />
+                <span>Cache query results</span>
+            </label>
+            <label>
+                <span>Duration (seconds)</span>
+                <input type="number"
+                       min="1"
+                       max="86400"
+                       value="@CacheDurationSeconds"
+                       disabled="@(!CacheEnabled || IsBusy)"
+                       @onchange="OnCacheDurationChangedAsync" />
+            </label>
+            <small>The default is 300 seconds (5 minutes).</small>
+        </fieldset>
+    </div>
+
+    @if (SelectedShape is { } shape)
+    {
+        <details class="surreal-query__shape" open>
+            <summary>Required output · @shape.Alias</summary>
+            <div class="surreal-query__fields" role="list" aria-label="Code-owned output fields">
+                @foreach (var field in Flatten(shape))
+                {
+                    <div @key="field.Path" role="listitem" class="surreal-query__field">
+                        <code>@field.Path</code>
+                        <span>@field.Type</span>
+                        @if (field.Required)
+                        {
+                            <strong>Required</strong>
+                        }
+                    </div>
+                }
+            </div>
+        </details>
+    }
+
+    <div class="surreal-query__editor" aria-busy="@IsBusy">
+        <div class="surreal-query__editor-heading"><h3>List and preview query</h3></div>
+        <ExpandableMonacoSourceEditor @key="EditorKey"
+                                     EditorId="@EditorId"
+                                     Language="sql"
+                                     AccessibleLabel="SurrealQL SELECT query"
+                                     RendererLabel="Surreal View"
+                                     InitialSource="@SelectStatement"
+                                     SourceChanged="SelectStatementChanged" />
+    </div>
+
+    <section class="surreal-query__virtual" aria-labelledby="surreal-query-virtual-title">
+        <div>
+            <h3 id="surreal-query-virtual-title">Virtual entry mapping</h3>
+            <p>Preview the list query to discover its output fields, then choose the stable identity used in page references.</p>
+        </div>
+
+        @if (SelectableOutputFields.Count == 0)
+        {
+            <div class="surreal-query__mapping-state" role="status">
+                No output fields discovered yet. Run Preview after changing the list query.
+            </div>
+        }
+        else
+        {
+            <div class="surreal-query__mappings">
+                <label>
+                    <span>Identity field <strong aria-hidden="true">*</strong></span>
+                    <select value="@IdentityField"
+                            required
+                            aria-required="true"
+                            disabled="@IsBusy"
+                            @onchange="OnIdentityFieldChangedAsync">
+                        <option value="">Choose a stable identity field</option>
+                        @foreach (var field in SelectableOutputFields)
+                        {
+                            <option @key="field" value="@field">@field</option>
+                        }
+                    </select>
+                    <small>This value becomes the durable string key for virtual references.</small>
+                </label>
+
+                <label>
+                    <span>Title field (optional)</span>
+                    <select value="@TitleField"
+                            disabled="@IsBusy"
+                            @onchange="OnTitleFieldChangedAsync">
+                        <option value="">Use the identity as the title</option>
+                        @foreach (var field in SelectableOutputFields)
+                        {
+                            <option @key="field" value="@field">@field</option>
+                        }
+                    </select>
+                </label>
+            </div>
+        }
+
+        <div class="surreal-query__entry-editors">
+            <div class="surreal-query__editor" aria-busy="@IsBusy">
+                <div class="surreal-query__editor-heading">
+                    <h4>Exact-entry query</h4>
+                    <p>Must match <code>$entryId</code> against the selected identity field and include <code>LIMIT 1</code>.</p>
+                </div>
+                <ExpandableMonacoSourceEditor @key="@($"{EditorKey}-entry")"
+                                             EditorId="@($"{EditorId}-entry")"
+                                             Language="sql"
+                                             AccessibleLabel="SurrealQL exact virtual entry SELECT query"
+                                             RendererLabel="Virtual entry"
+                                             InitialSource="@EntrySelectStatement"
+                                             SourceChanged="EntrySelectStatementChanged" />
+            </div>
+
+            <div class="surreal-query__editor" aria-busy="@IsBusy">
+                <div class="surreal-query__editor-heading">
+                    <h4>Search query</h4>
+                    <p>Must bind <code>$search</code> and include a bounded numeric <code>LIMIT</code>.</p>
+                </div>
+                <ExpandableMonacoSourceEditor @key="@($"{EditorKey}-search")"
+                                             EditorId="@($"{EditorId}-search")"
+                                             Language="sql"
+                                             AccessibleLabel="SurrealQL virtual entry search SELECT query"
+                                             RendererLabel="Virtual entry search"
+                                             InitialSource="@SearchSelectStatement"
+                                             SourceChanged="SearchSelectStatementChanged" />
+            </div>
+        </div>
+    </section>
+
+    <p class="surreal-query__scope-note">
+        Use <code>$tenantId</code> and <code>$siteId</code> in explicit predicates and include a numeric <code>LIMIT</code> no greater than 50 for preview. The server owns all reserved parameters.
+    </p>
+</section>

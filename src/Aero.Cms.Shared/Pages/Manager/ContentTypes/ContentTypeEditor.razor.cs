@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Globalization;
 using Aero.Cms.Abstractions.Ai.Knowledge;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -24,6 +25,7 @@ public partial class ContentTypeEditor
     private const int MaximumHierarchyDepthLimit = 32;
     private const string HierarchyReferenceFieldOption = "hierarchy-reference";
     private const string CmsReferenceFieldOption = "cms-reference";
+    private const string ContentEntryReferenceFieldOption = "content-entry-reference";
     private static IReadOnlyList<AeroAiFieldExposure> AiExposureOptions { get; } =
         Enum.GetValues<AeroAiFieldExposure>();
 
@@ -54,6 +56,7 @@ public partial class ContentTypeEditor
         new("reference", L["Related content"], "account_tree", L["Relate this item to an entry from another content type."]),
         new(HierarchyReferenceFieldOption, L["Hierarchy entry"], "family_history", L["Choose an entry from a hierarchy with its full path."]),
         new(CmsReferenceFieldOption, L["Site content"], "article", L["Choose an existing page, post, doc, or public content entry."]),
+        new(ContentEntryReferenceFieldOption, L["Query-backed content"], "database_search", L["Choose an entry from a registered query-backed content provider."]),
         new(ContentFieldTypes.Dictionary, L["Key/value"], "data_object", L["Add a small set of labeled values."])
     ];
 
@@ -80,6 +83,8 @@ public partial class ContentTypeEditor
     private bool AllowPublicUrl { get; set; }
     private bool IncludeInSearch { get; set; } = true;
     private bool IncludeInPublicAi { get; set; }
+    private ContentCultureFallbackPolicy CultureFallbackPolicy { get; set; } = ContentCultureFallbackPolicy.ExactOnly;
+    private ContentAiTranslationReviewPolicy AiTranslationReviewPolicy { get; set; } = ContentAiTranslationReviewPolicy.RequireHumanReview;
     private ContentCardinality _cardinality = ContentCardinality.Collection;
     private ContentStructure _structure = ContentStructure.Flat;
     private ContentCardinality Cardinality
@@ -123,6 +128,21 @@ public partial class ContentTypeEditor
             ? Fields[index]
             : null;
 
+    private ContentTypeSummary? CurrentContentTypeSummary =>
+        IsNew
+            ? null
+            : _availableParentContentTypes.FirstOrDefault(contentType =>
+                string.Equals(contentType.Alias, Alias, StringComparison.OrdinalIgnoreCase));
+
+    private bool LocalizationModeLocked =>
+        ContentLocalizationManagerUi.ShouldLockFieldLocalization(
+            isExistingType: !IsNew,
+            CurrentContentTypeSummary?.ItemCount);
+
+    private string LocalizationModeLockedReason => CurrentContentTypeSummary is null
+        ? L["Field localization cannot be changed because this existing type's entry count is unavailable. Aero fails closed until a server migration workflow exists."]
+        : L["Field localization cannot be changed after entries exist. Moving values between culture variants and translation groups requires a server migration workflow."];
+
         /// <summary>
     /// OnInitializedAsync method.
     /// </summary>
@@ -147,6 +167,8 @@ protected override async Task OnInitializedAsync()
             AllowPublicUrl = detail.AllowPublicUrl;
             IncludeInSearch = detail.IncludeInSearch;
             IncludeInPublicAi = detail.IncludeInPublicAi;
+            CultureFallbackPolicy = detail.Localization?.CultureFallbackPolicy ?? ContentCultureFallbackPolicy.ExactOnly;
+            AiTranslationReviewPolicy = detail.Localization?.AiTranslationReviewPolicy ?? ContentAiTranslationReviewPolicy.RequireHumanReview;
             Cardinality = detail.Cardinality;
             Structure = detail.Structure;
             var hierarchyRules = detail.HierarchyRules ?? new ContentHierarchyRules();
@@ -203,7 +225,7 @@ protected override async Task OnInitializedAsync()
         var option = GetFieldOption(fieldType);
         var baseLabel = option.Label == "Short text" ? "Title" : option.Label;
         var handle = CreateUniqueFieldName(GenerateHandle(baseLabel));
-        var storedFieldType = fieldType is HierarchyReferenceFieldOption or CmsReferenceFieldOption
+        var storedFieldType = fieldType is HierarchyReferenceFieldOption or CmsReferenceFieldOption or ContentEntryReferenceFieldOption
             ? ContentFieldTypes.Reference
             : fieldType;
 
@@ -236,6 +258,10 @@ protected override async Task OnInitializedAsync()
             field.Settings[ReferenceContentFieldSettings.AllowedSources] =
                 JsonSerializer.SerializeToElement(
                     CmsContentReferenceSources.All.ToArray());
+        }
+        else if (fieldType == ContentEntryReferenceFieldOption)
+        {
+            SetSetting(field, ReferenceContentFieldSettings.TargetKind, ReferenceContentFieldSettings.TargetKindContentEntry);
         }
         else if (fieldType == ContentFieldTypes.List)
         {
@@ -297,7 +323,9 @@ protected override async Task OnInitializedAsync()
                 [nameof(ContentFieldSettingsDialog.OwnerFields)] = ownerFields,
                 [nameof(ContentFieldSettingsDialog.ContentTypes)] = _availableParentContentTypes,
                 [nameof(ContentFieldSettingsDialog.CurrentContentTypeAlias)] = AliasValue,
-                [nameof(ContentFieldSettingsDialog.FieldTypeLabel)] = option.Label
+                [nameof(ContentFieldSettingsDialog.FieldTypeLabel)] = option.Label,
+                [nameof(ContentFieldSettingsDialog.LocalizationModeLocked)] = LocalizationModeLocked,
+                [nameof(ContentFieldSettingsDialog.LocalizationModeLockedReason)] = LocalizationModeLockedReason
             },
             new DialogOptions
             {
@@ -378,6 +406,8 @@ protected override async Task OnInitializedAsync()
     private FieldTypeOption GetFieldOption(ContentFieldDefinition field) =>
         IsCmsDocumentReference(field)
             ? GetFieldOption(CmsReferenceFieldOption)
+            : IsContentEntryReference(field)
+                ? GetFieldOption(ContentEntryReferenceFieldOption)
             : IsHierarchyReference(field)
                 ? GetFieldOption(HierarchyReferenceFieldOption)
                 : GetFieldOption(field.FieldType);
@@ -386,6 +416,12 @@ protected override async Task OnInitializedAsync()
         string.Equals(
             GetSettingString(field, ReferenceContentFieldSettings.TargetKind),
             ReferenceContentFieldSettings.TargetKindCmsDocument,
+            StringComparison.Ordinal);
+
+    private static bool IsContentEntryReference(ContentFieldDefinition field) =>
+        string.Equals(
+            GetSettingString(field, ReferenceContentFieldSettings.TargetKind),
+            ReferenceContentFieldSettings.TargetKindContentEntry,
             StringComparison.Ordinal);
 
     private static string FieldLabel(ContentFieldDefinition field)
@@ -752,6 +788,11 @@ protected override async Task OnInitializedAsync()
                     RequireSameTypeParent = RequireSameTypeParent,
                     AllowedParentContentTypeIds = AllowedParentContentTypeIds,
                     DefaultOrdering = HierarchyOrdering
+                },
+                new ContentLocalizationSettings
+                {
+                    CultureFallbackPolicy = CultureFallbackPolicy,
+                    AiTranslationReviewPolicy = AiTranslationReviewPolicy
                 });
 
             var result = IsNew
@@ -1160,12 +1201,27 @@ protected override async Task OnInitializedAsync()
             Required = field.Required,
             DefaultValue = field.DefaultValue,
             Placeholder = field.Placeholder,
+            LocalizationMode = field.LocalizationMode,
             Indexed = field.Indexed,
             FullTextSearchable = field.FullTextSearchable,
             SemanticSearchable = field.SemanticSearchable,
             AiExposure = field.AiExposure,
             Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value.Clone())
         };
+
+    private string LocalizationModeLabel(ContentFieldLocalizationMode mode) => mode switch
+    {
+        ContentFieldLocalizationMode.Shared => L["Shared"],
+        ContentFieldLocalizationMode.Localized => L["Localized"],
+        _ => L["Copy on fork"]
+    };
+
+    private static BadgeStyle LocalizationBadgeStyle(ContentFieldLocalizationMode mode) => mode switch
+    {
+        ContentFieldLocalizationMode.Shared => BadgeStyle.Info,
+        ContentFieldLocalizationMode.Localized => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
 
     private static string GenerateHandle(string value)
     {
@@ -1189,6 +1245,7 @@ protected override async Task OnInitializedAsync()
         Basics,
         Fields,
         Display,
+        SurrealView,
         Entries
     }
 

@@ -478,7 +478,8 @@ public record PageDetail(
     string RendererId = PageRendererIds.AeroComposition,
     bool HasUnpublishedChanges = false,
     bool IncludeInSearch = true,
-    bool IncludeInPublicAi = false);
+    bool IncludeInPublicAi = false,
+    string? RouteTemplate = null);
 
 /// <summary>
 /// Request to create a new page.
@@ -500,7 +501,8 @@ public record CreatePageRequest(
     string RendererId = PageRendererIds.AeroComposition,
     string? DraftSource = null,
     bool IncludeInSearch = true,
-    bool IncludeInPublicAi = false);
+    bool IncludeInPublicAi = false,
+    string? RouteTemplate = null);
 
 /// <summary>
 /// Request to update an existing page.
@@ -523,7 +525,8 @@ public record UpdatePageRequest(
     string RendererId = PageRendererIds.AeroComposition,
     string? DraftSource = null,
     bool IncludeInSearch = true,
-    bool IncludeInPublicAi = false);
+    bool IncludeInPublicAi = false,
+    string? RouteTemplate = null);
 
 /// <summary>Proposed route inputs used to calculate redirect impact.</summary>
 public sealed record PageRouteChangeRequest(string Slug, long? ParentId);

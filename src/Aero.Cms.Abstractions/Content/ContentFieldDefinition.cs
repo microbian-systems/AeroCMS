@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Ai.Knowledge;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Abstractions.Content;
 
@@ -32,6 +33,12 @@ public bool Required { get; set; }
 
     /// <summary>Placeholder text for the admin UI editor</summary>
     public string? Placeholder { get; set; }
+
+    /// <summary>
+    /// Gets or sets how this field participates in a culture fork. New fields copy their
+    /// source value into a fork and remain independent until an editor explicitly changes them.
+    /// </summary>
+    public ContentFieldLocalizationMode LocalizationMode { get; set; } = ContentFieldLocalizationMode.CopyOnFork;
 
     /// <summary>
     /// Gets or sets whether the field participates in exact-value filtering and sorting.

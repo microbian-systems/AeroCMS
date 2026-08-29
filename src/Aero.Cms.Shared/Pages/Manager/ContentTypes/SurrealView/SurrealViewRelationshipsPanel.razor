@@ -1,0 +1,220 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes.SurrealView
+@using Aero.Cms.Abstractions.Content.Views
+@using Aero.Cms.Abstractions.Http.Clients
+
+<section class="surreal-relationships" aria-labelledby="surreal-relationships-title" aria-busy="@IsLoading">
+    <div class="surreal-relationships__heading">
+        <div>
+            <h2 id="surreal-relationships-title">Relationships</h2>
+            <p>Existing database relationships are shown as read-only. CMS drafts lock after their reviewed DDL is applied.</p>
+        </div>
+        @if (IsConfigured)
+        {
+            <button type="button"
+                    class="pe-btn pe-btn-secondary"
+                    disabled="@IsMutating"
+                    @onclick="BeginCreate">
+                New relationship draft
+            </button>
+        }
+    </div>
+
+    @if (_isEditing)
+    {
+        <section class="surreal-relationships__form" aria-labelledby="surreal-relationship-form-title">
+            <div>
+                <h3 id="surreal-relationship-form-title">CMS relationship draft</h3>
+                <p>Only schema metadata is created here. This does not populate record links or graph edges.</p>
+            </div>
+
+            <div class="surreal-relationships__form-grid">
+                <label>
+                    <span>Relationship alias</span>
+                    <input @bind="_alias" disabled="@(IsMutating || _editingExisting)" required pattern="[A-Za-z][A-Za-z0-9_]{0,62}" />
+                </label>
+                <label>
+                    <span>Kind</span>
+                    <select @bind="_kind" disabled="@IsMutating">
+                        @foreach (var kind in Enum.GetValues<ContentRelationshipKind>())
+                        {
+                            <option value="@kind">@FormatKind(kind)</option>
+                        }
+                    </select>
+                    <small>@KindGuidance(_kind)</small>
+                </label>
+                <label>
+                    <span>Cardinality</span>
+                    <select @bind="_cardinality" disabled="@IsMutating">
+                        @foreach (var cardinality in Enum.GetValues<ContentRelationshipCardinality>())
+                        {
+                            <option value="@cardinality">@cardinality</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    <span>Source shape</span>
+                    <select @bind="_sourceShapeAlias" disabled="@IsMutating">
+                        <option value="">No code-owned shape</option>
+                        @foreach (var shapeOption in Shapes)
+                        {
+                            <option @key="shapeOption.Alias" value="@shapeOption.Alias">@shapeOption.Alias</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    <span>Target shape</span>
+                    <select @bind="_targetShapeAlias" disabled="@IsMutating">
+                        <option value="">No code-owned shape</option>
+                        @foreach (var shapeOption in Shapes)
+                        {
+                            <option @key="shapeOption.Alias" value="@shapeOption.Alias">@shapeOption.Alias</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    <span>Source table</span>
+                    <input @bind="_sourceTable" disabled="@IsMutating" required />
+                </label>
+                <label>
+                    <span>Target table</span>
+                    <input @bind="_targetTable" disabled="@IsMutating" required />
+                </label>
+                @if (_kind is ContentRelationshipKind.FieldJoin or ContentRelationshipKind.RecordLink or ContentRelationshipKind.SelfHierarchy or ContentRelationshipKind.AssociationRecord)
+                {
+                    <label>
+                        <span>Source field</span>
+                        <input @bind="_sourceField" disabled="@IsMutating" required />
+                    </label>
+                }
+                @if (_kind is ContentRelationshipKind.FieldJoin or ContentRelationshipKind.AssociationRecord)
+                {
+                    <label>
+                        <span>Target field</span>
+                        <input @bind="_targetField" disabled="@IsMutating" required />
+                    </label>
+                }
+                @if (_kind is ContentRelationshipKind.GraphEdge or ContentRelationshipKind.AssociationRecord)
+                {
+                    <label>
+                        <span>Edge table (optional)</span>
+                        <input @bind="_edgeTable" disabled="@IsMutating" />
+                        <small>When omitted, the relationship alias is used.</small>
+                    </label>
+                }
+            </div>
+
+            <div class="surreal-relationships__warning" role="status">
+                Saving records a relationship draft and its proposed fingerprint; physical schema preview and application remain unavailable. A graph edge is the recommended additive default. Record links and association records change physical table schema and require a separately reviewed, privileged workflow; this editor never rewrites relationship data.
+            </div>
+            <div class="surreal-relationships__actions">
+                <button type="button" class="pe-btn pe-btn-ghost" disabled="@IsMutating" @onclick="() => _isEditing = false">Cancel</button>
+                <button type="button" class="pe-btn pe-btn-primary" disabled="@(!CanSubmitDraft)" @onclick="SubmitDraftAsync">Save relationship draft</button>
+            </div>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="surreal-relationships__error" role="alert">@ErrorMessage</div>
+    }
+    else if (IsLoading)
+    {
+        <div class="surreal-relationships__state">Loading relationship metadata…</div>
+    }
+    else if (!IsConfigured)
+    {
+        <div class="surreal-relationships__state">Save the view draft before connecting it to relationships.</div>
+    }
+    else if (Relationships.Count == 0)
+    {
+        <div class="surreal-relationships__state">No managed or database-owned relationships were found for this shape.</div>
+    }
+    else
+    {
+        <div class="surreal-relationships__list">
+            @foreach (var relationship in Relationships)
+            {
+                var activePreview = Preview?.RelationshipId == relationship.Id ? Preview : null;
+                <article @key="relationship.Id" class="surreal-relationships__card">
+                    <div class="surreal-relationships__card-heading">
+                        <div>
+                            <h3>@relationship.Alias</h3>
+                            <p>@relationship.SourceShapeAlias → @relationship.TargetShapeAlias</p>
+                        </div>
+                        <div class="surreal-relationships__badges" aria-label="Relationship status">
+                            <span>@FormatKind(relationship.Kind)</span>
+                            <span>@relationship.Cardinality</span>
+                            <strong class="@OwnershipClass(relationship.OwnershipState)">@FormatOwnership(relationship.OwnershipState)</strong>
+                        </div>
+                    </div>
+
+                    <dl>
+                        <div><dt>SurrealDB tables</dt><dd><code>@relationship.SourceTable</code> → <code>@relationship.TargetTable</code></dd></div>
+                        @if (!string.IsNullOrWhiteSpace(relationship.SourceField) || !string.IsNullOrWhiteSpace(relationship.TargetField) || !string.IsNullOrWhiteSpace(relationship.EdgeTable))
+                        {
+                            <div><dt>Schema target</dt><dd>@FormatSchemaTarget(relationship)</dd></div>
+                        }
+                        <div><dt>Schema fingerprint</dt><dd><code>@relationship.SchemaFingerprint</code></dd></div>
+                        <div><dt>Editing</dt><dd>@EditingState(relationship)</dd></div>
+                    </dl>
+
+                    @if (activePreview is not null)
+                    {
+                        <div class="surreal-relationships__ddl">
+                            <strong>DDL preview</strong>
+                            <code>@activePreview.ProposedSchemaFingerprint</code>
+                            @foreach (var statement in activePreview.Statements)
+                            {
+                                <pre @key="statement">@statement</pre>
+                            }
+                        </div>
+                    }
+
+                    @if (relationship.CanAdopt || relationship.CanPreviewDdl || relationship.CanApplyDdl)
+                    {
+                        <div class="surreal-relationships__actions">
+                            @if (relationship.CanAdopt)
+                            {
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary"
+                                        disabled="@IsMutating"
+                                        title="Adopt this reviewed fingerprint as locked CMS relationship metadata"
+                                        @onclick="() => AdoptRequested.InvokeAsync(relationship)">
+                                    Adopt for Views
+                                </button>
+                            }
+                            @if (relationship.OwnershipState == ContentRelationshipOwnershipState.CmsDraft)
+                            {
+                                <button type="button"
+                                        class="pe-btn pe-btn-ghost"
+                                        disabled="@IsMutating"
+                                        @onclick="() => BeginEdit(relationship)">
+                                    Edit draft
+                                </button>
+                            }
+                            @if (relationship.CanPreviewDdl)
+                            {
+                                <button type="button"
+                                        class="pe-btn pe-btn-secondary"
+                                        disabled="@IsMutating"
+                                        @onclick="() => PreviewDdlRequested.InvokeAsync(relationship.Id)">
+                                    Preview DDL
+                                </button>
+                            }
+                            @if (relationship.CanApplyDdl)
+                            {
+                                <button type="button"
+                                        class="pe-btn pe-btn-primary"
+                                        disabled="@(IsMutating || activePreview is null)"
+                                        title="@(activePreview is null ? "Preview and review the current DDL first" : "Apply reviewed schema DDL")"
+                                        @onclick="() => ApplyDdlRequested.InvokeAsync(relationship.Id)">
+                                    Apply reviewed DDL
+                                </button>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+    }
+</section>

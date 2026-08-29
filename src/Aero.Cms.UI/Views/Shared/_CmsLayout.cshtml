@@ -1,0 +1,98 @@
+@inject Aero.Cms.Abstractions.Theming.IThemeStylesheetResolver ThemeStylesheetResolver
+@{
+    var resolvedTheme = await ThemeStylesheetResolver.ResolveAsync(Context.RequestAborted);
+    var showHeaderNavigation = ViewBag.ShowHeaderNavigation as bool? ?? true;
+    var navMenuOverrideId = ViewBag.NavMenuOverrideId as long?;
+    var hideFooter = ViewBag.HideFooter as bool? ?? false;
+    var currentCulture = System.Globalization.CultureInfo.CurrentUICulture;
+    var documentCultureOverride = ViewData["DocumentCulture"] as string;
+    if (!string.IsNullOrWhiteSpace(documentCultureOverride))
+    {
+        currentCulture = System.Globalization.CultureInfo.GetCultureInfo(documentCultureOverride);
+    }
+    var documentLanguage = currentCulture.Name;
+    var isRightToLeft = currentCulture.TextInfo.IsRightToLeft;
+    var documentDirection = ViewData["DocumentDirection"] as string ?? (isRightToLeft ? "rtl" : "ltr");
+    var isCultureFallback = ViewBag.IsCultureFallback as bool? ?? false;
+    var requestedCultureName = ViewBag.RequestedCulture as string;
+    var renderedCultureName = ViewBag.RenderedCulture as string;
+    var cultureSwitcherLinks = ViewBag.CultureSwitcherLinks as IReadOnlyList<Aero.Cms.Shared.Components.CultureSwitcherLink>
+        ?? Array.Empty<Aero.Cms.Shared.Components.CultureSwitcherLink>();
+}
+<!DOCTYPE html>
+
+<html lang="@documentLanguage" dir="@documentDirection" data-theme="@resolvedTheme.DataThemeName">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @await RenderSectionAsync("metaPartial", required: false)
+    
+    @* Google Fonts - Inter for UI / Display fallbacks *@
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    @* Per-module browser-ready CSS. *@
+    @await RenderSectionAsync("cssPartial", required: false)
+
+    <link rel="stylesheet" href="/_content/Aero.Cms.UI/css/aero.generated.css" />
+    @foreach (var stylesheet in resolvedTheme.Stylesheets.OrderBy(asset => asset.Order))
+    {
+        <link rel="stylesheet" href="@stylesheet.Path" />
+    }
+    <link rel="icon" type="image/x-icon" href="/_content/Aero.Cms.Shared/images/brand/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/_content/Aero.Cms.Shared/images/brand/aero-mark-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/_content/Aero.Cms.Shared/images/brand/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="/_content/Aero.Cms.Shared/images/brand/site.webmanifest" />
+    <title>@ViewBag.Title</title>
+    @await Component.InvokeAsync("SeoScripts", new { placement = "Head" })
+    @await RenderSectionAsync("headPartial", required:false)
+    <script src="/_content/Aero.Cms.UI/lib/htmx/htmx.min.js"></script>
+    @* Alpine.js core + Morph plugin (required by Hydro for DOM diffing/patching).
+       Alpine core is libman-managed at ~/lib/alpinejs/ (pulls latest 3.x).
+       Source: https://usehydro.dev/introduction/getting-started.html *@
+    <script defer src="~/_content/Aero.Cms.UI/lib/alpinejs/cdn.min.js" asp-append-version="true"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@@alpinejs/morph@3.x.x/dist/cdn.min.js"></script>
+    <meta name="hydro-config" />
+    <script defer src="~/hydro/hydro.js" asp-append-version="true"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col font-sans text-slate-900 antialiased @(isRightToLeft ? "aero-rtl" : "aero-ltr")">
+    @await Component.InvokeAsync("SeoScripts", new { placement = "BodyStart" })
+
+    @if (showHeaderNavigation)
+    {
+        @await Component.InvokeAsync("AeroNavBar", new { pageOverrideId = navMenuOverrideId })
+    }
+
+    <main class="flex-grow">
+        <component type="typeof(Aero.Cms.Shared.Components.FallbackBanner)"
+                   render-mode="Static"
+                   param-Show="@isCultureFallback"
+                   param-RequestedCulture="@(requestedCultureName ?? documentLanguage)"
+                   param-RenderedCulture="@(renderedCultureName ?? documentLanguage)" />
+
+        @if (cultureSwitcherLinks.Count > 1)
+        {
+            <div class="border-b border-slate-200 bg-slate-50">
+                <div class="mx-auto flex max-w-7xl justify-end px-4 py-3 sm:px-6 lg:px-8">
+                    <component type="typeof(Aero.Cms.Shared.Components.CultureSwitcher)"
+                               render-mode="Static"
+                               param-Links="@cultureSwitcherLinks" />
+                </div>
+            </div>
+        }
+        @RenderBody()
+    </main>
+
+    @if (!hideFooter)
+    {
+        @await Component.InvokeAsync("AeroFooter")
+    }
+
+    <script src="/_content/Aero.Cms.UI/js/app.js" type="module"></script>
+    @await Component.InvokeAsync("SeoScripts", new { placement = "BodyEnd" })
+    @await RenderSectionAsync("Scripts", required:false)
+    
+    <mini-profiler />
+</body>
+</html>

@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<!-- The real Kestrel fixture calls MapStaticAssets; Web SDK emits the host endpoint manifest it consumes. -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -7,26 +8,40 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <!-- This Kestrel test executable is also the static-web-asset host for
+             the browser client. Keep the normal web-host asset manifest on. -->
+        <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
         <EnableTestingPlatform>true</EnableTestingPlatform>
         <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     </PropertyGroup>
-
-    <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="TUnit" Version="1.58.0" />
         <PackageReference Include="FluentAssertions" Version="8.10.0" />
         <PackageReference Include="Alba" Version="8.5.2" />
         <PackageReference Include="Microsoft.Playwright" Version="1.52.0" />
+        <!-- Framework static assets are normally injected for a Web SDK app.
+             This project is also marked as a test executable, so declare the
+             asset carrier explicitly for its real Kestrel browser host. -->
+        <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.9" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
+        <PackageReference Include="Shouldly" Version="4.3.0" />
         <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.9" />
         <PackageReference Include="NSubstitute" Version="5.3.0" />
         <PackageReference Include="MysticMind.PostgresEmbed" Version="4.0.0" />
+        <!-- The Aero source graph also brings this package transitively. Suppress its
+             package assets so the direct source ProjectReference below is the runtime
+             Sable implementation exercised by this browser harness. -->
+        <PackageReference Include="AeroDB.Sable" Version="0.0.9.7-alpha" ExcludeAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Exercise the source Sable dependency used by the CMS projects, rather than
+             retaining the older transitive package copy in the browser-test host. -->
+        <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
         <ProjectReference Include="..\..\AeroDB\surrealdb.net\SurrealDb.Embedded.InMemory\SurrealDb.Embedded.InMemory.csproj" />
-        <ProjectReference Include="..\..\src\Aero.Cms.Web\Aero.Cms.Web.csproj" />
+        <ProjectReference Include="..\..\src\Aero.Cms.Hosting.Defaults\Aero.Cms.Hosting.Defaults.csproj" />
+        <ProjectReference Include="..\..\src\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
+        <ProjectReference Include="..\..\src\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
     </ItemGroup>
 </Project>

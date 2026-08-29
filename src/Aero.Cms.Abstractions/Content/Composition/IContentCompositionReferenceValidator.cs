@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Pages.Composition;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -36,6 +37,14 @@ public interface IContentCompositionReferenceValidator
     /// <returns>A successful result when every referenced definition still exists.</returns>
     Task<Result<bool, AeroError>> ValidateAsync(
         long siteId,
+        string culture,
+        PageCompositionDocument composition,
+        ContentReferenceValidationMode mode,
+        CancellationToken ct = default);
+
+    /// <summary>Validates references with an explicit server-authoritative tenant/site scope.</summary>
+    Task<Result<bool, AeroError>> ValidateAsync(
+        ContentViewScope scope,
         string culture,
         PageCompositionDocument composition,
         ContentReferenceValidationMode mode,

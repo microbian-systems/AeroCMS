@@ -1,9 +1,14 @@
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Core;
 using Aero.Core.Railway;
+using Aero.Core.Http;
 using AeroDB.Sable;
 using FluentValidation.Results;
 using System.Globalization;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -11,7 +16,7 @@ namespace Aero.Cms.Core.Content.Services;
 /// Checks whether a site's slug is already assigned to a different content item.
 /// </summary>
 /// <remarks>
-/// The check is site-wide and does not include content type or culture. It is an application-time
+/// The check is scoped to site, content type, and culture. It is an application-time
 /// lookup and does not guarantee race-free uniqueness. Lookup failures represented as
 /// <see cref="AeroError"/> values are treated as no conflict.
 /// </remarks>
@@ -23,7 +28,8 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
         if (string.IsNullOrWhiteSpace(item.Slug))
             return [];
 
-        var existingResult = await contentService.GetBySlugAsync(item.SiteId, item.Slug, ct);
+        var existingResult = await contentService.GetBySlugAndTypeAsync(
+            item.SiteId, item.ContentTypeAlias, item.Culture, item.Slug, ct);
         if (existingResult is Result<ContentItem, AeroError>.Ok ok && ok.Value.Id != item.Id)
             return [new ValidationFailure(nameof(item.Slug), $"Slug '{item.Slug}' is already in use.")];
 
@@ -46,13 +52,19 @@ public sealed class ReferenceExistenceValidator(
     IContentService contentService,
     IDocumentSession session,
     IEnumerable<IContentReferenceSourceProvider>? sourceProviders = null,
-    IContentTypeService? contentTypeService = null) : IAsyncContentValidator
+    IContentTypeService? contentTypeService = null,
+    IEnumerable<IContentEntrySourceProvider>? entryProviders = null,
+    IContentEntrySourceProviderCatalog? entryProviderCatalog = null,
+    ISiteContext? siteContext = null,
+    ISelectedSiteScopeResolver? selectedSiteScopeResolver = null) : IAsyncContentValidator
 {
     private readonly IReadOnlyDictionary<string, IContentReferenceSourceProvider>
         cmsSourceProviders = (sourceProviders ?? [])
             .ToDictionary(
                 provider => provider.SourceKey,
                 StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyDictionary<string, IContentEntrySourceProvider> entryProvidersByKey = (entryProviders ?? [])
+        .ToDictionary(provider => provider.Provider, StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
@@ -75,6 +87,12 @@ public sealed class ReferenceExistenceValidator(
                 continue;
             }
 
+            if (ReferenceFieldValidator.IsContentEntryReference(field))
+            {
+                await CheckContentEntryReference(item, element, field, failures, ct);
+                continue;
+            }
+
             if (field.Settings.TryGetValue(ReferenceContentFieldSettings.AllowMultiple, out var multiple)
                 && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
             {
@@ -88,6 +106,69 @@ public sealed class ReferenceExistenceValidator(
         }
 
         return failures;
+    }
+
+    private async Task CheckContentEntryReference(
+        ContentItem item,
+        System.Text.Json.JsonElement element,
+        ContentFieldDefinition field,
+        List<ValidationFailure> failures,
+        CancellationToken ct)
+    {
+        ContentEntryKey? key;
+        try
+        {
+            key = element.Deserialize(ContentJsonContext.Default.ContentEntryKey);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return;
+        }
+
+        if (key is not { IsValid: true }) return;
+        var allowedProviders = ReferenceFieldValidator.GetAllowedProviders(field);
+        if (allowedProviders.Count > 0 && !allowedProviders.Contains(key.Value.Provider, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var resolvedScope = selectedSiteScopeResolver is null
+            ? null
+            : await selectedSiteScopeResolver.ResolveAsync(item.SiteId, ct);
+        if (resolvedScope is not { IsValid: true } || resolvedScope.Value.SiteId != item.SiteId)
+        {
+            failures.Add(new ValidationFailure(field.Name, "Content-entry references require an authoritative tenant and site scope."));
+            return;
+        }
+
+        if (siteContext is { TenantId: > 0, SiteId: > 0 }
+            && (siteContext.TenantId != resolvedScope.Value.TenantId || siteContext.SiteId != item.SiteId))
+        {
+            failures.Add(new ValidationFailure(field.Name, "Content-entry references do not match the selected tenant and site scope."));
+            return;
+        }
+
+        var scope = new ContentViewScope(resolvedScope.Value.TenantId, resolvedScope.Value.SiteId);
+
+        var provider = entryProvidersByKey.TryGetValue(key.Value.Provider, out var registered)
+            ? registered
+            : entryProviderCatalog is null
+                ? null
+                : await entryProviderCatalog.ResolveAsync(scope, key.Value.Provider, ct);
+        if (provider is null || !string.Equals(provider.Provider, key.Value.Provider, StringComparison.OrdinalIgnoreCase))
+        {
+            failures.Add(new ValidationFailure(field.Name, $"The '{key.Value.Provider}' content-entry provider is unavailable."));
+            return;
+        }
+
+        var entry = await provider.FindAsync(scope, key.Value.StableId, ct);
+        if (entry is null
+            || entry.Scope != scope
+            || entry.Key != key.Value
+            || !entry.Key.IsValid)
+        {
+            failures.Add(new ValidationFailure(field.Name, $"Referenced content entry '{key.Value.StableId}' was not found."));
+        }
     }
 
     private async Task CheckCmsDocumentReference(

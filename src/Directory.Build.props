@@ -7,6 +7,7 @@
 	-->
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
 		<BaseOutputPath>bin\browser\</BaseOutputPath>
@@ -22,6 +23,7 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
 		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
@@ -89,8 +91,8 @@
     run where needed. Each generator activates only when its conditions are met:
     - ModuleManifestGenerator: activates when [Module] attribute is found
     - WolverineHandlerGenerator: activates when [WolverineHandler] attribute is found
-    - HostModuleCatalogGenerator: activates when ModuleManifestProviderAttribute assembly
-      attributes are detected on referenced assemblies (naturally only in Aero.Cms.Web)
+    - HostModuleCatalogGenerator: activates only in a C# assembly that explicitly applies
+      [assembly: AeroCmsHostCatalogGeneration]
   -->
 	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.SourceGenerators'">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"

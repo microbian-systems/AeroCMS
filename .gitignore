@@ -438,9 +438,14 @@ openobserve_data/db/metadata.sqlite-shm
 
 # Local Aero CMS embedded runtime data
 src/Aero.Cms.Web/App_Data/
+/tests/Aero.Cms.ExternalHosts/*/App_Data/
+/tests/Aero.Cms.ExternalHosts/*/.aero/
 
 # Repository-local, verified frontend tool binaries (restored by eng/theme-assets).
 .tools/
 
 # Playwright MCP browser session artifacts
 .playwright-mcp/
+
+# Local SurrealDB CLI query history
+/history.txt

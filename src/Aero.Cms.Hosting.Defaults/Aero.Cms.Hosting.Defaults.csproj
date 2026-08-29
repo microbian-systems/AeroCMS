@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Aero.Cms.Hosting.Defaults</PackageId>
+    <Description>The explicit production Aero CMS module catalog for applications that choose the default feature set.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Hosting.Abstractions\Aero.Cms.Hosting.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Client\Aero.Cms.Client.csproj" />
+    <ProjectReference Include="..\Aero.Cms.UI\Aero.Cms.UI.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
+    <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Ai\Aero.Cms.Modules.Ai.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.AiAssistant\Aero.Cms.Modules.AiAssistant.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Audit\Aero.Cms.Modules.Audit.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Banner\Aero.Cms.Modules.Banner.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Chat\Aero.Cms.Modules.Chat.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Commerce.Client\Aero.Cms.Modules.Commerce.Client.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Grpc\Aero.Cms.Modules.Grpc.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Jobs\Aero.Cms.Modules.Jobs.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Jwt\Aero.Cms.Modules.Jwt.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.LettuceEncrypt\Aero.Cms.Modules.LettuceEncrypt.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Localization\Aero.Cms.Modules.Localization.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Logging\Aero.Cms.Modules.Logging.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.MagicLink\Aero.Cms.Modules.MagicLink.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Mail\Aero.Cms.Modules.Mail.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Mailer\Aero.Cms.Modules.Mailer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Mcp\Aero.Cms.Modules.Mcp.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Members\Aero.Cms.Modules.Members.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.MiniProfiler\Aero.Cms.Modules.MiniProfiler.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.OneTimePasscode\Aero.Cms.Modules.OneTimePasscode.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.OpenTelemetry\Aero.Cms.Modules.OpenTelemetry.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.OutputCache\Aero.Cms.Modules.OutputCache.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.RequestLog\Aero.Cms.Modules.RequestLog.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Rewrite\Aero.Cms.Modules.Rewrite.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Scalar\Aero.Cms.Modules.Scalar.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Search\Aero.Cms.Modules.Search.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Secrets\Aero.Cms.Modules.Secrets.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Settings\Aero.Cms.Modules.Settings.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.SiteMap\Aero.Cms.Modules.SiteMap.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Static\Aero.Cms.Modules.Static.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Tcp\Aero.Cms.Modules.Tcp.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Tenant\Aero.Cms.Modules.Tenant.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Theming\Aero.Cms.Modules.Theming.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Users\Aero.Cms.Modules.Users.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.WebOptimizer\Aero.Cms.Modules.WebOptimizer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -13,6 +13,7 @@
     <PackageReference Include="LlmTornado" />
     <PackageReference Include="LlmTornado.Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Markdig" />
   </ItemGroup>
 
   <ItemGroup>

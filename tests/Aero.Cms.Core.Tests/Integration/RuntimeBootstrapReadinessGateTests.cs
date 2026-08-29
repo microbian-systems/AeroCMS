@@ -122,7 +122,7 @@ public sealed class RuntimeBootstrapReadinessGateTests
     }
 
     [Test]
-    public async Task Finalized_readiness_filter_remains_outermost_after_later_module_insertions()
+    public async Task Readiness_filter_ordering_helper_moves_an_explicit_registration_before_later_filters()
     {
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder().Build();
@@ -132,6 +132,9 @@ public sealed class RuntimeBootstrapReadinessGateTests
         new SetupModule().ConfigureServices(services, configuration, environment);
         new SitesModule().ConfigureServices(services, configuration, environment);
         new AliasModule().ConfigureServices(services, configuration, environment);
+        services.AddTransient<IStartupFilter, RuntimeBootstrapReadinessStartupFilter>();
+        services.AddTransient<IStartupFilter, SiteStartupFilter>();
+        services.AddTransient<IStartupFilter, AliasStartupFilter>();
         services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, LaterStartupFilter>());
         RuntimeBootstrapReadinessStartupFilterOrdering.MoveReadinessFilterToStart(services);
 

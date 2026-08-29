@@ -2,11 +2,14 @@ using System.Globalization;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Localization;
 using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Core;
 using Aero.Core.Http;
 
@@ -31,7 +34,8 @@ public static class ContentItemsApi
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
             .WithTags("Admin - Content Items")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .AddEndpointFilter<SelectedSiteScopeEndpointFilter>();
 
         group.MapGet("/", ListContentItems)
             .RequireAuthorization("site:read")
@@ -48,6 +52,12 @@ public static class ContentItemsApi
         group.MapGet("/reference-sources/{source}/options", ListCmsReferenceOptions)
             .RequireAuthorization("site:read")
             .WithName("ListCmsContentReferenceOptions");
+        group.MapGet("/entry-reference-sources", ListContentEntryReferenceSources)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentEntryReferenceSources");
+        group.MapGet("/entry-reference-sources/{provider}/options", ListContentEntryReferenceOptions)
+            .RequireAuthorization("site:read")
+            .WithName("ListContentEntryReferenceOptions");
         group.MapPost("/{alias}", CreateContentItem)
             .RequireAuthorization("site:create")
             .WithName("CreateContentItem");
@@ -67,8 +77,17 @@ public static class ContentItemsApi
             .RequireAuthorization("site:read")
             .WithName("ListContentItemTranslations");
         group.MapPost("/{alias}/{id:long}/translations", ForkContentItemToCulture)
-            .RequireAuthorization("site:create")
+            .RequireAuthorization("site:update")
             .WithName("ForkContentItemToCulture");
+        group.MapPost("/{alias}/{id:long}/translations/ai-apply", ApplyAiTranslation)
+            .RequireAuthorization("site:update")
+            .WithName("ApplyContentItemAiTranslation");
+        group.MapPost("/{alias}/{id:long}/translations/review", ReviewTranslation)
+            .RequireAuthorization("site:update")
+            .WithName("ReviewContentItemTranslation");
+        group.MapPut("/{alias}/{id:long}/translations/shared-fields", UpdateTranslationSharedFields)
+            .RequireAuthorization("site:update")
+            .WithName("UpdateContentItemTranslationSharedFields");
     }
 
     /// <summary>
@@ -204,8 +223,9 @@ public static class ContentItemsApi
     /// </summary>
     /// <returns>HTTP 200, HTTP 404 for a boundary mismatch, HTTP 400 for actor failure, or HTTP 500.</returns>
     /// <remarks>
-    /// The submitted field dictionary replaces the stored field bag. Culture is retained only when
-    /// the request culture is blank; all other editable values are overwritten.
+    /// The submitted field dictionary replaces the stored field bag. Culture identifies the
+    /// persisted translation variant and is immutable through this endpoint; all other editable
+    /// values are overwritten.
     /// </remarks>
     private static async Task<IResult> UpdateContentItem(
         string alias, long id,
@@ -235,10 +255,6 @@ public static class ContentItemsApi
 
             existingVm.Title = request.Title;
             existingVm.Slug = request.Slug;
-            if (!string.IsNullOrWhiteSpace(request.Culture))
-            {
-                existingVm.Culture = ResolveRequestCulture(request.Culture);
-            }
             existingVm.FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options);
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;
@@ -399,7 +415,12 @@ public static class ContentItemsApi
             var groupId = source.data.TranslationGroupId ?? source.data.Id;
             var variants = await queryService.ListCultureVariantsAsync(siteId, alias, groupId, ct);
             return variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok ok
-                ? TypedResults.Ok(ok.Value.Select(MapToDetail).ToList())
+                ? TypedResults.Ok(ok.Value
+                    .Select(item => MapToDetail(
+                        item,
+                        source.data.TranslationGroupRevision,
+                        source.data.TranslationGroupStorageVersion))
+                    .ToList())
                 : TypedResults.Ok(new[] { MapToDetail(source.data) }.ToList());
         }
         catch (Exception ex)
@@ -423,7 +444,8 @@ public static class ContentItemsApi
         long id,
         [FromBody] ForkContentItemCultureRequest request,
         [FromServices] IAeroContentItemActor contentActor,
-        [FromServices] IContentQueryService queryService,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] IContentLocalizationContextResolver contextResolver,
         [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -439,50 +461,24 @@ public static class ContentItemsApi
             if (!IsCurrentSiteItem(source, siteId, alias, id))
                 return TypedResults.NotFound();
 
-            var culture = NormalizeCulture(request.Culture);
-            if (string.IsNullOrWhiteSpace(culture))
-            {
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Missing culture",
-                    Detail = "Select a target culture for the translation.",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
+            var context = await contextResolver.ResolveAsync(siteId, alias, ct);
+            if (context is null)
+                return TypedResults.NotFound();
 
-            var groupId = source.data.TranslationGroupId ?? source.data.Id;
-            var variants = await queryService.ListCultureVariantsAsync(siteId, alias, groupId, ct);
-            if (variants is Result<IReadOnlyList<ContentItem>, AeroError>.Ok variantsOk &&
-                variantsOk.Value.Any(item => string.Equals(NormalizeCulture(item.Culture), culture, StringComparison.OrdinalIgnoreCase)))
-            {
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Translation already exists",
-                    Detail = $"A '{culture}' translation already exists for this entry.",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            var fork = new ContentItemViewModel
-            {
-                Id = 0,
-                SiteId = siteId,
-                ContentTypeAlias = alias,
-                Title = source.data.Title,
-                Slug = request.Slug.Trim().Trim('/'),
-                FieldsJson = source.data.FieldsJson,
-                TranslationGroupId = groupId,
-                Culture = culture,
-                SourceItemId = source.data.Id,
-                ParentId = null,
-                SortOrder = source.data.SortOrder,
-                PublicationState = ContentPublicationState.Draft
-            };
-
-            var result = await contentActor.SaveDraftAsync(fork, siteId, ct);
-            return !string.IsNullOrWhiteSpace(result.error.Message)
-                ? ContentMutationFailure(logger, "Failed to create content item translation", result.error.Message, siteId, alias, id)
-                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{result.data.Id}", MapToDetail(result.data));
+            var result = await localization.ForkAsync(context,
+                new ContentCultureForkCommand(
+                    id,
+                    request.Culture,
+                    request.Slug,
+                    ExpectedGroupStorageVersion: request.ExpectedGroupStorageVersion,
+                    ExpectedTargetStorageVersion: request.ExpectedTargetStorageVersion,
+                    ExpectedSourceStorageVersion: request.ExpectedSourceStorageVersion), ct);
+            if (result is not Result<ContentLocalizationOperationResult, AeroError>.Ok ok)
+                return ContentMutationFailure(logger, "Failed to create content item translation", "The variant could not be created.", siteId, alias, id);
+            var created = await contentActor.GetByIdAsync(ok.Value.ContentItemId, siteId, ct);
+            return !IsCurrentSiteItem(created, siteId, alias, ok.Value.ContentItemId)
+                ? TypedResults.Problem("The created content translation could not be loaded.")
+                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/content-items/{alias}/{created.data.Id}", MapToDetail(created.data));
         }
         catch (Exception ex)
         {
@@ -490,6 +486,86 @@ public static class ContentItemsApi
             return TypedResults.Problem(ex.Message);
         }
     }
+
+    private static async Task<IResult> ApplyAiTranslation(
+        string alias, long id,
+        [FromBody] ApplyContentItemAiTranslationRequest request,
+        [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] IContentLocalizationContextResolver contextResolver,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0) return MissingSite();
+        var source = await contentActor.GetByIdAsync(id, siteId, ct);
+        var target = await contentActor.GetByIdAsync(request.TargetItemId, siteId, ct);
+        if (!IsCurrentSiteItem(source, siteId, alias, id)
+            || !IsCurrentSiteItem(target, siteId, alias, request.TargetItemId)) return TypedResults.NotFound();
+        var context = await contextResolver.ResolveAsync(siteId, alias, ct);
+        if (context is null) return TypedResults.NotFound();
+        var result = await localization.ApplyAiTranslationAsync(context, new(
+            id, request.SourceVersionNumber, request.TargetItemId, request.ExpectedTargetVersionNumber,
+            request.SourceCulture, request.TargetCulture, request.TranslatedFields,
+            request.ProviderId, request.Model, request.ExpectedSourceStorageVersion,
+            request.ExpectedTargetStorageVersion, request.ExpectedGroupStorageVersion), ct);
+        return LocalizationMutationResult(result, "AI translation could not be applied.");
+    }
+
+    private static async Task<IResult> ReviewTranslation(
+        string alias, long id,
+        [FromBody] ReviewContentItemTranslationRequest request,
+        [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] IContentLocalizationContextResolver contextResolver,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0) return MissingSite();
+        var source = await contentActor.GetByIdAsync(id, siteId, ct);
+        var target = await contentActor.GetByIdAsync(request.TargetItemId, siteId, ct);
+        if (!IsCurrentSiteItem(source, siteId, alias, id)
+            || !IsCurrentSiteItem(target, siteId, alias, request.TargetItemId)) return TypedResults.NotFound();
+        var context = await contextResolver.ResolveAsync(siteId, alias, ct);
+        if (context is null) return TypedResults.NotFound();
+        var result = await localization.ReviewAsync(context, new(
+            id, request.SourceVersionNumber, request.TargetItemId, request.TargetVersionNumber,
+            request.Approved, request.Notes, request.ExpectedSourceStorageVersion,
+            request.ExpectedTargetStorageVersion, request.ExpectedGroupStorageVersion), ct);
+        return LocalizationMutationResult(result, "Translation review could not be recorded.");
+    }
+
+    private static async Task<IResult> UpdateTranslationSharedFields(
+        string alias,
+        long id,
+        [FromBody] UpdateContentTranslationSharedFieldsCommand request,
+        [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] IContentLocalizationHandler localization,
+        [FromServices] IContentLocalizationContextResolver contextResolver,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0) return MissingSite();
+        var item = await contentActor.GetByIdAsync(id, siteId, ct);
+        if (!IsCurrentSiteItem(item, siteId, alias, id)) return TypedResults.NotFound();
+        if (item.data.TranslationGroupId != request.TranslationGroupId) return TypedResults.NotFound();
+        var context = await contextResolver.ResolveAsync(siteId, alias, ct);
+        if (context is null) return TypedResults.NotFound();
+        var result = await localization.UpdateSharedFieldsAsync(context, request, ct);
+        return LocalizationMutationResult(result, "Shared translation fields could not be updated.");
+    }
+
+    private static IResult LocalizationMutationResult(
+        Result<ContentLocalizationOperationResult, AeroError> result,
+        string title) => result switch
+    {
+        Result<ContentLocalizationOperationResult, AeroError>.Ok ok => TypedResults.Ok(ok.Value),
+        Result<ContentLocalizationOperationResult, AeroError>.Failure { Error: AeroError.Conflict conflict } =>
+            TypedResults.Conflict(new ProblemDetails { Title = title, Detail = conflict.msg }),
+        _ => TypedResults.BadRequest(new ProblemDetails { Title = title })
+    };
 
     /// <summary>
     /// Deserializes a view model's field JSON and projects the detailed HTTP contract.
@@ -507,7 +583,12 @@ public static class ContentItemsApi
             fields, vm.PublicationState.ToString(), vm.PublishedOn,
             vm.VersionNumber, vm.SchedulePublishUtc, vm.ScheduleUnpublishUtc,
             vm.Culture, vm.TranslationGroupId, vm.SourceItemId,
-            vm.ParentId, vm.SortOrder);
+            vm.ParentId, vm.SortOrder,
+            string.IsNullOrWhiteSpace(vm.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(vm.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            string.IsNullOrWhiteSpace(vm.TranslationReviewJson) ? null : JsonSerializer.Deserialize(vm.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview),
+            vm.TranslationGroupRevision,
+            vm.StorageVersion,
+            vm.TranslationGroupStorageVersion);
     }
 
     /// <summary>
@@ -531,7 +612,10 @@ public static class ContentItemsApi
             item.ContentTypeAlias, firstFieldValue,
             item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber,
             item.Culture, item.TranslationGroupId, item.SourceItemId,
-            item.ParentId, item.SortOrder);
+            item.ParentId, item.SortOrder,
+            string.IsNullOrWhiteSpace(item.TranslationProvenanceJson) ? null : JsonSerializer.Deserialize(item.TranslationProvenanceJson, ContentJsonContext.Default.ContentTranslationProvenance),
+            string.IsNullOrWhiteSpace(item.TranslationReviewJson) ? null : JsonSerializer.Deserialize(item.TranslationReviewJson, ContentJsonContext.Default.ContentTranslationReview),
+            item.TranslationGroupRevision);
     }
 
     /// <summary>
@@ -555,7 +639,10 @@ public static class ContentItemsApi
     /// <summary>
     /// Projects a persisted content item into the detailed HTTP contract.
     /// </summary>
-    private static ContentItemDetail MapToDetail(ContentItem item)
+    private static ContentItemDetail MapToDetail(
+        ContentItem item,
+        int? translationGroupRevision,
+        long? translationGroupStorageVersion)
         => new(
             item.Id,
             item.Title ?? string.Empty,
@@ -571,7 +658,12 @@ public static class ContentItemsApi
             item.TranslationGroupId,
             item.SourceItemId,
             item.ParentId,
-            item.SortOrder);
+            item.SortOrder,
+            item.TranslationProvenance,
+            item.TranslationReview,
+            translationGroupRevision,
+            item.Version,
+            translationGroupStorageVersion);
 
     /// <summary>
     /// Trims culture input without validating or canonicalizing it.
@@ -660,6 +752,75 @@ public static class ContentItemsApi
             .OrderBy(source => source.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return TypedResults.Ok<IReadOnlyList<CmsContentReferenceSource>>(ordered);
+    }
+
+    /// <summary>Lists only providers registered for the server-resolved tenant/site scope.</summary>
+    private static async Task<IResult> ListContentEntryReferenceSources(
+        [FromServices] IEnumerable<IContentEntrySourceProvider> providers,
+        [FromServices] IContentEntrySourceProviderCatalog catalog,
+        [FromServices] ISiteContext siteContext,
+        CancellationToken ct)
+    {
+        if (!TryCreateContentEntryScope(siteContext, out var scope, out var failure)) return failure!;
+        var dynamicProviders = await catalog.ListProviderKeysAsync(scope, ct);
+        var sources = providers.Select(provider => provider.Provider)
+            .Concat(dynamicProviders)
+            .Where(provider => !string.IsNullOrWhiteSpace(provider))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(provider => provider, StringComparer.OrdinalIgnoreCase)
+            .Select(provider => new CmsContentReferenceSource(provider, provider))
+            .ToArray();
+        return TypedResults.Ok<IReadOnlyList<CmsContentReferenceSource>>(sources);
+    }
+
+    /// <summary>Searches one exact registered provider; request input never determines its scope.</summary>
+    private static async Task<IResult> ListContentEntryReferenceOptions(
+        string provider,
+        [FromServices] IEnumerable<IContentEntrySourceProvider> providers,
+        [FromServices] IContentEntrySourceProviderCatalog catalog,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] string? culture = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int take = 50,
+        CancellationToken ct = default)
+    {
+        if (!TryCreateContentEntryScope(siteContext, out var scope, out var failure)) return failure!;
+        var source = providers.FirstOrDefault(candidate => string.Equals(candidate.Provider, provider, StringComparison.OrdinalIgnoreCase))
+            ?? await catalog.ResolveAsync(scope, provider, ct);
+        if (source is null || !string.Equals(source.Provider, provider, StringComparison.OrdinalIgnoreCase))
+            return TypedResults.NotFound();
+
+        var entries = await source.SearchAsync(scope, culture, search, Math.Clamp(take, 1, 100), ct);
+        var options = entries
+            .Where(entry => entry.Scope == scope && entry.Key.IsValid && string.Equals(entry.Key.Provider, source.Provider, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => new ContentEntryReferenceOption(
+                entry.Key.Provider,
+                entry.Key.StableId,
+                GetContentEntryDisplay(entry, "title", "name", "scientificName", "label") ?? entry.Key.StableId,
+                GetContentEntryDisplay(entry, "subtitle", "description", "slug")))
+            .ToArray();
+        return TypedResults.Ok<IReadOnlyList<ContentEntryReferenceOption>>(options);
+    }
+
+    private static bool TryCreateContentEntryScope(ISiteContext siteContext, out ContentViewScope scope, out IResult? failure)
+    {
+        scope = new ContentViewScope(siteContext.TenantId, siteContext.SiteId);
+        failure = scope.IsValid ? null : MissingSite();
+        return failure is null;
+    }
+
+    private static string? GetContentEntryDisplay(ContentEntry entry, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (entry.Values.TryGetValue(name, out var value) && value is not null)
+            {
+                var text = Convert.ToString(value, CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<IResult> ListCmsReferenceOptions(

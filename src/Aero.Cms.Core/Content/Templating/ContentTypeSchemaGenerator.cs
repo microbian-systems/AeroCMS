@@ -66,7 +66,8 @@ public static class ContentTypeSchemaGenerator
     private static string MapFieldType(ContentFieldDefinition field)
     {
         if (field.FieldType == ContentFieldTypes.Reference
-            && ReferenceFieldValidator.IsCmsDocumentReference(field))
+            && (ReferenceFieldValidator.IsCmsDocumentReference(field)
+                || ReferenceFieldValidator.IsContentEntryReference(field)))
         {
             return "object";
         }

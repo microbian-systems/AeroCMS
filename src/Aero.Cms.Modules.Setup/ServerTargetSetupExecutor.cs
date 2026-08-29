@@ -72,6 +72,13 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         ArgumentException.ThrowIfNullOrWhiteSpace(serverConnectionString);
         ArgumentNullException.ThrowIfNull(request);
 
+        if (!Aero.AppServer.SurrealDatabaseScope.TryNormalize(request.DatabaseNamespace, out var databaseNamespace) ||
+            !Aero.AppServer.SurrealDatabaseScope.TryNormalize(request.DatabaseName, out var databaseName))
+        {
+            return SeedDatabaseResult.Failure(
+                "The SurrealDB namespace and database name must use only letters, digits, underscores, or hyphens.");
+        }
+
         logger.LogInformation("=== ServerTargetSetup starting ===");
         logger.LogInformation("Connection: {Connection} (masked)", serverConnectionString[..Math.Min(20, serverConnectionString.Length)] + "...");
         logger.LogInformation("Seed request: siteName={SiteName}, adminEmail={AdminEmail}, hostname={Hostname}",
@@ -89,7 +96,8 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             opts.Username = request.DatabaseUsername;
             opts.Password = request.DatabasePassword;
         }
-        opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
+        opts.Namespace = databaseNamespace;
+        opts.Database = databaseName;
         opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
         opts.Schema.For<AeroRole>()
             .TableName(Schemas.Tables.Roles)
@@ -112,7 +120,7 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             rootServiceProvider.GetServices<IConfigureAeroDB>().Count());
 
         logger.LogInformation("Step 3/6: Creating session and services...");
-        await using var session = await store.LightweightSessionAsync();
+        await using var session = await InitializeSchemaAndOpenSessionAsync(store, cancellationToken);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
         var styleProfileResolver = new SiteStyleProfileResolver(store);
@@ -183,6 +191,19 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         logger.LogInformation("=== ServerTargetSetup COMPLETE (siteId={SiteId}, tenantId={TenantId}) ===",
             result.SiteId, result.TenantId);
         return result;
+    }
+
+    /// <summary>
+    /// Materializes the CMS schema before any setup seed operation can open a session.
+    /// The temporary setup store contains only the configurations applied above; consuming-host
+    /// schema that is owned by an external tool is therefore not created here.
+    /// </summary>
+    internal static async Task<IDocumentSession> InitializeSchemaAndOpenSessionAsync(
+        IDocumentStore store,
+        CancellationToken cancellationToken)
+    {
+        await store.InitializeAsync(cancellationToken);
+        return await store.LightweightSessionAsync(cancellationToken);
     }
 
     /// <summary>

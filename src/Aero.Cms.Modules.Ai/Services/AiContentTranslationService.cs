@@ -54,8 +54,8 @@ public sealed class AiContentTranslationService(
     /// <remarks>
     /// The operation applies a linked timeout clamped to 1–300 seconds. Both caller cancellation and
     /// timeout cancellation observed during the provider call are returned as an AI timeout failure.
-    /// If settings resolution fails, the complete serialized request is written at debug level; it can
-    /// contain every source field. Missing output fields retain their source text and add a warning.
+    /// If settings resolution fails, only the provider configuration error is logged. Missing output
+    /// fields retain their source text and add a warning.
     /// Returned values remain provider-generated and are not independently verified by this service.
     /// </remarks>
 public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
@@ -72,7 +72,6 @@ public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
         if (settingsResult is Result<AiRuntimeSettings>.Failure settingsFailure)
         {
             log.LogError("AI settings error while translating document: {Error}", settingsFailure.Error);
-            log.LogDebug("Translation request: {Request}", request.ToJson());
             return settingsFailure.Error;
         }
 
@@ -160,6 +159,7 @@ public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
             return new TranslateDocumentResponse(
                 translated,
                 warnings,
+                settings.ProviderId,
                 settings.DisplayName,
                 settings.Model ?? string.Empty);
         }

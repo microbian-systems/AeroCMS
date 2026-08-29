@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Globalization;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Content.Localization;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -169,6 +170,17 @@ Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alia
             string? search = null,
             int take = 50,
             CancellationToken ct = default);
+    /// <summary>Lists current-site virtual entry providers available to content-reference fields.</summary>
+    Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetContentEntryReferenceSourcesAsync(CancellationToken ct = default);
+    /// <summary>Gets bounded current-site options for one exact virtual entry provider.</summary>
+    Task<Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>>
+        GetContentEntryReferenceOptionsAsync(
+            string provider,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default);
         /// <summary>
     /// GetByIdAsync method.
     /// </summary>
@@ -217,6 +229,9 @@ Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long
         string alias,
         ReorderContentSiblingsRequest request,
         CancellationToken ct = default);
+    Task<Result<ContentLocalizationOperationResult, AeroError>> ApplyAiTranslationAsync(string alias, long id, ApplyContentItemAiTranslationRequest request, CancellationToken ct = default);
+    Task<Result<ContentLocalizationOperationResult, AeroError>> ReviewTranslationAsync(string alias, long id, ReviewContentItemTranslationRequest request, CancellationToken ct = default);
+    Task<Result<ContentLocalizationOperationResult, AeroError>> UpdateSharedFieldsAsync(string alias, long id, UpdateContentItemTranslationSharedFieldsRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -283,6 +298,28 @@ public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(stri
         AddQueryParameter(parameters, "search", search);
         return GetAsync<IReadOnlyList<CmsContentReferenceOption>>(
             $"reference-sources/{Uri.EscapeDataString(source)}/options?{string.Join("&", parameters)}",
+            ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<CmsContentReferenceSource>, AeroError>>
+        GetContentEntryReferenceSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<CmsContentReferenceSource>>("entry-reference-sources", ct);
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<ContentEntryReferenceOption>, AeroError>>
+        GetContentEntryReferenceOptionsAsync(
+            string provider,
+            string? culture = null,
+            string? search = null,
+            int take = 50,
+            CancellationToken ct = default)
+    {
+        var parameters = new List<string> { $"take={Math.Clamp(take, 1, 100)}" };
+        AddQueryParameter(parameters, "culture", culture);
+        AddQueryParameter(parameters, "search", search);
+        return GetAsync<IReadOnlyList<ContentEntryReferenceOption>>(
+            $"entry-reference-sources/{Uri.EscapeDataString(provider)}/options?{string.Join("&", parameters)}",
             ct);
     }
 
@@ -370,6 +407,15 @@ public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alia
             request,
             ct);
 
+    public Task<Result<ContentLocalizationOperationResult, AeroError>> ApplyAiTranslationAsync(string alias, long id, ApplyContentItemAiTranslationRequest request, CancellationToken ct = default)
+        => PostAsync<ApplyContentItemAiTranslationRequest, ContentLocalizationOperationResult>($"{Uri.EscapeDataString(alias)}/{id}/translations/ai-apply", request, ct);
+
+    public Task<Result<ContentLocalizationOperationResult, AeroError>> ReviewTranslationAsync(string alias, long id, ReviewContentItemTranslationRequest request, CancellationToken ct = default)
+        => PostAsync<ReviewContentItemTranslationRequest, ContentLocalizationOperationResult>($"{Uri.EscapeDataString(alias)}/{id}/translations/review", request, ct);
+
+    public Task<Result<ContentLocalizationOperationResult, AeroError>> UpdateSharedFieldsAsync(string alias, long id, UpdateContentItemTranslationSharedFieldsRequest request, CancellationToken ct = default)
+        => PutAsync<UpdateContentItemTranslationSharedFieldsRequest, ContentLocalizationOperationResult>($"{Uri.EscapeDataString(alias)}/{id}/translations/shared-fields", request, ct);
+
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
         var response = await task;
@@ -432,7 +478,8 @@ public record ContentTypeDetail(
     long Id = 0,
     ContentCardinality Cardinality = ContentCardinality.Collection,
     ContentStructure Structure = ContentStructure.Flat,
-    ContentHierarchyRules? HierarchyRules = null);
+    ContentHierarchyRules? HierarchyRules = null,
+    ContentLocalizationSettings? Localization = null);
 
 /// <summary>Request to create or update a content type definition.</summary>
 public record CreateContentTypeRequest(
@@ -449,7 +496,8 @@ public record CreateContentTypeRequest(
     ContentTypeScheduleConfig? ScheduleConfig,
     ContentCardinality Cardinality = ContentCardinality.Collection,
     ContentStructure Structure = ContentStructure.Flat,
-    ContentHierarchyRules? HierarchyRules = null);
+    ContentHierarchyRules? HierarchyRules = null,
+    ContentLocalizationSettings? Localization = null);
 
 /// <summary>Summary information for a content item.</summary>
 public record ContentItemSummary(
@@ -465,7 +513,10 @@ public record ContentItemSummary(
     long? TranslationGroupId,
     long? SourceItemId,
     long? ParentId = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    ContentTranslationProvenance? TranslationProvenance = null,
+    ContentTranslationReview? TranslationReview = null,
+    int? TranslationGroupRevision = null);
 
 /// <summary>A bounded manager-facing option for a content reference field.</summary>
 public sealed record ContentReferenceOption(
@@ -490,7 +541,12 @@ public record ContentItemDetail(
     long? TranslationGroupId,
     long? SourceItemId,
     long? ParentId = null,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    ContentTranslationProvenance? TranslationProvenance = null,
+    ContentTranslationReview? TranslationReview = null,
+    int? TranslationGroupRevision = null,
+    long StorageVersion = 0,
+    long? TranslationGroupStorageVersion = null);
 
 /// <summary>Request to create or update a content item.</summary>
 public record CreateContentItemRequest(
@@ -506,7 +562,43 @@ public record CreateContentItemRequest(
 /// <summary>
 /// Represents a record for ForkContentItemCultureRequest.
 /// </summary>
-public record ForkContentItemCultureRequest(string Culture, string Slug);
+public record ForkContentItemCultureRequest(
+    string Culture,
+    string Slug,
+    long? ExpectedGroupStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedSourceStorageVersion = null);
+
+/// <summary>Applies AI-translated fields to an existing culture variant with revision fencing.</summary>
+public sealed record ApplyContentItemAiTranslationRequest(
+    long TargetItemId,
+    int SourceVersionNumber,
+    int ExpectedTargetVersionNumber,
+    string SourceCulture,
+    string TargetCulture,
+    IReadOnlyDictionary<string, JsonElement> TranslatedFields,
+    string ProviderId,
+    string Model,
+    long? ExpectedSourceStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedGroupStorageVersion = null);
+
+/// <summary>Records a human translation review against current source and target versions.</summary>
+public sealed record ReviewContentItemTranslationRequest(
+    long TargetItemId,
+    int SourceVersionNumber,
+    int TargetVersionNumber,
+    bool Approved,
+    string? Notes = null,
+    long? ExpectedSourceStorageVersion = null,
+    long? ExpectedTargetStorageVersion = null,
+    long? ExpectedGroupStorageVersion = null);
+
+public sealed record UpdateContentItemTranslationSharedFieldsRequest(
+    long TranslationGroupId,
+    long ExpectedGroupStorageVersion,
+    int ExpectedGroupRevision,
+    IReadOnlyDictionary<string, JsonElement> SharedFields);
 
 /// <summary>One immutable manager-facing node in a bounded content hierarchy.</summary>
 public sealed record ContentHierarchyTreeNode(

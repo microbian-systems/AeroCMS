@@ -57,6 +57,9 @@ public AeroPageGrain(
     // ── Helper: manual construction of AeroPageContentService ────────
 
     private AeroPageContentService CreatePageService(IDocumentSession session, long siteId)
+        => CreatePageService(session, 0, siteId);
+
+    private AeroPageContentService CreatePageService(IDocumentSession session, long tenantId, long siteId)
     {
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<AeroPageContentService>>();
@@ -74,7 +77,7 @@ public AeroPageGrain(
             _services.GetRequiredService<ScribanTemplateValidator>());
         var contentQueryResolver = new PageContentQueryResolver(
             new ContentHierarchyQueryService(session, contentTypeService));
-        var fixedSiteContext = new FixedSiteContext(siteId);
+        var fixedSiteContext = new FixedSiteContext(tenantId, siteId);
         var pageTreeService = new PageTreeService(
             session,
             fixedSiteContext,
@@ -173,6 +176,27 @@ public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest reque
     }
 
     /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(
+        IRequest request,
+        long tenantId,
+        long siteId,
+        CancellationToken ct)
+    {
+        if (request is not CreatePageRequest create || create.SiteId != siteId)
+            return Fail("Expected a page request for the authorized site");
+
+        await using var session = await _store.LightweightSessionAsync();
+        var pageService = CreatePageService(session, tenantId, siteId);
+        var result = await pageService.CreateAsync(create, ct);
+        return result switch
+        {
+            Result<PageDocument, AeroError>.Ok ok => Ok(ok.Value.ToViewModel()),
+            Result<PageDocument, AeroError>.Failure fail => Fail(fail.Error.ToString() ?? "Create failed"),
+            _ => Fail("Unexpected result")
+        };
+    }
+
+    /// <inheritdoc />
 public Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("An explicit site scope is required."));
 
@@ -181,12 +205,20 @@ public Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, Ca
         IRequest request,
         long siteId,
         CancellationToken ct)
+        => await UpdateAsync(request, 0, siteId, ct);
+
+    /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(
+        IRequest request,
+        long tenantId,
+        long siteId,
+        CancellationToken ct)
     {
         if (request is not UpdatePageRequest update)
             return Fail("Expected UpdatePageRequest");
 
         await using var session = await _store.LightweightSessionAsync();
-        var pageService = CreatePageService(session, siteId);
+        var pageService = CreatePageService(session, tenantId, siteId);
         var result = await pageService.UpdateAsync(update.Id, update, ct);
 
         return result switch
@@ -304,7 +336,7 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
             return new PageRouteChangeImpact(id, string.Empty, string.Empty, [], $"Page {id} not found.");
 
         await using var session = await _store.LightweightSessionAsync();
-        var siteContext = new FixedSiteContext(siteId);
+        var siteContext = new FixedSiteContext(0, siteId);
         var treeService = new PageTreeService(
             session,
             siteContext,
@@ -351,10 +383,18 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
         long id,
         long siteId,
         CancellationToken ct)
+        => await PublishAsync(id, 0, siteId, ct);
+
+    /// <inheritdoc />
+    public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(
+        long id,
+        long tenantId,
+        long siteId,
+        CancellationToken ct)
     {
         await using var scope = _services.CreateAsyncScope();
         var workflow = scope.ServiceProvider.GetRequiredService<IPagePublishingWorkflowService>();
-        var result = await workflow.PublishNowAsync(id, siteId, ct);
+        var result = await workflow.PublishNowAsync(id, tenantId, siteId, ct);
         if (result is Result<bool, AeroError>.Failure { Error: AeroError.NotFound })
             return NotFound($"Page {id} not found");
         if (result is Result<bool, AeroError>.Failure fail)
@@ -472,18 +512,18 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
         => new(vm, new PageErrorViewModel());
 
     private static AeroRequestResponse<PageViewModel> NotFound(string msg)
-        => new(new PageViewModel(), new PageErrorViewModel { Message = msg });
+        => new(new PageViewModel(), new PageErrorViewModel { Message = msg, Kind = PageErrorKind.NotFound });
 
     private static AeroRequestResponse<PageViewModel> Fail(string msg)
-        => new(new PageViewModel(), new PageErrorViewModel { Message = msg });
+        => new(new PageViewModel(), new PageErrorViewModel { Message = msg, Kind = PageErrorKind.Failure });
 
     // ── FixedSiteContext ─────────────────────────────────────────────
 
-    private sealed class FixedSiteContext(long siteId) : ISiteContext
+    private sealed class FixedSiteContext(long tenantId, long siteId) : ISiteContext
     {
         /// <summary>Gets the operation's fixed site identifier.</summary>
 public long SiteId { get; } = siteId;
         /// <summary>Gets the site identifier reused as the tenant identifier.</summary>
-public long TenantId { get; } = siteId;
+public long TenantId { get; } = tenantId;
     }
 }

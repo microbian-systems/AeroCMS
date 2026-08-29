@@ -12,7 +12,7 @@
     <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
         <div class="lg:col-span-5 order-2 lg:order-1">
             <div class="relative h-full overflow-hidden bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-premium p-8 sm:p-12 space-y-8">
-                <img src="/img/aero-logo-new.png"
+                <img src="_content/Aero.Cms.UI/img/aero-logo-new.png"
                      alt=""
                      aria-hidden="true"
                      class="absolute -right-16 top-24 h-72 w-72 object-contain opacity-10" />
@@ -22,7 +22,7 @@
                         @L["System Setup"]
                     </span>
                     <div class="flex items-center gap-4">
-                        <img src="/img/aero-logo-new.png"
+                        <img src="_content/Aero.Cms.UI/img/aero-logo-new.png"
                              alt=""
                              aria-hidden="true"
                              class="h-12 w-12 sm:h-16 sm:w-16 shrink-0 object-contain drop-shadow-sm" />
@@ -228,6 +228,34 @@
                                         }
                                     </div>
                                 }
+
+                                <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 space-y-5">
+                                    <label for="setup-database-advanced" class="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                                        <InputCheckbox @bind-Value="Input.UseAdvancedDatabaseOptions"
+                                                       id="setup-database-advanced"
+                                                       class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <span>@L["Advanced database options"]</span>
+                                    </label>
+
+                                    @if (Input.UseAdvancedDatabaseOptions)
+                                    {
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div class="space-y-2">
+                                                <label for="setup-database-namespace" class="text-xs font-bold text-slate-700">@L["SurrealDB namespace"]</label>
+                                                <InputText @bind-Value="Input.DatabaseNamespace" id="setup-database-namespace" class="@GetFieldClass("Input.DatabaseNamespace")" />
+                                                <ValidationMessage For="() => Input.DatabaseNamespace" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight" />
+                                            </div>
+                                            <div class="space-y-2">
+                                                <label for="setup-database-name" class="text-xs font-bold text-slate-700">@L["SurrealDB database name"]</label>
+                                                <InputText @bind-Value="Input.DatabaseName" id="setup-database-name" class="@GetFieldClass("Input.DatabaseName")" />
+                                                <ValidationMessage For="() => Input.DatabaseName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight" />
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] font-medium text-slate-500">
+                                            @L["Changing either value selects a different logical SurrealDB target; existing data is not moved."]
+                                        </p>
+                                    }
+                                </div>
                             </div>
                         }
 
@@ -461,6 +489,8 @@
                                         <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">@L["Infrastructure"]</h4>
                                         <div class="text-sm text-slate-600 space-y-2">
                                             <p><span class="font-semibold text-slate-900">Database:</span> @EffectiveDatabaseMode</p>
+                                            <p><span class="font-semibold text-slate-900">Namespace:</span> @Input.DatabaseNamespace</p>
+                                            <p><span class="font-semibold text-slate-900">Database Name:</span> @Input.DatabaseName</p>
                                             @if (ShowConnectionString)
                                             {
                                                 <p><span class="font-semibold text-slate-900">DB Connection:</span> Provided</p>

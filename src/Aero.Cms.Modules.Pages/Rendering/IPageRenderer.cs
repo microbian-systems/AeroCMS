@@ -52,7 +52,8 @@ public sealed record PageRenderRequest(
     PageCompositionDocument? Composition,
     IReadOnlyDictionary<long, int> ContentPageNumbers,
     PageContentQueryResolution ContentQueries,
-    bool IsPreview = false);
+    bool IsPreview = false,
+    IReadOnlyDictionary<string, string>? RouteValues = null);
 
 /// <summary>Validated markup, CSS, and content dependencies produced by a page renderer.</summary>
 /// <param name="Markup">Validated fragment markup for the deployment-owned page shell.</param>

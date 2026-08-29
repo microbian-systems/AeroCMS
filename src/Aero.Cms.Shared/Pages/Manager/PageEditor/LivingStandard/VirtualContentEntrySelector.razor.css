@@ -1,0 +1,67 @@
+.aero-virtual-entry-selector {
+    display: grid;
+    gap: .75rem;
+    margin-top: 1rem;
+    padding: .875rem;
+    border: 1px solid var(--pe-border);
+    border-radius: .625rem;
+    color: var(--pe-text-primary);
+    background: var(--pe-bg-primary);
+}
+
+.aero-virtual-entry-selector h3,
+.aero-virtual-entry-selector p { margin: 0; }
+
+.aero-virtual-entry-selector__controls {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) auto;
+    gap: .5rem;
+    align-items: end;
+}
+
+.aero-virtual-entry-selector label {
+    display: grid;
+    gap: .25rem;
+    min-width: 0;
+    font-weight: 600;
+}
+
+.aero-virtual-entry-selector input,
+.aero-virtual-entry-selector select,
+.aero-virtual-entry-selector button {
+    min-height: 2.5rem;
+    border: 1px solid var(--pe-border);
+    border-radius: .375rem;
+    padding: .4rem .55rem;
+    color: inherit;
+    background: var(--pe-bg-primary);
+}
+
+.aero-virtual-entry-selector button { cursor: pointer; }
+.aero-virtual-entry-selector button:disabled,
+.aero-virtual-entry-selector select:disabled,
+.aero-virtual-entry-selector input:disabled { cursor: not-allowed; opacity: .65; }
+
+.aero-virtual-entry-selector input:focus-visible,
+.aero-virtual-entry-selector select:focus-visible,
+.aero-virtual-entry-selector button:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--pe-primary) 70%, transparent);
+    outline-offset: 2px;
+}
+
+.aero-virtual-entry-selector__error { color: var(--pe-danger, #b42318); font-weight: 600; }
+.aero-virtual-entry-selector__selected { color: var(--pe-primary); }
+.aero-virtual-entry-selector__route { grid-template-columns: auto 1fr !important; align-items: center; }
+.aero-virtual-entry-selector__route input { min-height: auto; width: 1rem; height: 1rem; }
+.aero-virtual-entry-selector__route-help { color: var(--pe-text-muted); font-size: .8rem; }
+.aero-virtual-entry-selector__add { justify-self: start; }
+
+@media (max-width: 390px) {
+    .aero-virtual-entry-selector { padding: .75rem; }
+    .aero-virtual-entry-selector__controls { grid-template-columns: 1fr; }
+    .aero-virtual-entry-selector label,
+    .aero-virtual-entry-selector input,
+    .aero-virtual-entry-selector select,
+    .aero-virtual-entry-selector button { width: 100%; }
+    .aero-virtual-entry-selector__add { justify-self: stretch; }
+}

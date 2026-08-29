@@ -26,6 +26,7 @@ public sealed class AeroContentQueryService(
             .Skip(skip)
             .Take(take)
             .ToListAsync(ct);
+        await HydrateSharedFieldsAsync(items, ct);
         return Prelude.Ok<(IReadOnlyList<ContentItem>, long), AeroError>((items, total));
     }
 
@@ -111,7 +112,7 @@ public sealed class AeroContentQueryService(
             var exactMatches = await session.LoadManyAsync<ContentItem>(
                 candidates.Take(ContentSearchConstants.MaximumCandidates),
                 ct);
-            var orderedExactMatches = exactMatches
+            var orderedExactMatches = (await HydrateSearchResultsAsync(exactMatches, request, ct))
                 .OrderByDescending(item => item.PublishedOn)
                 .ThenBy(item => item.Id)
                 .ToArray();
@@ -130,7 +131,8 @@ public sealed class AeroContentQueryService(
         var hasMore = pageIds.Length > request.Take;
         pageIds = pageIds.Take(request.Take).ToArray();
         var loaded = await session.LoadManyAsync<ContentItem>(pageIds, ct);
-        var byId = loaded.ToDictionary(item => item.Id);
+        var hydrated = await HydrateSearchResultsAsync(loaded, request, ct);
+        var byId = hydrated.ToDictionary(item => item.Id);
         var ordered = pageIds
             .Where(byId.ContainsKey)
             .Select(id => byId[id])
@@ -148,6 +150,7 @@ public sealed class AeroContentQueryService(
                 && (x.TranslationGroupId == translationGroupId || x.Id == translationGroupId))
             .OrderBy(x => x.Culture)
             .ToListAsync(ct);
+        await HydrateSharedFieldsAsync(items, ct);
         return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>(items);
     }
 
@@ -301,10 +304,89 @@ public sealed class AeroContentQueryService(
             .Skip(request.Skip)
             .Take(request.Take + 1)
             .ToListAsync(ct);
+        var hydrated = await HydrateSearchResultsAsync(items, request, ct);
         return new ContentSearchResult(
-            items.Take(request.Take).ToArray(),
-            items.Count > request.Take);
+            hydrated.Take(request.Take).ToArray(),
+            hydrated.Count > request.Take);
     }
+
+    private async Task<IReadOnlyList<ContentItem>> HydrateSearchResultsAsync(
+        IEnumerable<ContentItem> items,
+        ContentSearchRequest request,
+        CancellationToken ct)
+    {
+        var candidates = items
+            .Where(item => item.SiteId == request.SiteId
+                && string.Equals(item.ContentTypeAlias, request.ContentTypeAlias, StringComparison.Ordinal)
+                && (request.Culture is null || item.Culture == request.Culture)
+                && (!request.PublishedOnly || item.PublicationState == ContentPublicationState.Published))
+            .ToArray();
+        if (candidates.Length == 0) return [];
+
+        var groupIds = candidates
+            .Where(item => item.TranslationGroupId is not null)
+            .Select(item => item.TranslationGroupId!.Value)
+            .Distinct()
+            .ToArray();
+        var groups = groupIds.Length == 0
+            ? []
+            : await session.LoadManyAsync<ContentTranslationGroupDocument>(groupIds, ct);
+        var groupsById = groups
+            .Where(group => group.SiteId == request.SiteId
+                && string.Equals(group.ContentTypeAlias, request.ContentTypeAlias, StringComparison.Ordinal))
+            .ToDictionary(group => group.Id);
+
+        return candidates.Select(item =>
+        {
+            var copy = Clone(item);
+            if (copy.TranslationGroupId is { } groupId
+                && groupsById.TryGetValue(groupId, out var group))
+            {
+                foreach (var (name, value) in group.SharedFields)
+                {
+                    copy.Fields[name] = value.Clone();
+                }
+            }
+            return copy;
+        }).ToArray();
+    }
+
+    private async Task HydrateSharedFieldsAsync(IEnumerable<ContentItem> items, CancellationToken ct)
+    {
+        var materialized = items.ToArray();
+        var groupIds = materialized
+            .Where(item => item.TranslationGroupId is not null)
+            .Select(item => item.TranslationGroupId!.Value)
+            .Distinct()
+            .ToArray();
+        if (groupIds.Length == 0) return;
+
+        var groups = await session.LoadManyAsync<ContentTranslationGroupDocument>(groupIds, ct);
+        var byId = groups.ToDictionary(group => group.Id);
+        foreach (var item in materialized)
+        {
+            if (item.TranslationGroupId is not { } groupId || !byId.TryGetValue(groupId, out var group)) continue;
+            foreach (var (name, value) in group.SharedFields)
+                item.Fields[name] = value.Clone();
+        }
+    }
+
+    private static ContentItem Clone(ContentItem source) => new()
+    {
+        Id = source.Id, Version = source.Version, SiteId = source.SiteId,
+        ContentTypeAlias = source.ContentTypeAlias, Slug = source.Slug, Title = source.Title,
+        TranslationGroupId = source.TranslationGroupId, Culture = source.Culture, SourceItemId = source.SourceItemId,
+        ParentId = source.ParentId, SortOrder = source.SortOrder,
+        Fields = source.Fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), source.Fields.Comparer),
+        PublicationState = source.PublicationState, PublishedOn = source.PublishedOn, VersionNumber = source.VersionNumber,
+        SchedulePublishUtc = source.SchedulePublishUtc, ScheduleUnpublishUtc = source.ScheduleUnpublishUtc,
+        CreatedOn = source.CreatedOn, ModifiedOn = source.ModifiedOn, CreatedBy = source.CreatedBy, ModifiedBy = source.ModifiedBy,
+        TranslationProvenance = source.TranslationProvenance,
+        TranslationReview = new(source.TranslationReview.Status, source.TranslationReview.ReviewedOn,
+            source.TranslationReview.ReviewedBy, source.TranslationReview.Notes,
+            source.TranslationReview.ReviewedSourceItemId, source.TranslationReview.ReviewedSourceVersionNumber,
+            source.TranslationReview.ReviewedTargetVersionNumber)
+    };
 
     private static AeroError.Validation? Validate(ContentSearchRequest request)
     {

@@ -8,7 +8,9 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Web.Core.Middleware;
+using Aero.Cms.Web.Core.PublicApi;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Services;
@@ -38,6 +40,8 @@ using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 using System.Globalization;
+using System.Reflection;
+using Aero.Cms.Hosting;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -53,6 +57,20 @@ namespace Aero.Cms.Web.Bootstrap;
 /// </remarks>
 public static class AeroCmsExtensions
 {
+    /// <summary>
+    /// Begins registration of an explicit Aero CMS host catalog. Call a
+    /// <c>RegisterHostAsync</c> terminal method to supply the consuming host identity.
+    /// </summary>
+    public static AeroCmsRegistrationBuilder AddAeroCms(
+        this WebApplicationBuilder builder,
+        AeroCmsHostCatalog catalog,
+        Action<AeroCmsOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(catalog);
+        return new AeroCmsRegistrationBuilder(builder, catalog, configure);
+    }
+
     /// <summary>
     /// Runs the one-time setup handoff when required and adds Aero CMS to a normal ASP.NET Core host.
     /// </summary>
@@ -134,7 +152,25 @@ public static class AeroCmsExtensions
         Action<AeroCmsOptions> configure)
         where TProgram : class
     {
+        return await AddAeroCmsCoreAsync(
+            builder,
+            typeof(TProgram).Assembly,
+            configure,
+            preserveHostPolicies: false,
+            addServiceDefaults: true,
+            configureAeroLogging: true);
+    }
+
+    internal static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsCoreAsync(
+        WebApplicationBuilder builder,
+        Assembly hostAssembly,
+        Action<AeroCmsOptions> configure,
+        bool preserveHostPolicies,
+        bool addServiceDefaults,
+        bool configureAeroLogging)
+    {
         ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(hostAssembly);
         ArgumentNullException.ThrowIfNull(configure);
 
         var options = new AeroCmsOptions();
@@ -150,23 +186,31 @@ public static class AeroCmsExtensions
         var config = builder.Configuration;
         var env = builder.Environment;
 
-        builder.AddServiceDefaults();
+        if (addServiceDefaults)
+        {
+            builder.AddServiceDefaults();
+        }
 
         _ = await builder.AddAeroApplicationServer(
             configureWolverine: options.ConfigureWolverine,
-            configureGrains: options.ConfigureGrains);
+            configureGrains: options.ConfigureGrains,
+            configureAeroLogging: configureAeroLogging);
 
         var resolvedInfrastructure = new InfrastructureConnectionStringResolver(config).Resolve();
         PublishResolvedInfrastructure(config, resolvedInfrastructure);
 
         services.AddControllersWithViews();
-        var authenticationBuilder = services.AddAuthentication(authentication =>
-            {
-                authentication.DefaultScheme = ManagerRecoveryDefaults.ManagerScheme;
-                authentication.DefaultAuthenticateScheme = ManagerRecoveryDefaults.ManagerScheme;
-                authentication.DefaultChallengeScheme = ManagerRecoveryDefaults.ManagerScheme;
-                authentication.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
-            })
+        var authenticationBuilder = preserveHostPolicies
+            ? services.AddAuthentication()
+            : services.AddAuthentication(authentication =>
+                {
+                    authentication.DefaultScheme = ManagerRecoveryDefaults.ManagerScheme;
+                    authentication.DefaultAuthenticateScheme = ManagerRecoveryDefaults.ManagerScheme;
+                    authentication.DefaultChallengeScheme = ManagerRecoveryDefaults.ManagerScheme;
+                    authentication.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
+                });
+
+        authenticationBuilder
             .AddPolicyScheme(ManagerRecoveryDefaults.ManagerScheme, null, ManagerAuthenticationSchemeRouting.Configure)
             .AddCookie(IdentityConstants.ApplicationScheme, cookie =>
             {
@@ -233,7 +277,10 @@ public static class AeroCmsExtensions
                 .RequireAuthenticatedUser()
                 .Build();
             authorization.AddPolicy(ManagerRecoveryDefaults.ManagerPolicy, managerPolicy);
-            authorization.DefaultPolicy = managerPolicy;
+            if (!preserveHostPolicies)
+            {
+                authorization.DefaultPolicy = managerPolicy;
+            }
 
             authorization.AddPolicy("AeroAdmin", policy =>
             {
@@ -257,6 +304,10 @@ public static class AeroCmsExtensions
         });
 
         services.AddHttpContextAccessor();
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.PublicQuery))
+        {
+            services.AddPublicCmsQueryApi();
+        }
         services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddRadzenComponents();
         services.AddNeoUIPrimitives();
@@ -264,16 +315,25 @@ public static class AeroCmsExtensions
         // Replace DefaultLocalizer with ASP.NET Core IStringLocalizer-backed bridge
         services.Replace(ServiceDescriptor.Scoped<NeoUI.Blazor.ILocalizer, NeoUiBridgeLocalizer>());
 
-        services.AddRazorPages()
+        var razorPages = services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly)
             .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)
             .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
             .AddDataAnnotationsLocalization();
 
-        services.AddRazorComponents()
-            .AddInteractiveServerComponents()
-            .AddInteractiveWebAssemblyComponents()
-            .AddAuthenticationStateSerialization();
+        foreach (var componentAssembly in options.ServerComponentAssemblies)
+        {
+            razorPages.AddApplicationPart(componentAssembly);
+        }
+
+        var razorComponents = services.AddRazorComponents()
+            .AddInteractiveServerComponents();
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.WebAssemblyComponents))
+        {
+            razorComponents
+                .AddInteractiveWebAssemblyComponents()
+                .AddAuthenticationStateSerialization();
+        }
 
         services.AddCascadingAuthenticationState();
         services.AddSingleton<IFormFactor, ServerFormFactor>();
@@ -305,13 +365,26 @@ public static class AeroCmsExtensions
         });
         services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
-        var (_, log) = await builder.AddAeroCmsRuntimeAsync<TProgram>(
-            options.ModuleDescriptors,
-            configureResolvedInfrastructure: runtimeConfig =>
-                PublishResolvedInfrastructure(runtimeConfig, resolvedInfrastructure));
-        RuntimeBootstrapReadinessStartupFilterOrdering.MoveReadinessFilterToStart(services);
+        Serilog.ILogger log;
+        if (configureAeroLogging)
+        {
+            (_, log) = await builder.AddAeroCmsRuntimeAsync(
+                hostAssembly,
+                options.ModuleDescriptors,
+                configureResolvedInfrastructure: runtimeConfig =>
+                    PublishResolvedInfrastructure(runtimeConfig, resolvedInfrastructure));
+        }
+        else
+        {
+            await builder.AddAeroCmsRuntimeServicesAsync(
+                hostAssembly,
+                options.ModuleDescriptors,
+                runtimeConfig => PublishResolvedInfrastructure(runtimeConfig, resolvedInfrastructure));
+            log = Log.Logger;
+        }
         services.AddSingleton(options.ModuleDescriptors);
         services.AddSingleton(options);
+        services.AddSingleton<AeroCmsPipelineState>();
         services.AddHostedService<AeroCmsRuntimeInitializationHostedService>();
 
         if (options.EnableHydro)
@@ -333,22 +406,194 @@ public static class AeroCmsExtensions
     }
 
     /// <summary>
-    /// Adds the Aero CMS middleware pipeline to a built ASP.NET Core application.
+    /// Adds endpoint routing at the host-selected position and records the required Aero CMS
+    /// routing boundary for subsequent staged middleware.
     /// </summary>
-    /// <param name="app">The application to configure.</param>
-    /// <returns>The same application.</returns>
+    public static WebApplication UseAeroCmsRouting(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        var state = GetPipelineState(app);
+        if (state.RoutingApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_DUPLICATE: UseAeroCmsRouting may be called only once.");
+        }
+        if (state.SiteAndLocalizationApplied || state.RequestPipelineApplied || state.EndpointsMapped)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: Routing must be added before Aero CMS middleware stages.");
+        }
+
+        var options = app.Services.GetRequiredService<AeroCmsOptions>();
+        if (options.EnableHydro)
+        {
+            // Hydro adds its embedded file provider from UseHydro, but that call must remain
+            // after authorization because it also registers component endpoints. Serve only
+            // the two public browser assets here so explicit hosts can call UseStaticFiles
+            // in the normal early position without requests falling through to CMS routes.
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new HydroStaticFileProvider()
+            });
+        }
+
+        app.UseRouting();
+        state.RoutingApplied = true;
+        return app;
+    }
+
+    /// <summary>
+    /// Adds the early, CMS-owned readiness, site-resolution, alias, and localization stage.
+    /// </summary>
+    public static WebApplication UseAeroCmsSiteAndLocalization(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var state = GetPipelineState(app);
+        if (!state.RoutingApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_ROUTING_REQUIRED: UseAeroCmsRouting must run before UseAeroCmsSiteAndLocalization.");
+        }
+        if (state.SiteAndLocalizationApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_DUPLICATE: UseAeroCmsSiteAndLocalization may be called only once.");
+        }
+
+        if (state.RequestPipelineApplied || state.EndpointsMapped || state.TerminalPipelineApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: Site and localization middleware must be added before later Aero CMS stages.");
+        }
+
+        app.UseWhen(
+            static context => context.GetEndpoint()?.Metadata.GetMetadata<AeroCmsEndpointMetadata>() is not null,
+            cms =>
+            {
+                var infrastructure = app.Services.GetRequiredService<ResolvedInfrastructureSettings>();
+                if (string.Equals(infrastructure.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase))
+                {
+                    cms.UseMiddleware<RequestCancellationIsolationMiddleware>();
+                }
+
+                cms.UseMiddleware<RuntimeBootstrapReadinessMiddleware>();
+                cms.UseAeroCmsModulePipeline(static module => module.PipelineOrder < 0);
+                cms.UseRequestLocalization(options =>
+                {
+                    // Keep middleware culture support broad until active site cultures can be aggregated at startup.
+                    // AeroRequestCultureProvider still restricts public content requests to the resolved site's cultures.
+                    var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures | CultureTypes.NeutralCultures)
+                        .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
+                        .ToArray();
+
+                    options.DefaultRequestCulture = new RequestCulture("en-US");
+                    options.SupportedCultures = supportedCultures;
+                    options.SupportedUICultures = supportedCultures;
+                    options.ApplyCurrentCultureToResponseHeaders = true;
+
+                    // Provider chain (highest to lowest priority):
+                    // 1. URL prefix (custom, site-aware)
+                    // 2. Cookie (user persistence)
+                    // 3. Query string (debug/testing override)
+                    // 4. Accept-Language header (browser preference)
+                    options.RequestCultureProviders.Clear();
+                    options.RequestCultureProviders.Add(new AeroRequestCultureProvider());
+                    options.RequestCultureProviders.Add(new CookieRequestCultureProvider());
+                    options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
+                    options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
+                });
+            });
+
+        state.SiteAndLocalizationApplied = true;
+
+        return app;
+    }
+
+    /// <summary>
+    /// Adds the CMS-owned post-routing request stage. The host must add routing,
+    /// authentication, rate limiting, authorization, and antiforgery at its chosen positions.
+    /// </summary>
+    public static WebApplication UseAeroCmsRequestPipeline(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var state = GetPipelineState(app);
+        if (!state.SiteAndLocalizationApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: UseAeroCmsSiteAndLocalization must run before UseAeroCmsRequestPipeline.");
+        }
+
+        if (state.RequestPipelineApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_DUPLICATE: UseAeroCmsRequestPipeline may be called only once.");
+        }
+
+        if (state.EndpointsMapped || state.TerminalPipelineApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: Request middleware must be added before Aero CMS endpoints are mapped.");
+        }
+
+        app.UseAeroApplicationServer();
+        app.UseWhen(
+            static context => context.GetEndpoint()?.Metadata.GetMetadata<AeroCmsEndpointMetadata>() is not null,
+            cms =>
+            {
+                cms.Use(static async (context, next) =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
+                        if (statusCodePagesFeature is not null)
+                        {
+                            statusCodePagesFeature.Enabled = false;
+                        }
+                    }
+
+                    await next(context);
+                });
+
+                if (app.Environment.IsDevelopment())
+                {
+                    cms.Use(static async (context, next) =>
+                    {
+                        var isManagerDocument = HttpMethods.IsGet(context.Request.Method) &&
+                            context.Request.Path.StartsWithSegments("/manager", StringComparison.OrdinalIgnoreCase);
+
+                        if (isManagerDocument)
+                        {
+                            context.Response.OnStarting(static value =>
+                            {
+                                var response = (HttpResponse)value;
+                                response.Headers["Clear-Site-Data"] = "\"cache\"";
+                                return Task.CompletedTask;
+                            }, context.Response);
+                        }
+
+                        await next(context);
+                    });
+                }
+
+                cms.UseAeroCmsModulePipeline(static module => module.PipelineOrder >= 0);
+            });
+
+        state.RequestPipelineApplied = true;
+
+        return app;
+    }
+
+    /// <summary>
+    /// Compatibility composition for the standalone Aero CMS executable. Arbitrary hosts
+    /// should compose the explicit stages and retain ownership of global middleware.
+    /// </summary>
     public static WebApplication UseAeroCms(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var infrastructure = app.Services.GetRequiredService<ResolvedInfrastructureSettings>();
-
         app.UseExceptionHandler();
-        if (string.Equals(infrastructure.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase))
-        {
-            app.UseMiddleware<RequestCancellationIsolationMiddleware>();
-        }
-
         if (app.Environment.IsDevelopment() &&
             bool.TryParse(app.Configuration["AeroCms:EnableWebAssemblyDebugging"], out var enableWasmDebugging) &&
             enableWasmDebugging)
@@ -362,81 +607,24 @@ public static class AeroCmsExtensions
         }
 
         app.UseHttpsRedirection();
-        app.UseAeroApplicationServer();
         app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
-        app.Use(static async (context, next) =>
-        {
-            if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-            {
-                var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
-                if (statusCodePagesFeature is not null)
-                {
-                    statusCodePagesFeature.Enabled = false;
-                }
-            }
-
-            await next(context);
-        });
-
-        if (app.Environment.IsDevelopment())
-        {
-            app.Use(static async (context, next) =>
-            {
-                var isManagerDocument = HttpMethods.IsGet(context.Request.Method) &&
-                    context.Request.Path.StartsWithSegments(
-                        "/manager",
-                        StringComparison.OrdinalIgnoreCase);
-
-                if (isManagerDocument)
-                {
-                    context.Response.OnStarting(static state =>
-                    {
-                        var response = (HttpResponse)state;
-                        response.Headers["Clear-Site-Data"] = "\"cache\"";
-                        return Task.CompletedTask;
-                    }, context.Response);
-                }
-
-                await next(context);
-            });
-        }
-
+        app.UseAeroCmsRouting();
         app.UseStaticFiles();
-
-        app.UseRouting();
-        app.UseRequestLocalization(options =>
-        {
-            // Keep middleware culture support broad until active site cultures can be aggregated at startup.
-            // AeroRequestCultureProvider still restricts public content requests to the resolved site's cultures.
-            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures | CultureTypes.NeutralCultures)
-                .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
-                .ToArray();
-
-            options.DefaultRequestCulture = new RequestCulture("en-US");
-            options.SupportedCultures = supportedCultures;
-            options.SupportedUICultures = supportedCultures;
-            options.ApplyCurrentCultureToResponseHeaders = true;
-
-            // Provider chain (highest to lowest priority):
-            // 1. URL prefix (custom, site-aware)
-            // 2. Cookie (user persistence)
-            // 3. Query string (debug/testing override)
-            // 4. Accept-Language header (browser preference)
-            options.RequestCultureProviders.Clear();
-            options.RequestCultureProviders.Add(new AeroRequestCultureProvider());
-            options.RequestCultureProviders.Add(new CookieRequestCultureProvider());
-            options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
-            options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
-        });
+        app.UseAeroCmsSiteAndLocalization();
         app.UseAuthentication();
         app.UseRateLimiter();
         app.UseAuthorization();
         app.UseCmsSetupGate();
-        app.UseAeroCmsModulePipeline();
+        app.UseAeroCmsRequestPipeline();
         app.UseAntiforgery();
-
         return app;
     }
+
+    /// <summary>Maps the reusable Aero CMS UI shell and selected catalog assemblies.</summary>
+    public static WebApplication MapAeroCms(
+        this WebApplication app,
+        Action<RazorComponentsEndpointConventionBuilder>? configureComponents = null)
+        => MapAeroCmsCore<Aero.Cms.UI.App>(app, configureComponents, mapDefaultEndpoints: false);
 
     /// <summary>
     /// Maps Aero CMS framework, Razor, component, identity, module, and API-reference endpoints.
@@ -449,48 +637,99 @@ public static class AeroCmsExtensions
         this WebApplication app,
         Action<RazorComponentsEndpointConventionBuilder>? configureComponents = null)
         where TRootComponent : IComponent
+        => MapAeroCmsCore<TRootComponent>(app, configureComponents, mapDefaultEndpoints: true);
+
+    private static WebApplication MapAeroCmsCore<TRootComponent>(
+        WebApplication app,
+        Action<RazorComponentsEndpointConventionBuilder>? configureComponents,
+        bool mapDefaultEndpoints)
+        where TRootComponent : IComponent
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var options = app.Services.GetService<AeroCmsOptions>() ?? new AeroCmsOptions();
-        app.MapDefaultEndpoints();
+        var state = GetPipelineState(app);
+        if (!state.RequestPipelineApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: UseAeroCmsRequestPipeline must run before MapAeroCms.");
+        }
+
+        if (state.EndpointsMapped)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_DUPLICATE: MapAeroCms may be called only once.");
+        }
+
+        var options = app.Services.GetRequiredService<AeroCmsOptions>();
+        if (mapDefaultEndpoints)
+        {
+            app.MapDefaultEndpoints();
+        }
+
         app.MapStaticAssets();
+        var cms = app.MapGroup(string.Empty)
+            .WithMetadata(AeroCmsEndpointMetadata.Instance);
 
         // Culture cookie setter — allows the Manager UI to persist user language preference.
-        app.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
+        cms.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
         {
             context.Response.Cookies.Append(
                 CookieRequestCultureProvider.DefaultCookieName,
                 CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
                 new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax });
 
-            return Results.Redirect(returnUrl);
+            var localReturnUrl = IsLocalReturnUrl(returnUrl) ? returnUrl : "/";
+            return Results.LocalRedirect(localReturnUrl);
         });
 
-        app.MapRazorPages();
+        cms.MapRazorPages();
 
-        var componentBuilder = app.MapRazorComponents<TRootComponent>()
-            .AddInteractiveServerRenderMode()
-            .AddInteractiveWebAssemblyRenderMode()
-            .AddAdditionalAssemblies(
-                typeof(Aero.Cms.Shared._Imports).Assembly,
-                typeof(SetupModule).Assembly);
+        var selectedWebAssemblyAssemblies = options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.WebAssemblyComponents)
+            ? options.WebAssemblyComponentAssemblies
+            : [];
+        var additionalAssemblies = options.ServerComponentAssemblies
+            .Concat(selectedWebAssemblyAssemblies)
+            .Append(typeof(Aero.Cms.Shared._Imports).Assembly)
+            .Append(typeof(SetupModule).Assembly)
+            .Where(assembly => assembly != typeof(TRootComponent).Assembly)
+            .DistinctBy(static assembly => assembly.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        var componentBuilder = cms.MapRazorComponents<TRootComponent>()
+            .AddInteractiveServerRenderMode();
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.WebAssemblyComponents))
+        {
+            componentBuilder.AddInteractiveWebAssemblyRenderMode();
+        }
+        componentBuilder.AddAdditionalAssemblies(additionalAssemblies);
 
         configureComponents?.Invoke(componentBuilder);
 
-        app.MapIdentityApi();
-        app.MapExternalMemberApi();
-        app.MapExternalMemberLocalApi();
-        app.MapAeroCmsEndpoints();
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.Identity))
+        {
+            cms.MapIdentityApi();
+            cms.MapExternalMemberApi();
+            cms.MapExternalMemberLocalApi();
+        }
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.Setup))
+        {
+            cms.MapSetupStatusEndpoints();
+            cms.MapTranslationImportEndpoint();
+        }
+        if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.PublicQuery))
+        {
+            cms.MapPublicCmsQueryApi();
+        }
+        cms.MapAeroCmsEndpoints();
 
         if (options.EnableOpenApi)
         {
-            app.MapOpenApi();
+            cms.MapOpenApi();
         }
 
         if (options.EnableScalarApiReference)
         {
-            app.MapScalarApiReference(scalar =>
+            cms.MapScalarApiReference(scalar =>
             {
                 scalar.WithTitle(AeroConstants.AppName)
                     .ForceDarkMode()
@@ -503,16 +742,48 @@ public static class AeroCmsExtensions
             });
         }
 
-        if (options.EnableHydro)
-        {
-            // Hydro MUST be the LAST middleware because it internally calls
-            // UseEndpoints(), which requires all endpoint mappings
-            // (Razor Pages, Razor Components, Scalar) to already be registered.
-            app.UseHydro(app.Environment);
-        }
+        state.EndpointsMapped = true;
 
         return app;
     }
+
+    /// <summary>Adds terminal CMS middleware after every endpoint has been mapped.</summary>
+    public static WebApplication UseAeroCmsTerminalPipeline(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var state = GetPipelineState(app);
+        if (!state.EndpointsMapped)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_ORDER: MapAeroCms must run before UseAeroCmsTerminalPipeline.");
+        }
+
+        if (state.TerminalPipelineApplied)
+        {
+            throw new InvalidOperationException(
+                "AEROCMS_PIPELINE_STAGE_DUPLICATE: UseAeroCmsTerminalPipeline may be called only once.");
+        }
+
+        var options = app.Services.GetRequiredService<AeroCmsOptions>();
+        if (options.EnableHydro)
+        {
+            app.UseHydro(app.Environment);
+        }
+
+        state.TerminalPipelineApplied = true;
+        return app;
+    }
+
+    private static AeroCmsPipelineState GetPipelineState(WebApplication app)
+        => app.Services.GetService<AeroCmsPipelineState>()
+           ?? throw new InvalidOperationException(
+               "AEROCMS_NOT_REGISTERED: Complete AddAeroCms registration before composing its pipeline.");
+
+    private static bool IsLocalReturnUrl(string? returnUrl)
+        => !string.IsNullOrWhiteSpace(returnUrl) &&
+           returnUrl[0] == '/' &&
+           (returnUrl.Length == 1 || (returnUrl[1] != '/' && returnUrl[1] != '\\'));
 
     /// <summary>
     /// Compatibility wrapper for hosts using the former all-in-one runtime method.
@@ -530,6 +801,7 @@ public static class AeroCmsExtensions
 
         app.UseAeroCms();
         app.MapAeroCms<TRootComponent>(configureComponents);
+        app.UseAeroCmsTerminalPipeline();
         return app.RunAsync();
     }
 

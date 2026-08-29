@@ -16,7 +16,8 @@ public static class JsonToScribanMapper
     }
 
     /// <summary>
-    /// Creates the <c>fields</c>, <c>item</c>, <c>content_type</c>, and <c>site</c>
+    /// Creates the <c>fields</c>, <c>item</c>, <c>content_type</c>, <c>site</c>, and
+    /// resolved <c>references</c>
     /// scopes and adds explicitly trusted imports.
     /// </summary>
     /// <param name="model">The projected render model.</param>
@@ -50,13 +51,17 @@ public static class JsonToScribanMapper
             ["fields"] = Convert(model.Fields, maxDepth),
             ["item"] = CreateItemScope(model.Item, maxDepth),
             ["content_type"] = CreateContentTypeScope(model.ContentType, maxDepth),
-            ["site"] = CreateSiteScope(model.Site)
+            ["site"] = CreateSiteScope(model.Site),
+            ["references"] = model.References.ValueKind == JsonValueKind.Object
+                ? Convert(model.References, maxDepth)
+                : new ScriptObject()
         };
 
         SetReadOnly(globals, "fields");
         SetReadOnly(globals, "item");
         SetReadOnly(globals, "content_type");
         SetReadOnly(globals, "site");
+        SetReadOnly(globals, "references");
 
         if (imports is not null)
         {

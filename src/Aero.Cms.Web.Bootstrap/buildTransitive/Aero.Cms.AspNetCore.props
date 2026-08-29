@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- AeroCMS supplies the root Razor components from RCLs. Componentless consuming
+         hosts therefore need to opt into the ASP.NET Blazor framework web assets. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+</Project>

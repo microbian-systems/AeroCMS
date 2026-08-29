@@ -83,6 +83,7 @@ public static IServiceCollection AddAeroHttpClients(
         services.AddHttpClient<IAuthClient, AuthClient>();
         services.AddHttpClient<IContentTypesHttpClient, ContentTypesHttpClient>();
         services.AddHttpClient<IContentItemsHttpClient, ContentItemsHttpClient>();
+        services.AddHttpClient<IContentViewsHttpClient, ContentViewsHttpClient>();
         services.AddHttpClient<ISitesHttpClient, SitesHttpClient>();
         services.AddHttpClient<IAliasHttpClient, AliasesHttpClient>();
         services.AddHttpClient<IAiHttpClient, AiHttpClient>();

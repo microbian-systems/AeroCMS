@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Pages.Composition;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
+using Shouldly;
 
 namespace Aero.Cms.Core.Tests.Localization;
 
@@ -25,6 +26,7 @@ public sealed class PageCultureForkerTests
             Slug = "about",
             Title = "About",
             Path = "/about",
+            DraftRouteTemplate = "/catalog/{entryId}",
             PublicationState = ContentPublicationState.Published,
             PublishedOn = DateTimeOffset.UtcNow,
             PublishedVersion = 7,
@@ -56,6 +58,7 @@ public sealed class PageCultureForkerTests
         await Assert.That(fork.Culture).IsEqualTo("es-MX");
         await Assert.That(fork.Slug).IsEqualTo("acerca-de");
         await Assert.That(fork.Path).IsEqualTo("/acerca-de");
+        fork.DraftRouteTemplate.ShouldBe("/catalog/{entryId}");
         await Assert.That(fork.PublicationState).IsEqualTo(ContentPublicationState.Draft);
         await Assert.That(fork.PublishedOn).IsNull();
         await Assert.That(fork.PublishedVersion).IsEqualTo(0);

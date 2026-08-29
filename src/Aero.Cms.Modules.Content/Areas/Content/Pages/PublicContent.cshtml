@@ -5,4 +5,15 @@
     ViewBag.Title = Model.Title;
 }
 
+@section headPartial {
+    @if (!string.IsNullOrWhiteSpace(Model.CanonicalUrl))
+    {
+        <link rel="canonical" href="@Model.CanonicalUrl" />
+    }
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
+}
+
 @Html.Raw(Model.RenderedHtml)
