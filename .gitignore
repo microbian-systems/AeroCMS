@@ -449,3 +449,6 @@ src/Aero.Cms.Web/App_Data/
 
 # Local SurrealDB CLI query history
 /history.txt
+
+# Local agent verification notes are retained outside versioned source.
+/.testagent/
