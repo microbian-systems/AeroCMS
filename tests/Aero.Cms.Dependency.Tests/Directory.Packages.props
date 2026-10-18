@@ -1,0 +1,5 @@
+<Project>
+  <!-- The focused compatibility tests resolve the same central versions as the
+       production CMS projects without changing the CMS-wide package policy. -->
+  <Import Project="..\..\src\Directory.Packages.props" />
+</Project>

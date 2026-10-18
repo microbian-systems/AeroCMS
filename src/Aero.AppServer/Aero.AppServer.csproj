@@ -9,10 +9,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="JoeShook.ZiggyCreatures.FusionCache.Metrics.Core" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Garnet" />
     <PackageReference Include="Microsoft.Orleans.Analyzers">
       <PrivateAssets>all</PrivateAssets>

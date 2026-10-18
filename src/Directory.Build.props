@@ -5,28 +5,45 @@
 	  so a WASM build cannot overwrite the server assembly (or its generated files)
 	  in a parallel graph build.
 	-->
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND '$(UseArtifactsOutput)' == 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Web.Client')">
+		<!--
+		  The SDK's artifact layout keys output paths by ArtifactsProjectName. A
+		  browser compilation is a separate project instance, so it needs a
+		  distinct key from the server instance. Directory.Build.props loads before
+		  the SDK supplies its default, which also lets us reject a caller-provided
+		  global key that would collapse different browser projects into one path.
+		-->
+		<AeroCmsBrowserArtifactsProjectNameWasProvided Condition="'$(ArtifactsProjectName)' != ''">true</AeroCmsBrowserArtifactsProjectNameWasProvided>
+		<ArtifactsProjectName Condition="'$(ArtifactsProjectName)' == ''">$(MSBuildProjectName).Browser</ArtifactsProjectName>
+	</PropertyGroup>
+	<PropertyGroup Condition="('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client' OR
+		 ('$(MSBuildProjectName)' == 'Aero.Cms.Web.Client' AND '$(UseArtifactsOutput)' == 'true'))">
+		<!-- Static Web Assets re-enters the browser project instance after discovery. -->
+		<StaticWebAssetsAdditionalBuildProperties>$(StaticWebAssetsAdditionalBuildProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalBuildProperties>
+		<StaticWebAssetsAdditionalPublishProperties>$(StaticWebAssetsAdditionalPublishProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalPublishProperties>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND '$(UseArtifactsOutput)' != 'true' AND
 		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
 		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
 		<BaseOutputPath>bin\browser\</BaseOutputPath>
 		<BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
-		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
-		<!--
-		  Static Web Assets performs a second MSBuild invocation after discovering a
-		  referenced project's asset configuration. Preserve the browser project
-		  instance for that invocation so it reads the manifest from obj\browser.
-		-->
-		<StaticWebAssetsAdditionalBuildProperties>$(StaticWebAssetsAdditionalBuildProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalBuildProperties>
-		<StaticWebAssetsAdditionalPublishProperties>$(StaticWebAssetsAdditionalPublishProperties);AeroCmsBrowserClient=true</StaticWebAssetsAdditionalPublishProperties>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
-		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
-		 '$(MSBuildProjectName)' == 'Aero.Cms.Client' OR
-		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared' OR
-		 '$(MSBuildProjectName)' == 'Aero.Cms.Modules.Commerce.Client')">
-		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
 	</PropertyGroup>
 	<PropertyGroup>
 		<!--
@@ -35,7 +52,7 @@
 		  projects, so give the recursive browser dependency graph separate output
 		  paths to prevent concurrent compiler writes during a clean build.
 		-->
-		<AeroCmsBrowserDependencyProperties Condition="'$(AeroCmsBrowserClient)' == 'true'">OutputPath=bin\browser-dependencies\$(Configuration)\$(TargetFramework)\;IntermediateOutputPath=obj\browser-dependencies\$(Configuration)\$(TargetFramework)\</AeroCmsBrowserDependencyProperties>
+		<AeroCmsBrowserDependencyProperties Condition="'$(AeroCmsBrowserClient)' == 'true' AND '$(UseArtifactsOutput)' != 'true'">OutputPath=bin\browser-dependencies\$(Configuration)\$(TargetFramework)\;IntermediateOutputPath=obj\browser-dependencies\$(Configuration)\$(TargetFramework)\</AeroCmsBrowserDependencyProperties>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -104,5 +121,11 @@
 			GlobalPropertiesToRemove="AeroCmsBrowserClient"
 			ReferenceOutputAssembly="false" />
 	</ItemGroup>
+
+	<Target Name="RejectAeroCmsBrowserArtifactProjectNameCollision"
+			BeforeTargets="Restore;PrepareForBuild"
+			Condition="'$(AeroCmsBrowserClient)' == 'true' AND '$(UseArtifactsOutput)' == 'true' AND '$(AeroCmsBrowserArtifactsProjectNameWasProvided)' == 'true'">
+		<Error Text="Artifact-mode AeroCMS browser builds cannot use a caller-supplied ArtifactsProjectName. The browser instance derives a unique per-project name to keep it isolated from server and other browser builds." />
+	</Target>
 
 </Project>

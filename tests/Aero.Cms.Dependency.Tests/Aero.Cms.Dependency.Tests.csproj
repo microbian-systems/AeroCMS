@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableTestingPlatform>true</EnableTestingPlatform>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- These use the CMS central versions. They intentionally do not pin a
+       replacement dependency family: the red baseline must exercise the
+       currently selected graph before the central update is applied. -->
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="NeoUI.Blazor" />
+    <PackageReference Include="NeoUI.Blazor.Primitives" />
+    <PackageReference Include="AngleSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Aero.Cms.Html\Aero.Cms.Html.csproj" />
+  </ItemGroup>
+</Project>

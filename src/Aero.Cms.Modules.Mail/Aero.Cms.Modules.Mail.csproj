@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="MailKit" />
     <PackageReference Include="MimeKit" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
   <ItemGroup>

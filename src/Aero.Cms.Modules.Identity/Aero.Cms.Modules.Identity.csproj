@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Auth\Aero.Auth.csproj" />
   </ItemGroup>
 
 

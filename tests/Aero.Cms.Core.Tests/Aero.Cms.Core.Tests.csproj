@@ -51,6 +51,7 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Jobs\Aero.Cms.Modules.Jobs.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Html\Aero.Cms.Html.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Client\Aero.Cms.Client.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Ai\Aero.Cms.Modules.Ai.csproj" />
@@ -58,6 +59,7 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Audit\Aero.Cms.Modules.Audit.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Jwt\Aero.Cms.Modules.Jwt.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.EntraExternalId\Aero.Cms.Modules.EntraExternalId.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />

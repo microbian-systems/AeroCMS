@@ -9,5 +9,6 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
 	</ItemGroup>
 </Project>

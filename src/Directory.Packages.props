@@ -11,8 +11,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Compliance.Redaction" Version="10.7.0" />
     <PackageVersion Include="TUnit" Version="1.58.0" />
-    <PackageVersion Include="AngleSharp" Version="1.5.2" />
-    <PackageVersion Include="AngleSharp.Css" Version="1.0.0-beta.216" />
+    <PackageVersion Include="AngleSharp" Version="1.6.0" />
+    <PackageVersion Include="AngleSharp.Css" Version="1.0.0" />
     <PackageVersion Include="AspNetCore.SassCompiler" Version="1.101.0" />
     <PackageVersion Include="Blazor.Radzen.Theming" Version="10.4.7" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
@@ -22,7 +22,7 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="Htmx" Version="1.12.0" />
     <PackageVersion Include="Htmx.TagHelpers" Version="1.12.0" />
-    <PackageVersion Include="HtmlSanitizer" Version="9.1.949-beta" />
+    <PackageVersion Include="HtmlSanitizer" Version="9.1.973" />
     <PackageVersion Include="JoeShook.ZiggyCreatures.FusionCache.Metrics.Core" Version="1.0.11" />
     <PackageVersion Include="LigerShark.WebOptimizer.Analyzers" Version="3.0.2" />
     <PackageVersion Include="LigerShark.WebOptimizer.Core" Version="3.0.477" />
@@ -39,10 +39,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Rewrite" Version="2.3.11" />
     <PackageVersion Include="Microsoft.AspNetCore.Routing.Abstractions" Version="2.3.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.80" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
@@ -93,6 +93,7 @@
     <PackageVersion Include="Microsoft.Orleans.Transactions" Version="10.2.1" />
     <PackageVersion Include="Microsoft.TypeScript.MSBuild" Version="6.0.3" />
     <PackageVersion Include="MimeKit" Version="4.17.0" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageVersion Include="MiniProfiler" Version="4.5.4" />
     <PackageVersion Include="MiniProfiler.AspNetCore" Version="4.5.4" />
     <PackageVersion Include="MiniProfiler.AspNetCore.Mvc" Version="4.5.4" />
@@ -102,8 +103,8 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.1" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="1.4.1" />
     <PackageVersion Include="MysticMind.PostgresEmbed" Version="4.0.0" />
-    <PackageVersion Include="NeoUI.Blazor" Version="4.1.20" />
-    <PackageVersion Include="NeoUI.Blazor.Primitives" Version="4.0.8" />
+    <PackageVersion Include="NeoUI.Blazor" Version="4.1.28" />
+    <PackageVersion Include="NeoUI.Blazor.Primitives" Version="4.0.10" />
     <PackageVersion Include="NeoUI.Icons.Lucide" Version="3.0.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
