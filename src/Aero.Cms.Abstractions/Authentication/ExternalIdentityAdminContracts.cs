@@ -3,6 +3,16 @@ using System.Text.Json.Serialization;
 
 namespace Aero.Cms.Abstractions.Authentication;
 
+/// <summary>Contains the browser-safe antiforgery handshake material for one administration request.</summary>
+public sealed record ExternalIdentityAntiforgeryResponse(string HeaderName, string RequestToken);
+
+/// <summary>Provides reflection-free JSON metadata for external identity administration handshake contracts.</summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(ExternalIdentityAntiforgeryResponse))]
+public partial class ExternalIdentityAdminJsonContext : JsonSerializerContext
+{
+}
+
 /// <summary>Contains only non-secret authority configuration accepted from a manager.</summary>
 public sealed record ConfigureExternalIdentityAuthorityRequest(
     string Provider,
@@ -45,3 +55,28 @@ public sealed record IssueLocalExternalMemberPasswordResetAdminRequest(DateTimeO
 
 /// <summary>Returns the one-time reset handle exactly once.</summary>
 public sealed record LocalExternalMemberPasswordResetResponse(string Handle, DateTimeOffset ExpiresAt);
+
+/// <summary>Requests an activity transition using the member's currently observed security version.</summary>
+public sealed record ExternalMemberLifecycleRequest
+{
+    /// <summary>Gets the explicitly supplied next activity state; omission is rejected at deserialization.</summary>
+    [JsonRequired]
+    public required bool IsActive { get; init; }
+
+    /// <summary>Gets the explicitly supplied currently observed member security version.</summary>
+    [JsonRequired]
+    public required long ExpectedSecurityVersion { get; init; }
+
+    /// <summary>Gets an optional opaque operation-correlation value.</summary>
+    public string? CorrelationId { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+}
+
+/// <summary>Returns only browser-safe lifecycle state after a durable transition.</summary>
+public sealed record ExternalMemberLifecycleResponse(
+    long MemberId,
+    bool IsActive,
+    long SecurityVersion,
+    DateTimeOffset? ModifiedOn);

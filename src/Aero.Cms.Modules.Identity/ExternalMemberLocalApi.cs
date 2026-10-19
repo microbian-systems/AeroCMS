@@ -8,12 +8,16 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Aero.Cms.Modules.Identity;
 
 /// <summary>Maps invitation activation, password sign-in, and password reset for local storefront members.</summary>
 public static class ExternalMemberLocalApi
 {
+    public sealed record MemberTokenRequest(string Email, string Password);
     private static readonly IReadOnlySet<string> ActivationFields =
         new HashSet<string>(["invitationHandle", "email", "password", "displayName", "returnPath"], StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> LoginFields =
@@ -32,6 +36,10 @@ public static class ExternalMemberLocalApi
             .RequireRateLimiting(LocalExternalMemberAuthentication.ActivationRateLimitPolicy);
         group.MapPost("/login", LoginAsync)
             .RequireRateLimiting(LocalExternalMemberAuthentication.LoginRateLimitPolicy);
+        endpoints.MapPost("/api/v1/member/local/token", TokenAsync).AllowAnonymous().DisableAntiforgery()
+            .RequireRateLimiting(LocalExternalMemberAuthentication.TokenRateLimitPolicy);
+        endpoints.MapPut("/api/v1/member/local/assignments/{memberId:long}/role", SetMemberRoleAsync)
+            .RequireAuthorization(ExternalMemberAuthenticationDefaults.MemberUsersManageBearerPolicy);
         group.MapPost("/reset", ResetAsync)
             .RequireRateLimiting(LocalExternalMemberAuthentication.PasswordResetRateLimitPolicy);
     }
@@ -84,6 +92,38 @@ public static class ExternalMemberLocalApi
             await cookieIssuer.TryIssueAsync(context, receipt)
                 ? Results.LocalRedirect(receipt.ReturnPath)
                 : PublicFailure();
+    }
+
+    private static async Task<IResult> TokenAsync(
+        [FromBody] MemberTokenRequest request,
+        [FromServices] ISiteContext siteContext,
+        [FromServices] IConfiguration config,
+        [FromServices] ILocalExternalMemberAuthenticationService authentication,
+        [FromServices] ExternalMemberJwtIssuer issuer,
+        CancellationToken cancellationToken)
+    {
+        if (!config.GetValue<bool>(LocalExternalMemberAuthentication.JwtEnabledConfigurationKey) || !TryGetScope(siteContext, out var tenantId, out var siteId) || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password)) return PublicFailure();
+        var result = await authentication.LoginAsync(new(tenantId, siteId, request.Email, request.Password, "/"), cancellationToken);
+        if (result is not Result<ExternalMemberIssuanceReceipt, AeroError>.Ok(var receipt)) return PublicFailure();
+        var token = await issuer.TryIssueAsync(receipt, cancellationToken);
+        return token is null ? PublicFailure() : Results.Ok(new { accessToken = token.Value, expiresAt = token.ExpiresAt });
+    }
+
+    private static async Task<IResult> SetMemberRoleAsync(
+        long memberId,
+        [FromBody] ExternalIdentityAdminApi.ExternalMemberRoleAssignmentRequest request,
+        HttpContext context,
+        [FromServices] ISiteContext site,
+        [FromServices] AeroDB.Sable.IDocumentSession session,
+        [FromServices] FluentValidation.IValidator<ExternalIdentityAdminApi.ExternalMemberRoleAssignmentRequest> validator,
+        CancellationToken ct)
+    {
+        if (memberId <= 0 || !(await validator.ValidateAsync(request, ct)).IsValid || !Enum.TryParse<Aero.Cms.Core.Entities.ExternalMemberCustomerRole>(request.Role, false, out var role) || !Enum.IsDefined(role) ||
+            !ExternalMemberPrincipal.TryRead(context.User, out _) || site is not { TenantId: > 0, SiteId: > 0 }) return Results.BadRequest();
+        var assignment = await session.Query<Aero.Cms.Core.Entities.ExternalMemberSiteAssignment>().FirstOrDefaultAsync(x => x.ExternalMemberId == memberId && x.TenantId == site.TenantId && x.SiteId == site.SiteId, ct);
+        if (assignment is null) return Results.NotFound();
+        assignment.CustomerRole = role; assignment.ModifiedOn = DateTimeOffset.UtcNow; session.Store(assignment);
+        try { await session.SaveChangesAsync(ct); return Results.NoContent(); } catch (AeroDB.Sable.ConcurrencyException) { session.ClearChanges(); return Results.Conflict(); }
     }
 
     private static async Task<IResult> ResetAsync(

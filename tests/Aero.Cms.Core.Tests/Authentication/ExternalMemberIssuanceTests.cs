@@ -92,6 +92,140 @@ public sealed class ExternalMemberIssuanceTests
     }
 
     [Test]
+    public async Task New_federated_completion_is_denied_before_the_sole_save_when_required_authority_creation_is_missing()
+    {
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true));
+        var invitation = Ok(await setup.Service.CreateInvitationAsync(InvitationRequest(setup)));
+        var state = Ok(await setup.Service.BeginAsync(BeginRequest(invitation.Handle)));
+        setup.Listener.Reset();
+
+        var result = await setup.Service.CompleteAsync(CompleteRequest(setup, state.Handle, Subject(setup, "missing-authority")));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(0);
+        await Assert.That((await setup.Harness.Session.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await Assert.That((await setup.Harness.Session.LoadAsync<ExternalAuthenticationState>(HandleId(state.Handle)))!.ConsumedAt).IsNull();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.Query<ExternalMember>().ToListAsync()).IsEmpty();
+        await Assert.That((await verification.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await Assert.That((await verification.LoadAsync<ExternalAuthenticationState>(HandleId(state.Handle)))!.ConsumedAt).IsNull();
+    }
+
+    [Test]
+    public async Task New_federated_completion_is_denied_before_the_sole_save_when_authority_creation_fails()
+    {
+        var participant = new FailingCreationParticipant();
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Service.CreateInvitationAsync(InvitationRequest(setup)));
+        var state = Ok(await setup.Service.BeginAsync(BeginRequest(invitation.Handle)));
+        setup.Listener.Reset();
+
+        var result = await setup.Service.CompleteAsync(CompleteRequest(setup, state.Handle, Subject(setup, "failed-authority")));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(participant.Calls).IsEqualTo(1);
+        await Assert.That(participant.Session).IsSameReferenceAs(setup.Harness.Session);
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(0);
+        await Assert.That((await setup.Harness.Session.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.LoadAsync<ExternalMember>(participant.ExternalMemberId)).IsNull();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(participant.MarkerSessionId)).IsNull();
+    }
+
+    [Test]
+    public async Task New_federated_completion_enlists_the_exact_immutable_transition_on_the_sole_creation_session()
+    {
+        var participant = new SuccessfulCreationParticipant();
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Service.CreateInvitationAsync(InvitationRequest(setup)));
+        var state = Ok(await setup.Service.BeginAsync(BeginRequest(invitation.Handle)));
+        setup.Listener.Reset();
+
+        var receipt = Ok(await setup.Service.CompleteAsync(CompleteRequest(setup, state.Handle, Subject(setup, "exact-authority"))));
+
+        await Assert.That(participant.Calls).IsEqualTo(1);
+        await Assert.That(participant.Session).IsSameReferenceAs(setup.Harness.Session);
+        await Assert.That(participant.Transition!.TenantId).IsEqualTo(TenantId);
+        await Assert.That(participant.Transition.SiteId).IsEqualTo(SiteId);
+        await Assert.That(participant.Transition.ExternalMemberId).IsEqualTo(receipt.ExternalMemberId);
+        await Assert.That(participant.Transition.SecurityVersion).IsEqualTo(1);
+        await Assert.That(participant.Transition.Kind).IsEqualTo(ExternalMemberCreationKind.FederatedIdentity);
+        await Assert.That(participant.Transition.OccurredAtUtc).IsEqualTo(setup.Time.GetUtcNow());
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(1);
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(SuccessfulCreationParticipant.MarkerSessionId)).IsNotNull();
+    }
+
+    [Test]
+    public async Task Federated_creation_cancellation_clears_the_staged_graph_before_a_later_save()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var participant = new CancellingCreationParticipant(cancellation);
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Service.CreateInvitationAsync(InvitationRequest(setup)));
+        var state = Ok(await setup.Service.BeginAsync(BeginRequest(invitation.Handle)));
+        setup.Listener.Reset();
+
+        var result = await setup.Service.CompleteAsync(
+            CompleteRequest(setup, state.Handle, Subject(setup, "cancel-authority")), cancellation.Token);
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(((Result<ExternalMemberIssuanceReceipt, AeroError>.Failure)result).Error).IsTypeOf<AeroError.Cancelled>();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.Query<ExternalMember>().ToListAsync()).IsEmpty();
+        await Assert.That((await verification.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await Assert.That((await verification.LoadAsync<ExternalAuthenticationState>(HandleId(state.Handle)))!.ConsumedAt).IsNull();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(participant.MarkerSessionId)).IsNull();
+    }
+
+    [Test]
+    public async Task Existing_federated_identity_does_not_require_new_member_authority_creation()
+    {
+        await using var setup = await CreateSetupAsync();
+        var identity = Subject(setup, "returning-with-required-authority");
+        _ = await IssueAsync(setup, identity);
+        var coordinator = CreationCoordinator(required: true);
+        var guarded = CreateService(setup.Harness.Session, setup.Time, coordinator);
+        var state = Ok(await guarded.BeginAsync(BeginRequest(invitationHandle: null)));
+
+        var result = await guarded.CompleteAsync(CompleteRequest(setup, state.Handle, identity));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Ok>();
+    }
+
+    [Test]
+    public async Task Existing_federated_member_can_receive_a_new_site_assignment_without_new_member_authority_creation()
+    {
+        var participant = new SuccessfulCreationParticipant();
+        await using var setup = await CreateSetupAsync(includeOtherSite: true);
+        var identity = Subject(setup, "new-site-without-new-member");
+        var first = await IssueAsync(setup, identity);
+        var guarded = CreateService(setup.Harness.Session, setup.Time, CreationCoordinator(required: true, participant));
+        var invitation = Ok(await guarded.CreateInvitationAsync(InvitationRequest(setup, OtherSiteId)));
+        var state = Ok(await guarded.BeginAsync(BeginRequest(invitation.Handle, OtherSiteId)));
+
+        var result = await guarded.CompleteAsync(CompleteRequest(setup, state.Handle, identity, OtherSiteId));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Ok>();
+        await Assert.That(((Result<ExternalMemberIssuanceReceipt, AeroError>.Ok)result).Value.ExternalMemberId).IsEqualTo(first.ExternalMemberId);
+        await Assert.That(participant.Calls).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Standalone_federated_host_allows_new_member_creation_without_an_authority_participant()
+    {
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: false));
+        var invitation = Ok(await setup.Service.CreateInvitationAsync(InvitationRequest(setup)));
+        var state = Ok(await setup.Service.BeginAsync(BeginRequest(invitation.Handle)));
+
+        var result = await setup.Service.CompleteAsync(CompleteRequest(setup, state.Handle, Subject(setup, "standalone")));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Ok>();
+    }
+
+    [Test]
     public async Task Existing_linked_member_with_active_assignment_signs_in_without_invitation()
     {
         await using var setup = await CreateSetupAsync();
@@ -436,7 +570,9 @@ public sealed class ExternalMemberIssuanceTests
             ? value
             : throw new InvalidOperationException($"Expected success but received {((Result<T, AeroError>.Failure)result).Error}.");
 
-    private static async Task<Setup> CreateSetupAsync(bool includeOtherSite = false)
+    private static async Task<Setup> CreateSetupAsync(
+        bool includeOtherSite = false,
+        ExternalMemberCreationCoordinator? memberCreationCoordinator = null)
     {
         var listener = new CommitFaultListener();
         var time = new MutableTimeProvider(new DateTimeOffset(2026, 7, 21, 5, 0, 0, TimeSpan.Zero));
@@ -446,7 +582,7 @@ public sealed class ExternalMemberIssuanceTests
         if (includeOtherSite) harness.Session.Store(Site(OtherSiteId));
         await harness.Session.SaveChangesAsync();
         listener.Reset();
-        return new Setup(harness, CreateService(harness.Session, time), time, listener);
+        return new Setup(harness, CreateService(harness.Session, time, memberCreationCoordinator), time, listener);
     }
 
     private static async Task<SableTestHarness> CreateEmptyHarnessAsync(CommitFaultListener? listener = null)
@@ -462,13 +598,22 @@ public sealed class ExternalMemberIssuanceTests
         return harness;
     }
 
-    private static ExternalMemberIssuanceService CreateService(IDocumentSession session, TimeProvider timeProvider) =>
+    private static ExternalMemberIssuanceService CreateService(
+        IDocumentSession session,
+        TimeProvider timeProvider,
+        ExternalMemberCreationCoordinator? memberCreationCoordinator = null) =>
         new(
             session,
             new CreateExternalMemberInvitationRequestValidator(timeProvider),
             new BeginExternalMemberSignInRequestValidator(),
             new CompleteExternalMemberSignInRequestValidator(timeProvider),
-            timeProvider);
+            timeProvider,
+            memberCreationCoordinator);
+
+    private static ExternalMemberCreationCoordinator CreationCoordinator(
+        bool required,
+        params IExternalMemberCreationParticipant[] participants) =>
+        new(participants, Options.Create(new ExternalMemberCreationCoordinationOptions { RequireParticipant = required }));
 
     private static SitesModel Site(long id) => new() { Id = id, TenantId = TenantId, Name = "Store", IsEnabled = true };
 
@@ -523,6 +668,95 @@ public sealed class ExternalMemberIssuanceTests
     private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class FailingCreationParticipant : IExternalMemberCreationParticipant
+    {
+        public long MarkerSessionId { get; } = 499101;
+        public long ExternalMemberId { get; private set; }
+        public IDocumentSession? Session { get; private set; }
+        public int Calls { get; private set; }
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            Session = session;
+            Calls++;
+            ExternalMemberId = transition.ExternalMemberId;
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = this.ExternalMemberId,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = 1,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            return Task.FromResult(Prelude.Fail<ExternalMemberCreationParticipantReceipt, AeroError>(
+                AeroError.DatabaseError("authority creation failed")));
+        }
+    }
+
+    private sealed class SuccessfulCreationParticipant : IExternalMemberCreationParticipant
+    {
+        public const long MarkerSessionId = 499105;
+        public IDocumentSession? Session { get; private set; }
+        public ExternalMemberCreatedTransition? Transition { get; private set; }
+        public int Calls { get; private set; }
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            Session = session;
+            Transition = transition;
+            Calls++;
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = transition.ExternalMemberId,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = transition.SecurityVersion,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            return Task.FromResult(Prelude.Ok<ExternalMemberCreationParticipantReceipt, AeroError>(new(transition, "prepared")));
+        }
+    }
+
+    private sealed class CancellingCreationParticipant(CancellationTokenSource cancellation) : IExternalMemberCreationParticipant
+    {
+        public long MarkerSessionId { get; } = 499103;
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = 499104,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = 1,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            cancellation.Cancel();
+            return Task.FromCanceled<Result<ExternalMemberCreationParticipantReceipt, AeroError>>(cancellation.Token);
+        }
     }
 
     private sealed class CommitFaultListener : IDocumentSessionListener

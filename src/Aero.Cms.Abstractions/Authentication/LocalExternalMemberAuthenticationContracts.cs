@@ -9,6 +9,8 @@ public static class LocalExternalMemberAuthentication
     public const string ActivationRateLimitPolicy = "AeroCms.ExternalMembers.Local.Activation";
     public const string LoginRateLimitPolicy = "AeroCms.ExternalMembers.Local.Login";
     public const string PasswordResetRateLimitPolicy = "AeroCms.ExternalMembers.Local.PasswordReset";
+    public const string TokenRateLimitPolicy = "AeroCms.ExternalMembers.Local.Token";
+    public const string JwtEnabledConfigurationKey = "AeroCms:ExternalMemberJwt:Enabled";
 }
 
 /// <summary>Recognizes providers permitted on a local external-member session.</summary>

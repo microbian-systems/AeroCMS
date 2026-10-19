@@ -3,14 +3,12 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 
 namespace Aero.Cms.Shared.Pages.Manager.ExternalMembers;
 
 public partial class ExternalMembers : ComponentBase, IAsyncDisposable
 {
     [Inject] protected IExternalIdentityAdminClient Client { get; set; } = default!;
-    [Inject] protected AntiforgeryStateProvider Antiforgery { get; set; } = default!;
 
     protected ExternalIdentityAuthorityState? Authority { get; private set; }
     protected string? InvitationHandle { get; private set; }
@@ -51,13 +49,7 @@ public partial class ExternalMembers : ComponentBase, IAsyncDisposable
         IsSavingAuthority = true;
         try
         {
-            var token = Antiforgery.GetAntiforgeryToken()?.Value;
-            if (string.IsNullOrWhiteSpace(token))
-            {
-                Error = "The security token is unavailable. Reload the page and try again.";
-                return;
-            }
-            var result = await Client.ConfigureAuthorityAsync(request, token, _lifetime.Token);
+            var result = await Client.ConfigureAuthorityAsync(request, _lifetime.Token);
             if (result is Result<ExternalIdentityAuthorityState, AeroError>.Ok(var authority))
                 Authority = authority;
             else
@@ -74,13 +66,7 @@ public partial class ExternalMembers : ComponentBase, IAsyncDisposable
         IsCreatingInvitation = true;
         try
         {
-            var token = Antiforgery.GetAntiforgeryToken()?.Value;
-            if (string.IsNullOrWhiteSpace(token))
-            {
-                Error = "The security token is unavailable. Reload the page and try again.";
-                return;
-            }
-            var result = await Client.CreateInvitationAsync(request, token, _lifetime.Token);
+            var result = await Client.CreateInvitationAsync(request, _lifetime.Token);
             if (result is Result<ExternalIdentityInvitationResponse, AeroError>.Ok(var invitation))
                 InvitationHandle = invitation.Handle;
             else
@@ -96,16 +82,9 @@ public partial class ExternalMembers : ComponentBase, IAsyncDisposable
         IsIssuingPasswordReset = true;
         try
         {
-            var token = Antiforgery.GetAntiforgeryToken()?.Value;
-            if (string.IsNullOrWhiteSpace(token))
-            {
-                Error = "The security token is unavailable. Reload the page and try again.";
-                return;
-            }
-
             var request = new IssueLocalExternalMemberPasswordResetAdminRequest(DateTimeOffset.UtcNow.AddHours(1));
             var result = await Client.IssueLocalPasswordResetAsync(
-                externalMemberId, request, token, _lifetime.Token);
+                externalMemberId, request, _lifetime.Token);
             if (result is Result<LocalExternalMemberPasswordResetResponse, AeroError>.Ok(var reset))
             {
                 PasswordResetHandle = reset.Handle;

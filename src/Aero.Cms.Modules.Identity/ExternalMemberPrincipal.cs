@@ -37,7 +37,7 @@ public static class ExternalMemberPrincipal
         claims = default;
         var identities = principal.Identities.ToArray();
         if (identities.Length != 1 ||
-            !string.Equals(identities[0].AuthenticationType, ExternalMemberAuthenticationDefaults.Scheme, StringComparison.Ordinal) ||
+            (!string.Equals(identities[0].AuthenticationType, ExternalMemberAuthenticationDefaults.Scheme, StringComparison.Ordinal) && !string.Equals(identities[0].AuthenticationType, ExternalMemberAuthenticationDefaults.BearerScheme, StringComparison.Ordinal)) ||
             !identities[0].IsAuthenticated ||
             HasForbiddenClaims(principal))
             return false;

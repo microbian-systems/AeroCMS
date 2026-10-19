@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Authentication;
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
 using Aero.Cms.Modules.Commerce.Client;
@@ -47,7 +48,13 @@ public static class AeroCmsClientServiceCollectionExtensions
         services.AddSingleton<IFormFactor, FormFactor>();
 
         var uri = new Uri(configuration["ApiSettings:BaseUrl"] ?? hostBaseAddress);
+        var trustedHostUri = new Uri(hostBaseAddress, UriKind.Absolute);
         services.AddScoped(_ => new HttpClient { BaseAddress = uri });
+        // This sender owns a raw scoped browser client. Do not route it through
+        // the general typed-client factory, retry, or logging handlers.
+        services.AddScoped<IExternalIdentityAdminRequestSender>(_ =>
+            new SameOriginExternalIdentityAdminRequestSender(
+                new HttpClient { BaseAddress = trustedHostUri }, trustedHostUri));
         services.AddTransient<BrowserCredentialsHandler>();
         services.ConfigureAll<HttpClientFactoryOptions>(options =>
             options.HttpMessageHandlerBuilderActions.Add(builder =>

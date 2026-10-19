@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Aero.Auth.Services;
+using Aero.Cms.Abstractions.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -38,6 +39,7 @@ public sealed class AeroJwtAuthenticationHandler(
             Context.RequestAborted);
         if (!validation.IsValid || validation.Principal is null)
             return AuthenticateResult.Fail("The bearer token is invalid.");
+        if (validation.Principal.HasClaim(ExternalMemberClaimTypes.PrincipalKind, ExternalMemberClaimTypes.ExternalMember) || validation.Principal.HasClaim(ExternalMemberClaimTypes.TokenUse, ExternalMemberClaimTypes.AccessTokenUse)) return AuthenticateResult.Fail("The bearer token is invalid.");
 
         var identity = new ClaimsIdentity(
             validation.Principal.Claims,

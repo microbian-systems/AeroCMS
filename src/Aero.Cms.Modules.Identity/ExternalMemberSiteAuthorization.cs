@@ -10,6 +10,7 @@ namespace Aero.Cms.Modules.Identity;
 public sealed class ExternalMemberSiteRequirement : IAuthorizationRequirement
 {
 }
+public sealed class ExternalMemberPermissionRequirement(string permission) : IAuthorizationRequirement { public string Permission { get; } = permission; }
 
 /// <summary>Authorizes storefront access without consulting the manager selected-site cookie.</summary>
 public sealed class ExternalMemberSiteAuthorizationHandler(
@@ -48,4 +49,14 @@ public sealed class ExternalMemberSiteAuthorizationHandler(
             context.Fail();
         }
     }
+}
+public sealed class ExternalMemberPermissionAuthorizationHandler(ISiteContext siteContext, IQuerySession querySession) : AuthorizationHandler<ExternalMemberPermissionRequirement>
+{
+    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, ExternalMemberPermissionRequirement requirement)
+    { try { if (!ExternalMemberPrincipal.TryRead(context.User, out var claims) || siteContext is not { TenantId: > 0, SiteId: > 0 }) return; var assignment = await querySession.Query<ExternalMemberSiteAssignment>().FirstOrDefaultAsync(x => x.ExternalMemberId == claims.MemberId && x.TenantId == siteContext.TenantId && x.SiteId == siteContext.SiteId && x.IsActive); if (assignment is not null && ExternalMemberPermissions.Allows(assignment.CustomerRole, requirement.Permission)) context.Succeed(requirement); } catch { } }
+}
+public static class ExternalMemberPermissions
+{
+    public const string PaidAnalysisRequest = "paid-analysis.request"; public const string PaidAnalysisApprove = "paid-analysis.approve"; public const string MemberUsersManage = "member.users.manage";
+    public static bool Allows(ExternalMemberCustomerRole role, string permission) => permission switch { PaidAnalysisRequest when role is ExternalMemberCustomerRole.GeneralUser or ExternalMemberCustomerRole.PowerUser or ExternalMemberCustomerRole.CustomerAdmin => true, PaidAnalysisApprove => role is ExternalMemberCustomerRole.PowerUser or ExternalMemberCustomerRole.CustomerAdmin, MemberUsersManage => role is ExternalMemberCustomerRole.CustomerAdmin, _ => false };
 }

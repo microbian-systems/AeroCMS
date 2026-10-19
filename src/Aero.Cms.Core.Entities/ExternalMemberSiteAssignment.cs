@@ -2,6 +2,7 @@ using Aero.Core.Data;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
+public enum ExternalMemberCustomerRole { GeneralUser = 0, PowerUser = 1, CustomerAdmin = 2 }
 
 /// <summary>Grants a local external member storefront access to one site within one tenant.</summary>
 public sealed class ExternalMemberSiteAssignment : SableDocument, IAuditable, IVersioned
@@ -17,6 +18,7 @@ public sealed class ExternalMemberSiteAssignment : SableDocument, IAuditable, IV
 
     /// <summary>Gets or sets whether this local site membership is active.</summary>
     public bool IsActive { get; set; } = true;
+    public ExternalMemberCustomerRole CustomerRole { get; set; } = ExternalMemberCustomerRole.GeneralUser;
 
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ModifiedOn { get; set; }

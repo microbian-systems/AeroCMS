@@ -5,10 +5,13 @@ public static class ExternalMemberAuthenticationDefaults
 {
     /// <summary>The non-default cookie authentication scheme for external members.</summary>
     public const string Scheme = "AeroCms.ExternalMember";
+    public const string BearerScheme = "AeroCms.ExternalMemberBearer";
 
     /// <summary>The authorization policy that admits only a validated external-member cookie.</summary>
     public const string Policy = "external-member";
 
     /// <summary>The policy that requires an active membership for the host-resolved public site.</summary>
     public const string SitePolicy = "external-member:site";
+    public const string PermissionPolicyPrefix = "external-member:permission:";
+    public const string MemberUsersManageBearerPolicy = "external-member:member-users-manage:bearer";
 }

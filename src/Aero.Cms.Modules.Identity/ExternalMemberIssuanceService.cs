@@ -18,7 +18,8 @@ public sealed class ExternalMemberIssuanceService(
     IValidator<CreateExternalMemberInvitationRequest> invitationValidator,
     IValidator<BeginExternalMemberSignInRequest> beginValidator,
     IValidator<CompleteExternalMemberSignInRequest> completeValidator,
-    TimeProvider timeProvider) : IExternalMemberIssuanceService
+    TimeProvider timeProvider,
+    ExternalMemberCreationCoordinator? memberCreationCoordinator = null) : IExternalMemberIssuanceService
 {
     private static readonly TimeSpan AuthenticationStateLifetime = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan MemberSessionLifetime = TimeSpan.FromHours(8);
@@ -247,6 +248,7 @@ public sealed class ExternalMemberIssuanceService(
                 .FirstOrDefaultAsync(candidate => candidate.IdentityKey == identityKey, cancellationToken);
             ExternalMember? member = null;
             ExternalMemberSiteAssignment? assignment = null;
+            var isNewMember = false;
 
             if (link is not null)
             {
@@ -283,6 +285,7 @@ public sealed class ExternalMemberIssuanceService(
 
             if (link is null)
             {
+                isNewMember = true;
                 member = new ExternalMember
                 {
                     Id = Snowflake.NewId(),
@@ -346,6 +349,24 @@ public sealed class ExternalMemberIssuanceService(
                 invitation.ConsumedByExternalMemberId = member.Id;
                 invitation.ModifiedOn = now;
                 session.Store(invitation);
+            }
+
+            if (isNewMember && memberCreationCoordinator is not null)
+            {
+                var transition = new ExternalMemberCreatedTransition(
+                    state.TenantId,
+                    state.SiteId,
+                    member!.Id,
+                    member.SecurityVersion,
+                    ExternalMemberCreationKind.FederatedIdentity,
+                    now);
+                var coordination = await memberCreationCoordinator.EnlistAsync(session, transition, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (coordination is Result<ExternalMemberCreationParticipantReceipt, AeroError>.Failure)
+                {
+                    session.ClearChanges();
+                    return Fail<ExternalMemberIssuanceReceipt>("External sign-in could not be completed.");
+                }
             }
 
             // The sole local issuance save is one Sable transaction. The receipt is created only after commit.

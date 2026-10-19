@@ -23,7 +23,8 @@ public sealed class LocalExternalMemberAuthenticationService(
     IValidator<IssueLocalExternalMemberPasswordResetRequest> issueResetValidator,
     IPasswordHasher<ExternalMemberLocalCredential> passwordHasher,
     LocalExternalMemberPasswordSentinel passwordSentinel,
-    TimeProvider timeProvider) : ILocalExternalMemberAuthenticationService
+    TimeProvider timeProvider,
+    ExternalMemberCreationCoordinator? memberCreationCoordinator = null) : ILocalExternalMemberAuthenticationService
 {
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
     private static readonly TimeSpan LockoutLifetime = TimeSpan.FromMinutes(15);
@@ -202,6 +203,23 @@ public sealed class LocalExternalMemberAuthenticationService(
             invitation.ConsumedByExternalMemberId = member.Id;
             invitation.ModifiedOn = now;
             session.Store(member); session.Store(credential); session.Store(link); session.Store(assignment); session.Store(localSession); session.Store(invitation);
+            if (memberCreationCoordinator is not null)
+            {
+                var transition = new ExternalMemberCreatedTransition(
+                    request.TenantId,
+                    request.SiteId,
+                    member.Id,
+                    member.SecurityVersion,
+                    ExternalMemberCreationKind.LocalCredential,
+                    now);
+                var coordination = await memberCreationCoordinator.EnlistAsync(session, transition, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (coordination is Result<ExternalMemberCreationParticipantReceipt, AeroError>.Failure)
+                {
+                    session.ClearChanges();
+                    return Fail<ExternalMemberIssuanceReceipt>("Local membership could not be activated.");
+                }
+            }
             await session.SaveChangesAsync(cancellationToken);
 
             return Prelude.Ok<ExternalMemberIssuanceReceipt, AeroError>(new(member.Id, link.Id, localSession.Id,

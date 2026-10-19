@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Aero.Auth.Services;
+using Aero.Auth.Persistence;
 using Aero.Modular;
 using AeroDB.Sable;
 
@@ -125,6 +126,8 @@ public class SecurityModule : AeroModuleBase, IConfigureAeroDB
             .TableName(Schemas.Tables.ApiKeys);
         apiKeys.UniqueIndex(x => x.SecretHash);
         apiKeys.Index(x => x.UserId);
+
+        RefreshTokenPersistence.Configure(opts);
     }
 
     /// <summary>

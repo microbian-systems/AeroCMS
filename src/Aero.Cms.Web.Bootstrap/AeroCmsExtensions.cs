@@ -300,6 +300,14 @@ public static class AeroCmsExtensions
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(new ExternalMemberSiteRequirement());
             });
+            foreach (var permission in new[] { ExternalMemberPermissions.PaidAnalysisRequest, ExternalMemberPermissions.PaidAnalysisApprove, ExternalMemberPermissions.MemberUsersManage })
+                authorization.AddPolicy(ExternalMemberAuthenticationDefaults.PermissionPolicyPrefix + permission, policy => { policy.AddAuthenticationSchemes(ExternalMemberAuthenticationDefaults.Scheme, ExternalMemberAuthenticationDefaults.BearerScheme); policy.RequireAuthenticatedUser(); policy.AddRequirements(new ExternalMemberSiteRequirement(), new ExternalMemberPermissionRequirement(permission)); });
+            authorization.AddPolicy(ExternalMemberAuthenticationDefaults.MemberUsersManageBearerPolicy, policy =>
+            {
+                policy.AddAuthenticationSchemes(ExternalMemberAuthenticationDefaults.BearerScheme);
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new ExternalMemberSiteRequirement(), new ExternalMemberPermissionRequirement(ExternalMemberPermissions.MemberUsersManage));
+            });
             options.ConfigureAuthorization?.Invoke(authorization);
         });
 
@@ -307,7 +315,7 @@ public static class AeroCmsExtensions
         if (options.SelectedCapabilities.HasFlag(AeroCmsCapabilities.PublicQuery))
         {
             services.AddPublicCmsQueryApi();
-        }
+            }
         services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddRadzenComponents();
         services.AddNeoUIPrimitives();

@@ -78,3 +78,12 @@ public sealed class IssueLocalExternalMemberPasswordResetRequestValidator
             .WithMessage("Password-reset expiry must be in the future and no more than one day away.");
     }
 }
+
+public sealed class ExternalMemberRoleAssignmentRequestValidator
+    : AbstractValidator<ExternalIdentityAdminApi.ExternalMemberRoleAssignmentRequest>
+{
+    public ExternalMemberRoleAssignmentRequestValidator()
+    {
+        RuleFor(x => x.Role).NotEmpty().Must(x => Enum.TryParse<Aero.Cms.Core.Entities.ExternalMemberCustomerRole>(x, false, out var role) && Enum.IsDefined(role));
+    }
+}

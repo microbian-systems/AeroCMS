@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -16,7 +17,7 @@ namespace Aero.Cms.Core.Tests.Authentication;
 public sealed class ExternalMemberLocalApiTests
 {
     [Test]
-    public async Task All_local_browser_forms_require_antiforgery_validation()
+    public async Task Local_browser_forms_require_antiforgery_while_token_endpoint_is_anonymous_json_without_antiforgery()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton(Substitute.For<ISiteContext>());
@@ -29,15 +30,31 @@ public sealed class ExternalMemberLocalApiTests
 
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/v1/member/local/", StringComparison.Ordinal) == true)
+            .Where(endpoint => endpoint.RoutePattern.RawText is
+                "/api/v1/member/local/activate" or
+                "/api/v1/member/local/login" or
+                "/api/v1/member/local/reset")
             .ToArray();
 
         await Assert.That(endpoints.Length).IsEqualTo(3);
+        await Assert.That(endpoints.Select(endpoint => endpoint.RoutePattern.RawText!))
+            .IsEquivalentTo([
+                "/api/v1/member/local/activate",
+                "/api/v1/member/local/login",
+                "/api/v1/member/local/reset"
+            ]);
         foreach (var endpoint in endpoints)
         {
             await Assert.That(endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation).IsTrue();
             await Assert.That(endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods).Contains("POST");
         }
+
+        var tokenEndpoint = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Single(endpoint => endpoint.RoutePattern.RawText == "/api/v1/member/local/token");
+        await Assert.That(tokenEndpoint.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation).IsFalse();
+        await Assert.That(tokenEndpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>()).IsNotNull();
+        await Assert.That(tokenEndpoint.Metadata.GetMetadata<IAcceptsMetadata>()?.ContentTypes).Contains("application/json");
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Aero.Cms.Abstractions.Authentication;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -14,32 +15,46 @@ public interface IExternalIdentityAdminClient
         CancellationToken cancellationToken = default);
     Task<Result<ExternalIdentityAuthorityState, AeroError>> ConfigureAuthorityAsync(
         ConfigureExternalIdentityAuthorityRequest request,
-        string antiforgeryToken,
         CancellationToken cancellationToken = default);
     Task<Result<ExternalIdentityInvitationResponse, AeroError>> CreateInvitationAsync(
         CreateExternalIdentityInvitationRequest request,
-        string antiforgeryToken,
         CancellationToken cancellationToken = default);
     Task<Result<LocalExternalMemberPasswordResetResponse, AeroError>> IssueLocalPasswordResetAsync(
         long externalMemberId,
         IssueLocalExternalMemberPasswordResetAdminRequest request,
-        string antiforgeryToken,
+        CancellationToken cancellationToken = default);
+    Task<Result<ExternalMemberLifecycleResponse, AeroError>> SetLifecycleAsync(
+        long externalMemberId,
+        ExternalMemberLifecycleRequest request,
         CancellationToken cancellationToken = default);
 }
 
 /// <summary>Uses exact routes and explicit antiforgery headers without logging sensitive bodies.</summary>
-public sealed class ExternalIdentityAdminClient(HttpClient httpClient) : IExternalIdentityAdminClient
+public sealed class ExternalIdentityAdminClient : IExternalIdentityAdminClient
 {
     private const string AuthorityRoute = "api/v1/admin/external-identity/authority";
     private const string InvitationRoute = "api/v1/admin/external-identity/invitations";
-    private const string AntiforgeryHeader = "RequestVerificationToken";
+    private const string ExternalMembersRoute = "api/v1/admin/external-members";
+    private readonly HttpClient httpClient;
+    private readonly IExternalIdentityAdminRequestSender? sender;
+
+    public ExternalIdentityAdminClient(
+        HttpClient httpClient,
+        IExternalIdentityAdminRequestSender? sender = null)
+    {
+        this.httpClient = httpClient;
+        this.sender = sender;
+    }
 
     public async Task<Result<ExternalIdentityAuthorityState, AeroError>> GetAuthorityAsync(
         CancellationToken cancellationToken = default)
     {
         try
         {
-            using var response = await httpClient.GetAsync(AuthorityRoute, cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, AuthorityRoute);
+            using var response = sender is null
+                ? await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                : await sender.SendAsync(request, cancellationToken);
             return await ReadAsync<ExternalIdentityAuthorityState>(response, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -48,39 +63,47 @@ public sealed class ExternalIdentityAdminClient(HttpClient httpClient) : IExtern
 
     public Task<Result<ExternalIdentityAuthorityState, AeroError>> ConfigureAuthorityAsync(
         ConfigureExternalIdentityAuthorityRequest request,
-        string antiforgeryToken,
         CancellationToken cancellationToken = default) =>
         SendAsync<ConfigureExternalIdentityAuthorityRequest, ExternalIdentityAuthorityState>(
-            HttpMethod.Put, AuthorityRoute, request, antiforgeryToken, cancellationToken);
+            HttpMethod.Put, AuthorityRoute, request, cancellationToken);
 
     public Task<Result<ExternalIdentityInvitationResponse, AeroError>> CreateInvitationAsync(
         CreateExternalIdentityInvitationRequest request,
-        string antiforgeryToken,
         CancellationToken cancellationToken = default) =>
         SendAsync<CreateExternalIdentityInvitationRequest, ExternalIdentityInvitationResponse>(
-            HttpMethod.Post, InvitationRoute, request, antiforgeryToken, cancellationToken);
+            HttpMethod.Post, InvitationRoute, request, cancellationToken);
 
     public Task<Result<LocalExternalMemberPasswordResetResponse, AeroError>> IssueLocalPasswordResetAsync(
         long externalMemberId,
         IssueLocalExternalMemberPasswordResetAdminRequest request,
-        string antiforgeryToken,
         CancellationToken cancellationToken = default)
     {
         if (externalMemberId <= 0)
             return Task.FromResult(Failure<LocalExternalMemberPasswordResetResponse>());
         var route = $"api/v1/admin/external-members/{externalMemberId.ToString(CultureInfo.InvariantCulture)}/local-password-reset";
         return SendAsync<IssueLocalExternalMemberPasswordResetAdminRequest, LocalExternalMemberPasswordResetResponse>(
-            HttpMethod.Post, route, request, antiforgeryToken, cancellationToken);
+            HttpMethod.Post, route, request, cancellationToken);
+    }
+
+    public Task<Result<ExternalMemberLifecycleResponse, AeroError>> SetLifecycleAsync(
+        long externalMemberId,
+        ExternalMemberLifecycleRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (externalMemberId <= 0)
+            return Task.FromResult(Failure<ExternalMemberLifecycleResponse>());
+        var route = $"{ExternalMembersRoute}/{externalMemberId.ToString(CultureInfo.InvariantCulture)}/lifecycle";
+        return SendAsync<ExternalMemberLifecycleRequest, ExternalMemberLifecycleResponse>(
+            HttpMethod.Put, route, request, cancellationToken);
     }
 
     private async Task<Result<TResponse, AeroError>> SendAsync<TRequest, TResponse>(
         HttpMethod method,
         string route,
         TRequest body,
-        string antiforgeryToken,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(antiforgeryToken) || antiforgeryToken.Any(char.IsControl))
+        if (sender is null)
             return Failure<TResponse>();
         try
         {
@@ -88,9 +111,7 @@ public sealed class ExternalIdentityAdminClient(HttpClient httpClient) : IExtern
             {
                 Content = JsonContent.Create(body)
             };
-            request.Headers.TryAddWithoutValidation(AntiforgeryHeader, antiforgeryToken);
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+            using var response = await sender.SendAsync(request, cancellationToken);
             return await ReadAsync<TResponse>(response, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -107,6 +128,16 @@ public sealed class ExternalIdentityAdminClient(HttpClient httpClient) : IExtern
             return value is null ? Failure<T>() : Prelude.Ok<T, AeroError>(value);
         }
 
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            var lifecycleCode = await ReadLifecycleUnavailableCodeAsync(response, cancellationToken);
+            if (lifecycleCode is not null)
+            {
+                return Prelude.Fail<T, AeroError>(
+                    AeroError.HttpRequestError(HttpStatusCode.ServiceUnavailable, lifecycleCode));
+            }
+        }
+
         return response.StatusCode switch
         {
             HttpStatusCode.BadRequest => Prelude.Fail<T, AeroError>(
@@ -119,6 +150,39 @@ public sealed class ExternalIdentityAdminClient(HttpClient httpClient) : IExtern
         };
     }
 
+    private static async Task<string?> ReadLifecycleUnavailableCodeAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("code", out var code) ||
+                code.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            return code.GetString() switch
+            {
+                "lifecycle_commit_unknown" => "lifecycle_commit_unknown",
+                "lifecycle_committed_postprocessing_failed" => "lifecycle_committed_postprocessing_failed",
+                _ => null
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static Result<T, AeroError> Failure<T>() => Prelude.Fail<T, AeroError>(
         AeroError.CreateError("External identity administration is unavailable."));
+
 }

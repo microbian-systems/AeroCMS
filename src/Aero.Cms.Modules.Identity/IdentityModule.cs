@@ -63,7 +63,7 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
     /// This metadata does not remove the runtime requirement for the host to register
     /// AeroDB and its document store.
     /// </remarks>
-    public override IReadOnlyList<string> Dependencies => [nameof(RateLimitingModule)];
+    public override IReadOnlyList<string> Dependencies => [nameof(RateLimitingModule), "SecurityModule"];
 
     /// <summary>
     /// Gets the categories under which the module is presented.
@@ -115,6 +115,11 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
             });
         services.AddAeroFixedWindowRateLimitPolicy(
             config,
+            LocalExternalMemberAuthentication.TokenRateLimitPolicy,
+            "ExternalMemberToken",
+            new AeroFixedWindowRateLimitOptions { PermitLimit = 5, WindowSeconds = 900, QueueLimit = 0 });
+        services.AddAeroFixedWindowRateLimitPolicy(
+            config,
             LocalExternalMemberAuthentication.LoginRateLimitPolicy,
             "ExternalMemberLogin",
             new AeroFixedWindowRateLimitOptions
@@ -154,6 +159,9 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
         services.AddScoped<ExternalMemberCookieValidator>();
         services.AddScoped<ManagerFederationCookieValidator>();
         services.AddScoped<IAuthorizationHandler, ExternalMemberSiteAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, ExternalMemberPermissionAuthorizationHandler>();
+        services.AddScoped<ExternalMemberJwtIssuer>();
+        services.AddAuthentication().AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, ExternalMemberBearerAuthenticationHandler>(ExternalMemberAuthenticationDefaults.BearerScheme, _ => { });
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IValidator<CreateExternalMemberInvitationRequest>, CreateExternalMemberInvitationRequestValidator>();
         services.AddScoped<IValidator<BeginExternalMemberSignInRequest>, BeginExternalMemberSignInRequestValidator>();
@@ -164,6 +172,13 @@ public class IdentityModule : AeroWebModule, IConfigureAeroDB
         services.AddScoped<IValidator<LoginLocalExternalMemberRequest>, LoginLocalExternalMemberRequestValidator>();
         services.AddScoped<IValidator<ResetLocalExternalMemberPasswordRequest>, ResetLocalExternalMemberPasswordRequestValidator>();
         services.AddScoped<IValidator<IssueLocalExternalMemberPasswordResetRequest>, IssueLocalExternalMemberPasswordResetRequestValidator>();
+        services.AddScoped<IValidator<ExternalIdentityAdminApi.ExternalMemberRoleAssignmentRequest>, ExternalMemberRoleAssignmentRequestValidator>();
+        services.AddScoped<IValidator<ExternalMemberLifecycleRequest>, ExternalMemberLifecycleRequestValidator>();
+        services.AddScoped<IValidator<ExternalMemberLifecycleCommand>, ExternalMemberLifecycleCommandValidator>();
+        services.AddOptions<ExternalMemberLifecycleOptions>();
+        services.AddScoped<IExternalMemberLifecycleService, ExternalMemberLifecycleService>();
+        services.AddOptions<ExternalMemberCreationCoordinationOptions>();
+        services.AddScoped<ExternalMemberCreationCoordinator>();
         services.AddSingleton<IPasswordHasher<ExternalMemberLocalCredential>, PasswordHasher<ExternalMemberLocalCredential>>();
         services.AddSingleton<LocalExternalMemberPasswordSentinel>();
         services.AddScoped<ILocalExternalMemberAuthenticationService, LocalExternalMemberAuthenticationService>();

@@ -58,6 +58,125 @@ public sealed class LocalExternalMemberAuthenticationTests
     }
 
     [Test]
+    public async Task New_local_activation_is_denied_before_the_sole_save_when_required_authority_creation_is_missing()
+    {
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true));
+        var invitation = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        setup.Listener.Reset();
+
+        var result = await setup.Local.ActivateInvitationAsync(Activation(invitation.Handle));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(0);
+        await Assert.That((await setup.Harness.Session.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.Query<ExternalMember>().ToListAsync()).IsEmpty();
+        await Assert.That((await verification.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+    }
+
+    [Test]
+    public async Task New_local_activation_is_denied_before_the_sole_save_when_authority_creation_fails()
+    {
+        var participant = new FailingCreationParticipant();
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        setup.Listener.Reset();
+
+        var result = await setup.Local.ActivateInvitationAsync(Activation(invitation.Handle));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(participant.Calls).IsEqualTo(1);
+        await Assert.That(participant.Session).IsSameReferenceAs(setup.Harness.Session);
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(0);
+        await Assert.That((await setup.Harness.Session.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.LoadAsync<ExternalMember>(participant.ExternalMemberId)).IsNull();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(participant.MarkerSessionId)).IsNull();
+    }
+
+    [Test]
+    public async Task New_local_activation_enlists_the_exact_immutable_transition_on_the_sole_creation_session()
+    {
+        var participant = new SuccessfulCreationParticipant();
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        setup.Listener.Reset();
+
+        var receipt = Ok(await setup.Local.ActivateInvitationAsync(Activation(invitation.Handle)));
+
+        await Assert.That(participant.Calls).IsEqualTo(1);
+        await Assert.That(participant.Session).IsSameReferenceAs(setup.Harness.Session);
+        await Assert.That(participant.Transition!.TenantId).IsEqualTo(TenantId);
+        await Assert.That(participant.Transition.SiteId).IsEqualTo(SiteId);
+        await Assert.That(participant.Transition.ExternalMemberId).IsEqualTo(receipt.ExternalMemberId);
+        await Assert.That(participant.Transition.SecurityVersion).IsEqualTo(1);
+        await Assert.That(participant.Transition.Kind).IsEqualTo(ExternalMemberCreationKind.LocalCredential);
+        await Assert.That(participant.Transition.OccurredAtUtc).IsEqualTo(setup.Time.GetUtcNow());
+        await Assert.That(setup.Listener.SaveCalls).IsEqualTo(1);
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(SuccessfulCreationParticipant.MarkerSessionId)).IsNotNull();
+    }
+
+    [Test]
+    public async Task Local_creation_cancellation_clears_the_staged_graph_before_a_later_save()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var participant = new CancellingCreationParticipant(cancellation);
+        await using var setup = await CreateSetupAsync(memberCreationCoordinator: CreationCoordinator(required: true, participant));
+        var invitation = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        setup.Listener.Reset();
+
+        var result = await setup.Local.ActivateInvitationAsync(Activation(invitation.Handle), cancellation.Token);
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(((Result<ExternalMemberIssuanceReceipt, AeroError>.Failure)result).Error).IsTypeOf<AeroError.Cancelled>();
+        await setup.Harness.Session.SaveChangesAsync();
+        await using var verification = await setup.Harness.OpenSessionAsync();
+        await Assert.That(await verification.Query<ExternalMember>().ToListAsync()).IsEmpty();
+        await Assert.That(await verification.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle))).IsNotNull();
+        await Assert.That((await verification.LoadAsync<ExternalMemberInvitation>(HandleId(invitation.Handle)))!.ConsumedAt).IsNull();
+        await Assert.That(await verification.LoadAsync<ExternalMemberSession>(participant.MarkerSessionId)).IsNull();
+    }
+
+    [Test]
+    public async Task Existing_local_credential_login_does_not_require_new_member_authority_creation()
+    {
+        await using var setup = await CreateSetupAsync();
+        var invitation = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        _ = Ok(await setup.Local.ActivateInvitationAsync(Activation(invitation.Handle)));
+        var login = CreateLocalService(
+            setup.Harness.Session,
+            setup.Time,
+            new PasswordHasher<ExternalMemberLocalCredential>(),
+            CreationCoordinator(required: true));
+
+        var result = await login.LoginAsync(new(TenantId, SiteId, Email, Password, "/shop"));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Ok>();
+    }
+
+    [Test]
+    public async Task Existing_local_credential_conflict_never_enlists_new_member_authority_creation()
+    {
+        await using var setup = await CreateSetupAsync();
+        var initial = Ok(await setup.Local.CreateInvitationAsync(LocalInvitation(setup)));
+        _ = Ok(await setup.Local.ActivateInvitationAsync(Activation(initial.Handle)));
+        var participant = new SuccessfulCreationParticipant();
+        var guarded = CreateLocalService(
+            setup.Harness.Session,
+            setup.Time,
+            new PasswordHasher<ExternalMemberLocalCredential>(),
+            CreationCoordinator(required: true, participant));
+        var second = Ok(await guarded.CreateInvitationAsync(LocalInvitation(setup)));
+
+        var result = await guarded.ActivateInvitationAsync(Activation(second.Handle));
+
+        await Assert.That(result).IsTypeOf<Result<ExternalMemberIssuanceReceipt, AeroError>.Failure>();
+        await Assert.That(participant.Calls).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Local_and_remote_invitations_persist_exclusive_authority_discriminators()
     {
         await using var setup = await CreateSetupAsync();
@@ -320,7 +439,9 @@ public sealed class LocalExternalMemberAuthenticationTests
         await Assert.That(credential.SecurityVersion).IsEqualTo(1);
     }
 
-    private static async Task<Setup> CreateSetupAsync(IPasswordHasher<ExternalMemberLocalCredential>? hasher = null)
+    private static async Task<Setup> CreateSetupAsync(
+        IPasswordHasher<ExternalMemberLocalCredential>? hasher = null,
+        ExternalMemberCreationCoordinator? memberCreationCoordinator = null)
     {
         var listener = new CommitFaultListener();
         var time = new MutableTimeProvider(new DateTimeOffset(2026, 7, 22, 12, 0, 0, TimeSpan.Zero));
@@ -340,20 +461,28 @@ public sealed class LocalExternalMemberAuthenticationTests
         await harness.Session.SaveChangesAsync();
         listener.Reset();
         return new Setup(harness, CreateLocalService(harness.Session, time,
-            hasher ?? new PasswordHasher<ExternalMemberLocalCredential>()), CreateRemoteService(harness.Session, time), time, listener);
+            hasher ?? new PasswordHasher<ExternalMemberLocalCredential>(), memberCreationCoordinator), CreateRemoteService(harness.Session, time), time, listener);
     }
 
     private static LocalExternalMemberAuthenticationService CreateLocalService(IDocumentSession session, TimeProvider time) =>
         CreateLocalService(session, time, new PasswordHasher<ExternalMemberLocalCredential>());
 
     private static LocalExternalMemberAuthenticationService CreateLocalService(
-        IDocumentSession session, TimeProvider time, IPasswordHasher<ExternalMemberLocalCredential> hasher) =>
+        IDocumentSession session,
+        TimeProvider time,
+        IPasswordHasher<ExternalMemberLocalCredential> hasher,
+        ExternalMemberCreationCoordinator? memberCreationCoordinator = null) =>
         new(session, new CreateLocalExternalMemberInvitationRequestValidator(time),
             new ActivateLocalExternalMemberInvitationRequestValidator(),
             new LoginLocalExternalMemberRequestValidator(),
             new ResetLocalExternalMemberPasswordRequestValidator(),
             new IssueLocalExternalMemberPasswordResetRequestValidator(time),
-            hasher, new LocalExternalMemberPasswordSentinel(hasher), time);
+            hasher, new LocalExternalMemberPasswordSentinel(hasher), time, memberCreationCoordinator);
+
+    private static ExternalMemberCreationCoordinator CreationCoordinator(
+        bool required,
+        params IExternalMemberCreationParticipant[] participants) =>
+        new(participants, Options.Create(new ExternalMemberCreationCoordinationOptions { RequireParticipant = required }));
 
     private static ExternalMemberIssuanceService CreateRemoteService(IDocumentSession session, TimeProvider time) =>
         new(session, new CreateExternalMemberInvitationRequestValidator(time), new BeginExternalMemberSignInRequestValidator(),
@@ -400,6 +529,95 @@ public sealed class LocalExternalMemberAuthenticationTests
         {
             VerifyCalls++;
             return _inner.VerifyHashedPassword(user, hashedPassword, providedPassword);
+        }
+    }
+
+    private sealed class FailingCreationParticipant : IExternalMemberCreationParticipant
+    {
+        public long MarkerSessionId { get; } = 899101;
+        public long ExternalMemberId { get; private set; }
+        public IDocumentSession? Session { get; private set; }
+        public int Calls { get; private set; }
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            Session = session;
+            Calls++;
+            ExternalMemberId = transition.ExternalMemberId;
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = this.ExternalMemberId,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = 1,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            return Task.FromResult(Prelude.Fail<ExternalMemberCreationParticipantReceipt, AeroError>(
+                AeroError.DatabaseError("authority creation failed")));
+        }
+    }
+
+    private sealed class SuccessfulCreationParticipant : IExternalMemberCreationParticipant
+    {
+        public const long MarkerSessionId = 899105;
+        public IDocumentSession? Session { get; private set; }
+        public ExternalMemberCreatedTransition? Transition { get; private set; }
+        public int Calls { get; private set; }
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            Session = session;
+            Transition = transition;
+            Calls++;
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = transition.ExternalMemberId,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = transition.SecurityVersion,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            return Task.FromResult(Prelude.Ok<ExternalMemberCreationParticipantReceipt, AeroError>(new(transition, "prepared")));
+        }
+    }
+
+    private sealed class CancellingCreationParticipant(CancellationTokenSource cancellation) : IExternalMemberCreationParticipant
+    {
+        public long MarkerSessionId { get; } = 899103;
+
+        public Task<Result<ExternalMemberCreationParticipantReceipt, AeroError>> EnlistAsync(
+            IDocumentSession session,
+            ExternalMemberCreatedTransition transition,
+            CancellationToken cancellationToken = default)
+        {
+            session.Store(new ExternalMemberSession
+            {
+                Id = MarkerSessionId,
+                TenantId = transition.TenantId,
+                SiteId = transition.SiteId,
+                ExternalMemberId = 899104,
+                ExternalIdentityLinkId = 1,
+                AuthenticationProvider = "authority-marker",
+                SecurityVersion = 1,
+                ExpiresAt = transition.OccurredAtUtc.AddHours(1),
+                CreatedOn = transition.OccurredAtUtc
+            });
+            cancellation.Cancel();
+            return Task.FromCanceled<Result<ExternalMemberCreationParticipantReceipt, AeroError>>(cancellation.Token);
         }
     }
 
