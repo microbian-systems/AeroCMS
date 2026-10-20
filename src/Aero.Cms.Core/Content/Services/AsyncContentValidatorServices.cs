@@ -56,7 +56,7 @@ public sealed class ReferenceExistenceValidator(
     IEnumerable<IContentEntrySourceProvider>? entryProviders = null,
     IContentEntrySourceProviderCatalog? entryProviderCatalog = null,
     ISiteContext? siteContext = null,
-    ISelectedSiteScopeResolver? selectedSiteScopeResolver = null) : IAsyncContentValidator
+    ISelectedSiteScopeResolver? selectedSiteScopeResolver = null) : IContentReferenceExistenceValidator
 {
     private readonly IReadOnlyDictionary<string, IContentReferenceSourceProvider>
         cmsSourceProviders = (sourceProviders ?? [])

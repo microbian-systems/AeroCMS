@@ -106,6 +106,7 @@ public static class ContentServiceExtensions
 
         // Sync field validators
         services.AddSingleton<IContentFieldValidator, TextFieldValidator>();
+        services.AddSingleton<IContentFieldValidator, RichTextFieldValidator>();
         services.AddSingleton<IContentFieldValidator, NumberFieldValidator>();
         services.AddSingleton<IContentFieldValidator, RangeFieldValidator>();
         services.AddSingleton<IContentFieldValidator, ColorFieldValidator>();

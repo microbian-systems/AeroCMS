@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Abstractions.Content.Serialization;
+using Aero.Cms.Abstractions.Content.Views;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Content.Indexing;
@@ -9,6 +11,7 @@ using Aero.Core.Railway;
 using AeroDB.Sable;
 using NSubstitute;
 using System.Text.Json;
+using FluentValidation.Results;
 
 namespace Aero.Cms.Core.Tests.Content;
 
@@ -86,6 +89,112 @@ public sealed class ContentLocalizationFenceTests
         await Assert.That(marker!.Change).IsEqualTo(ContentTranslationGroupProjectionChange.Upsert);
         await Assert.That(group).IsNotNull();
         await Assert.That(group!.Revision).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Shared_field_update_allows_an_incomplete_translation_draft()
+    {
+        var referenceValidator = Substitute.For<IContentReferenceExistenceValidator>();
+        referenceValidator.ValidateAsync(
+                Arg.Any<ContentItem>(),
+                Arg.Any<ContentTypeDefinition>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ValidationFailure>>([]));
+        var fields = new[]
+        {
+            new ContentFieldDefinition
+            {
+                Name = "name",
+                Label = "Name",
+                FieldType = ContentFieldTypes.Text,
+                Required = true,
+                LocalizationMode = ContentFieldLocalizationMode.Localized
+            },
+            new ContentFieldDefinition
+            {
+                Name = "taxon",
+                Label = "Taxon",
+                FieldType = ContentFieldTypes.Reference,
+                Required = true,
+                LocalizationMode = ContentFieldLocalizationMode.Shared,
+                Settings = new Dictionary<string, JsonElement>
+                {
+                    [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindContentEntry),
+                    [ReferenceContentFieldSettings.AllowedProviders] = JsonSerializer.SerializeToElement(new[] { "view:taxon" })
+                }
+            }
+        };
+        await using var fixture = await CreateFixtureAsync(
+            sourceTranslationGroupId: 100,
+            includeTarget: true,
+            fields: fields,
+            asyncValidators: [referenceValidator]);
+
+        var result = await fixture.Handler.UpdateSharedFieldsAsync(
+            fixture.Context,
+            new UpdateContentTranslationSharedFieldsCommand(
+                100,
+                ExpectedGroupStorageVersion: 0,
+                ExpectedGroupRevision: 0,
+                new Dictionary<string, JsonElement>
+                {
+                    ["taxon"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey("view:taxon", "okapi"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }));
+
+        await Assert.That(result.IsSuccess).IsTrue().Because(result.ToString());
+        await referenceValidator.Received(2).ValidateAsync(
+            Arg.Any<ContentItem>(),
+            Arg.Any<ContentTypeDefinition>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Shared_field_update_rejects_a_dangling_content_entry_reference()
+    {
+        var referenceValidator = Substitute.For<IContentReferenceExistenceValidator>();
+        referenceValidator.ValidateAsync(
+                Arg.Any<ContentItem>(),
+                Arg.Any<ContentTypeDefinition>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ValidationFailure>>(
+                [new ValidationFailure("taxon", "Referenced content entry 'missing' was not found.")]));
+        var field = new ContentFieldDefinition
+        {
+            Name = "taxon",
+            Label = "Taxon",
+            FieldType = ContentFieldTypes.Reference,
+            Required = true,
+            LocalizationMode = ContentFieldLocalizationMode.Shared,
+            Settings = new Dictionary<string, JsonElement>
+            {
+                [ReferenceContentFieldSettings.TargetKind] = JsonSerializer.SerializeToElement(ReferenceContentFieldSettings.TargetKindContentEntry),
+                [ReferenceContentFieldSettings.AllowedProviders] = JsonSerializer.SerializeToElement(new[] { "view:taxon" })
+            }
+        };
+        await using var fixture = await CreateFixtureAsync(
+            sourceTranslationGroupId: 100,
+            fields: [field],
+            asyncValidators: [referenceValidator]);
+
+        var result = await fixture.Handler.UpdateSharedFieldsAsync(
+            fixture.Context,
+            new UpdateContentTranslationSharedFieldsCommand(
+                100,
+                ExpectedGroupStorageVersion: 0,
+                ExpectedGroupRevision: 0,
+                new Dictionary<string, JsonElement>
+                {
+                    ["taxon"] = JsonSerializer.SerializeToElement(
+                        new ContentEntryKey("view:taxon", "missing"),
+                        ContentJsonContext.Default.ContentEntryKey)
+                }));
+
+        await Assert.That(result.IsFailure).IsTrue();
+        await using var verify = await fixture.Harness.Store.QuerySessionAsync();
+        var group = await verify.LoadAsync<ContentTranslationGroupDocument>(100);
+        await Assert.That(group!.Revision).IsEqualTo(0);
     }
 
     [Test]
@@ -304,7 +413,9 @@ public sealed class ContentLocalizationFenceTests
         int targetVersionNumber = 0,
         ContentTranslationReview? targetReview = null,
         ContentTranslationProvenance? targetProvenance = null,
-        IContentTranslationGroupProjectionContributor? contributor = null)
+        IContentTranslationGroupProjectionContributor? contributor = null,
+        IReadOnlyList<ContentFieldDefinition>? fields = null,
+        IReadOnlyList<IAsyncContentValidator>? asyncValidators = null)
     {
         var harness = new SableTestHarness()
             .WithSchema<ContentItem>(SchemaMode.Flexible)
@@ -370,16 +481,19 @@ public sealed class ContentLocalizationFenceTests
         await harness.Session.SaveChangesAsync();
 
         var typeService = Substitute.For<IContentTypeService>();
+        var contentType = new ContentTypeDefinition
+        {
+            Id = 10,
+            SiteId = 1,
+            Alias = "animal",
+            Name = "Animal",
+            Structure = ContentStructure.Flat
+        };
+        if (fields is not null)
+            contentType.Fields.AddRange(fields);
         typeService.GetByAliasAsync(1, "animal", Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<Result<ContentTypeDefinition, AeroError>>(
-                new Result<ContentTypeDefinition, AeroError>.Ok(new ContentTypeDefinition
-                {
-                    Id = 10,
-                    SiteId = 1,
-                    Alias = "animal",
-                    Name = "Animal",
-                    Structure = ContentStructure.Flat
-                })));
+                new Result<ContentTypeDefinition, AeroError>.Ok(contentType)));
         var contributors = contributor is null
             ? Array.Empty<IContentTranslationGroupProjectionContributor>()
             : [contributor];
@@ -389,13 +503,12 @@ public sealed class ContentLocalizationFenceTests
         var validation = new ContentValidationService(
             typeService,
             new ContentHierarchyValidator(harness.Session, typeService),
-            [],
-            []);
+            [new ReferenceFieldValidator()],
+            asyncValidators ?? []);
         return new Fixture(
             harness,
             new ContentLocalizationHandler(
                 harness.Session,
-                writable,
                 writable,
                 typeService,
                 validation,

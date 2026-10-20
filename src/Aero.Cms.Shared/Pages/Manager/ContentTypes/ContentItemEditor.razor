@@ -16,6 +16,7 @@
     }
 
     .ci-panel {
+        min-width: 0;
         background: var(--pe-bg-secondary);
         border: 1px solid var(--pe-border);
         border-radius: var(--pe-radius-md);
@@ -63,7 +64,9 @@
     .ci-field-editor { min-width: 0; margin: 0; padding: 0; border: 0; }
     .ci-field-editor[disabled] { opacity: .72; }
     .ci-localization-warning { border: 1px solid var(--rz-warning); border-radius: var(--pe-radius-md); padding: .75rem; color: var(--pe-text-primary); background: color-mix(in srgb, var(--rz-warning) 10%, var(--pe-bg-primary)); }
+    .ci-shared-field-actions { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--pe-border); border-radius: var(--pe-radius-md); background: var(--pe-bg-primary); }
     .ci-review-card { border: 1px solid var(--pe-border); border-radius: var(--pe-radius-md); padding: 1rem; background: var(--pe-bg-primary); }
+    .ci-page-header, .ci-page-actions, .ci-editor-shell > * { min-width: 0; }
 
     @@media (max-width: 1024px) {
         .ci-editor-shell {
@@ -72,16 +75,48 @@
 
         .ci-key-value-row { grid-template-columns: 1fr; }
     }
+
+    @@media (max-width: 640px) {
+        .ci-page-header {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .ci-page-header > :first-child { min-width: 0; }
+
+        .ci-page-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+            gap: .5rem;
+        }
+
+        .ci-page-actions > *,
+        .ci-page-actions .rz-button,
+        .ci-page-actions .pe-btn {
+            min-width: 0;
+            width: 100%;
+            white-space: normal;
+        }
+
+        .ci-shared-field-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .ci-shared-field-actions .rz-button { width: 100%; }
+        .ci-panel { padding: .75rem; overflow-wrap: anywhere; }
+    }
 </style>
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between gap-4">
+    <div class="ci-page-header flex items-center justify-between gap-4">
         <div>
             <p class="text-xs font-semibold uppercase tracking-wide ci-muted">@L["Content entry"]</p>
             <h1 class="text-2xl font-bold pe-heading">@(Id.HasValue ? L["Edit {0}", _typeName] : L["New {0}", _typeName])</h1>
             <p class="mt-1 text-sm pe-description">@(_allowPublicUrl ? L["This entry can have its own public page."] : L["This entry is designed to be embedded in pages and blocks."])</p>
         </div>
-        <div class="flex gap-3">
+        <div class="ci-page-actions flex gap-3">
             <RadzenButton Text="@L["Cancel"]" ButtonStyle="ButtonStyle.Secondary" Click="@Cancel" />
             @if (CanPreviewPublishedPage)
             {
@@ -97,7 +132,12 @@
             {
                 <RadzenButton Icon="delete" Text="@L["Delete"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@DeleteAsync" Disabled="@_isSaving" />
             }
-            <RadzenButton Icon="save" Text="@L["Save Draft"]" ButtonStyle="ButtonStyle.Primary" Click="@SaveDraftAsync" Disabled="@_isSaving" />
+            <RadzenButton Icon="save"
+                          Text="@L["Save Draft"]"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@SaveDraftAsync"
+                          Disabled="@(_isSaving || IsSharedFieldsDirty)"
+                          title="@(IsSharedFieldsDirty ? L["Save shared fields before saving this culture's draft."] : null)" />
             @if (Id.HasValue && _publicationState == "Published")
             {
                 <RadzenButton Icon="unpublished" Text="@L["Unpublish"]" ButtonStyle="ButtonStyle.Warning" Click="@UnpublishAsync" Disabled="@_isSaving" />
@@ -108,8 +148,8 @@
                               Text="@L["Publish"]"
                               ButtonStyle="ButtonStyle.Success"
                               Click="@PublishAsync"
-                              Disabled="@(_isSaving || !PublishReviewDecision.CanPublish)"
-                              title="@(!PublishReviewDecision.CanPublish ? PublishReviewDecision.Detail : null)" />
+                              Disabled="@(_isSaving || IsSharedFieldsDirty || !PublishReviewDecision.CanPublish)"
+                              title="@(IsSharedFieldsDirty ? L["Save shared fields before publishing."] : !PublishReviewDecision.CanPublish ? PublishReviewDecision.Detail : null)" />
             }
         </div>
     </div>
@@ -135,6 +175,29 @@
     {
         <div class="ci-editor-shell">
             <section class="ci-panel space-y-6" aria-label="Entry fields">
+                @if (_typeDefinition.Fields.Any(IsSharedField))
+                {
+                    <div class="ci-shared-field-actions" role="region" aria-labelledby="content-shared-fields-heading">
+                        <div>
+                            <h2 id="content-shared-fields-heading" class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Shared fields"]</h2>
+                            <p class="ci-help mt-1">@L["Shared values apply to every culture. Edit them below, then save them separately from this culture's draft."]</p>
+                        </div>
+                        <RadzenButton Icon="save"
+                                      Text="@(_isSavingSharedFields ? L["Saving..."] : L["Save shared fields"])"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Size="ButtonSize.Small"
+                                      Click="@SaveSharedFieldsAsync"
+                                      Disabled="@(_isSavingSharedFields || !HasExactLocalizationTokens)" />
+                    </div>
+                    @if (!HasExactLocalizationTokens)
+                    {
+                        <p class="ci-localization-warning text-sm" role="status">@L["Save this entry as a draft first, or reload it, before editing shared fields."]</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_translationActionError))
+                    {
+                        <p class="ci-localization-warning text-sm" role="alert">@_translationActionError</p>
+                    }
+                }
                 @if (_typeDefinition.Fields.Count == 0)
                 {
                     <div class="text-center py-10">
@@ -170,18 +233,21 @@
                             @if (IsSharedField(field))
                             {
                                 <p id="@SharedFieldDescriptionId(field)" class="ci-localization-warning text-sm" role="status">
-                                    @L["This value is shared by every culture. Edit it in Translations, under Shared fields, then choose Save shared fields. This draft form does not overwrite it."]
+                                    @L["This value is shared by every culture. Edit it here, then choose Save shared fields. Save Draft does not overwrite it."]
                                 </p>
                             }
 
                             <fieldset class="ci-field-editor"
-                                      disabled="@IsSharedField(field)"
+                                      disabled="@(IsSharedField(field) && (!HasExactLocalizationTokens || _isSavingSharedFields))"
+                                      @attributes="SharedFieldInteractionAttributes(field)"
                                       aria-describedby="@(IsSharedField(field) ? SharedFieldDescriptionId(field) : null)">
                                 @switch (field.FieldType)
                                 {
                                 case "richtext":
                                     <div class="ci-localized-value" lang="@(IsSharedField(field) ? null : _culture)" dir="@(IsSharedField(field) ? null : PreviewDirection)">
-                                        <RadzenTextArea Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="10" Class="w-full" />
+                                        <ContentRichTextEditor Value="@_fieldValues[field.Name]"
+                                                               ValueChanged="@(v => _fieldValues[field.Name] = v)"
+                                                               AriaLabel="@FieldLabel(field)" />
                                     </div>
                                     break;
                                 case "image":
@@ -562,7 +628,10 @@
                                     @switch (field.FieldType)
                                     {
                                         case "richtext":
-                                            <RadzenTextArea id="@($"shared-{field.Name}")" Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="8" Class="w-full" />
+                                            <ContentRichTextEditor Id="@($"shared-{field.Name}")"
+                                                                   Value="@_fieldValues[field.Name]"
+                                                                   ValueChanged="@(v => _fieldValues[field.Name] = v)"
+                                                                   AriaLabel="@FieldLabel(field)" />
                                             break;
                                         case "number":
                                             <RadzenNumeric id="@($"shared-{field.Name}")" TValue="decimal?" Value="@_numberValues[field.Name]" ValueChanged="@(v => _numberValues[field.Name] = v)" Class="w-full" />
@@ -696,8 +765,8 @@
                                     <RadzenTextArea @bind-Value="_reviewNotes" Rows="3" Class="w-full" />
                                 </label>
                                 <div class="flex flex-wrap gap-2">
-                                    <RadzenButton Icon="verified" Text="@L["Approve exact revision"]" ButtonStyle="ButtonStyle.Success" Click="@(() => ReviewTranslationAsync(true))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty)" />
-                                    <RadzenButton Icon="block" Text="@L["Reject"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@(() => ReviewTranslationAsync(false))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty)" />
+                                    <RadzenButton Icon="verified" Text="@L["Approve exact revision"]" ButtonStyle="ButtonStyle.Success" Click="@(() => ReviewTranslationAsync(true))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty || IsSharedFieldsDirty)" />
+                                    <RadzenButton Icon="block" Text="@L["Reject"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@(() => ReviewTranslationAsync(false))" Disabled="@(_isReviewingTranslation || !HasExactLocalizationTokens || IsEditorDirty || IsSharedFieldsDirty)" />
                                 </div>
                             </div>
                         }

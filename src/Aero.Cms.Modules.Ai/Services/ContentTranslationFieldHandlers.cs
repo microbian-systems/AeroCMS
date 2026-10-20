@@ -38,8 +38,9 @@ public sealed class RichTextContentTranslationFieldHandler : IContentTranslation
             field = default!;
             return false;
         }
-        field = new(definition.Name, ContentFieldHint.MarkdownContent, source.GetString() ?? string.Empty);
+        field = new(definition.Name, ContentFieldHint.HtmlContent, source.GetString() ?? string.Empty);
         return true;
     }
-    public bool IsSafeResult(string source, string translated) => SchemaAwareContentAiTranslationGenerationService.PreservesMarkup(source, translated);
+    public bool IsSafeResult(string source, string translated) =>
+        SchemaAwareContentAiTranslationGenerationService.PreservesMarkup(source, translated);
 }

@@ -14,7 +14,6 @@ namespace Aero.Cms.Core.Content.Services;
 public sealed class ContentLocalizationHandler(
     IDocumentSession session,
     IContentService contentService,
-    AeroContentService writableContentService,
     IContentTypeService contentTypeService,
     ContentValidationService validation,
     IEnumerable<IContentTranslationGroupProjectionContributor>? translationGroupProjectionContributors = null) : IContentLocalizationHandler
@@ -268,10 +267,14 @@ public sealed class ContentLocalizationHandler(
             var candidate = Clone(variant);
             foreach (var (name, value) in candidateShared)
                 candidate.Fields[name] = value.Clone();
-            var validationResult = await validation.ValidateAsync(candidate, ContentValidationMode.Publish, cancellationToken);
+            // A shared-field mutation must preserve the CMS invariant that drafts may be
+            // incomplete. Required shared values are checked above, while draft-mode field
+            // validation and the explicit reference validation below still reject malformed
+            // values without requiring every culture variant to be publishable.
+            var validationResult = await validation.ValidateAsync(candidate, ContentValidationMode.Draft, cancellationToken);
             if (validationResult is Result<ContentItem, AeroError>.Failure validationFailure)
                 return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(validationFailure.Error);
-            var referenceResult = await writableContentService.ValidateReferenceFieldsAsync(candidate, typeOk.Value.Fields, cancellationToken);
+            var referenceResult = await validation.ValidateReferenceExistenceAsync(candidate, typeOk.Value, cancellationToken);
             if (referenceResult is Result<NoneType, AeroError>.Failure referenceFailure)
                 return Prelude.Fail<ContentLocalizationOperationResult, AeroError>(referenceFailure.Error);
         }

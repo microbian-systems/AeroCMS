@@ -29,6 +29,7 @@ public string Build(TranslateDocumentRequest request)
                 field.Key,
                 Hint = field.Hint.ToString(),
                 IsMarkdown = field.Hint.IsMarkdown(),
+                IsHtml = field.Hint.IsHtml(),
                 field.SourceText
             }),
             Context = request.Context?.Select(item => new { item.Key, item.Value })
@@ -45,6 +46,7 @@ public string Build(TranslateDocumentRequest request)
             - Do not include markdown fences, comments, or preamble.
             - Preserve all input field keys exactly.
             - Preserve markdown structure, code blocks, links, HTML tags, and front matter for markdown fields.
+            - Preserve the exact semantic HTML tag, attribute, and safe-link structure for HTML fields; translate text nodes only.
             - Do not translate URLs, source paths, IDs, code, CSS classes, or brand names.
             - Keep title and SEO fields concise while adapting wording for the target locale.
             - Keep empty source text empty.

@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
   </ItemGroup>
   
   <ItemGroup>
