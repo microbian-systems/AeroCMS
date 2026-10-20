@@ -103,6 +103,7 @@ public partial class ContentItemEditor
     private string _reviewNotes = string.Empty;
     private string? _translationActionError;
     private ContentItemEditSnapshot? _loadedEditSnapshot;
+    private IReadOnlyDictionary<string, JsonElement>? _loadedSharedFieldsSnapshot;
 
     private ContentTranslationPublishDecision PublishReviewDecision =>
         ContentLocalizationManagerUi.EvaluatePublishDecision(
@@ -123,6 +124,10 @@ public partial class ContentItemEditor
             _parentId,
             _sortOrder,
             BuildFieldsDictionary());
+
+    private bool IsSharedFieldsDirty =>
+        _loadedSharedFieldsSnapshot is not null
+        && !FieldsMatch(_loadedSharedFieldsSnapshot, BuildSharedFieldsDictionary());
 
     private static bool IsHierarchyReference(ContentFieldDefinition field) =>
         field.FieldType == ContentFieldTypes.Reference
@@ -427,6 +432,7 @@ protected override async Task OnInitializedAsync()
             _parentId,
             _sortOrder,
             BuildFieldsDictionary());
+        _loadedSharedFieldsSnapshot = CloneFields(BuildSharedFieldsDictionary());
 
         LoadTranslationReviewMetadata(
             metadataAvailable: detail.StorageVersion > 0
@@ -693,6 +699,12 @@ protected override async Task OnInitializedAsync()
 
     private async Task PublishAsync()
     {
+        if (IsSharedFieldsDirty)
+        {
+            Notify(NotificationSeverity.Warning, "Shared fields not saved", "Save shared fields before publishing this entry.");
+            return;
+        }
+
         if (!ValidateForPublish()) return;
 
         var publishDecision = PublishReviewDecision;
@@ -1247,6 +1259,18 @@ protected override async Task OnInitializedAsync()
                ?? [];
     }
 
+    private static IReadOnlyDictionary<string, JsonElement> CloneFields(
+        IReadOnlyDictionary<string, JsonElement> fields) =>
+        fields.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.Ordinal);
+
+    private static bool FieldsMatch(
+        IReadOnlyDictionary<string, JsonElement> expected,
+        IReadOnlyDictionary<string, JsonElement> current) =>
+        expected.Count == current.Count
+        && expected.All(pair =>
+            current.TryGetValue(pair.Key, out var value)
+            && JsonElement.DeepEquals(pair.Value, value));
+
     private Dictionary<string, JsonElement> BuildEditorFieldsDictionary(bool includeShared)
     {
         var dict = new Dictionary<string, JsonElement>();
@@ -1545,6 +1569,11 @@ protected override async Task OnInitializedAsync()
 
     private static bool IsSharedField(ContentFieldDefinition field) =>
         field.LocalizationMode == ContentFieldLocalizationMode.Shared;
+
+    private IReadOnlyDictionary<string, object> SharedFieldInteractionAttributes(ContentFieldDefinition field) =>
+        IsSharedField(field) && (!HasExactLocalizationTokens || _isSavingSharedFields)
+            ? new Dictionary<string, object> { ["inert"] = string.Empty }
+            : new Dictionary<string, object>();
 
     private static string SharedFieldDescriptionId(ContentFieldDefinition field) =>
         $"shared-field-{field.Name}-description";

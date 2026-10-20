@@ -76,6 +76,91 @@ public sealed class SchemaAwareContentAiTranslationGenerationServiceTests
     }
 
     [Test]
+    public async Task Richtext_is_sent_as_canonical_html_not_markdown()
+    {
+        var translator = new RecordingTranslator();
+
+        (await Create(
+                translator,
+                Snapshot(("body", ContentFieldTypes.RichText, ContentFieldLocalizationMode.Localized, "<p>Hello</p>")))
+            .GenerateAsync(Request())).ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>();
+
+        translator.Fields.Single().Hint.ShouldBe(ContentFieldHint.HtmlContent);
+    }
+
+    [Test]
+    public async Task Accepts_translated_block_html_when_structure_and_links_are_preserved()
+    {
+        const string source = "<div><p>Hello <strong>world</strong>. <a href=\"https://safe.example/docs\" title=\"Docs\">Read more</a></p></div>";
+        const string translated = "<div><p>Bonjour <strong>monde</strong>. <a href=\"https://safe.example/docs\" title=\"Docs\">En savoir plus</a></p></div>";
+
+        var result = await Create(
+                new RecordingTranslator(new Dictionary<string, string> { ["body"] = translated }),
+                Snapshot(("body", ContentFieldTypes.RichText, ContentFieldLocalizationMode.Localized, source)))
+            .GenerateAsync(Request());
+
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(translated);
+        ok.Warnings.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task Rejects_translated_html_when_structure_attributes_or_link_safety_change()
+    {
+        const string source = "<div><p>Hello <strong>world</strong>. <a href=\"https://safe.example/docs\" title=\"Docs\">Read more</a></p></div>";
+        string[] changedValues =
+        [
+            "<div><p>Bonjour <em>monde</em>. <a href=\"https://safe.example/docs\" title=\"Docs\">En savoir plus</a></p></div>",
+            "<div><p>Bonjour <strong>monde</strong>. <a href=\"https://other.example/docs\" title=\"Docs\">En savoir plus</a></p></div>",
+            "<div><p>Bonjour <strong>monde</strong>. <a href=\"https://safe.example/docs\" title=\"Documentation\">En savoir plus</a></p></div>",
+            "<div><p onclick=\"alert(1)\">Bonjour <strong>monde</strong>. <a href=\"https://safe.example/docs\" title=\"Docs\">En savoir plus</a></p></div>",
+            "<div><p>Bonjour <strong>monde</strong>. <a href=\"javascript:alert(1)\" title=\"Docs\">En savoir plus</a></p></div>"
+        ];
+
+        foreach (var changed in changedValues)
+        {
+            var result = await Create(
+                    new RecordingTranslator(new Dictionary<string, string> { ["body"] = changed }),
+                    Snapshot(("body", ContentFieldTypes.RichText, ContentFieldLocalizationMode.Localized, source)))
+                .GenerateAsync(Request());
+
+            var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+            ok.Application.TranslatedFields["body"].GetString().ShouldBe(source);
+            ok.Warnings.ShouldHaveSingleItem();
+        }
+    }
+
+    [Test]
+    public async Task Accepts_translated_markdown_with_url_and_email_autolinks()
+    {
+        const string source = "Visit <https://safe.example/docs> or email <care@example.com>.";
+        const string translated = "Visitez <https://safe.example/docs> ou envoyez un e-mail à <care@example.com>.";
+
+        var result = await Create(
+                new RecordingTranslator(new Dictionary<string, string> { ["body"] = translated }),
+                Snapshot(("body", ContentFieldTypes.RichText, ContentFieldLocalizationMode.Localized, source)))
+            .GenerateAsync(Request());
+
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(translated);
+    }
+
+    [Test]
+    public async Task Accepts_translated_mixed_markdown_and_safe_raw_html()
+    {
+        const string source = "## Details\n\nA <span title=\"fixed\">care note</span> for **keepers**.";
+        const string translated = "## Détails\n\nUne <span title=\"fixed\">note de soin</span> pour les **gardiens**.";
+
+        var result = await Create(
+                new RecordingTranslator(new Dictionary<string, string> { ["body"] = translated }),
+                Snapshot(("body", ContentFieldTypes.RichText, ContentFieldLocalizationMode.Localized, source)))
+            .GenerateAsync(Request());
+
+        var ok = result.ShouldBeOfType<Result<GenerateContentAiTranslationResponse>.Ok>().Value;
+        ok.Application.TranslatedFields["body"].GetString().ShouldBe(translated);
+    }
+
+    [Test]
     public async Task Preserves_markdown_structure_and_rejects_hostile_reference_links()
     {
         const string source = "---\ntitle: Hello\n---\n# Heading\n- item\n```csharp\ncode\n```\n[read][ref]\n[ref]: https://safe.example/docs";

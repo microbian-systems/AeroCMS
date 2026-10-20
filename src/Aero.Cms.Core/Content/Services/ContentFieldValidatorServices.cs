@@ -3,7 +3,9 @@ using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Content.Views;
+using Aero.Cms.Html;
 using FluentValidation;
+using Ganss.Xss;
 
 namespace Aero.Cms.Core.Content.Services;
 
@@ -35,6 +37,45 @@ public sealed class TextFieldValidator : IContentFieldValidator
 
         if (field.Settings.TryGetValue("minLength", out var minElement) && minElement.TryGetInt32(out var min) && value.Length < min)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be at least {min} characters.");
+    }
+}
+
+/// <summary>
+/// Validates canonical rich-text HTML and rejects markup that the configured allowlist would change.
+/// </summary>
+public sealed class RichTextFieldValidator : IContentFieldValidator
+{
+    private readonly IHtmlSanitizer htmlSanitizer = RichTextHtmlSanitizer.Create();
+
+    /// <inheritdoc />
+    public string FieldType => ContentFieldTypes.RichText;
+
+    /// <inheritdoc />
+    public void ValidateElement(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be rich-text HTML.");
+            return;
+        }
+
+        var value = element.GetString() ?? string.Empty;
+        if (!string.Equals(value, htmlSanitizer.Sanitize(value), StringComparison.Ordinal))
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} contains unsupported or unsafe HTML.");
+            return;
+        }
+
+        if (field.Settings.TryGetValue("maxLength", out var maxElement)
+            && maxElement.TryGetInt32(out var max)
+            && value.Length > max)
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be {max} characters or fewer.");
+        }
     }
 }
 

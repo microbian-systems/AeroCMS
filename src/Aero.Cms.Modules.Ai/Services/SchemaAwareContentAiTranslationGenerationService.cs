@@ -3,6 +3,7 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Content.Localization;
+using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
 using Markdig;
@@ -160,7 +161,64 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
     internal static bool PreservesMarkup(string source, string translated)
     {
         if (!IsSafeMarkup(source) || !IsSafeMarkup(translated)) return false;
+        if (!PreservesRawHtmlStructure(source, translated)) return false;
         return MarkdownFingerprint(source).SequenceEqual(MarkdownFingerprint(translated), StringComparer.Ordinal);
+    }
+
+    private static bool PreservesRawHtmlStructure(string source, string translated)
+    {
+        var sourceFragments = RawHtmlFragments(Markdown.Parse(source, MarkdownPipeline)).ToArray();
+        var translatedFragments = RawHtmlFragments(Markdown.Parse(translated, MarkdownPipeline)).ToArray();
+        if (sourceFragments.Length != translatedFragments.Length) return false;
+
+        for (var index = 0; index < sourceFragments.Length; index++)
+        {
+            if (!RichTextHtmlStructureComparer.TryGetSafeStructureFingerprint(sourceFragments[index], out var sourceFingerprint) ||
+                !RichTextHtmlStructureComparer.TryGetSafeStructureFingerprint(translatedFragments[index], out var translatedFingerprint) ||
+                !string.Equals(sourceFingerprint, translatedFingerprint, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static IEnumerable<string> RawHtmlFragments(ContainerBlock container)
+    {
+        foreach (var block in container)
+        {
+            if (block is HtmlBlock htmlBlock)
+            {
+                yield return htmlBlock.Lines.ToString();
+            }
+
+            if (block is ContainerBlock childContainer)
+            {
+                foreach (var fragment in RawHtmlFragments(childContainer)) yield return fragment;
+            }
+
+            if (block is LeafBlock { Inline: { } inline })
+            {
+                foreach (var fragment in RawHtmlFragments(inline)) yield return fragment;
+            }
+        }
+    }
+
+    private static IEnumerable<string> RawHtmlFragments(ContainerInline container)
+    {
+        for (var inline = container.FirstChild; inline is not null; inline = inline.NextSibling)
+        {
+            if (inline is HtmlInline htmlInline)
+            {
+                yield return htmlInline.Tag;
+            }
+
+            if (inline is ContainerInline childContainer)
+            {
+                foreach (var fragment in RawHtmlFragments(childContainer)) yield return fragment;
+            }
+        }
     }
 
     private static bool IsSafeMarkup(string value)
@@ -169,20 +227,8 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
             || System.Text.RegularExpressions.Regex.IsMatch(value, "\\son[a-z]+\\s*=", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
             || System.Text.RegularExpressions.Regex.IsMatch(value, "(?:href|src)\\s*=\\s*['\"]?\\s*(?:javascript|data|vbscript):", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
             || System.Text.RegularExpressions.Regex.IsMatch(value, "\\[[^]]*\\]\\(\\s*(?:javascript|data|vbscript):", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return false;
-        var stack = new Stack<string>();
-        foreach (var tag in Tags(value))
-        {
-            if (tag.StartsWith("</", StringComparison.Ordinal))
-            {
-                if (stack.Count == 0 || !string.Equals(stack.Pop(), tag[2..^1], StringComparison.OrdinalIgnoreCase)) return false;
-            }
-            else if (!tag.EndsWith("/>", StringComparison.Ordinal) && !IsVoidTag(tag)) stack.Push(TagName(tag));
-        }
-        return stack.Count == 0;
+        return true;
     }
-
-    private static IEnumerable<string> Tags(string value) => System.Text.RegularExpressions.Regex.Matches(value, "<\\/?[a-zA-Z][^>]*>")
-        .Select(match => System.Text.RegularExpressions.Regex.Replace(match.Value, "\\s+", " ").Trim());
     private static IEnumerable<string> MarkdownFingerprint(string value)
     {
         var frontMatter = FrontMatter(value);
@@ -240,7 +286,7 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         FencedCodeBlock fenced => $"fence:{fenced.Info}:{fenced.Lines}",
         CodeBlock code => $"code:{code.Lines}",
         Table table => $"table:{string.Join(',', table.ColumnDefinitions?.Select(column => $"{column.Alignment}:{column.Width}") ?? [])}",
-        HtmlBlock html => $"htmlblock:{html.Lines}",
+        HtmlBlock html => $"htmlblock:{RichTextHtmlStructureComparer.StructureFingerprint(html.Lines.ToString())}",
         _ => string.Empty
     };
     private static string? FrontMatter(string value)
@@ -248,6 +294,4 @@ public sealed class SchemaAwareContentAiTranslationGenerationService(
         var match = System.Text.RegularExpressions.Regex.Match(value, "\\A---\\r?\\n(?<front>.*?)\\r?\\n---\\r?\\n", System.Text.RegularExpressions.RegexOptions.Singleline);
         return match.Success ? match.Groups["front"].Value : null;
     }
-    private static string TagName(string tag) => tag.Trim('<', '>', '/', ' ').Split(' ', 2)[0];
-    private static bool IsVoidTag(string tag) => TagName(tag).ToLowerInvariant() is "br" or "hr" or "img" or "meta" or "link" or "input";
 }

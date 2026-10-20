@@ -15,3 +15,10 @@ Task<IReadOnlyList<ValidationFailure>> ValidateAsync(
         ContentTypeDefinition type,
         CancellationToken ct);
 }
+
+/// <summary>
+/// Marks the asynchronous validator that verifies stored references exist in the
+/// authoritative site scope. Shared-field commands invoke this validator even though
+/// the surrounding content variants are still incomplete drafts.
+/// </summary>
+public interface IContentReferenceExistenceValidator : IAsyncContentValidator;

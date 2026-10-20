@@ -15,6 +15,7 @@ public enum ContentFieldHint
     SeoDescription,
     Slug,
     MarkdownContent,
+    HtmlContent,
     Label,
     AltText,
     CompanyName,
@@ -40,6 +41,10 @@ public static class ContentFieldHintExtensions
     /// </summary>
 public static bool IsMarkdown(this ContentFieldHint hint) =>
         hint is ContentFieldHint.MarkdownContent;
+
+    /// <summary>Returns whether a field contains canonical semantic HTML.</summary>
+    public static bool IsHtml(this ContentFieldHint hint) =>
+        hint is ContentFieldHint.HtmlContent;
 }
 
 /// <summary>

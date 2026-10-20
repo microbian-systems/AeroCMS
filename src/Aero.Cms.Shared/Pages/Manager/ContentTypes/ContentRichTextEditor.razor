@@ -1,0 +1,64 @@
+@namespace Aero.Cms.Shared.Pages.Manager.ContentTypes
+@using Aero.Cms.Html
+@using Ganss.Xss
+
+<RadzenHtmlEditor Name="@Id"
+                  Value="@_safeValue"
+                  ValueChanged="@OnValueChangedAsync"
+                  Immediate="true"
+                  Paste="@SanitizePaste"
+                  Style="width: 100%; min-height: 18rem;"
+                  aria-label="@AriaLabel">
+    <RadzenHtmlEditorUndo />
+    <RadzenHtmlEditorRedo />
+    <RadzenHtmlEditorSeparator />
+    <RadzenHtmlEditorFormatBlock />
+    <RadzenHtmlEditorSeparator />
+    <RadzenHtmlEditorBold />
+    <RadzenHtmlEditorItalic />
+    <RadzenHtmlEditorUnderline />
+    <RadzenHtmlEditorStrikeThrough />
+    <RadzenHtmlEditorSeparator />
+    <RadzenHtmlEditorUnorderedList />
+    <RadzenHtmlEditorOrderedList />
+    <RadzenHtmlEditorSeparator />
+    <RadzenHtmlEditorLink />
+    <RadzenHtmlEditorUnlink />
+    <RadzenHtmlEditorRemoveFormat />
+</RadzenHtmlEditor>
+
+@code {
+    private readonly Ganss.Xss.IHtmlSanitizer _htmlSanitizer = RichTextHtmlSanitizer.Create();
+    private string _safeValue = string.Empty;
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Rich text editor";
+
+    protected override void OnParametersSet()
+    {
+        _safeValue = SanitizeEditorHtml(Value);
+    }
+
+    private async Task OnValueChangedAsync(string value)
+    {
+        _safeValue = SanitizeEditorHtml(value);
+        await ValueChanged.InvokeAsync(_safeValue);
+    }
+
+    private void SanitizePaste(HtmlEditorPasteEventArgs args)
+    {
+        args.Html = SanitizeEditorHtml(args.Html);
+    }
+
+    private string SanitizeEditorHtml(string? html) =>
+        _htmlSanitizer.Sanitize(RichTextHtmlCanonicalizer.CanonicalizeEditorFormatting(html));
+}

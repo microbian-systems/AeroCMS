@@ -21,6 +21,8 @@ public sealed class ContentValidationService(
     IEnumerable<IContentFieldValidator> fieldValidators,
     IEnumerable<IAsyncContentValidator> asyncValidators)
 {
+    private readonly IReadOnlyList<IAsyncContentValidator> asyncValidators = asyncValidators.ToArray();
+
     /// <summary>
     /// Validates a content item under draft or publication rules.
     /// </summary>
@@ -68,5 +70,26 @@ public sealed class ContentValidationService(
         }
 
         return Prelude.Ok<ContentItem, AeroError>(item);
+    }
+
+    /// <summary>
+    /// Verifies reference existence and authoritative scope without applying publication-only
+    /// required-field rules to an otherwise incomplete draft.
+    /// </summary>
+    public async Task<Result<NoneType, AeroError>> ValidateReferenceExistenceAsync(
+        ContentItem item,
+        ContentTypeDefinition type,
+        CancellationToken ct = default)
+    {
+        var failures = new List<string>();
+        foreach (var validator in asyncValidators.OfType<IContentReferenceExistenceValidator>())
+        {
+            var validatorFailures = await validator.ValidateAsync(item, type, ct);
+            failures.AddRange(validatorFailures.Select(failure => failure.ErrorMessage));
+        }
+
+        return failures.Count == 0
+            ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
+            : new AeroError.Validation(failures.ToImmutableList());
     }
 }
